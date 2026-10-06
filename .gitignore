@@ -25,3 +25,8 @@ m2c_out/
 inventory_a.txt
 chk_ok.txt
 wip_list.txt
+wip/_v_*.c
+wip/xp_*.c
+wip/xp_v.json
+m2c_jt_tmp.s
+perm/
