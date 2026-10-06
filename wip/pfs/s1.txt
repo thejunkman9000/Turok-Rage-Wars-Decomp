@@ -1,0 +1,13 @@
+seq.c alSeqNextEvent 0xB7B50
+seq.c alSeqNew 0xB7CB8
+seq.c alSeqGetTicks 0xB7D98
+seq.c alSeqTicksToSec 0xB7DA4
+seq.c alSeqSecToTicks 0xB7DF0
+seq.c alSeqNewMarker 0xB7E78
+seq.c alSeqSetLoc 0xB7F8C
+seq.c alSeqGetLoc 0xB7FA8
+seq.c __alSeqNextDelta 0xB7FC4
+seq.c __alSeqReadVarLen 0xB802C
+seq.c __alSeqReadByte 0xB8080
+seq.c __alSeqReadShort 0xB8094
+seq.c __alSeqReadWord 0xB80C4

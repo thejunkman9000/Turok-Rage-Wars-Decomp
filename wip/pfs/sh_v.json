@@ -1,0 +1,7 @@
+{"body": ["u8 b1 = *seq->curPtr++; u8 b0 = *seq->curPtr++; return (b1 << 8) | b0;",
+"s32 v; v = *seq->curPtr++; v = v << 8; v |= *seq->curPtr++; return v;",
+"s16 v; v = *seq->curPtr++ << 8; v |= *seq->curPtr++; return v;",
+"u16 v; v = *seq->curPtr++ << 8; v |= *seq->curPtr++; return v;",
+"s32 v = *seq->curPtr++ << 8; v |= *seq->curPtr++; return v;",
+"s32 v = *seq->curPtr++; s32 w = *seq->curPtr++; return (v << 8) | w;",
+"s32 v = *seq->curPtr++; v = (v << 8) | *seq->curPtr++; return v;"]}

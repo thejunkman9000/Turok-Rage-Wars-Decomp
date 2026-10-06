@@ -1,0 +1,7 @@
+{"body": [
+"u8 *tmp = seq->curPtr; s32 ret; if (tmp < seq->base + seq->len) { *pDeltaTicks = __alSeqReadVarLen(seq); seq->curPtr = tmp; ret = 1; } else { ret = 0; } return ret;",
+"u8 *tmp = seq->curPtr; if (tmp >= seq->base + seq->len) { return 0; } *pDeltaTicks = __alSeqReadVarLen(seq); seq->curPtr = tmp; return 1;",
+"u8 *tmp; tmp = seq->curPtr; if (seq->base + seq->len > tmp) { *pDeltaTicks = __alSeqReadVarLen(seq); seq->curPtr = tmp; return 1; } return 0;",
+"u8 *tmp = seq->curPtr; if (tmp < (seq->base + seq->len)) { *pDeltaTicks = __alSeqReadVarLen(seq); seq->curPtr = tmp; return 1; } else { return 0; }",
+"s32 ret = 0; u8 *tmp = seq->curPtr; if (tmp < seq->base + seq->len) { *pDeltaTicks = __alSeqReadVarLen(seq); seq->curPtr = tmp; ret = 1; } return ret;"
+]}

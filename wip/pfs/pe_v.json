@@ -1,0 +1,12 @@
+{"decl": [
+"ALEventQueueItem *item; ALLink *node; OSIntMask mask; ALEventQueueItem *nextItem; s32 postAtEnd = 0;",
+"ALEventQueueItem *item; ALLink *node; OSIntMask mask; ALEventQueueItem *nextItem; s32 postAtEnd; postAtEnd = 0;",
+"s32 postAtEnd = 0; ALEventQueueItem *item; ALLink *node; OSIntMask mask; ALEventQueueItem *nextItem;",
+"ALEventQueueItem *nextItem; ALEventQueueItem *item; ALLink *node; OSIntMask mask; s32 postAtEnd = 0;",
+"ALEventQueueItem *item; ALEventQueueItem *nextItem; ALLink *node; OSIntMask mask; s32 postAtEnd = 0;",
+"ALEventQueueItem *item; ALEventQueueItem *nextItem; ALLink *node; s32 postAtEnd = 0; OSIntMask mask;",
+"OSIntMask mask; ALEventQueueItem *item; ALLink *node; ALEventQueueItem *nextItem; s32 postAtEnd = 0;",
+"ALLink *node; ALEventQueueItem *item; OSIntMask mask; ALEventQueueItem *nextItem; s32 postAtEnd = 0;",
+"ALEventQueueItem *item; ALLink *node; ALEventQueueItem *nextItem; OSIntMask mask; s32 postAtEnd = 0;",
+"s32 postAtEnd = 0; OSIntMask mask; ALEventQueueItem *item; ALLink *node; ALEventQueueItem *nextItem;"
+]}

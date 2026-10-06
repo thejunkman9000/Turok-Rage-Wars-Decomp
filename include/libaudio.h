@@ -101,6 +101,25 @@ typedef struct {
     ALEventQueue evtq;
 } ALCSPlayer;
 
+/* plain MIDI sequence (seq.c) */
+typedef struct {
+    u8 *base;
+    u8 *trackStart;
+    u8 *curPtr;
+    s32 lastTicks;
+    u32 len;
+    f32 qnpt;
+    s16 division;
+    u16 lastStatus;
+} ALSeq;
+
+typedef struct {
+    u8 *curPtr;
+    s32 lastTicks;
+    s32 curTicks;
+    u16 lastStatus;
+} ALSeqMarker;
+
 #define AL_SEQP_MIDI_EVT 2
 #define AL_SEQP_VOL_EVT 0xA
 #define AL_SEQP_SEQ_EVT 0xD

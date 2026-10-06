@@ -160,6 +160,7 @@ segments:
       - [0xB5DA4, c, libultra/alEvtqPostEvent]
       - [0xB5EB0, c, libultra/alEvtqFlush]
       - [0xB5F28, c, libultra/alEvtqFlushType]
+      - [0xB5FD8, c, libultra/pad_0B5FD8]
       - [0xB5FE0, c, libultra/alCopy]
       - [0xB600C, c, libultra/pad_0B600C]
       - [0xB6010, c, libultra/alHeapDBAlloc]
@@ -186,19 +187,8 @@ segments:
       - [0xB79F4, c, libultra/__postNextSeqEvent]
       - [0xB7ABC, c, libultra/__handleMetaMsg]
       - [0xB7B20, c, libultra/__setUsptFromTempo]
-      - [0xB7B50, c, libultra/alSeqNextEvent]
-      - [0xB7CB8, c, libultra/alSeqNew]
-      - [0xB7D98, c, libultra/alSeqGetTicks]
-      - [0xB7DA4, c, libultra/alSeqTicksToSec]
-      - [0xB7DF0, c, libultra/alSeqSecToTicks]
-      - [0xB7E78, c, libultra/alSeqNewMarker]
-      - [0xB7F8C, c, libultra/alSeqSetLoc]
-      - [0xB7FA8, c, libultra/alSeqGetLoc]
-      - [0xB7FC4, c, libultra/__alSeqNextDelta]
-      - [0xB802C, c, libultra/__alSeqReadVarLen]
-      - [0xB8080, c, libultra/__alSeqReadByte]
-      - [0xB8094, c, libultra/__alSeqReadShort]
-      - [0xB80C4, c, libultra/__alSeqReadWord]
+      - [0xB7B50, c, libultra/seq]
+      - [0xB8114, c, libultra/pad_0B8114]
       - [0xB8120, c, libultra/alUnlink]
       - [0xB8150, c, libultra/alLink]
       - [0xB8170, c, libultra/alInit]
@@ -506,33 +496,35 @@ segments:
       - [0xCD150, .rodata, libultra/cseq_new]
       - [0xCD160, .rodata, libultra/cseq_ticks]
       - {start: 0xCD194, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD330, .rodata, libultra/seq]
+      - {start: 0xCD358, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
       - [0xCD660, .rodata, libultra/cosf]
       - [0xCD6C0, .rodata, libultra/guLookAt]
       - [0xCD6D0, .rodata, libultra/guMtxIdent]
       - [0xCD6D8, .rodata, libultra/guMtxIdentF]
       - [0xCD6DC, .rodata, libultra/guMtxF2L]
       - [0xCD6E0, .rodata, libultra/guMtxL2F]
-      - {start: 0xCD6E4, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD6E4, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
       - [0xCD6F0, .rodata, libultra/guPerspective]
-      - {start: 0xCD720, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD720, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
       - [0xCD770, .rodata, libultra/osAiSetFrequency]
-      - {start: 0xCD780, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD780, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7A0, .rodata, libultra/osEPiRawReadIo]
-      - {start: 0xCD7B4, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7B4, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
-      - {start: 0xCD7D4, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7D4, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7E0, .rodata, libultra/__osSiRawStartDma]
-      - {start: 0xCD7F4, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7F4, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
       - [0xCD800, .rodata, libultra/__osSpRawStartDma]
-      - {start: 0xCD814, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD814, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
       - [0xCD830, .rodata, libultra/__osSiRawReadIo]
-      - {start: 0xCD844, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD844, type: bin, name: data_11, linker_section_order: .rodata, linker_section: .data}
       - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
-      - {start: 0xCD864, type: bin, name: data_11, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD864, type: bin, name: data_12, linker_section_order: .rodata, linker_section: .data}
       - [0xCD940, .rodata, libultra/xprintf]
-      - {start: 0xCDAB8, type: bin, name: data_12, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDAB8, type: bin, name: data_13, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

@@ -1,0 +1,10 @@
+__alSeqReadByte.c __alSeqReadByte 0xB8080
+__alSeqReadShort.c __alSeqReadShort 0xB8094
+__alSeqReadWord.c __alSeqReadWord 0xB80C4
+__alSeqReadVarLen.c __alSeqReadVarLen 0xB802C
+__alSeqNextDelta.c __alSeqNextDelta 0xB7FC4
+alSeqGetTicks.c alSeqGetTicks 0xB7D98
+alSeqGetLoc.c alSeqGetLoc 0xB7FA8
+alSeqSetLoc.c alSeqSetLoc 0xB7F8C
+alSeqTicksToSec.c alSeqTicksToSec 0xB7DA4
+alSeqSecToTicks.c alSeqSecToTicks 0xB7DF0

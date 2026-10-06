@@ -246,7 +246,8 @@ alEvtqNew 0xB5C90 31 libultra
 alEvtqNextEvent 0xB5D0C 38 libultra
 alEvtqPostEvent 0xB5DA4 67 libultra
 alEvtqFlush 0xB5EB0 30 libultra
-alEvtqFlushType 0xB5F28 46 libultra
+alEvtqFlushType 0xB5F28 44 libultra
+pad_0B5FD8 0xB5FD8 2 libultra
 alCopy 0xB5FE0 11 libultra
 pad_0B600C 0xB600C 1 libultra
 alHeapDBAlloc 0xB6010 18 libultra
@@ -270,19 +271,8 @@ __seqpStopOsc 0xB7904 60 libultra
 __postNextSeqEvent 0xB79F4 50 libultra
 __handleMetaMsg 0xB7ABC 25 libultra
 __setUsptFromTempo 0xB7B20 12 libultra
-alSeqNextEvent 0xB7B50 90 libultra
-alSeqNew 0xB7CB8 56 libultra
-alSeqGetTicks 0xB7D98 3 libultra
-alSeqTicksToSec 0xB7DA4 19 libultra
-alSeqSecToTicks 0xB7DF0 34 libultra
-alSeqNewMarker 0xB7E78 69 libultra
-alSeqSetLoc 0xB7F8C 7 libultra
-alSeqGetLoc 0xB7FA8 7 libultra
-__alSeqNextDelta 0xB7FC4 26 libultra
-__alSeqReadVarLen 0xB802C 21 libultra
-__alSeqReadByte 0xB8080 5 libultra
-__alSeqReadShort 0xB8094 12 libultra
-__alSeqReadWord 0xB80C4 23 libultra
+seq 0xB7B50 369 libultra ro=0xCD330:40
+pad_0B8114 0xB8114 3 libultra
 alUnlink 0xB8120 12 libultra
 alLink 0xB8150 8 libultra
 alInit 0xB8170 12 libultra
