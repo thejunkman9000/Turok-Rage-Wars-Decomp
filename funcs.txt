@@ -72,3 +72,8 @@ __osSiRawStartDma  0xBF9A0  46  libultra ro=0xCD7E0:20
 __osSpRawStartDma  0xBFCC0  63  libultra ro=0xCD800:20
 __osSpSetPc        0xBFDC0  11  libultra
 __osSpSetStatus    0xBFDF0   5  libultra
+__osViInit  0xBFF00  63  libultra
+osViGetCurrentFramebuffer  0xC0000  14  libultra
+osCreateViManager  0xC0040  188  libultra
+__osViGetCurrentContext  0xC0330  4  libultra
+osViSetYScale  0xC0560  17  libultra

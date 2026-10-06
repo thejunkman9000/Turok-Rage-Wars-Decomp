@@ -24,6 +24,8 @@ typedef s32 OSId;
 
 #define OS_MESG_NOBLOCK 0
 #define OS_MESG_BLOCK 1
+#define OS_EVENT_COUNTER 3
+#define OS_EVENT_VI 7
 
 #define OS_STATE_STOPPED 1
 #define OS_STATE_RUNNABLE 2
@@ -471,8 +473,11 @@ s32 __osSpDeviceBusy(void);
 void __osViSwapContext(void);
 void __osViInit(void);
 void *osViGetCurrentFramebuffer(void);
+void __osTimerInterrupt(void);
+void __osTimerServicesInit(void);
 void osCreateViManager(OSPri pri);
-void __osViMgrMain(void *arg);
+OSViContext *__osViGetCurrentContext(void);
+void osViSetYScale(f32 value);
 s32 __osSiRawStartDma(s32 dir, void *dramAddr);
 s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);
 s32 __osSpSetPc(u32 pc);
