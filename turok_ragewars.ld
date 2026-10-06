@@ -38,6 +38,8 @@ SECTIONS
         build/asm/entry.o(.text);
         build/src/libultra/osSetTime.o(.text);
         build/asm/A2E64.o(.text);
+        build/src/libultra/_VirtualToPhysicalTask.o(.text);
+        build/src/libultra/osSpTaskLoad.o(.text);
         build/src/libultra/osSpTaskStartGo.o(.text);
         build/asm/BFC98.o(.text);
         build/src/libultra/osSpTaskYield.o(.text);
@@ -66,6 +68,8 @@ SECTIONS
         build/asm/entry.o(.data);
         build/src/libultra/osSetTime.o(.data);
         build/asm/A2E64.o(.data);
+        build/src/libultra/_VirtualToPhysicalTask.o(.data);
+        build/src/libultra/osSpTaskLoad.o(.data);
         build/src/libultra/osSpTaskStartGo.o(.data);
         build/asm/BFC98.o(.data);
         build/src/libultra/osSpTaskYield.o(.data);
@@ -95,6 +99,8 @@ SECTIONS
         build/asm/entry.o(.rodata);
         build/src/libultra/osSetTime.o(.rodata);
         build/asm/A2E64.o(.rodata);
+        build/src/libultra/_VirtualToPhysicalTask.o(.rodata);
+        build/src/libultra/osSpTaskLoad.o(.rodata);
         build/src/libultra/osSpTaskStartGo.o(.rodata);
         build/asm/BFC98.o(.rodata);
         build/src/libultra/osSpTaskYield.o(.rodata);
@@ -128,6 +134,8 @@ SECTIONS
         build/asm/entry.o(.bss);
         build/src/libultra/osSetTime.o(.bss);
         build/asm/A2E64.o(.bss);
+        build/src/libultra/_VirtualToPhysicalTask.o(.bss);
+        build/src/libultra/osSpTaskLoad.o(.bss);
         build/src/libultra/osSpTaskStartGo.o(.bss);
         build/asm/BFC98.o(.bss);
         build/src/libultra/osSpTaskYield.o(.bss);

@@ -3,6 +3,8 @@
 # everything between listed functions stays as asm. Keep sorted by ROM address.
 # instruction_count includes the delay slot of the final return.
 osSetTime          0xA2E4C   6  libultra
+_VirtualToPhysicalTask 0xBFA80 58 libultra
+osSpTaskLoad       0xBFB68  65  libultra
 osSpTaskStartGo    0xBFC6C  11  libultra
 osSpTaskYield      0xBFE10   7  libultra
 osViBlack          0xBFEA0  23  libultra

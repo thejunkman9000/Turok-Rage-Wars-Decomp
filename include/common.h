@@ -122,7 +122,37 @@ typedef struct OSTimer_s {
     /* 0x1C */ OSMesg *msg;
 } OSTimer;
 
-typedef struct OSTask_s OSTask;
+typedef struct {
+    /* 0x00 */ u32 type;
+    /* 0x04 */ u32 flags;
+    /* 0x08 */ u64 *ucode_boot;
+    /* 0x0C */ u32 ucode_boot_size;
+    /* 0x10 */ u64 *ucode;
+    /* 0x14 */ u32 ucode_size;
+    /* 0x18 */ u64 *ucode_data;
+    /* 0x1C */ u32 ucode_data_size;
+    /* 0x20 */ u64 *dram_stack;
+    /* 0x24 */ u32 dram_stack_size;
+    /* 0x28 */ u64 *output_buff;
+    /* 0x2C */ u64 *output_buff_size;
+    /* 0x30 */ u64 *data_ptr;
+    /* 0x34 */ u32 data_size;
+    /* 0x38 */ u64 *yield_data_ptr;
+    /* 0x3C */ u32 yield_data_size;
+} OSTask_t;
+
+typedef union {
+    OSTask_t t;
+    long long int force_structure_alignment;
+} OSTask;
+
+#define OS_TASK_YIELDED 0x0001
+#define OS_TASK_LOADABLE 0x0004
+#define OS_YIELD_DATA_SIZE 0x0C00
+
+#define SP_IMEM_START 0x04001000
+#define PHYS_TO_K1(x) ((u32)(x) | 0xA0000000)
+#define IO_READ(addr) (*(volatile u32 *)PHYS_TO_K1(addr))
 
 /* RSP status register write bits */
 #define SPSTATUS_CLEAR_HALT          0x00000001
@@ -130,6 +160,9 @@ typedef struct OSTask_s OSTask;
 #define SPSTATUS_CLEAR_SSTEP         0x00000020
 #define SPSTATUS_SET_INTR_ON_BREAK   0x00000100
 #define SPSTATUS_SET_SIGNAL0         0x00000400
+#define SPSTATUS_CLEAR_SIGNAL0       0x00000200
+#define SPSTATUS_CLEAR_SIGNAL1       0x00000800
+#define SPSTATUS_CLEAR_SIGNAL2       0x00002000
 
 /* libultra globals */
 extern OSThread *__osThreadTail;
@@ -137,6 +170,7 @@ extern OSThread *__osRunningThread;
 extern OSViContext *__osViNext;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
+extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask */
 
 /* libultra functions (asm or C) */
 u32 __osDisableInt(void);
@@ -146,5 +180,10 @@ void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);
 OSThread *__osPopThread(OSThread **queue);
 void osStartThread(OSThread *thread);
+u32 osVirtualToPhysical(void *addr);
+void osWritebackDCache(void *addr, s32 size);
+s32 __osSpSetPc(u32 pc);
+s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);
+void *memcpy(void *dst, const void *src, u32 n);
 
 #endif /* COMMON_H */

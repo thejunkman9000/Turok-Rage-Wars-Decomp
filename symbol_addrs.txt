@@ -32,3 +32,13 @@ __osEnqueueAndYield = 0x002C145C; // type:func
 __osPopThread = 0x002C1648; // type:func
 __osRunningThread = 0x800D92A0;
 _osCurrentTime = 0x800D2B8C;
+
+// task helpers
+_VirtualToPhysicalTask = 0x002BEE80; // type:func
+osSpTaskLoad = 0x002BEF68; // type:func
+osVirtualToPhysical = 0x002C0CB0; // type:func
+osWritebackDCache = 0x002C2370; // type:func
+__osSpSetPc = 0x002BF1C0; // type:func
+__osSpRawStartDma = 0x002BF0C0; // type:func
+memcpy = 0x002C2490; // type:func
+__osTmpTask = 0x8014EA90;

@@ -43,12 +43,12 @@ def compile_funcs(src):
     flags = ' '.join(extra) or '-O2'
     isa = os.environ.get('LU_ISA', '-mips2 -mgp32 -mfp32')   # override e.g. LU_ISA="-mips3 -mgp32 -mfp32"
     r = sh(f"cd {tmp} && {G}/gcc -B{G}/ -meb {isa} -G 0 -mno-abicalls -fno-pic {flags} "
-           f"-I{LU}/include -I{LU}/include/PR -I{LU}/lib/src -D_LANGUAGE_C -DTARGET_N64 -D_FINALROM -DNDEBUG -S -o {base}.s {base}.c")
+           f"-I{os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))} -I{LU}/include -I{LU}/include/PR -I{LU}/lib/src -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -DTARGET_N64 -D_FINALROM -DNDEBUG -S -o {base}.s {base}.c")
     if r.returncode:
         return None, r.stderr.strip().splitlines()[:3]
     asm = fix_asm(open(f'{tmp}/{base}.s').read())
     open(f'{tmp}/{base}.s', 'w').write(asm)
-    r = sh(f"cd {tmp} && {P}-as -EB -march=vr4300 -mabi=32 -mno-pdr -W -o {base}.o {base}.s && "
+    r = sh(f"cd {tmp} && {P}-as -EB -march=vr4300 -mabi=32 -mno-pdr -W -I {os.path.expanduser("~/trw")} -I {os.path.expanduser("~/trw/include")} -o {base}.o {base}.s && "
            f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
     if r.returncode:
         return None, r.stderr.strip().splitlines()[:3]

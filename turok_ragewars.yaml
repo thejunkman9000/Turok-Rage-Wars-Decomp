@@ -62,6 +62,8 @@ segments:
       - [0x1000, asm, entry]
       - [0xA2E4C, c, libultra/osSetTime]
       - [0xA2E64, asm]
+      - [0xBFA80, c, libultra/_VirtualToPhysicalTask]
+      - [0xBFB68, c, libultra/osSpTaskLoad]
       - [0xBFC6C, c, libultra/osSpTaskStartGo]
       - [0xBFC98, asm]
       - [0xBFE10, c, libultra/osSpTaskYield]
