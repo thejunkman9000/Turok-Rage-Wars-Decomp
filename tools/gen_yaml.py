@@ -10,7 +10,7 @@ funcs.txt line:  <name> <rom_start> <instruction_count> <src subdir> [ro=<rom_of
     tools/cc.sh where, so `li.s` literals can be addressed absolutely).
 The block between the BEGIN/END GENERATED markers is replaced.
 """
-import re, sys
+import os, re, sys
 
 MAIN_START, MAIN_CODE_END, DATA_END = 0x1000, 0xC76B0, 0x160000
 funcs, ros, modes = [], [], []
@@ -74,6 +74,39 @@ else:
     if not m: sys.exit('could not find the main segment block')
     y = y[:m.start(2)] + B + '\n' + block + '\n' + E + y[m.end(2):]
 open('turok_ragewars.yaml', 'w', newline='\n').write(y)
+
+
+# ---- overlay A (ROM 0x16E000-0x1BCDA0, VRAM 0x400000): funcs_a.txt, same line format (no ro= support yet) ----
+if os.path.exists('funcs_a.txt'):
+    ofuncs = []
+    for line in open('funcs_a.txt'):
+        line = line.split('#')[0].strip()
+        if not line: continue
+        f = line.split()
+        name, rom, n, sub = f[:4]
+        for extra in f[4:]:
+            mm = re.fullmatch(r'mode=(\w+)', extra)
+            if mm: modes.append((name, mm.group(1))); continue
+            sys.exit(f'overlay A entry {name}: option {extra!r} not supported')
+        ofuncs.append((int(rom, 16), int(n), name, sub))
+    ofuncs.sort()
+    OVL_START, OVL_END = 0x16E000, 0x1BCDA0
+    olines, pos = [], OVL_START
+    for rom, n, name, sub in ofuncs:
+        if rom < pos: sys.exit(f'overlap: {name} at 0x{rom:X} starts before 0x{pos:X}')
+        if rom > pos or not olines and rom == OVL_START and False:
+            olines.append(f'      - [0x{pos:X}, asm]')
+        olines.append(f'      - [0x{rom:X}, c, {sub}/{name}]')
+        pos = rom + 4 * n
+    if pos < OVL_END: olines.append(f'      - [0x{pos:X}, asm]')
+    if not olines: olines = [f'      - [0x{OVL_START:X}, asm]']
+    y = open('turok_ragewars.yaml', newline='').read().replace(chr(13) + chr(10), chr(10))
+    B2, E2 = '      # BEGIN GENERATED ovl_a subsegments (tools/gen_yaml.py)', '      # END GENERATED'
+    k = y.index(B2)
+    k2 = y.index(E2, k)
+    y = y[:k] + B2 + chr(10) + chr(10).join(olines) + chr(10) + y[k2:]
+    open('turok_ragewars.yaml', 'w', newline=chr(10)).write(y)
+    # mode_map is written below; make sure overlay modes are included
 
 # map for tools/cc.sh: <source name> <rodata ROM offset> <bytes>
 with open('rodata_map.txt', 'w', newline='\n') as f:
