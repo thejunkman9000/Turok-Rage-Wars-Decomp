@@ -31,5 +31,11 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
 ## Status
-47 libultra function entries (string.c covers 3) are decompiled to matching C (`funcs.txt`, `src/libultra/`); the rest of the ROM is still asm.
-Helpers for finding/diffing functions: `tools/try.ps1`, `tools/try_many.ps1`, `tools/locate.ps1`, `tools/lu_locate_all.py`.
+The whole library region of the main image (ROM 0xAEF80-0xC76B0: debugger stubs, audio library, libm/gu, libultra, printf,
+libgcc helpers) is now in `src/libultra/`: matched C where possible (`funcs.txt`, ~110 objects incl. printf, gu, osViManager,
+PI/SI/SP/AI/DP/motor, cseq) and named hand-written asm (`*.s`; exception handler, TLB/cache primitives, 64DD interrupt code,
+the remaining audio functions as `func_<VRAM>.s`) plus `pad_*.s` for linker padding. Everything is byte-identical to the ROM
+(`powershell tools/cycle.ps1`). Remaining work: turn the `func_*.s` audio-library functions into named C, the PFS code in
+overlay A, then the game code. Helper scripts: `tools/chk.ps1` (score a C candidate), `tools/try.ps1 -Align`, `tools/vtry.py`
+(variant search), `tools/perm_setup.sh` (decomp-permuter), `tools/regen_hasm.ps1`/`mkspec.py`/`mkhasm.py` (asm -> src/*.s),
+`tools/rename_fn.py`.
