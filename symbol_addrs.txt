@@ -510,3 +510,5 @@ adecStreamOpen = 0x002C51A0; // type:func
 adecNextFrame = 0x002C525C; // type:func
 adecGetStopFlag = 0x002C52FC; // type:func
 adecClearStopFlag = 0x002C530C; // type:func
+alSeqpNew = 0x002B5494; // type:func
+__voiceHandler = 0x002B5624; // type:func

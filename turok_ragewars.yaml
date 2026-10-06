@@ -159,6 +159,8 @@ segments:
       - [0xB5FE0, c, libultra/alCopy]
       - [0xB6010, c, libultra/alHeapDBAlloc]
       - [0xB6060, c, libultra/alHeapInit]
+      - [0xB6094, c, libultra/alSeqpNew]
+      - [0xB6224, c, libultra/__voiceHandler]
       - [0xB6760, c, libultra/__handleNextSeqEvent]
       - [0xB6964, c, libultra/__handleMIDIMsg]
       - [0xB71EC, c, libultra/__mapVoice]

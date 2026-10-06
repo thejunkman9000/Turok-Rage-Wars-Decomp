@@ -135,6 +135,8 @@ SECTIONS
         build/src/libultra/alCopy.o(.text);
         build/src/libultra/alHeapDBAlloc.o(.text);
         build/src/libultra/alHeapInit.o(.text);
+        build/src/libultra/alSeqpNew.o(.text);
+        build/src/libultra/__voiceHandler.o(.text);
         build/src/libultra/__handleNextSeqEvent.o(.text);
         build/src/libultra/__handleMIDIMsg.o(.text);
         build/src/libultra/__mapVoice.o(.text);
@@ -573,6 +575,8 @@ SECTIONS
         build/src/libultra/alCopy.o(.data);
         build/src/libultra/alHeapDBAlloc.o(.data);
         build/src/libultra/alHeapInit.o(.data);
+        build/src/libultra/alSeqpNew.o(.data);
+        build/src/libultra/__voiceHandler.o(.data);
         build/src/libultra/__handleNextSeqEvent.o(.data);
         build/src/libultra/__handleMIDIMsg.o(.data);
         build/src/libultra/__mapVoice.o(.data);
@@ -1012,6 +1016,8 @@ SECTIONS
         build/src/libultra/alCopy.o(.rodata);
         build/src/libultra/alHeapDBAlloc.o(.rodata);
         build/src/libultra/alHeapInit.o(.rodata);
+        build/src/libultra/alSeqpNew.o(.rodata);
+        build/src/libultra/__voiceHandler.o(.rodata);
         build/src/libultra/__handleNextSeqEvent.o(.rodata);
         build/src/libultra/__handleMIDIMsg.o(.rodata);
         build/src/libultra/__mapVoice.o(.rodata);
@@ -1467,6 +1473,8 @@ SECTIONS
         build/src/libultra/alCopy.o(.bss);
         build/src/libultra/alHeapDBAlloc.o(.bss);
         build/src/libultra/alHeapInit.o(.bss);
+        build/src/libultra/alSeqpNew.o(.bss);
+        build/src/libultra/__voiceHandler.o(.bss);
         build/src/libultra/__handleNextSeqEvent.o(.bss);
         build/src/libultra/__handleMIDIMsg.o(.bss);
         build/src/libultra/__mapVoice.o(.bss);
