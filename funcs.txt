@@ -77,3 +77,10 @@ osViGetCurrentFramebuffer  0xC0000  14  libultra
 osCreateViManager  0xC0040  188  libultra
 __osViGetCurrentContext  0xC0330  4  libultra
 osViSetYScale  0xC0560  17  libultra
+osAiSetNextBuffer  0xBD0D0  35  libultra
+osDpSetNextBuffer  0xBD860  39  libultra
+__osDpDeviceBusy  0xBD900  6  libultra
+osMotorStop  0xBD920  113  libultra
+osMotorStart  0xBDAE4  113  libultra
+osMotorInit  0xBDCA8  311  libultra
+__osContRamWrite  0xBE550  136  libultra
