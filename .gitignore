@@ -20,3 +20,8 @@ tools/gcc/
 build_ud.json
 ud_json/
 scan_all.txt
+tools/m2c/
+m2c_out/
+inventory_a.txt
+chk_ok.txt
+wip_list.txt

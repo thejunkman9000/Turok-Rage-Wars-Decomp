@@ -49,3 +49,9 @@ guMtxL2F           0xBCA24  38  libultra ro=0xCD6E0:4
 guMtxIdent         0xBC850  59  libultra ro=0xCD6D0:8
 __osViSwapContext  0xC0600 207  libultra ro=0xCD820:12
 osAiSetFrequency   0xBCFB0  70  libultra ro=0xCD770:16
+osContStartQuery 0xBD180 34 libultra
+osContGetQuery 0xBD208 8 libultra
+osContStartReadData 0xBD230 37 libultra
+osContReset 0xBD410 67 libultra
+__osPackResetData 0xBD51C 13 libultra
+osContInit 0xBD550 104 libultra

@@ -111,3 +111,19 @@ __osViSwapContext = 0x002BFA00; // type:func
 __osViCurr = 0x800D8440;
 osAiSetFrequency = 0x002BC3B0; // type:func
 osViClock = 0x800D9280;
+
+// controller / SI helpers (more)
+__osSiGetAccess = 0x002BED04; // type:func
+__osSiRelAccess = 0x002BED70; // type:func
+__osSiRawStartDma = 0x002BEDA0; // type:func
+__osSiCreateAccessQueue = 0x002BECB0; // type:func
+osSetTimer = 0x002C07B0; // type:func
+__osContinitialized = 0x800D8370;
+__osContMesgQueue = 0x8014D450;
+__osContMesgBuff = 0x8014D468;
+osContStartQuery = 0x002BC580; // type:func
+osContGetQuery = 0x002BC608; // type:func
+osContStartReadData = 0x002BC630; // type:func
+osContReset = 0x002BC810; // type:func
+__osPackResetData = 0x002BC91C; // type:func
+osContInit = 0x002BC950; // type:func

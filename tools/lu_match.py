@@ -35,6 +35,7 @@ def fix_asm(s):
     return s
 
 MASK = {4: 0x03FFFFFF, 5: 0xFFFF, 6: 0xFFFF}   # R_MIPS_26, HI16, LO16
+LAST = {}   # side results of the last compile_funcs call (rodata bytes)
 
 def compile_funcs(src):
     tmp = tempfile.mkdtemp()
@@ -53,6 +54,8 @@ def compile_funcs(src):
     if r.returncode:
         return None, r.stderr.strip().splitlines()[:3]
     text = open(f'{tmp}/{base}.bin', 'rb').read()
+    sh(f"cd {tmp} && {P}-objcopy -O binary -j .rodata {base}.o {base}.ro")
+    LAST['ro'] = open(f'{tmp}/{base}.ro', 'rb').read() if os.path.exists(f'{tmp}/{base}.ro') else b''
     # gcc 2.7.2 emits no .type/.size: take global symbols defined in .text, size = distance to next one
     starts = []
     for l in sh(f"{P}-readelf -sW {tmp}/{base}.o").stdout.splitlines():

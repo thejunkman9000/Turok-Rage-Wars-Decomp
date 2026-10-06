@@ -327,6 +327,9 @@ extern u32 __osContPifStatus; /* word 15 of the 64-byte PIF RAM image */
 extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
+extern s32 __osContinitialized;
+extern OSMesgQueue __osContMesgQueue;
+extern OSMesg __osContMesgBuff[4];
 extern OSMesgQueue __osPiAccessQueue;
 extern __OSEventState __osEventStateTab[16];
 #define OS_ROM_BASE (*(u32 *)0x80000308) /* ROM base address passed in by the boot code */
@@ -363,6 +366,14 @@ const u8 *strchr(const u8 *str, u32 ch);
 void osContGetReadData(OSContPad *pad);
 s32 osContStartReadData(OSMesgQueue *mq);
 void __osPackReadData(void);
+void __osPackResetData(void);
+s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *data);
+s32 osContReset(OSMesgQueue *mq, OSContStatus *data);
+s32 osContStartQuery(OSMesgQueue *mq);
+void osContGetQuery(OSContStatus *data);
+u32 osSetTimer(OSTimer *timer, OSTime countdown, OSTime interval, OSMesgQueue *mq, OSMesg msg);
+OSTime osGetTime(void);
+void __osSiCreateAccessQueue(void);
 void guMtxIdentF(f32 mf[4][4]);
 void guMtxF2L(f32 mf[4][4], Mtx *m);
 void guMtxL2F(f32 mf[4][4], Mtx *m);
