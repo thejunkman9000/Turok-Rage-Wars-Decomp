@@ -13,4 +13,6 @@ __pycache__/
 *.pyc
 asm/
 undefined_*_auto.txt
-*.ld
+
+!hardware_regs.ld
+!extra_syms.ld

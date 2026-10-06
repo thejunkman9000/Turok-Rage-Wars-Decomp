@@ -21,7 +21,7 @@ Disassembling it with a 0x80000400 vram gives wrong jal targets.
 | 0x001000-0x0C7010 | 0x200400-0x2C6410 | main code (3175 funcs found by splat) | high: 9206 jal hit 0x200500-0x2C6A00 |
 | 0x0C7010-~0x0E0000 | ? | RSP microcode (cop2/mtc0 seen at 0xDFF84) + data | medium |
 | ~0x0E0000-0x160000 | ? | low-entropy data / rodata | low, unsplit |
-| 0x160000-0x16E000 | **unknown** | code, 56 jr ra; calls main (0x24-0x2B xxxxx) and ovl A | VA base unresolved |
+| 0x160000-0x16E000 | 0x400000 (per page?) | 14 x 0x1000-stride copies of one routine (md5: pages 0=1, 3..8 identical). Jumps such as `j 0x4011F0` leave the 4 KB page, so 4 KB is NOT the true unit. Carried as raw bin. | unresolved |
 | 0x16E000-0x1BCD94 | 0x400000 | overlay A code (1281 funcs) | high: 61% of internal jal targets are prologues, peak is unique |
 | 0x1BCD94-0x240000 | ? | data | low |
 | 0x240000-0x790000 | - | high entropy (7-7.9 bits/byte): compressed assets/levels | - |
@@ -38,8 +38,16 @@ documents Turok 2 / Turok 3 structs and function signatures - useful for naming.
 No public Rage Wars decomp found.
 
 ## Open questions / next steps
-1. Resolve the VA base of the 0x160000 chunk (same brute-force against targets it exports).
+1. Work out the real structure of the 0x160000 chunk (what loads it, true unit size; jumps reach 0x4011F0+).
 2. Find who loads overlays (DMA/PI calls from main) -> overlay table, other overlays that share VA 0x400000?
 3. Identify RSP microcode (F3DEX2 variant?) and where it ends.
 4. Identify libultra version via function signatures -> choose compiler (KMC GCC 2.7.2 vs IDO).
 5. Identify asset compression (high entropy region) and write extractors.
+
+## Build / verify (WSL Ubuntu-24.04)
+`bash tools/roundtrip.sh` assembles splat's asm, links with `turok_ragewars.ld` + `hardware_regs.ld`
++ `extra_syms.ld`, and compares to the base ROM. **Currently byte-identical (8,388,608 bytes).**
+Notes: assembler needs `-W` (game uses odd float regs, thousands of warnings); splat needs
+`subalign: 4` and `ld_align_*_vram_end: False`, and the code/data split in ovl_a sits at the
+16-aligned 0x1BCDA0 so linker padding does not shift the tail.
+Regenerate with: `.venv\Scripts\python -m splat split turok_ragewars.yaml` (Windows) then run the round trip in WSL.

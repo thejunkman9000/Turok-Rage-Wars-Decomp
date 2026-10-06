@@ -17,6 +17,9 @@ options:
   ld_dependencies: True
 
   find_file_boundaries: False
+  subalign: 4
+  ld_align_section_vram_end: False
+  ld_align_segment_vram_end: False
   header_encoding: ASCII
 
   o_as_suffix: True
@@ -58,20 +61,17 @@ segments:
       - [0x1000, asm, entry]
       - [0xC7010, bin, rsp_and_data_unsplit]
 
-  # 56 KB code chunk, calls both main and overlay A. Own VA base still unresolved.
-  - name: ovl_unknown_160000
-    type: code
-    start: 0x160000
-    vram: 0x160000
-    subsegments:
-      - [0x160000, asm]
+  # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
+  # (e.g. j 0x4011F0) leave the 4 KB page, so 4 KB is not the true unit. Kept as raw bin for now.
+  - [0x160000, bin, ovl_unresolved_160000]
 
   - name: ovl_a
     type: code
     start: 0x16E000
     vram: 0x400000
+    exclusive_ram_id: ovl_a
     subsegments:
       - [0x16E000, asm]
-      - [0x1BCD94, bin, ovl_a_tail]
+      - [0x1BCDA0, bin, ovl_a_tail]
 
   - [0x800000]
