@@ -55,3 +55,6 @@ __osProbeTLB = 0x002C2170; // type:func
 osGetCount = 0x002C1FF0; // type:func
 __osRunQueue = 0x800D9298;
 __osActiveQueue = 0x800D929C;
+osCreateThread = 0x002BFD80; // type:func
+osDestroyThread = 0x002C1F10; // type:func
+__osCleanupThread = 0x002C185C; // type:func

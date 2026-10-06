@@ -13,7 +13,7 @@ void osCreateThread(OSThread *thread, OSId id, void (*entry)(void *), void *arg,
     thread->context.sp = (u64)sp - 16;
     thread->context.ra = (u64)__osCleanupThread;
     tmp = 0x003FFF01;
-    thread->context.sr = 65283;
+    thread->context.sr = 0x0400FF03;
     thread->context.rcp = (tmp & 0x3F0000) >> 16;
     thread->context.fpcsr = (u32)0x01000800;
     thread->fp = 0;

@@ -52,6 +52,8 @@ SECTIONS
         build/asm/C05F4.o(.text);
         build/src/libultra/osCreateMesgQueue.o(.text);
         build/asm/C0974.o(.text);
+        build/src/libultra/osCreateThread.o(.text);
+        build/asm/C0A58.o(.text);
         build/src/libultra/osGetThreadId.o(.text);
         build/asm/C0A8C.o(.text);
         build/src/libultra/osGetThreadPri.o(.text);
@@ -72,6 +74,8 @@ SECTIONS
         build/asm/C18A4.o(.text);
         build/src/libultra/osVirtualToPhysical.o(.text);
         build/asm/C1910.o(.text);
+        build/src/libultra/osDestroyThread.o(.text);
+        build/asm/C2BE8.o(.text);
         main_TEXT_END = .;
         main_TEXT_SIZE = ABSOLUTE(main_TEXT_END - main_TEXT_START);
         main_DATA_START = .;
@@ -92,6 +96,8 @@ SECTIONS
         build/asm/C05F4.o(.data);
         build/src/libultra/osCreateMesgQueue.o(.data);
         build/asm/C0974.o(.data);
+        build/src/libultra/osCreateThread.o(.data);
+        build/asm/C0A58.o(.data);
         build/src/libultra/osGetThreadId.o(.data);
         build/asm/C0A8C.o(.data);
         build/src/libultra/osGetThreadPri.o(.data);
@@ -112,6 +118,8 @@ SECTIONS
         build/asm/C18A4.o(.data);
         build/src/libultra/osVirtualToPhysical.o(.data);
         build/asm/C1910.o(.data);
+        build/src/libultra/osDestroyThread.o(.data);
+        build/asm/C2BE8.o(.data);
         build/assets/rsp_and_data_unsplit.o(.data);
         main_DATA_END = .;
         main_DATA_SIZE = ABSOLUTE(main_DATA_END - main_DATA_START);
@@ -133,6 +141,8 @@ SECTIONS
         build/asm/C05F4.o(.rodata);
         build/src/libultra/osCreateMesgQueue.o(.rodata);
         build/asm/C0974.o(.rodata);
+        build/src/libultra/osCreateThread.o(.rodata);
+        build/asm/C0A58.o(.rodata);
         build/src/libultra/osGetThreadId.o(.rodata);
         build/asm/C0A8C.o(.rodata);
         build/src/libultra/osGetThreadPri.o(.rodata);
@@ -153,6 +163,8 @@ SECTIONS
         build/asm/C18A4.o(.rodata);
         build/src/libultra/osVirtualToPhysical.o(.rodata);
         build/asm/C1910.o(.rodata);
+        build/src/libultra/osDestroyThread.o(.rodata);
+        build/asm/C2BE8.o(.rodata);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -178,6 +190,8 @@ SECTIONS
         build/asm/C05F4.o(.bss);
         build/src/libultra/osCreateMesgQueue.o(.bss);
         build/asm/C0974.o(.bss);
+        build/src/libultra/osCreateThread.o(.bss);
+        build/asm/C0A58.o(.bss);
         build/src/libultra/osGetThreadId.o(.bss);
         build/asm/C0A8C.o(.bss);
         build/src/libultra/osGetThreadPri.o(.bss);
@@ -198,6 +212,8 @@ SECTIONS
         build/asm/C18A4.o(.bss);
         build/src/libultra/osVirtualToPhysical.o(.bss);
         build/asm/C1910.o(.bss);
+        build/src/libultra/osDestroyThread.o(.bss);
+        build/asm/C2BE8.o(.bss);
         main_BSS_END = .;
         main_BSS_SIZE = ABSOLUTE(main_BSS_END - main_BSS_START);
     }

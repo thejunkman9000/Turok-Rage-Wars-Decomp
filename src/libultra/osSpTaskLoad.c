@@ -2,9 +2,6 @@
 
 OSTask *_VirtualToPhysicalTask(OSTask *intp);
 
-#ifdef NON_MATCHING
-/* Functionally identical; the only difference is where the `lui $a1` of the final DMA call is scheduled
- * (the original hoists it above the two argument loads). */
 void osSpTaskLoad(OSTask *intp) {
     OSTask *tp;
 
@@ -37,6 +34,3 @@ void osSpTaskLoad(OSTask *intp) {
     while (__osSpRawStartDma(1, SP_IMEM_START, tp->t.ucode_boot, tp->t.ucode_boot_size) == -1)
         ;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/libultra/osSpTaskLoad", osSpTaskLoad);
-#endif

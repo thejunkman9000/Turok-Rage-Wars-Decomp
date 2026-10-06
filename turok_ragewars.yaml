@@ -76,6 +76,8 @@ segments:
       - [0xC05F4, asm]
       - [0xC0950, c, libultra/osCreateMesgQueue]
       - [0xC0974, asm]
+      - [0xC0980, c, libultra/osCreateThread]
+      - [0xC0A58, asm]
       - [0xC0A70, c, libultra/osGetThreadId]
       - [0xC0A8C, asm]
       - [0xC0A90, c, libultra/osGetThreadPri]
@@ -96,6 +98,8 @@ segments:
       - [0xC18A4, asm]
       - [0xC18B0, c, libultra/osVirtualToPhysical]
       - [0xC1910, asm]
+      - [0xC2B10, c, libultra/osDestroyThread]
+      - [0xC2BE8, asm]
       - [0xC7010, bin, rsp_and_data_unsplit]
       # END GENERATED
 

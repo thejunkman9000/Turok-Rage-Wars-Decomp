@@ -1,7 +1,7 @@
 #include "common.h"
 
 void osDestroyThread(OSThread *thread) {
-    register s32 saveMask;
+    register u32 saveMask;
     register OSThread *pred;
     register OSThread *succ;
 
@@ -17,15 +17,13 @@ void osDestroyThread(OSThread *thread) {
         __osActiveQueue = __osActiveQueue->tlnext;
     } else {
         pred = __osActiveQueue;
-        succ = pred->tlnext;
-        while (succ != NULL) {
+        while (pred->priority != -1) {
+            succ = pred->tlnext;
             if (succ == thread) {
                 pred->tlnext = thread->tlnext;
                 break;
-            } else {
-                pred = succ;
-                succ = pred->tlnext;
             }
+            pred = succ;
         }
     }
 

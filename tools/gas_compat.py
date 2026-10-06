@@ -7,8 +7,8 @@ usage: gas_compat.py <lu|game> <file.s>      (rewrites the file in place)
   * 3-operand `div/rem/divu/remu` -> explicit expansion         (old gas: div; bnez; nop; break 7; ...; mfhi/mflo;
                                     modern gas moves the div into the bnez delay slot)
   * game code only: `j $31`       -> `j $31; nop` in noreorder  (old gas never filled the return delay slot)
-  * libultra only: a branch/call directly preceded by a LOAD keeps a nop delay slot (old gas did not move loads
-                    into delay slots; modern gas does). Stores/ALU ops are still moved by gas as before.
+  * libultra only: old gas only filled a RETURN's delay slot (and never with a load); every call/branch that GCC
+                    left to the assembler keeps a nop slot (modern gas would move the previous instruction in).
 """
 import re, sys
 
@@ -73,7 +73,9 @@ def fix(text, mode):
             out.append(f'{ind}.set\tnoreorder\n{ind}j\t$31\n{ind}nop\n{ind}.set\treorder')
             prev = None
             continue
-        if mode == 'lu' and this in BRANCHES and not noreorder and prev in LOADS:
+        is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
+        # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
+        if mode == 'lu' and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
             prev = None
