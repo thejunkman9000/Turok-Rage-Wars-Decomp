@@ -73,3 +73,10 @@ __osContBuffer = 0x8014D470;
 __osContNumControllers = 0x8014D46C;
 __osPiDevMgr = 0x800D8390;
 __osPiAccessQueue = 0x8014EA58;
+
+// PI DMA / task yield
+osPiStartDma = 0x002BDDC0; // type:func
+osPiRawStartDma = 0x002BEB30; // type:func
+osSpTaskYielded = 0x002BF230; // type:func
+__osPiAccessQueueEnabled = 0x800D83C0;
+__osPiAccessBuf = 0x8014EA50;

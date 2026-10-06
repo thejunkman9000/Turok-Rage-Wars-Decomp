@@ -153,6 +153,21 @@ typedef struct {
     u64 force_align;
 } OSMgrArgs;
 
+typedef struct {
+    /* 0x00 */ u16 type;
+    /* 0x02 */ u8 pri;
+    /* 0x03 */ u8 status;
+    /* 0x04 */ OSMesgQueue *retQueue;
+} OSIoMesgHdr;
+
+typedef struct {
+    /* 0x00 */ OSIoMesgHdr hdr;
+    /* 0x08 */ void *dramAddr;
+    /* 0x0C */ u32 devAddr;
+    /* 0x10 */ u32 size;
+    /* 0x14 */ void *piHandle;
+} OSIoMesg;
+
 typedef struct OSTimer_s {
     /* 0x00 */ struct OSTimer_s *next;
     /* 0x04 */ struct OSTimer_s *prev;
@@ -213,11 +228,29 @@ typedef union {
 /* hardware registers (physical addresses) */
 #define HW_REG(reg, type) (*(volatile type *)((reg) | 0xA0000000))
 #define SP_STATUS_REG 0x04040010
+#define PI_DRAM_ADDR_REG 0x04600000
+#define PI_CART_ADDR_REG 0x04600004
+#define PI_RD_LEN_REG 0x04600008
+#define PI_WR_LEN_REG 0x0460000C
+#define PI_STATUS_REG 0x04600010
+#define PI_STATUS_BUSY 0x1
+#define PI_STATUS_IOBUSY 0x2
+#define PI_STATUS_ERROR 0x4
 #define AI_STATUS_REG 0x0450000C
 #define SI_STATUS_REG 0x04800018
 #define AI_STATUS_AI_FULL (1 << 31)
 #define SI_STATUS_DMA_BUSY 0x1
 #define SI_STATUS_IO_READ_BUSY 0x2
+
+/* RSP status register read bits */
+#define SPSTATUS_SIGNAL0_SET 0x00000080
+#define SPSTATUS_SIGNAL1_SET 0x00000100
+
+#define OS_READ 0
+#define OS_WRITE 1
+#define OS_MESG_PRI_NORMAL 0
+#define OS_MESG_PRI_HIGH 1
+#define OS_TASK_DP_WAIT 0x0002
 
 /* RSP status register write bits */
 #define SPSTATUS_CLEAR_HALT          0x00000001
@@ -242,6 +275,9 @@ extern OSContPackedStruct __osContBuffer[7];
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
 extern OSMesgQueue __osPiAccessQueue;
+#define OS_ROM_BASE (*(u32 *)0x80000308) /* ROM base address passed in by the boot code */
+extern u32 __osPiAccessQueueEnabled;
+extern OSMesg __osPiAccessBuf[1];
 extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask */
 
 /* libultra functions (asm or C) */
@@ -269,7 +305,15 @@ void osContGetReadData(OSContPad *pad);
 void osViSetSpecialFeatures(u32 func);
 OSMesgQueue *osPiGetCmdQueue(void);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
+void __osPiCreateAccessQueue(void);
+void __osPiGetAccess(void);
 void __osPiRelAccess(void);
+void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msgBuf, s32 count);
+s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
+s32 osJamMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
+s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
+s32 osPiRawStartDma(s32 dir, u32 cart_addr, void *dram_addr, u32 size);
+s32 osSpTaskYielded(OSTask *task);
 s32 __osAiDeviceBusy(void);
 s32 __osSiDeviceBusy(void);
 u32 __osSpGetStatus(void);

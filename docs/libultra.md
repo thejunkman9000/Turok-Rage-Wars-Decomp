@@ -1,0 +1,49 @@
+# libultra in Turok: Rage Wars
+
+## Toolchain (established by matching real functions byte-for-byte)
+- Compiler: **GCC 2.8.1** (decompals/old-gcc build), flags
+  `-meb -mips2 -mgp32 -mfp32 -G 0 -mno-abicalls -fno-pic -O2 -fforce-addr -fno-builtin -mcpu=r4300`.
+  - `-fforce-addr`: changes address-calculation scheduling (osSetEventMesg).
+  - `-fno-builtin`: the ROM *calls* `memcpy` (in `_VirtualToPhysicalTask`) instead of inlining it.
+  - `-mcpu=r4300`: VR4300 scheduling (no load-delay hoisting); fixed osStartThread/osSetThreadPri/osGetTime etc.
+  - Other versions (2.7.2, 2.7.2.3, egcs 2.91.66, 2.95.2) match far fewer functions; `-fno-delayed-branch` is worse.
+- Assembler: the original `as` is reproduced on top of modern gas by `tools/gas_compat.py` + `tools/as.sh`:
+  - `move rd,rs` -> `addu rd,rs,$0`
+  - 3-operand `div/rem/divu/remu` -> `div; bnez; nop; break 7; ...; mfhi/mflo` (modern gas moves the div into the slot)
+  - Only a **return's** delay slot may be filled by the assembler, and never with a load; every other call/branch
+    GCC left to the assembler keeps a `nop` slot. (GCC fills the slots it can itself in `.set noreorder` blocks.)
+  - Each piece is assembled into a section with alignment 1 (`.text.piece`, renamed back to `.text`) so gas does
+    not pad objects to 16 bytes.
+- Acclaim's *own* code was assembled the same way except that even `j $31` keeps a `nop` (see `mode=game` in
+  `tools/gas_compat.py`; the game compiler/flags are not settled yet).
+- Nintendo's linker padded libultra objects to 16 bytes with *garbage* (copies of other code). The padding stays in
+  the asm chunks between C files; `tools/fix_asm.py` turns padding "branches" that point outside their file into `.word`.
+
+## Layout (ROM offsets; VA = ROM + 0x1FF400)
+libultra occupies roughly ROM 0xBC000-0xC4800 (VA 0x2BB400-...), followed by string/printf code.
+`docs/libultra_locations.txt` lists libreultra functions with their best structural match in the ROM (similarity
+>= 0.80); `funcs.txt` lists everything already converted to C (`src/libultra`).
+
+## Done (byte-identical C)
+osCreateMesgQueue, osSendMesg, osRecvMesg, osJamMesg, osSetEventMesg, osCreateThread, osDestroyThread,
+osStartThread, osSetThreadPri, osGetThreadId, osGetThreadPri, osGetTime, __osInsertTimer, osVirtualToPhysical,
+_VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo, osSpTaskYield, osSpTaskYielded, osViBlack, osViSetEvent,
+osViSetMode, osViSwapBuffer, osViSetSpecialFeatures, osContGetReadData, osPiGetCmdQueue, osPiStartDma,
+osPiRawStartDma, __osAiDeviceBusy, __osSiDeviceBusy, __osSpGetStatus, memcpy, strchr, strlen.
+
+## Close but not matching yet (see docs/libultra_locations.txt)
+- `__osPiCreateAccessQueue`/`__osPiGetAccess` (0xBF640): the ROM's first function looks like GetAccess with the
+  queue creation inlined; sources in `wip/`.
+- `__osTimerInterrupt` 0xC15A0 (0.95), `__osSetTimerIntr` 0xC173C (0.87), `__osTimerServicesInit`, `osSetTimer` 0xC13B0
+- `__osViSwapContext` 0xC0600 (207 insns), `osCreateViManager`, `osAiSetFrequency` 0xBCFB0, `osAiGetLength`
+- `__osPackReadData` 0xBD35C, `__osContGetInitData` 0xBD7A8, `__osPackRequestData` 0xBD6F0, `osContStartReadData`
+- `guMtxIdentF` 0xBC93C, `guMtxL2F` 0xBCA24, other gu* functions
+- printf family (`_Printf`, `_Ldtob`, `_Litob`, `sprintf`): libreultra's headers use `__builtin_va_list`, which
+  GCC 2.8.1 lacks - needs a `stdarg`-style rewrite.
+
+## Lessons
+- Matches of fewer than ~8 instructions are unreliable (the "osSetTime" match at 0xA2E4C was an unrelated game function).
+- When a function is a near-match, check the *assembler/delay-slot* behaviour before changing the C.
+- The libreultra sources are SM64's libultra (2.0D); this ROM's libultra differs in places (e.g. `osPiStartDma` stores
+  `piHandle = NULL`, `osDestroyThread` walks to the `priority == -1` sentinel, `osCreateThread` status register
+  is 0x0400FF03).

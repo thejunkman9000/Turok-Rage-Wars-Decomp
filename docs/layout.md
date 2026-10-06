@@ -92,3 +92,8 @@ so version differences are possible) with each old GCC, mask relocated words, se
 - Identify the remaining delay-slot discrepancy (try other 2.8.x builds, e.g. 2.8.0; check Nintendo-patched gcc notes).
 - Collect more known-source functions (libgcc helpers, string/bcopy, math) and larger game functions to pin the game compiler.
 - Then start the real work: name functions (libultra + LibTEngine structures), set up the matching build (asm-processor / include_asm).
+
+## UPDATE: libultra toolchain settled
+See `docs/libultra.md`. Final libultra flags: gcc 2.8.1 `-O2 -fforce-addr -fno-builtin -mcpu=r4300`, plus assembler
+quirks reproduced in `tools/gas_compat.py`. The earlier "2.7.2 vs 2.8.1 unresolved" notes above are superseded:
+the discrepancies were assembler behaviour (div/rem expansion, delay-slot filling), not the compiler.

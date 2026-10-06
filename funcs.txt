@@ -31,3 +31,6 @@ __osSiDeviceBusy   0xBFA60   6  libultra
 __osSpGetStatus    0xBFE80   5  libultra
 osViSetSpecialFeatures 0xC03F0 89 libultra
 string             0xC3090  33  libultra
+osPiStartDma       0xBE9C0  43  libultra
+osPiRawStartDma    0xBF730  53  libultra
+osSpTaskYielded    0xBFE30  19  libultra

@@ -1,5 +1,3 @@
 #include "common.h"
 
-void __osPiRelAccess(void) {
-    osSendMesg(&__osPiAccessQueue, NULL, OS_MESG_NOBLOCK);
-}
+INCLUDE_ASM("asm/nonmatchings/libultra/__osPiRelAccess", __osPiRelAccess);

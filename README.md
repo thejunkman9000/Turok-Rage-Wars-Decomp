@@ -14,7 +14,7 @@ WSL side (Ubuntu-24.04; `bash tools/get_gcc.sh` once to fetch compilers into too
 wsl -d Ubuntu-24.04 -- bash /mnt/d/Projects/TurokRageWars/tools/wsl_build.sh
 ```
 `wsl_build.sh` syncs to `~/trw` (old gcc cannot read files on /mnt/d), runs `make`, and verifies the result is
-byte-identical to the base ROM. Compilers: decompals/old-gcc (GCC 2.8.1 -O2 is the current best guess, see docs/layout.md).
+byte-identical to the base ROM. Compilers: decompals/old-gcc; libultra is GCC 2.8.1 `-O2 -fforce-addr -fno-builtin -mcpu=r4300` (docs/libultra.md).
 
 ## Layout
 - `src/` C sources (matched); `src/libultra/` libultra functions.
@@ -29,3 +29,7 @@ byte-identical to the base ROM. Compilers: decompals/old-gcc (GCC 2.8.1 -O2 is t
 
 Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other code); splat keeps those words in asm and
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
+
+## Status
+34 libultra functions are decompiled to matching C (`funcs.txt`, `src/libultra/`); the rest of the ROM is still asm.
+Helpers for finding/diffing functions: `tools/try.ps1`, `tools/try_many.ps1`, `tools/locate.ps1`, `tools/lu_locate_all.py`.
