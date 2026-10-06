@@ -2,7 +2,6 @@
 # The generator (tools/gen_yaml.py) turns this into the `main` segment's subsegments in turok_ragewars.yaml;
 # everything between listed functions stays as asm. Keep sorted by ROM address.
 # instruction_count includes the delay slot of the final return.
-osSetTime          0xA2E4C   6  libultra
 _VirtualToPhysicalTask 0xBFA80 58 libultra
 osSpTaskLoad       0xBFB68  65  libultra
 osSpTaskStartGo    0xBFC6C  11  libultra
@@ -16,3 +15,9 @@ osJamMesg          0xC0E50  77  libultra
 osRecvMesg         0xC0F90  73  libultra
 osSendMesg         0xC1110  76  libultra
 __osInsertTimer    0xC179C  66  libultra
+osGetThreadId      0xC0A70   7  libultra
+osGetThreadPri     0xC0A90   7  libultra
+osGetTime          0xC0AB0  31  libultra
+osSetThreadPri     0xC12E0  49  libultra
+osStartThread      0xC1440  69  libultra
+osVirtualToPhysical 0xC18B0 24  libultra

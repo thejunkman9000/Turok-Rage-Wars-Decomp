@@ -22,7 +22,6 @@ __osThreadTail = 0x800D9290;
 __osTimerList = 0x800D92B0;
 
 // libultra: more recovered symbols
-osSetTime = 0x002A224C; // type:func
 osSpTaskYield = 0x002BF210; // type:func
 osJamMesg = 0x002C0250; // type:func
 osRecvMesg = 0x002C0390; // type:func
@@ -31,7 +30,8 @@ osStartThread = 0x002C0840; // type:func
 __osEnqueueAndYield = 0x002C145C; // type:func
 __osPopThread = 0x002C1648; // type:func
 __osRunningThread = 0x800D92A0;
-_osCurrentTime = 0x800D2B8C;
+_osCurrentTime = 0x8014FE28;
+__osTimerCounter = 0x8014FE20;
 
 // task helpers
 _VirtualToPhysicalTask = 0x002BEE80; // type:func
@@ -42,3 +42,16 @@ __osSpSetPc = 0x002BF1C0; // type:func
 __osSpRawStartDma = 0x002BF0C0; // type:func
 memcpy = 0x002C2490; // type:func
 __osTmpTask = 0x8014EA90;
+
+// thread / time / tlb
+osGetThreadId = 0x002BFE70; // type:func
+osGetThreadPri = 0x002BFE90; // type:func
+osGetTime = 0x002BFEB0; // type:func
+osSetThreadPri = 0x002C06E0; // type:func
+__osDequeueThread = 0x002C0960; // type:func
+__osEnqueueThread = 0x002C15F8; // type:func
+__osDispatchThread = 0x002C1660; // type:func
+__osProbeTLB = 0x002C2170; // type:func
+osGetCount = 0x002C1FF0; // type:func
+__osRunQueue = 0x800D9298;
+__osActiveQueue = 0x800D929C;

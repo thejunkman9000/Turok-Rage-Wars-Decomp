@@ -7,6 +7,8 @@ usage: gas_compat.py <lu|game> <file.s>      (rewrites the file in place)
   * 3-operand `div/rem/divu/remu` -> explicit expansion         (old gas: div; bnez; nop; break 7; ...; mfhi/mflo;
                                     modern gas moves the div into the bnez delay slot)
   * game code only: `j $31`       -> `j $31; nop` in noreorder  (old gas never filled the return delay slot)
+  * libultra only: a branch/call directly preceded by a LOAD keeps a nop delay slot (old gas did not move loads
+                    into delay slots; modern gas does). Stores/ALU ops are still moved by gas as before.
 """
 import re, sys
 
@@ -17,6 +19,11 @@ ret_re = re.compile(r'^([ \t]*)j[ \t]+\$31[ \t]*$')
 imm_div_re = re.compile(r'^[ \t]*(div|divu|rem|remu)[ \t]+\$[a-z0-9]+,[ \t]*\$[a-z0-9]+,[ \t]*[-0-9xXa-fA-F]+[ \t]*$')
 
 _label = [0]
+
+BRANCHES = {'j', 'jal', 'jr', 'jalr', 'b', 'beq', 'bne', 'beqz', 'bnez', 'bgez', 'bgtz', 'blez', 'bltz',
+            'bgezal', 'bltzal', 'bc1t', 'bc1f'}
+LOADS = {'lb', 'lbu', 'lh', 'lhu', 'lw', 'lwl', 'lwr', 'lwc1', 'ld', 'ldc1', 'll', 'l.s', 'l.d'}
+mnem_re = re.compile(r'^[ 	]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
 
 def expand_div(ind, op, rd, rs, rt):
     _label[0] += 1
@@ -34,20 +41,50 @@ def expand_div(ind, op, rd, rs, rt):
 
 def fix(text, mode):
     out = []
+    noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
+    prev = None              # mnemonic of the previous real instruction; None after a label/directive
     for line in text.split('\n'):
+        st = line.strip()
+        if st.startswith('.set'):
+            if 'noreorder' in st:
+                noreorder = True
+            elif re.search(r'\breorder\b', st):
+                noreorder = False
+        mm = None
+        if st and not st.startswith(('.', '#', '$')) and not st.endswith(':'):
+            mm = mnem_re.match(line)
+        this = mm.group(1) if mm else None
+
         if imm_div_re.match(line):
             sys.stderr.write(f'gas_compat: immediate div form not handled: {line.strip()}\n')
         m = div_re.match(line)
         if m:
-            out.append(expand_div(m.group(1), m.group(2), m.group(3), m.group(4), m.group(5))); continue
+            out.append(expand_div(m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)))
+            prev = None
+            continue
         m = move_re.match(line)
         if m:
-            out.append(f'{m.group(1)}addu\t{m.group(2)},{m.group(3)},$0'); continue
+            out.append(f'{m.group(1)}addu\t{m.group(2)},{m.group(3)},$0')
+            prev = 'addu'
+            continue
         m = ret_re.match(line)
         if m and mode == 'game':
             ind = m.group(1)
-            out.append(f'{ind}.set\tnoreorder\n{ind}j\t$31\n{ind}nop\n{ind}.set\treorder'); continue
+            out.append(f'{ind}.set\tnoreorder\n{ind}j\t$31\n{ind}nop\n{ind}.set\treorder')
+            prev = None
+            continue
+        if mode == 'lu' and this in BRANCHES and not noreorder and prev in LOADS:
+            ind = line[:len(line) - len(line.lstrip())]
+            out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
+            prev = None
+            continue
+
         out.append(line)
+        if this:
+            prev = this
+        elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
+            if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
+                prev = None
     return '\n'.join(out)
 
 if __name__ == '__main__':

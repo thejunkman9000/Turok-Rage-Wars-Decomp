@@ -167,9 +167,12 @@ typedef union {
 /* libultra globals */
 extern OSThread *__osThreadTail;
 extern OSThread *__osRunningThread;
+extern OSThread *__osRunQueue;
+extern OSThread *__osActiveQueue;
 extern OSViContext *__osViNext;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
+extern u32 __osTimerCounter;
 extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask */
 
 /* libultra functions (asm or C) */
@@ -180,7 +183,13 @@ void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);
 OSThread *__osPopThread(OSThread **queue);
 void osStartThread(OSThread *thread);
+void __osDequeueThread(OSThread **queue, OSThread *thread);
+void __osEnqueueThread(OSThread **queue, OSThread *thread);
+void __osDispatchThread(void);
+void __osCleanupThread(void);
 u32 osVirtualToPhysical(void *addr);
+u32 __osProbeTLB(void *addr);
+u32 osGetCount(void);
 void osWritebackDCache(void *addr, s32 size);
 s32 __osSpSetPc(u32 pc);
 s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);

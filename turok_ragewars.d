@@ -2,8 +2,6 @@ build/turok_ragewars.elf: \
     build/asm/header.o \
     build/assets/ipl3.o \
     build/asm/entry.o \
-    build/src/libultra/osSetTime.o \
-    build/asm/A2E64.o \
     build/src/libultra/_VirtualToPhysicalTask.o \
     build/src/libultra/osSpTaskLoad.o \
     build/src/libultra/osSpTaskStartGo.o \
@@ -20,14 +18,26 @@ build/turok_ragewars.elf: \
     build/asm/C05F4.o \
     build/src/libultra/osCreateMesgQueue.o \
     build/asm/C0974.o \
+    build/src/libultra/osGetThreadId.o \
+    build/asm/C0A8C.o \
+    build/src/libultra/osGetThreadPri.o \
+    build/asm/C0AAC.o \
+    build/src/libultra/osGetTime.o \
+    build/asm/C0B2C.o \
     build/src/libultra/osJamMesg.o \
     build/asm/C0F84.o \
     build/src/libultra/osRecvMesg.o \
     build/asm/C10B4.o \
     build/src/libultra/osSendMesg.o \
     build/asm/C1240.o \
+    build/src/libultra/osSetThreadPri.o \
+    build/asm/C13A4.o \
+    build/src/libultra/osStartThread.o \
+    build/asm/C1554.o \
     build/src/libultra/__osInsertTimer.o \
     build/asm/C18A4.o \
+    build/src/libultra/osVirtualToPhysical.o \
+    build/asm/C1910.o \
     build/assets/rsp_and_data_unsplit.o \
     build/assets/ovl_unresolved_160000.o \
     build/asm/16E000.o \
@@ -35,8 +45,6 @@ build/turok_ragewars.elf: \
 build/asm/header.o:
 build/assets/ipl3.o:
 build/asm/entry.o:
-build/src/libultra/osSetTime.o:
-build/asm/A2E64.o:
 build/src/libultra/_VirtualToPhysicalTask.o:
 build/src/libultra/osSpTaskLoad.o:
 build/src/libultra/osSpTaskStartGo.o:
@@ -53,16 +61,28 @@ build/src/libultra/osViSwapBuffer.o:
 build/asm/C05F4.o:
 build/src/libultra/osCreateMesgQueue.o:
 build/asm/C0974.o:
+build/src/libultra/osGetThreadId.o:
+build/asm/C0A8C.o:
+build/src/libultra/osGetThreadPri.o:
+build/asm/C0AAC.o:
+build/src/libultra/osGetTime.o:
+build/asm/C0B2C.o:
 build/src/libultra/osJamMesg.o:
 build/asm/C0F84.o:
 build/src/libultra/osRecvMesg.o:
 build/asm/C10B4.o:
 build/src/libultra/osSendMesg.o:
 build/asm/C1240.o:
+build/src/libultra/osSetThreadPri.o:
+build/asm/C13A4.o:
+build/src/libultra/osStartThread.o:
+build/asm/C1554.o:
 build/src/libultra/__osInsertTimer.o:
 build/asm/C18A4.o:
+build/src/libultra/osVirtualToPhysical.o:
+build/asm/C1910.o:
 build/assets/rsp_and_data_unsplit.o:
 build/assets/ovl_unresolved_160000.o:
 build/asm/16E000.o:
 build/assets/ovl_a_tail.o:
--include build/asm/header.d build/assets/ipl3.d build/asm/entry.d build/src/libultra/osSetTime.d build/asm/A2E64.d build/src/libultra/_VirtualToPhysicalTask.d build/src/libultra/osSpTaskLoad.d build/src/libultra/osSpTaskStartGo.d build/asm/BFC98.d build/src/libultra/osSpTaskYield.d build/asm/BFE2C.d build/src/libultra/osViBlack.d build/asm/BFEFC.d build/src/libultra/osViSetEvent.d build/asm/C0398.d build/src/libultra/osViSetMode.d build/asm/C03EC.d build/src/libultra/osViSwapBuffer.d build/asm/C05F4.d build/src/libultra/osCreateMesgQueue.d build/asm/C0974.d build/src/libultra/osJamMesg.d build/asm/C0F84.d build/src/libultra/osRecvMesg.d build/asm/C10B4.d build/src/libultra/osSendMesg.d build/asm/C1240.d build/src/libultra/__osInsertTimer.d build/asm/C18A4.d build/assets/rsp_and_data_unsplit.d build/assets/ovl_unresolved_160000.d build/asm/16E000.d build/assets/ovl_a_tail.d
+-include build/asm/header.d build/assets/ipl3.d build/asm/entry.d build/src/libultra/_VirtualToPhysicalTask.d build/src/libultra/osSpTaskLoad.d build/src/libultra/osSpTaskStartGo.d build/asm/BFC98.d build/src/libultra/osSpTaskYield.d build/asm/BFE2C.d build/src/libultra/osViBlack.d build/asm/BFEFC.d build/src/libultra/osViSetEvent.d build/asm/C0398.d build/src/libultra/osViSetMode.d build/asm/C03EC.d build/src/libultra/osViSwapBuffer.d build/asm/C05F4.d build/src/libultra/osCreateMesgQueue.d build/asm/C0974.d build/src/libultra/osGetThreadId.d build/asm/C0A8C.d build/src/libultra/osGetThreadPri.d build/asm/C0AAC.d build/src/libultra/osGetTime.d build/asm/C0B2C.d build/src/libultra/osJamMesg.d build/asm/C0F84.d build/src/libultra/osRecvMesg.d build/asm/C10B4.d build/src/libultra/osSendMesg.d build/asm/C1240.d build/src/libultra/osSetThreadPri.d build/asm/C13A4.d build/src/libultra/osStartThread.d build/asm/C1554.d build/src/libultra/__osInsertTimer.d build/asm/C18A4.d build/src/libultra/osVirtualToPhysical.d build/asm/C1910.d build/assets/rsp_and_data_unsplit.d build/assets/ovl_unresolved_160000.d build/asm/16E000.d build/assets/ovl_a_tail.d
