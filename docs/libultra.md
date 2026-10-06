@@ -29,15 +29,21 @@ osCreateMesgQueue, osSendMesg, osRecvMesg, osJamMesg, osSetEventMesg, osCreateTh
 osStartThread, osSetThreadPri, osGetThreadId, osGetThreadPri, osGetTime, __osInsertTimer, osVirtualToPhysical,
 _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo, osSpTaskYield, osSpTaskYielded, osViBlack, osViSetEvent,
 osViSetMode, osViSwapBuffer, osViSetSpecialFeatures, osContGetReadData, osPiGetCmdQueue, osPiStartDma,
-osPiRawStartDma, __osAiDeviceBusy, __osSiDeviceBusy, __osSpGetStatus, memcpy, strchr, strlen.
+osPiRawStartDma, __osAiDeviceBusy, __osSiDeviceBusy, __osSpGetStatus, memcpy, strchr, strlen, __osPiRelAccess,
+__osTimerInterrupt, __osTimerServicesInit, __osSetTimerIntr, __osPackReadData, __osPackRequestData,
+__osContGetInitData.
+
+## Blocked on a build feature
+- **Float literal pools**: the original `as` expanded `li.s`/float constants into `.rodata` literals loaded with
+  `lui $at; lwc1 ...($at)`; modern gas emits `lui $at,0x3F80; mtc1`. Needs rodata handling (splat rodata subsegments +
+  an `li.s` -> literal-pool expansion in `gas_compat.py`). Affects `guMtxIdentF` (0xBC93C), `guMtxF2L` (0xBC850),
+  `guMtxL2F` (0xBCA24), `guMtxIdent` and every other float-using function. Sources are in `wip/guMtx*.c`.
 
 ## Close but not matching yet (see docs/libultra_locations.txt)
 - `__osPiCreateAccessQueue`/`__osPiGetAccess` (0xBF640): the ROM's first function looks like GetAccess with the
   queue creation inlined; sources in `wip/`.
-- `__osTimerInterrupt` 0xC15A0 (0.95), `__osSetTimerIntr` 0xC173C (0.87), `__osTimerServicesInit`, `osSetTimer` 0xC13B0
+- `osSetTimer` 0xC13B0, `osContInit`, `osContStartReadData` (not found at the libreultra position; sources in `wip/`)
 - `__osViSwapContext` 0xC0600 (207 insns), `osCreateViManager`, `osAiSetFrequency` 0xBCFB0, `osAiGetLength`
-- `__osPackReadData` 0xBD35C, `__osContGetInitData` 0xBD7A8, `__osPackRequestData` 0xBD6F0, `osContStartReadData`
-- `guMtxIdentF` 0xBC93C, `guMtxL2F` 0xBCA24, other gu* functions
 - printf family (`_Printf`, `_Ldtob`, `_Litob`, `sprintf`): libreultra's headers use `__builtin_va_list`, which
   GCC 2.8.1 lacks - needs a `stdarg`-style rewrite.
 

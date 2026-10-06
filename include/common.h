@@ -179,6 +179,11 @@ typedef struct {
     /* 0x14 */ void *piHandle;
 } OSIoMesg;
 
+typedef union {
+    s32 m[4][4];
+    long long int force_structure_alignment;
+} Mtx;
+
 typedef struct OSTimer_s {
     /* 0x00 */ struct OSTimer_s *next;
     /* 0x04 */ struct OSTimer_s *prev;
@@ -323,6 +328,10 @@ const u8 *strchr(const u8 *str, u32 ch);
 void osContGetReadData(OSContPad *pad);
 s32 osContStartReadData(OSMesgQueue *mq);
 void __osPackReadData(void);
+void guMtxIdentF(f32 mf[4][4]);
+void guMtxF2L(f32 mf[4][4], Mtx *m);
+void guMtxL2F(f32 mf[4][4], Mtx *m);
+void guMtxIdent(Mtx *m);
 void __osPackRequestData(u8 cmd);
 void __osContGetInitData(u8 *pattern, OSContStatus *status);
 void __osSiGetAccess(void);
