@@ -1,0 +1,8 @@
+wip/c2/alMainBusParam.c alMainBusParam 0xB9BAC
+wip/c2/alAuxBusParam.c alAuxBusParam 0xBB210
+wip/c2/alSaveNew.c alSaveNew 0xBA268
+wip/c2/alAuxBusNew.c alAuxBusNew 0xBA124
+wip/c2/alMainBusNew.c alMainBusNew 0xBA180
+wip/c2/alResampleNew.c alResampleNew 0xBA1DC
+wip/c2/alLoadNew.c alLoadNew 0xBA074
+wip/c2/alEnvmixerNew.c alEnvmixerNew 0xBA2AC

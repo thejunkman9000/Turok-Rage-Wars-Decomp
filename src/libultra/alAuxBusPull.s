@@ -6,10 +6,8 @@
 
 .section .text, "ax"
 
-/* hand-written assembly, ROM 0xBB0CC-0xBB210 (VRAM 0x002BA4CC) */
+/* hand-written assembly, ROM 0xBB0D0-0xBB210 (VRAM 0x002BA4CC) */
 glabel alAuxBusPull
-    /* BB0CC 002BA4CC 02002821 */  addu       $a1, $s0, $zero
-  alabel D_002BA4D0
     /* BB0D0 002BA4D0 27BDFFC0 */  addiu      $sp, $sp, -0x40
     /* BB0D4 002BA4D4 AFB70034 */  sw         $s7, 0x34($sp)
     /* BB0D8 002BA4D8 00C0B821 */  addu       $s7, $a2, $zero

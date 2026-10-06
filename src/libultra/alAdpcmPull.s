@@ -6,11 +6,8 @@
 
 .section .text, "ax"
 
-/* hand-written assembly, ROM 0xC3DB8-0xC4204 (VRAM 0x002C31B8) */
+/* hand-written assembly, ROM 0xC3DC0-0xC4204 (VRAM 0x002C31B8) */
 glabel alAdpcmPull
-    /* C3DB8 002C31B8 0C0B0FA8 */  jal        adecReadBits
-    /* C3DBC 002C31BC AFAB0010 */   sw        $t3, 0x10($sp)
-  alabel D_002C31C0
     /* C3DC0 002C31C0 27BDFFA8 */  addiu      $sp, $sp, -0x58
     /* C3DC4 002C31C4 AFB20038 */  sw         $s2, 0x38($sp)
     /* C3DC8 002C31C8 8FB20068 */  lw         $s2, 0x68($sp)

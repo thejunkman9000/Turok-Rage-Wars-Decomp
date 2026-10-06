@@ -125,7 +125,8 @@ osAiGetStatus  0xBCF90  5  libultra
 sqrtf 0xBCF80 4 libultra
 sprintf  0xC3010  32  libultra
 _Ldtob 0xC3DB0 2 libultra
-alAdpcmPull 0xC3DB8 275 libultra
+pad_0C3DB8 0xC3DB8 2 libultra
+alAdpcmPull 0xC3DC0 273 libultra
 alRaw16Pull 0xC4204 225 libultra
 alAdecPull 0xC4588 131 libultra
 alLoadParam 0xC4794 100 libultra
@@ -334,13 +335,15 @@ _collectPVoices 0xB994C 21 libultra
 _timeToSamplesNoRound 0xB99A0 16 libultra ro=0xCD3D8:8
 __nextSampleTime 0xB99E0 42 libultra ro=0xCD3C0:24
 _timeToSamplesNoRound_2 0xB9A88 15 libultra ro=0xCD3E0:8
-alMainBusPull 0xB9AC4 58 libultra
-alMainBusParam 0xB9BAC 13 libultra
+pad_0B9AC4 0xB9AC4 3 libultra
+alMainBusPull 0xB9AD0 55 libultra
+alMainBusParam 0xB9BAC 12 libultra
+pad_0B9BDC 0xB9BDC 1 libultra
 alFxNew 0xB9BE0 293 libultra
 alLoadNew 0xBA074 44 libultra
 alAuxBusNew 0xBA124 23 libultra
 alMainBusNew 0xBA180 23 libultra
-alResampleNew 0xBA1DC 35 libultra
+alResampleNew 0xBA1DC 35 libultra ro=0xCD430:4
 alSaveNew 0xBA268 17 libultra
 alEnvmixerNew 0xBA2AC 44 libultra
 init_lpfilter 0xBA35C 41 libultra
@@ -352,7 +355,8 @@ _getVol 0xBAF58 30 libultra
 libm_frexp 0xBAFD0 45 libultra
 libm_ldexp 0xBB084 11 libultra
 alFilterNew 0xBB0B0 7 libultra
-alAuxBusPull 0xBB0CC 81 libultra
+pad_0BB0CC 0xBB0CC 1 libultra
+alAuxBusPull 0xBB0D0 80 libultra
 alAuxBusParam 0xBB210 12 libultra
 alResamplePull 0xBB240 112 libultra
 alResampleParam 0xBB400 48 libultra
@@ -364,8 +368,10 @@ alFxParam 0xBBDA8 5 libultra
 _loadBuffer 0xBBDBC 92 libultra
 _filterBuffer 0xBBF2C 41 libultra
 _doModFunc 0xBBFD0 30 libultra
-alSavePull 0xBC048 66 libultra
-alSaveParam 0xBC150 16 libultra
+pad_0BC048 0xBC048 2 libultra
+alSavePull 0xBC050 64 libultra
+alSaveParam 0xBC150 13 libultra
+pad_0BC184 0xBC184 3 libultra
 alSynAllocFX 0xBC190 37 libultra
 libaudio_fragment_0BC224 0xBC224 3 libultra
 pad_0BC334 0xBC334 3 libultra

@@ -6,6 +6,7 @@ alSndpAllocate 0xCD360 4
 __nextSampleTime 0xCD3C0 24
 _timeToSamplesNoRound 0xCD3D8 8
 _timeToSamplesNoRound_2 0xCD3E0 8
+alResampleNew 0xCD430 4
 cosf 0xCD660 96
 guLookAt 0xCD6C0 16
 guMtxIdent 0xCD6D0 8

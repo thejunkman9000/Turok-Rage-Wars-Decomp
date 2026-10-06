@@ -6,11 +6,8 @@
 
 .section .text, "ax"
 
-/* hand-written assembly, ROM 0xB9AC4-0xB9BAC (VRAM 0x002B8EC4) */
+/* hand-written assembly, ROM 0xB9AD0-0xB9BAC (VRAM 0x002B8EC4) */
 glabel alMainBusPull
-    /* B9AC4 002B8EC4 00021040 */  sll        $v0, $v0, 1
-    /* B9AC8 002B8EC8 8623001A */  lh         $v1, 0x1A($s1)
-    /* B9ACC 002B8ECC 3C01800E */  lui        $at, (0x800E0000 >> 16)
     /* B9AD0 002B8ED0 27BDFFC8 */  addiu      $sp, $sp, -0x38
     /* B9AD4 002B8ED4 AFB40028 */  sw         $s4, 0x28($sp)
     /* B9AD8 002B8ED8 00A0A021 */  addu       $s4, $a1, $zero

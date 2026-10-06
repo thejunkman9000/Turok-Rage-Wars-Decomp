@@ -6,11 +6,8 @@
 
 .section .text, "ax"
 
-/* hand-written assembly, ROM 0xBC048-0xBC150 (VRAM 0x002BB448) */
+/* hand-written assembly, ROM 0xBC050-0xBC150 (VRAM 0x002BB448) */
 glabel alSavePull
-    /* BC048 002BB448 30E200FF */  andi       $v0, $a3, 0xFF
-    /* BC04C 002BB44C 2C420011 */  sltiu      $v0, $v0, 0x11
-  alabel D_002BB450
     /* BC050 002BB450 27BDFFC8 */  addiu      $sp, $sp, -0x38
     /* BC054 002BB454 AFB5002C */  sw         $s5, 0x2C($sp)
     /* BC058 002BB458 0080A821 */  addu       $s5, $a0, $zero

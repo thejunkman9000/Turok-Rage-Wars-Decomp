@@ -37,8 +37,8 @@ glabel alLoadParam
     /* C47F8 002C3BF8 00000000 */   nop
   .L002C3BFC:
     /* C47FC 002C3BFC 8CE30028 */  lw         $v1, 0x28($a3)
-    /* C4800 002C3C00 3C02002C */  lui        $v0, %hi(D_002C31C0)
-    /* C4804 002C3C04 244231C0 */  addiu      $v0, $v0, %lo(D_002C31C0)
+    /* C4800 002C3C00 3C02002C */  lui        $v0, %hi(alAdpcmPull)
+    /* C4804 002C3C04 244231C0 */  addiu      $v0, $v0, %lo(alAdpcmPull)
     /* C4808 002C3C08 ACE20004 */  sw         $v0, 0x4($a3)
     /* C480C 002C3C0C 8C630010 */  lw         $v1, 0x10($v1)
     /* C4810 002C3C10 8C620004 */  lw         $v0, 0x4($v1)

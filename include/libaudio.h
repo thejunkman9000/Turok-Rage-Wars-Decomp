@@ -191,8 +191,75 @@ typedef struct ALFilter_s {
     struct ALFilter_s *source;
     void *(*handler)(struct ALFilter_s *filter, s16 *outp, s32 outCount, s32 sampleOffset, void *cmdp);
     s32 (*setParam)(struct ALFilter_s *filter, s32 type, void *param);
-    void *setSource;
+    s16 inp;
+    s16 outp;
+    s32 type;
 } ALFilter;
+
+/* audio filter nodes (n_-less libaudio: mixer, resampler, loader, envelope mixer, reverb, save) */
+typedef struct {
+    ALFilter filter;
+    s32 sourceCount;
+    s32 maxSources;
+    ALFilter **sources;
+} ALBus;
+
+typedef struct {
+    ALFilter filter;
+    s32 dramout;
+    s32 first;
+} ALSave;
+
+typedef struct {
+    ALFilter filter;
+    void *state;
+    f32 ratio;
+    s32 upitch;
+    s32 delta;
+    s32 first;
+    void *ctrlList;
+    void *ctrlTail;
+    s32 motion;
+} ALResampler;
+
+typedef struct {
+    ALFilter filter;
+    void *state;
+    void *lstate;
+    u8 pad1C[0x30 - 0x1C];
+    void *dma;
+    u8 dmaState[8];
+    s32 lastsam;
+    s32 first;
+    void *memin;
+} ALLoadFilter;
+
+typedef struct {
+    ALFilter filter;
+    void *state;
+    s16 f18;
+    s16 f1A;
+    s16 f1C;
+    s16 f1E;
+    s16 f20;
+    s16 f22;
+    union {
+        s16 a;
+        volatile s16 b;
+    } f24;
+    s16 f26;
+    s16 f28;
+    s16 f2A;
+    s16 f2C;
+    s16 f2E;
+    s32 f30;
+    s32 f34;
+    s32 first;
+    s32 f3C;
+    s32 f40;
+    s32 f44;
+    s32 motion;
+} ALEnvMixer;
 
 typedef struct ALParam_s {
     struct ALParam_s *next;

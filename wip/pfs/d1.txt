@@ -1,0 +1,5 @@
+wip/c2/alFilterNew.c alFilterNew 0xBB0B0
+wip/c2/alMainBusParam.c alMainBusParam 0xB9BAC
+wip/c2/alAuxBusParam.c alAuxBusParam 0xBB210
+wip/c2/alFxParam.c alFxParam 0xBBDA8
+wip/c2/alSaveParam.c alSaveParam 0xBC150
