@@ -30,7 +30,7 @@ glabel osPfsFileState
     /* 1B56BC 004476BC 30420001 */  andi       $v0, $v0, 0x1
     /* 1B56C0 004476C0 1040006F */  beqz       $v0, .L00447880
     /* 1B56C4 004476C4 24020005 */   addiu     $v0, $zero, 0x5
-    /* 1B56C8 004476C8 0C112613 */  jal        func_0044984C
+    /* 1B56C8 004476C8 0C112613 */  jal        __osCheckId
     /* 1B56CC 004476CC 02602021 */   addu      $a0, $s3, $zero
     /* 1B56D0 004476D0 24030002 */  addiu      $v1, $zero, 0x2
     /* 1B56D4 004476D4 1043006A */  beq        $v0, $v1, .L00447880
@@ -79,7 +79,7 @@ glabel osPfsFileState
     /* 1B5774 00447774 02602021 */  addu       $a0, $s3, $zero
   .L00447778:
     /* 1B5778 00447778 27A50010 */  addiu      $a1, $sp, 0x10
-    /* 1B577C 0044777C 0C11253D */  jal        func_004494F4
+    /* 1B577C 0044777C 0C11253D */  jal        __osPfsRWInode
     /* 1B5780 00447780 00003021 */   addu      $a2, $zero, $zero
     /* 1B5784 00447784 1440003E */  bnez       $v0, .L00447880
     /* 1B5788 00447788 00000000 */   nop

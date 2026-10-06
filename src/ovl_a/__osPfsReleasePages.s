@@ -63,7 +63,7 @@ glabel __osPfsReleasePages
     /* 1B54B4 004474B4 30C500FF */  andi       $a1, $a2, 0xFF
     /* 1B54B8 004474B8 02A03021 */  addu       $a2, $s5, $zero
     /* 1B54BC 004474BC 30F100FF */  andi       $s1, $a3, 0xFF
-    /* 1B54C0 004474C0 0C111D67 */  jal        func_0044759C
+    /* 1B54C0 004474C0 0C111D67 */  jal        __osBlockSum
     /* 1B54C4 004474C4 02203821 */   addu      $a3, $s1, $zero
     /* 1B54C8 004474C8 1440002A */  bnez       $v0, .L00447574
     /* 1B54CC 004474CC 3203FFFF */   andi      $v1, $s0, 0xFFFF
@@ -86,7 +86,7 @@ glabel __osPfsReleasePages
     /* 1B550C 0044750C 94500000 */  lhu        $s0, 0x0($v0)
     /* 1B5510 00447510 00051040 */  sll        $v0, $a1, 1
     /* 1B5514 00447514 02621021 */  addu       $v0, $s3, $v0
-    /* 1B5518 00447518 0C111D67 */  jal        func_0044759C
+    /* 1B5518 00447518 0C111D67 */  jal        __osBlockSum
     /* 1B551C 0044751C A4540000 */   sh        $s4, 0x0($v0)
     /* 1B5520 00447520 14400014 */  bnez       $v0, .L00447574
     /* 1B5524 00447524 3203FFFF */   andi      $v1, $s0, 0xFFFF

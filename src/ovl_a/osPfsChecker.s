@@ -20,13 +20,13 @@ glabel osPfsChecker
     /* 1B5DA4 00447DA4 AFB40470 */  sw         $s4, 0x470($sp)
     /* 1B5DA8 00447DA8 AFB3046C */  sw         $s3, 0x46C($sp)
     /* 1B5DAC 00447DAC AFB10464 */  sw         $s1, 0x464($sp)
-    /* 1B5DB0 00447DB0 0C112613 */  jal        func_0044984C
+    /* 1B5DB0 00447DB0 0C112613 */  jal        __osCheckId
     /* 1B5DB4 00447DB4 AFB00460 */   sw        $s0, 0x460($sp)
     /* 1B5DB8 00447DB8 00401821 */  addu       $v1, $v0, $zero
     /* 1B5DBC 00447DBC 24020002 */  addiu      $v0, $zero, 0x2
     /* 1B5DC0 00447DC0 14620004 */  bne        $v1, $v0, .L00447DD4
     /* 1B5DC4 00447DC4 00000000 */   nop
-    /* 1B5DC8 00447DC8 0C1124C2 */  jal        func_00449308
+    /* 1B5DC8 00447DC8 0C1124C2 */  jal        __osGetId_b
     /* 1B5DCC 00447DCC 02402021 */   addu      $a0, $s2, $zero
     /* 1B5DD0 00447DD0 00401821 */  addu       $v1, $v0, $zero
   .L00447DD4:
@@ -77,7 +77,7 @@ glabel osPfsChecker
     /* 1B5E74 00447E74 02402021 */   addu      $a0, $s2, $zero
     /* 1B5E78 00447E78 00609821 */  addu       $s3, $v1, $zero
     /* 1B5E7C 00447E7C 27A50118 */  addiu      $a1, $sp, 0x118
-    /* 1B5E80 00447E80 0C11253D */  jal        func_004494F4
+    /* 1B5E80 00447E80 0C11253D */  jal        __osPfsRWInode
     /* 1B5E84 00447E84 00003021 */   addu      $a2, $zero, $zero
     /* 1B5E88 00447E88 00401821 */  addu       $v1, $v0, $zero
     /* 1B5E8C 00447E8C 10600004 */  beqz       $v1, .L00447EA0
@@ -203,7 +203,7 @@ glabel osPfsChecker
     /* 1B6034 00448034 27A50118 */  addiu      $a1, $sp, 0x118
     /* 1B6038 00448038 00003021 */  addu       $a2, $zero, $zero
     /* 1B603C 0044803C 327000FF */  andi       $s0, $s3, 0xFF
-    /* 1B6040 00448040 0C11253D */  jal        func_004494F4
+    /* 1B6040 00448040 0C11253D */  jal        __osPfsRWInode
     /* 1B6044 00448044 02003821 */   addu      $a3, $s0, $zero
     /* 1B6048 00448048 00401821 */  addu       $v1, $v0, $zero
     /* 1B604C 0044804C 10600003 */  beqz       $v1, .L0044805C
@@ -278,7 +278,7 @@ glabel osPfsChecker
     /* 1B6134 00448134 02402021 */  addu       $a0, $s2, $zero
     /* 1B6138 00448138 27A50018 */  addiu      $a1, $sp, 0x18
     /* 1B613C 0044813C 24060001 */  addiu      $a2, $zero, 0x1
-    /* 1B6140 00448140 0C11253D */  jal        func_004494F4
+    /* 1B6140 00448140 0C11253D */  jal        __osPfsRWInode
     /* 1B6144 00448144 326700FF */   andi      $a3, $s3, 0xFF
     /* 1B6148 00448148 00401821 */  addu       $v1, $v0, $zero
     /* 1B614C 0044814C 1460FF23 */  bnez       $v1, .L00447DDC

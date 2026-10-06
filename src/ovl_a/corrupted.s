@@ -54,7 +54,7 @@ glabel corrupted
     /* 1B63A8 004483A8 10E2000A */  beq        $a3, $v0, .L004483D4
     /* 1B63AC 004483AC 02802021 */   addu      $a0, $s4, $zero
     /* 1B63B0 004483B0 02602821 */  addu       $a1, $s3, $zero
-    /* 1B63B4 004483B4 0C11253D */  jal        func_004494F4
+    /* 1B63B4 004483B4 0C11253D */  jal        __osPfsRWInode
     /* 1B63B8 004483B8 00003021 */   addu      $a2, $zero, $zero
     /* 1B63BC 004483BC 00401821 */  addu       $v1, $v0, $zero
     /* 1B63C0 004483C0 10600003 */  beqz       $v1, .L004483D0

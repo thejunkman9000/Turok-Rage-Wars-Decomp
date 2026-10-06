@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B559C-0x1B5670 (VRAM 0x0044759C) */
-glabel func_0044759C
+glabel __osBlockSum
     /* 1B559C 0044759C 27BDFFB8 */  addiu      $sp, $sp, -0x48
     /* 1B55A0 004475A0 AFB20038 */  sw         $s2, 0x38($sp)
     /* 1B55A4 004475A4 00809021 */  addu       $s2, $a0, $zero
@@ -44,7 +44,7 @@ glabel func_0044759C
     /* 1B5614 00447614 00408021 */  addu       $s0, $v0, $zero
     /* 1B5618 00447618 1600FFF1 */  bnez       $s0, .L004475E0
     /* 1B561C 0044761C 27A40010 */   addiu     $a0, $sp, 0x10
-    /* 1B5620 00447620 0C1125F5 */  jal        func_004497D4
+    /* 1B5620 00447620 0C1125F5 */  jal        __osSumcalc
     /* 1B5624 00447624 24050020 */   addiu     $a1, $zero, 0x20
     /* 1B5628 00447628 96830000 */  lhu        $v1, 0x0($s4)
     /* 1B562C 0044762C 26310001 */  addiu      $s1, $s1, 0x1
@@ -67,4 +67,4 @@ glabel func_0044759C
 
 
     /* 1B566C 0044766C 00C2102A */  .word      0x00C2102A /* linker padding */
-endlabel func_0044759C
+endlabel __osBlockSum

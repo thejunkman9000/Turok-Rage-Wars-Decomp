@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B77D4-0x1B7804 (VRAM 0x004497D4) */
-glabel func_004497D4
+glabel __osSumcalc
     /* 1B77D4 004497D4 00003021 */  addu       $a2, $zero, $zero
     /* 1B77D8 004497D8 18A00008 */  blez       $a1, .L004497FC
     /* 1B77DC 004497DC 00C01821 */   addu      $v1, $a2, $zero
@@ -22,4 +22,4 @@ glabel func_004497D4
   .L004497FC:
     /* 1B77FC 004497FC 03E00008 */  jr         $ra
     /* 1B7800 00449800 3062FFFF */   andi      $v0, $v1, 0xFFFF
-endlabel func_004497D4
+endlabel __osSumcalc

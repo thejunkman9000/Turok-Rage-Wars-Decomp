@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B784C-0x1B7914 (VRAM 0x0044984C) */
-glabel func_0044984C
+glabel __osCheckId
     /* 1B784C 0044984C 27BDFFC8 */  addiu      $sp, $sp, -0x38
     /* 1B7850 00449850 AFB00030 */  sw         $s0, 0x30($sp)
     /* 1B7854 00449854 00808021 */  addu       $s0, $a0, $zero
@@ -64,4 +64,4 @@ glabel func_0044984C
     /* 1B7908 00449908 8FB00030 */  lw         $s0, 0x30($sp)
     /* 1B790C 0044990C 03E00008 */  jr         $ra
     /* 1B7910 00449910 27BD0038 */   addiu     $sp, $sp, 0x38
-endlabel func_0044984C
+endlabel __osCheckId

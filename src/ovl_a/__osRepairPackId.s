@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B6EB0-0x1B7198 (VRAM 0x00448EB0) */
-glabel func_00448EB0
+glabel __osRepairPackId
     /* 1B6EB0 00448EB0 27BDFF80 */  addiu      $sp, $sp, -0x80
     /* 1B6EB4 00448EB4 AFB20068 */  sw         $s2, 0x68($sp)
     /* 1B6EB8 00448EB8 00809021 */  addu       $s2, $a0, $zero
@@ -207,4 +207,4 @@ glabel func_00448EB0
     /* 1B718C 0044918C 8FB00060 */  lw         $s0, 0x60($sp)
     /* 1B7190 00449190 03E00008 */  jr         $ra
     /* 1B7194 00449194 27BD0080 */   addiu     $sp, $sp, 0x80
-endlabel func_00448EB0
+endlabel __osRepairPackId

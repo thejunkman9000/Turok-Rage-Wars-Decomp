@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B7308-0x1B74F4 (VRAM 0x00449308) */
-glabel func_00449308
+glabel __osGetId_b
     /* 1B7308 00449308 27BDFF98 */  addiu      $sp, $sp, -0x68
     /* 1B730C 0044930C AFB1005C */  sw         $s1, 0x5C($sp)
     /* 1B7310 00449310 00808821 */  addu       $s1, $a0, $zero
@@ -58,7 +58,7 @@ glabel func_00449308
     /* 1B73BC 004493BC 00000000 */   nop
   .L004493C0:
     /* 1B73C0 004493C0 02202021 */  addu       $a0, $s1, $zero
-    /* 1B73C4 004493C4 0C112466 */  jal        func_00449198
+    /* 1B73C4 004493C4 0C112466 */  jal        __osCheckPackId
     /* 1B73C8 004493C8 02002821 */   addu      $a1, $s0, $zero
     /* 1B73CC 004493CC 00401821 */  addu       $v1, $v0, $zero
     /* 1B73D0 004493D0 2402000A */  addiu      $v0, $zero, 0xA
@@ -66,7 +66,7 @@ glabel func_00449308
     /* 1B73D8 004493D8 02202021 */   addu      $a0, $s1, $zero
     /* 1B73DC 004493DC 02002821 */  addu       $a1, $s0, $zero
     /* 1B73E0 004493E0 27B00030 */  addiu      $s0, $sp, 0x30
-    /* 1B73E4 004493E4 0C1123AC */  jal        func_00448EB0
+    /* 1B73E4 004493E4 0C1123AC */  jal        __osRepairPackId
     /* 1B73E8 004493E8 02003021 */   addu      $a2, $s0, $zero
     /* 1B73EC 004493EC 00401821 */  addu       $v1, $v0, $zero
     /* 1B73F0 004493F0 10600005 */  beqz       $v1, .L00449408
@@ -84,7 +84,7 @@ glabel func_00449308
     /* 1B7418 00449418 02202021 */  addu       $a0, $s1, $zero
     /* 1B741C 0044941C 02002821 */  addu       $a1, $s0, $zero
     /* 1B7420 00449420 27B00030 */  addiu      $s0, $sp, 0x30
-    /* 1B7424 00449424 0C1123AC */  jal        func_00448EB0
+    /* 1B7424 00449424 0C1123AC */  jal        __osRepairPackId
     /* 1B7428 00449428 02003021 */   addu      $a2, $s0, $zero
     /* 1B742C 0044942C 00401821 */  addu       $v1, $v0, $zero
     /* 1B7430 00449430 1460002B */  bnez       $v1, .L004494E0
@@ -139,4 +139,4 @@ glabel func_00449308
     /* 1B74E8 004494E8 8FB00058 */  lw         $s0, 0x58($sp)
     /* 1B74EC 004494EC 03E00008 */  jr         $ra
     /* 1B74F0 004494F0 27BD0068 */   addiu     $sp, $sp, 0x68
-endlabel func_00449308
+endlabel __osGetId_b

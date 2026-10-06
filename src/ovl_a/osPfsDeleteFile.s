@@ -29,7 +29,7 @@ glabel osPfsDeleteFile
     /* 1B5218 00447218 30420001 */  andi       $v0, $v0, 0x1
     /* 1B521C 0044721C 1040006E */  beqz       $v0, .L004473D8
     /* 1B5220 00447220 24020005 */   addiu     $v0, $zero, 0x5
-    /* 1B5224 00447224 0C112613 */  jal        func_0044984C
+    /* 1B5224 00447224 0C112613 */  jal        __osCheckId
     /* 1B5228 00447228 02402021 */   addu      $a0, $s2, $zero
     /* 1B522C 0044722C 24030002 */  addiu      $v1, $zero, 0x2
     /* 1B5230 00447230 10430069 */  beq        $v0, $v1, .L004473D8
@@ -49,7 +49,7 @@ glabel osPfsDeleteFile
     /* 1B5264 00447264 8FA20178 */  lw         $v0, 0x178($sp)
     /* 1B5268 00447268 27B00140 */  addiu      $s0, $sp, 0x140
     /* 1B526C 0044726C AFB00014 */  sw         $s0, 0x14($sp)
-    /* 1B5270 00447270 0C11234C */  jal        func_00448D30
+    /* 1B5270 00447270 0C11234C */  jal        osPfsFindFile
     /* 1B5274 00447274 AFA20010 */   sw        $v0, 0x10($sp)
     /* 1B5278 00447278 14400057 */  bnez       $v0, .L004473D8
     /* 1B527C 0044727C 00000000 */   nop
@@ -82,7 +82,7 @@ glabel osPfsDeleteFile
   .L004472E0:
     /* 1B52E0 004472E0 27A50020 */  addiu      $a1, $sp, 0x20
     /* 1B52E4 004472E4 00003021 */  addu       $a2, $zero, $zero
-    /* 1B52E8 004472E8 0C11253D */  jal        func_004494F4
+    /* 1B52E8 004472E8 0C11253D */  jal        __osPfsRWInode
     /* 1B52EC 004472EC 02003821 */   addu      $a3, $s0, $zero
     /* 1B52F0 004472F0 14400039 */  bnez       $v0, .L004473D8
     /* 1B52F4 004472F4 02402021 */   addu      $a0, $s2, $zero
@@ -97,7 +97,7 @@ glabel osPfsDeleteFile
     /* 1B5318 00447318 02402021 */   addu      $a0, $s2, $zero
     /* 1B531C 0044731C 27A50020 */  addiu      $a1, $sp, 0x20
     /* 1B5320 00447320 24060001 */  addiu      $a2, $zero, 0x1
-    /* 1B5324 00447324 0C11253D */  jal        func_004494F4
+    /* 1B5324 00447324 0C11253D */  jal        __osPfsRWInode
     /* 1B5328 00447328 02003821 */   addu      $a3, $s0, $zero
     /* 1B532C 0044732C 1440002A */  bnez       $v0, .L004473D8
     /* 1B5330 00447330 00000000 */   nop

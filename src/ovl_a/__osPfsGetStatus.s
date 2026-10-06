@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B59D0-0x1B5AA8 (VRAM 0x004479D0) */
-glabel func_004479D0
+glabel __osPfsGetStatus
     /* 1B59D0 004479D0 27BDFFC8 */  addiu      $sp, $sp, -0x38
     /* 1B59D4 004479D4 AFB20028 */  sw         $s2, 0x28($sp)
     /* 1B59D8 004479D8 00809021 */  addu       $s2, $a0, $zero
@@ -17,7 +17,7 @@ glabel func_004479D0
     /* 1B59E8 004479E8 AFBF0030 */  sw         $ra, 0x30($sp)
     /* 1B59EC 004479EC AFB10024 */  sw         $s1, 0x24($sp)
   .L004479F0:
-    /* 1B59F0 004479F0 0C111EAA */  jal        func_00447AA8
+    /* 1B59F0 004479F0 0C111EAA */  jal        __osPfsRequestOneChannel
     /* 1B59F4 004479F4 AFB00020 */   sw        $s0, 0x20($sp)
     /* 1B59F8 004479F8 24040001 */  addiu      $a0, $zero, 0x1
     /* 1B59FC 004479FC 3C118015 */  lui        $s1, %hi(__osPfsPifRam)
@@ -38,7 +38,7 @@ glabel func_004479D0
     /* 1B5A38 00447A38 0C0B00E4 */  jal        osRecvMesg
     /* 1B5A3C 00447A3C 00408021 */   addu      $s0, $v0, $zero
     /* 1B5A40 00447A40 02602021 */  addu       $a0, $s3, $zero
-    /* 1B5A44 00447A44 0C111ECD */  jal        func_00447B34
+    /* 1B5A44 00447A44 0C111ECD */  jal        __osPfsGetOneChannelData
     /* 1B5A48 00447A48 27A50010 */   addiu     $a1, $sp, 0x10
     /* 1B5A4C 00447A4C 93A30012 */  lbu        $v1, 0x12($sp)
     /* 1B5A50 00447A50 30620001 */  andi       $v0, $v1, 0x1
@@ -65,4 +65,4 @@ glabel func_004479D0
     /* 1B5A9C 00447A9C 8FB00020 */  lw         $s0, 0x20($sp)
     /* 1B5AA0 00447AA0 03E00008 */  jr         $ra
     /* 1B5AA4 00447AA4 27BD0038 */   addiu     $sp, $sp, 0x38
-endlabel func_004479D0
+endlabel __osPfsGetStatus

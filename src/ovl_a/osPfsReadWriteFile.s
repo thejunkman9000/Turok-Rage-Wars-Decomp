@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B6740-0x1B6B80 (VRAM 0x00448740) */
-glabel func_00448740
+glabel osPfsReadWriteFile
     /* 1B6740 00448740 27BDFE98 */  addiu      $sp, $sp, -0x168
     /* 1B6744 00448744 AFB20148 */  sw         $s2, 0x148($sp)
     /* 1B6748 00448748 00809021 */  addu       $s2, $a0, $zero
@@ -41,7 +41,7 @@ glabel func_00448740
     /* 1B67B8 004487B8 30420001 */  andi       $v0, $v0, 0x1
     /* 1B67BC 004487BC 104000E1 */  beqz       $v0, .L00448B44
     /* 1B67C0 004487C0 24020005 */   addiu     $v0, $zero, 0x5
-    /* 1B67C4 004487C4 0C112613 */  jal        func_0044984C
+    /* 1B67C4 004487C4 0C112613 */  jal        __osCheckId
     /* 1B67C8 004487C8 02402021 */   addu      $a0, $s2, $zero
     /* 1B67CC 004487CC 24030002 */  addiu      $v1, $zero, 0x2
     /* 1B67D0 004487D0 14430003 */  bne        $v0, $v1, .L004487E0
@@ -134,7 +134,7 @@ glabel func_00448740
     /* 1B6904 00448904 02802821 */  addu       $a1, $s4, $zero
     /* 1B6908 00448908 A2630000 */  sb         $v1, 0x0($s3)
     /* 1B690C 0044890C 306700FF */  andi       $a3, $v1, 0xFF
-    /* 1B6910 00448910 0C11253D */  jal        func_004494F4
+    /* 1B6910 00448910 0C11253D */  jal        __osPfsRWInode
     /* 1B6914 00448914 00003021 */   addu      $a2, $zero, $zero
     /* 1B6918 00448918 14400019 */  bnez       $v0, .L00448980
     /* 1B691C 0044891C 00401821 */   addu      $v1, $v0, $zero
@@ -192,7 +192,7 @@ glabel func_00448740
     /* 1B69D4 004489D4 02202821 */  addu       $a1, $s1, $zero
     /* 1B69D8 004489D8 A3A30138 */  sb         $v1, 0x138($sp)
     /* 1B69DC 004489DC 306700FF */  andi       $a3, $v1, 0xFF
-    /* 1B69E0 004489E0 0C11253D */  jal        func_004494F4
+    /* 1B69E0 004489E0 0C11253D */  jal        __osPfsRWInode
     /* 1B69E4 004489E4 00003021 */   addu      $a2, $zero, $zero
     /* 1B69E8 004489E8 14400019 */  bnez       $v0, .L00448A50
     /* 1B69EC 004489EC 00401821 */   addu      $v1, $v0, $zero
@@ -307,4 +307,4 @@ glabel func_00448740
     /* 1B6B74 00448B74 AE3205D0 */  .word      0xAE3205D0 /* linker padding */
     /* 1B6B78 00448B78 1440000B */  .word      0x1440000B /* linker padding */
     /* 1B6B7C 00448B7C AE3005E0 */  .word      0xAE3005E0 /* linker padding */
-endlabel func_00448740
+endlabel osPfsReadWriteFile

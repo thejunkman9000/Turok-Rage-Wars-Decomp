@@ -27,7 +27,7 @@ glabel osPfsFreeBlocks
     /* 1B58EC 004478EC 08111E68 */  j          .L004479A0
     /* 1B58F0 004478F0 24020005 */   addiu     $v0, $zero, 0x5
   .L004478F4:
-    /* 1B58F4 004478F4 0C112613 */  jal        func_0044984C
+    /* 1B58F4 004478F4 0C112613 */  jal        __osCheckId
     /* 1B58F8 004478F8 02602021 */   addu      $a0, $s3, $zero
     /* 1B58FC 004478FC 24030002 */  addiu      $v1, $zero, 0x2
     /* 1B5900 00447900 10430027 */  beq        $v0, $v1, .L004479A0
@@ -43,7 +43,7 @@ glabel osPfsFreeBlocks
     /* 1B5924 00447924 323000FF */  andi       $s0, $s1, 0xFF
     /* 1B5928 00447928 27A50010 */  addiu      $a1, $sp, 0x10
     /* 1B592C 0044792C 00003021 */  addu       $a2, $zero, $zero
-    /* 1B5930 00447930 0C11253D */  jal        func_004494F4
+    /* 1B5930 00447930 0C11253D */  jal        __osPfsRWInode
     /* 1B5934 00447934 02003821 */   addu      $a3, $s0, $zero
     /* 1B5938 00447938 14400019 */  bnez       $v0, .L004479A0
     /* 1B593C 0044793C 00000000 */   nop

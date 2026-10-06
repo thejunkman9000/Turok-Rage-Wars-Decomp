@@ -19,7 +19,7 @@ glabel osPfsInitPak
     /* 1B5BD0 00447BD0 0C0AFB41 */  jal        __osSiGetAccess
     /* 1B5BD4 00447BD4 AFB00058 */   sw        $s0, 0x58($sp)
     /* 1B5BD8 00447BD8 02202021 */  addu       $a0, $s1, $zero
-    /* 1B5BDC 00447BDC 0C111E74 */  jal        func_004479D0
+    /* 1B5BDC 00447BDC 0C111E74 */  jal        __osPfsGetStatus
     /* 1B5BE0 00447BE0 02602821 */   addu      $a1, $s3, $zero
     /* 1B5BE4 00447BE4 0C0AFB5C */  jal        __osSiRelAccess
     /* 1B5BE8 00447BE8 00408021 */   addu      $s0, $v0, $zero
@@ -42,7 +42,7 @@ glabel osPfsInitPak
     /* 1B5C2C 00447C2C 1600004D */  bnez       $s0, .L00447D64
     /* 1B5C30 00447C30 27A40010 */   addiu     $a0, $sp, 0x10
     /* 1B5C34 00447C34 27A50050 */  addiu      $a1, $sp, 0x50
-    /* 1B5C38 00447C38 0C112601 */  jal        func_00449804
+    /* 1B5C38 00447C38 0C112601 */  jal        __osIdCheckSum
     /* 1B5C3C 00447C3C 27A60052 */   addiu     $a2, $sp, 0x52
     /* 1B5C40 00447C40 97A3002C */  lhu        $v1, 0x2C($sp)
     /* 1B5C44 00447C44 97A20050 */  lhu        $v0, 0x50($sp)
@@ -54,7 +54,7 @@ glabel osPfsInitPak
     /* 1B5C5C 00447C5C 00000000 */   nop
   .L00447C60:
     /* 1B5C60 00447C60 02402021 */  addu       $a0, $s2, $zero
-    /* 1B5C64 00447C64 0C112466 */  jal        func_00449198
+    /* 1B5C64 00447C64 0C112466 */  jal        __osCheckPackId
     /* 1B5C68 00447C68 02202821 */   addu      $a1, $s1, $zero
     /* 1B5C6C 00447C6C 00408021 */  addu       $s0, $v0, $zero
     /* 1B5C70 00447C70 1600003C */  bnez       $s0, .L00447D64
@@ -67,7 +67,7 @@ glabel osPfsInitPak
     /* 1B5C88 00447C88 02402021 */  addu       $a0, $s2, $zero
     /* 1B5C8C 00447C8C 02202821 */  addu       $a1, $s1, $zero
     /* 1B5C90 00447C90 27B10030 */  addiu      $s1, $sp, 0x30
-    /* 1B5C94 00447C94 0C1123AC */  jal        func_00448EB0
+    /* 1B5C94 00447C94 0C1123AC */  jal        __osRepairPackId
     /* 1B5C98 00447C98 02203021 */   addu      $a2, $s1, $zero
     /* 1B5C9C 00447C9C 00408021 */  addu       $s0, $v0, $zero
     /* 1B5CA0 00447CA0 16000030 */  bnez       $s0, .L00447D64

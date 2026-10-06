@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B6D30-0x1B6EB0 (VRAM 0x00448D30) */
-glabel func_00448D30
+glabel osPfsFindFile
     /* 1B6D30 00448D30 27BDFFA8 */  addiu      $sp, $sp, -0x58
     /* 1B6D34 00448D34 AFB3003C */  sw         $s3, 0x3C($sp)
     /* 1B6D38 00448D38 8FB30068 */  lw         $s3, 0x68($sp)
@@ -23,7 +23,7 @@ glabel func_00448D30
     /* 1B6D60 00448D60 00A08821 */  addu       $s1, $a1, $zero
     /* 1B6D64 00448D64 AFBF0050 */  sw         $ra, 0x50($sp)
     /* 1B6D68 00448D68 AFB60048 */  sw         $s6, 0x48($sp)
-    /* 1B6D6C 00448D6C 0C112613 */  jal        func_0044984C
+    /* 1B6D6C 00448D6C 0C112613 */  jal        __osCheckId
     /* 1B6D70 00448D70 AFB00030 */   sw        $s0, 0x30($sp)
     /* 1B6D74 00448D74 24030002 */  addiu      $v1, $zero, 0x2
     /* 1B6D78 00448D78 1043003F */  beq        $v0, $v1, .L00448E78
@@ -116,4 +116,4 @@ glabel func_00448D30
     /* 1B6EA4 00448EA4 C42273F4 */  .word      0xC42273F4 /* linker padding */
     /* 1B6EA8 00448EA8 3C01800C */  .word      0x3C01800C /* linker padding */
     /* 1B6EAC 00448EAC C42073F8 */  .word      0xC42073F8 /* linker padding */
-endlabel func_00448D30
+endlabel osPfsFindFile

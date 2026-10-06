@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B6B80-0x1B6D30 (VRAM 0x00448B80) */
-glabel func_00448B80
+glabel __osGetId
     /* 1B6B80 00448B80 27BDFF98 */  addiu      $sp, $sp, -0x68
     /* 1B6B84 00448B84 AFB1005C */  sw         $s1, 0x5C($sp)
     /* 1B6B88 00448B88 00808821 */  addu       $s1, $a0, $zero
@@ -31,7 +31,7 @@ glabel func_00448B80
     /* 1B6BC8 00448BC8 14600054 */  bnez       $v1, .L00448D1C
     /* 1B6BCC 00448BCC 27A40010 */   addiu     $a0, $sp, 0x10
     /* 1B6BD0 00448BD0 27A50050 */  addiu      $a1, $sp, 0x50
-    /* 1B6BD4 00448BD4 0C112601 */  jal        func_00449804
+    /* 1B6BD4 00448BD4 0C112601 */  jal        __osIdCheckSum
     /* 1B6BD8 00448BD8 27A60052 */   addiu     $a2, $sp, 0x52
     /* 1B6BDC 00448BDC 97A3002C */  lhu        $v1, 0x2C($sp)
     /* 1B6BE0 00448BE0 97A20050 */  lhu        $v0, 0x50($sp)
@@ -43,7 +43,7 @@ glabel func_00448B80
     /* 1B6BF8 00448BF8 00000000 */   nop
   .L00448BFC:
     /* 1B6BFC 00448BFC 02202021 */  addu       $a0, $s1, $zero
-    /* 1B6C00 00448C00 0C112466 */  jal        func_00449198
+    /* 1B6C00 00448C00 0C112466 */  jal        __osCheckPackId
     /* 1B6C04 00448C04 02002821 */   addu      $a1, $s0, $zero
     /* 1B6C08 00448C08 00401821 */  addu       $v1, $v0, $zero
     /* 1B6C0C 00448C0C 2402000A */  addiu      $v0, $zero, 0xA
@@ -51,7 +51,7 @@ glabel func_00448B80
     /* 1B6C14 00448C14 02202021 */   addu      $a0, $s1, $zero
     /* 1B6C18 00448C18 02002821 */  addu       $a1, $s0, $zero
     /* 1B6C1C 00448C1C 27B00030 */  addiu      $s0, $sp, 0x30
-    /* 1B6C20 00448C20 0C1123AC */  jal        func_00448EB0
+    /* 1B6C20 00448C20 0C1123AC */  jal        __osRepairPackId
     /* 1B6C24 00448C24 02003021 */   addu      $a2, $s0, $zero
     /* 1B6C28 00448C28 00401821 */  addu       $v1, $v0, $zero
     /* 1B6C2C 00448C2C 10600005 */  beqz       $v1, .L00448C44
@@ -69,7 +69,7 @@ glabel func_00448B80
     /* 1B6C54 00448C54 02202021 */  addu       $a0, $s1, $zero
     /* 1B6C58 00448C58 02002821 */  addu       $a1, $s0, $zero
     /* 1B6C5C 00448C5C 27B00030 */  addiu      $s0, $sp, 0x30
-    /* 1B6C60 00448C60 0C1123AC */  jal        func_00448EB0
+    /* 1B6C60 00448C60 0C1123AC */  jal        __osRepairPackId
     /* 1B6C64 00448C64 02003021 */   addu      $a2, $s0, $zero
     /* 1B6C68 00448C68 00401821 */  addu       $v1, $v0, $zero
     /* 1B6C6C 00448C6C 1460002B */  bnez       $v1, .L00448D1C
@@ -124,4 +124,4 @@ glabel func_00448B80
     /* 1B6D24 00448D24 8FB00058 */  lw         $s0, 0x58($sp)
     /* 1B6D28 00448D28 03E00008 */  jr         $ra
     /* 1B6D2C 00448D2C 27BD0068 */   addiu     $sp, $sp, 0x68
-endlabel func_00448B80
+endlabel __osGetId
