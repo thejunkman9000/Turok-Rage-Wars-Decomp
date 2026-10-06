@@ -1,0 +1,16 @@
+# Decompiled (C) functions. One per line: <name> <rom_start> <instruction_count> <src subdir>
+# The generator (tools/gen_yaml.py) turns this into the `main` segment's subsegments in turok_ragewars.yaml;
+# everything between listed functions stays as asm. Keep sorted by ROM address.
+# instruction_count includes the delay slot of the final return.
+osSetTime          0xA2E4C   6  libultra
+osSpTaskStartGo    0xBFC6C  11  libultra
+osSpTaskYield      0xBFE10   7  libultra
+osViBlack          0xBFEA0  23  libultra
+osViSetEvent       0xC0340  22  libultra
+osViSetMode        0xC03A0  19  libultra
+osViSwapBuffer     0xC05B0  17  libultra
+osCreateMesgQueue  0xC0950   9  libultra
+osJamMesg          0xC0E50  77  libultra
+osRecvMesg         0xC0F90  73  libultra
+osSendMesg         0xC1110  76  libultra
+__osInsertTimer    0xC179C  66  libultra

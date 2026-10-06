@@ -58,10 +58,14 @@ segments:
     start: 0x1000
     vram: 0x200400
     subsegments:
+      # BEGIN GENERATED main subsegments (tools/gen_yaml.py)
       - [0x1000, asm, entry]
-      # libultra functions already matched in C (src/libultra); the asm between them stays as asm
+      - [0xA2E4C, c, libultra/osSetTime]
+      - [0xA2E64, asm]
       - [0xBFC6C, c, libultra/osSpTaskStartGo]
       - [0xBFC98, asm]
+      - [0xBFE10, c, libultra/osSpTaskYield]
+      - [0xBFE2C, asm]
       - [0xBFEA0, c, libultra/osViBlack]
       - [0xBFEFC, asm]
       - [0xC0340, c, libultra/osViSetEvent]
@@ -72,7 +76,16 @@ segments:
       - [0xC05F4, asm]
       - [0xC0950, c, libultra/osCreateMesgQueue]
       - [0xC0974, asm]
+      - [0xC0E50, c, libultra/osJamMesg]
+      - [0xC0F84, asm]
+      - [0xC0F90, c, libultra/osRecvMesg]
+      - [0xC10B4, asm]
+      - [0xC1110, c, libultra/osSendMesg]
+      - [0xC1240, asm]
+      - [0xC179C, c, libultra/__osInsertTimer]
+      - [0xC18A4, asm]
       - [0xC7010, bin, rsp_and_data_unsplit]
+      # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
   # (e.g. j 0x4011F0) leave the 4 KB page, so 4 KB is not the true unit. Kept as raw bin for now.

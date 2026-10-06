@@ -7,12 +7,59 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
+typedef unsigned long long u64;
 typedef signed int s32;
 typedef float f32;
 typedef void *OSMesg;
+typedef u64 OSTime;
+typedef s32 OSPri;
+typedef s32 OSId;
 
-struct OSThread_s;
-typedef struct OSThread_s OSThread;
+#define NULL ((void *)0)
+#define UNUSED __attribute__((unused))
+
+#define OS_MESG_NOBLOCK 0
+#define OS_MESG_BLOCK 1
+
+#define OS_STATE_STOPPED 1
+#define OS_STATE_RUNNABLE 2
+#define OS_STATE_RUNNING 4
+#define OS_STATE_WAITING 8
+
+typedef union {
+    struct { f32 f_odd; f32 f_even; } f;
+} __OSfp;
+
+typedef struct {
+    /* 0x20 */ u64 at, v0, v1, a0, a1, a2, a3;
+    /* 0x58 */ u64 t0, t1, t2, t3, t4, t5, t6, t7;
+    /* 0x98 */ u64 s0, s1, s2, s3, s4, s5, s6, s7;
+    /* 0xD8 */ u64 t8, t9, gp, sp, s8, ra;
+    /* 0x108 */ u64 lo, hi;
+    /* 0x118 */ u32 sr, pc, cause, badvaddr, rcp;
+    /* 0x12C */ u32 fpcsr;
+    __OSfp fp0, fp2, fp4, fp6, fp8, fp10, fp12, fp14;
+    __OSfp fp16, fp18, fp20, fp22, fp24, fp26, fp28, fp30;
+} __OSThreadContext;
+
+typedef struct {
+    u32 flag;
+    u32 count;
+    u64 time;
+} __OSThreadprofile_s;
+
+typedef struct OSThread_s {
+    /* 0x00 */ struct OSThread_s *next;
+    /* 0x04 */ OSPri priority;
+    /* 0x08 */ struct OSThread_s **queue;
+    /* 0x0C */ struct OSThread_s *tlnext;
+    /* 0x10 */ u16 state;
+    /* 0x12 */ u16 flags;
+    /* 0x14 */ OSId id;
+    /* 0x18 */ int fp;
+    /* 0x1C */ __OSThreadprofile_s *thprof;
+    /* 0x20 */ __OSThreadContext context;
+} OSThread;
 
 typedef struct OSMesgQueue_s {
     /* 0x00 */ OSThread *mtqueue;   /* threads blocked on an empty queue (receive) */
@@ -66,6 +113,15 @@ typedef struct {
     /* 0x2C */ u32 unk2c;
 } OSViContext;
 
+typedef struct OSTimer_s {
+    /* 0x00 */ struct OSTimer_s *next;
+    /* 0x04 */ struct OSTimer_s *prev;
+    /* 0x08 */ u64 interval;
+    /* 0x10 */ u64 remaining;
+    /* 0x18 */ OSMesgQueue *mq;
+    /* 0x1C */ OSMesg *msg;
+} OSTimer;
+
 typedef struct OSTask_s OSTask;
 
 /* RSP status register write bits */
@@ -73,17 +129,22 @@ typedef struct OSTask_s OSTask;
 #define SPSTATUS_CLEAR_BROKE         0x00000004
 #define SPSTATUS_CLEAR_SSTEP         0x00000020
 #define SPSTATUS_SET_INTR_ON_BREAK   0x00000100
-
-#define UNUSED __attribute__((unused))
+#define SPSTATUS_SET_SIGNAL0         0x00000400
 
 /* libultra globals */
 extern OSThread *__osThreadTail;
+extern OSThread *__osRunningThread;
 extern OSViContext *__osViNext;
+extern OSTimer *__osTimerList;
+extern OSTime _osCurrentTime;
 
-/* libultra asm helpers */
+/* libultra functions (asm or C) */
 u32 __osDisableInt(void);
 void __osRestoreInt(u32 mask);
 s32 __osSpDeviceBusy(void);
 void __osSpSetStatus(u32 value);
+void __osEnqueueAndYield(OSThread **queue);
+OSThread *__osPopThread(OSThread **queue);
+void osStartThread(OSThread *thread);
 
 #endif /* COMMON_H */

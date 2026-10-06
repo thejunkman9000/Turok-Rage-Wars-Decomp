@@ -20,3 +20,15 @@ __osSpSetStatus = 0x002BF1F0; // type:func
 __osViNext = 0x800D8444;
 __osThreadTail = 0x800D9290;
 __osTimerList = 0x800D92B0;
+
+// libultra: more recovered symbols
+osSetTime = 0x002A224C; // type:func
+osSpTaskYield = 0x002BF210; // type:func
+osJamMesg = 0x002C0250; // type:func
+osRecvMesg = 0x002C0390; // type:func
+osSendMesg = 0x002C0510; // type:func
+osStartThread = 0x002C0840; // type:func
+__osEnqueueAndYield = 0x002C145C; // type:func
+__osPopThread = 0x002C1648; // type:func
+__osRunningThread = 0x800D92A0;
+_osCurrentTime = 0x800D2B8C;

@@ -23,7 +23,12 @@ REGIONS = [(0x1000, 0xC7010, 'main'), (0x16E000, 0x1BCDA0, 'ovl_a')]
 def sh(cmd, **kw):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True, **kw)
 
+sys.path.insert(0, os.path.join(ROOT, 'tools'))
+import gas_compat
+
 def fix_asm(s):
+    s = gas_compat.fix(s, 'lu')
+    return s
     s = re.sub(r'^([ \t]*)move[ \t]+(\$[a-z0-9]+),[ \t]*(\$[a-z0-9]+)', r'\1addu\t\2,\3,$0', s, flags=re.M)
     # NOTE: libultra's returns have the sp adjust in the jr delay slot (modern gas behaviour), so unlike
     # Acclaim's own code (tools/cc_try.sh) there is no `j $31` -> nop rewrite here.

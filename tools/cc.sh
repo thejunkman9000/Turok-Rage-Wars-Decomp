@@ -12,10 +12,7 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 "$G/gcc" -B"$G/" -meb -mips2 -mgp32 -mfp32 -G 0 -mno-abicalls -fno-pic -O2 \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in"
 
-# the original assembler expanded `move` to addu rather than or
-sed -E -i 's/^([[:space:]]*)move[[:space:]]+(\$[a-z0-9]+),[[:space:]]*(\$[a-z0-9]+)/\1addu\t\2,\3,$0/' "$tmp/o.s"
-if [ "$mode" = game ]; then
-  sed -E -i 's/^([[:space:]]*)j[[:space:]]+\$31[[:space:]]*$/\1.set\tnoreorder\n\1j\t$31\n\1nop\n\1.set\treorder/' "$tmp/o.s"
-fi
+# reproduce the original assembler's output (move -> addu, div/rem expansion, return delay slot)
+python3 tools/gas_compat.py "$mode" "$tmp/o.s"
 
 bash tools/as.sh "$tmp/o.s" "$out"
