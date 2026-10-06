@@ -149,9 +149,11 @@ adecStreamOpen 0xC5DA0 47 libultra
 adecNextFrame 0xC5E5C 40 libultra
 adecGetStopFlag 0xC5EFC 4 libultra
 adecClearStopFlag 0xC5F0C 5 libultra
-__divdi3 0xC5F20 380 libultra
-__moddi3 0xC6510 352 libultra
-__udivdi3 0xC6A90 352 libultra
+__divdi3 0xC5F20 379 libultra ro=0xCDB50:256 mode=lu4
+pad_0C650C 0xC650C 1 libultra
+__moddi3 0xC6510 350 libultra ro=0xCDC50:256 mode=lu4
+pad_0C6A88 0xC6A88 2 libultra
+__udivdi3 0xC6A90 353 libultra ro=0xCDD50:256 mode=lu4
 dbgLinkRecvByte 0xAEF80 139 libultra
 dbgLinkSendByte 0xAF1AC 162 libultra
 dbgLinkRecvBlock 0xAF434 160 libultra
@@ -208,7 +210,8 @@ dbgLinkHandshake 0xB2EE4 23 libultra
 F32ToTrunc16 0xB2F40 4 libultra
 Trunc16ToF32 0xB2F50 6 libultra
 padding_002B2368 0xB2F68 4 libultra
-LevelIdToWorld 0xB2F78 50 libultra
+LevelIdToWorld 0xB2F78 48 libultra
+pad_0B3038 0xB3038 2 libultra
 osMapTLB 0xB3040 32 libultra
 osUnmapTLB 0xB30C0 15 libultra
 osReadAllTLBEntries 0xB30FC 37 libultra
@@ -441,10 +444,14 @@ pad_0C18A4 0xC18A4 3 libultra
 pad_0C1958 0xC1958 2 libultra
 pad_0C2BE8 0xC2BE8 2 libultra
 pad_0C3114 0xC3114 3 libultra
-__umoddi3 0xC7020 320 libultra
-__floatdidf 0xC7520 56 libultra
-__floatdisf 0xC7600 44 libultra
-pad_0C7010 0xC7010 4 libultra
+__umoddi3 0xC7020 317 libultra ro=0xCDE50:256 mode=lu4
+pad_0C7514 0xC7514 3 libultra
+__cmpdi2 0xC7520 18 libultra mode=lu4
+pad_0C7568 0xC7568 2 libultra
+__floatdidf 0xC7570 34 libultra ro=0xCDF50:24 mode=lu4
+pad_0C75F8 0xC75F8 2 libultra
+__floatdisf 0xC7600 44 libultra ro=0xCDF70:24 mode=lu4
+pad_0C7014 0xC7014 3 libultra
 xprintf  0xC3120  620  libultra ro=0xCD940:376
 xlitob  0xC3AD0  182  libultra
 cseq_new  0xB4288  65  libultra ro=0xCD150:16

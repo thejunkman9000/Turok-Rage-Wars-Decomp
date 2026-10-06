@@ -23,3 +23,9 @@ __osViSwapContext 0xCD820 12
 __osSiRawReadIo 0xCD830 20
 __osSiRawWriteIo 0xCD850 20
 xprintf 0xCD940 376
+__divdi3 0xCDB50 256
+__moddi3 0xCDC50 256
+__udivdi3 0xCDD50 256
+__umoddi3 0xCDE50 256
+__floatdidf 0xCDF50 24
+__floatdisf 0xCDF70 24

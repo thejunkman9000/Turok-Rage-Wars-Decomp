@@ -117,6 +117,7 @@ segments:
       - [0xB2F50, c, libultra/Trunc16ToF32]
       - [0xB2F68, c, libultra/padding_002B2368]
       - [0xB2F78, c, libultra/LevelIdToWorld]
+      - [0xB3038, c, libultra/pad_0B3038]
       - [0xB3040, c, libultra/osMapTLB]
       - [0xB30C0, c, libultra/osUnmapTLB]
       - [0xB30FC, c, libultra/osReadAllTLBEntries]
@@ -507,11 +508,17 @@ segments:
       - [0xC5EFC, c, libultra/adecGetStopFlag]
       - [0xC5F0C, c, libultra/adecClearStopFlag]
       - [0xC5F20, c, libultra/__divdi3]
+      - [0xC650C, c, libultra/pad_0C650C]
       - [0xC6510, c, libultra/__moddi3]
+      - [0xC6A88, c, libultra/pad_0C6A88]
       - [0xC6A90, c, libultra/__udivdi3]
-      - [0xC7010, c, libultra/pad_0C7010]
+      - [0xC7014, c, libultra/pad_0C7014]
       - [0xC7020, c, libultra/__umoddi3]
-      - [0xC7520, c, libultra/__floatdidf]
+      - [0xC7514, c, libultra/pad_0C7514]
+      - [0xC7520, c, libultra/__cmpdi2]
+      - [0xC7568, c, libultra/pad_0C7568]
+      - [0xC7570, c, libultra/__floatdidf]
+      - [0xC75F8, c, libultra/pad_0C75F8]
       - [0xC7600, c, libultra/__floatdisf]
       - [0xC76B0, bin, rsp_and_data_0]
       - [0xCD150, .rodata, libultra/cseq_new]
@@ -554,6 +561,14 @@ segments:
       - {start: 0xCD864, type: bin, name: data_15, linker_section_order: .rodata, linker_section: .data}
       - [0xCD940, .rodata, libultra/xprintf]
       - {start: 0xCDAB8, type: bin, name: data_16, linker_section_order: .rodata, linker_section: .data}
+      - [0xCDB50, .rodata, libultra/__divdi3]
+      - [0xCDC50, .rodata, libultra/__moddi3]
+      - [0xCDD50, .rodata, libultra/__udivdi3]
+      - [0xCDE50, .rodata, libultra/__umoddi3]
+      - [0xCDF50, .rodata, libultra/__floatdidf]
+      - {start: 0xCDF68, type: bin, name: data_17, linker_section_order: .rodata, linker_section: .data}
+      - [0xCDF70, .rodata, libultra/__floatdisf]
+      - {start: 0xCDF88, type: bin, name: data_18, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

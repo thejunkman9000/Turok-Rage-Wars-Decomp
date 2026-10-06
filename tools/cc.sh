@@ -16,7 +16,7 @@ ver=${GCC_VER:-2.8.1}
 G=$PWD/tools/gcc/$ver
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
-"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) echo "-O2 -mcpu=r4300";; *) echo -O2;; esac)} \
+"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) echo "-O2 -mcpu=r4300";; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in"
 
 # reproduce the original assembler's output (move -> addu, div/rem expansion, return delay slot)

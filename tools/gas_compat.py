@@ -263,7 +263,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             prev = None
             continue
         # old gas kept a nop between an FP compare and the following bc1t/bc1f
-        if mode in ('lu', 'lu2', 'lu3') and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
+        if mode in ('lu', 'lu2', 'lu3', 'lu4') and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
                 out.append(f'{ind}nop')
@@ -281,7 +281,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
         is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
         # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
         dep = is_ret and len(ih) == 2 and ih[0][0] is not None and ih[0][0] != '$0' and ih[0][0] in ih[1][1]
-        if mode in ('lu', 'lu2', 'lu3') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or dep):
+        if mode in ('lu', 'lu2', 'lu3', 'lu4') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or dep):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
             prev = None
