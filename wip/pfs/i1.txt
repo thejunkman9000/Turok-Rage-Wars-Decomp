@@ -1,0 +1,14 @@
+wip/ovlx/osPfsIsPlug.c osPfsIsPlug 0x1B6470
+wip/ovlx/__osPfsRequestData.c __osPfsRequestData 0x1B65EC
+wip/ovlx/__osPfsGetInitData.c __osPfsGetInitData 0x1B6688
+wip/ovlx/osPfsDeleteFile.c osPfsDeleteFile 0x1B51D0
+wip/ovlx/__osPfsReleasePages.c __osPfsReleasePages 0x1B53FC
+wip/ovlx/__osPfsDeclearPage.c __osPfsDeclearPage 0x1B4F74
+wip/ovlx/corrupted_init.c corrupted_init 0x1B61BC
+wip/ovlx/corrupted.c corrupted 0x1B6308
+wip/ovlx/osPfsFindFile.c osPfsFindFile 0x1B6D30
+wip/ovlx/osPfsFreeBlocks.c osPfsFreeBlocks 0x1B58B0
+wip/ovlx/osPfsFileState.c osPfsFileState 0x1B5670
+wip/ovlx/osPfsInitPak.c osPfsInitPak 0x1B5BB0
+wip/ovlx/osPfsReadWriteFile.c osPfsReadWriteFile 0x1B6740
+wip/ovlx/__osGetId.c __osGetId 0x1B6B80

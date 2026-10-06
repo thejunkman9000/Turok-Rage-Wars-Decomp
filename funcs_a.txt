@@ -4,26 +4,26 @@ func_00446A54 0x1B4A54 60 ovl_a
 func_00446B44 0x1B4B44 14 ovl_a
 func_00446B7C 0x1B4B7C 21 ovl_a
 osPfsAllocateFile 0x1B4BD0 233 ovl_a
-__osPfsDeclearPage 0x1B4F74 115 ovl_a
+__osPfsDeclearPage 0x1B4F74 115 ovl_a mode=lu
 __osClearPage 0x1B5140 36 ovl_a mode=lu
-osPfsDeleteFile 0x1B51D0 139 ovl_a
-__osPfsReleasePages 0x1B53FC 104 ovl_a
+osPfsDeleteFile 0x1B51D0 139 ovl_a mode=lu
+__osPfsReleasePages 0x1B53FC 104 ovl_a mode=lu
 __osBlockSum 0x1B559C 52 ovl_a mode=lu
 pad_1B566C 0x1B566C 1 ovl_a
-osPfsFileState 0x1B5670 144 ovl_a
-osPfsFreeBlocks 0x1B58B0 72 ovl_a
+osPfsFileState 0x1B5670 143 ovl_a mode=lu
+osPfsFreeBlocks 0x1B58B0 70 ovl_a mode=lu
 __osPfsGetStatus 0x1B59D0 54 ovl_a mode=lu
 __osPfsRequestOneChannel 0x1B5AA8 35 ovl_a mode=lu
 __osPfsGetOneChannelData 0x1B5B34 31 ovl_a mode=lu
-osPfsInitPak 0x1B5BB0 116 ovl_a
+osPfsInitPak 0x1B5BB0 116 ovl_a mode=lu
 osPfsChecker 0x1B5D80 271 ovl_a
-corrupted_init 0x1B61BC 83 ovl_a
-__osPfsRequestData 0x1B65EC 39 ovl_a
-__osPfsGetInitData 0x1B6688 45 ovl_a
+corrupted_init 0x1B61BC 83 ovl_a mode=lu
+__osPfsRequestData 0x1B65EC 39 ovl_a mode=lu
+__osPfsGetInitData 0x1B6688 45 ovl_a mode=lu
 func_0044873C 0x1B673C 1 ovl_a
-osPfsReadWriteFile 0x1B6740 272 ovl_a
-__osGetId 0x1B6B80 108 ovl_a
-osPfsFindFile 0x1B6D30 96 ovl_a
+osPfsReadWriteFile 0x1B6740 269 ovl_a mode=lu
+__osGetId 0x1B6B80 108 ovl_a mode=lu
+osPfsFindFile 0x1B6D30 93 ovl_a mode=lu
 __osRepairPackId 0x1B6EB0 186 ovl_a
 __osCheckPackId 0x1B7198 92 ovl_a
 __osGetId_b 0x1B7308 123 ovl_a
@@ -36,5 +36,11 @@ pad_1B7968 0x1B7968 2 ovl_a
 func_00449970 0x1B7970 117 ovl_a
 func_00449B44 0x1B7B44 189 ovl_a
 func_00449E38 0x1B7E38 178 ovl_a
-corrupted 0x1B6308 90 ovl_a
-osPfsIsPlug 0x1B6470 95 ovl_a
+corrupted 0x1B6308 88 ovl_a mode=lu
+osPfsIsPlug 0x1B6470 95 ovl_a mode=lu
+
+pad_1B6EA4 0x1B6EA4 3 ovl_a
+pad_1B59C8 0x1B59C8 2 ovl_a
+pad_1B58AC 0x1B58AC 1 ovl_a
+pad_1B6B74 0x1B6B74 3 ovl_a
+pad_1B6468 0x1B6468 2 ovl_a
