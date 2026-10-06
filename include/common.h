@@ -98,6 +98,12 @@ typedef struct {
     OSViFieldRegs fldRegs[2];
 } OSViMode;
 
+typedef struct {
+    /* 0x0 */ f32 factor;
+    /* 0x4 */ u16 offset;
+    /* 0x8 */ u32 scale;
+} __OSViScale;
+
 /* The VI manager's pending context (__osViNext). */
 typedef struct {
     /* 0x00 */ u16 state;
@@ -107,12 +113,8 @@ typedef struct {
     /* 0x0C */ u32 features;
     /* 0x10 */ OSMesgQueue *mq;
     /* 0x14 */ OSMesg *msg;
-    /* 0x18 */ u32 unk18;
-    /* 0x1C */ u32 unk1c;
-    /* 0x20 */ u32 unk20;
-    /* 0x24 */ f32 unk24;
-    /* 0x28 */ u16 unk28;
-    /* 0x2C */ u32 unk2c;
+    /* 0x18 */ __OSViScale x;
+    /* 0x24 */ __OSViScale y;
 } OSViContext;
 
 /* Controller packets (PIF command/response layout) */
@@ -251,6 +253,20 @@ typedef union {
 /* hardware registers (physical addresses) */
 #define HW_REG(reg, type) (*(volatile type *)((reg) | 0xA0000000))
 #define SP_STATUS_REG 0x04040010
+#define VI_CONTROL_REG 0x04400000
+#define VI_ORIGIN_REG 0x04400004
+#define VI_WIDTH_REG 0x04400008
+#define VI_INTR_REG 0x0440000C
+#define VI_V_CURRENT_LINE_REG 0x04400010
+#define VI_BURST_REG 0x04400014
+#define VI_V_SYNC_REG 0x04400018
+#define VI_H_SYNC_REG 0x0440001C
+#define VI_LEAP_REG 0x04400020
+#define VI_H_START_REG 0x04400024
+#define VI_V_START_REG 0x04400028
+#define VI_V_BURST_REG 0x0440002C
+#define VI_X_SCALE_REG 0x04400030
+#define VI_Y_SCALE_REG 0x04400034
 #define PI_DRAM_ADDR_REG 0x04600000
 #define PI_CART_ADDR_REG 0x04600004
 #define PI_RD_LEN_REG 0x04600008
@@ -294,6 +310,7 @@ extern OSThread *__osRunningThread;
 extern OSThread *__osRunQueue;
 extern OSThread *__osActiveQueue;
 extern OSViContext *__osViNext;
+extern OSViContext *__osViCurr;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
 extern u32 __osBaseCounter;
@@ -316,6 +333,7 @@ extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask 
 u32 __osDisableInt(void);
 void __osRestoreInt(u32 mask);
 s32 __osSpDeviceBusy(void);
+void __osViSwapContext(void);
 void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg msg);
 void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);

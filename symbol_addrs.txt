@@ -105,3 +105,7 @@ guMtxIdentF = 0x002BBD3C; // type:func
 guMtxF2L = 0x002BBD8C; // type:func
 guMtxL2F = 0x002BBE24; // type:func
 guMtxIdent = 0x002BBC50; // type:func
+
+// VI
+__osViSwapContext = 0x002BFA00; // type:func
+__osViCurr = 0x800D8440;

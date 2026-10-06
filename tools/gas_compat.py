@@ -22,7 +22,42 @@ move_re = re.compile(rf'^([ \t]*)move[ \t]+{REG},[ \t]*{REG}[ \t]*$')
 div_re = re.compile(rf'^([ \t]*)(div|divu|rem|remu)[ \t]+{REG},[ \t]*{REG},[ \t]*{REG}[ \t]*$')
 ret_re = re.compile(r'^([ \t]*)j[ \t]+\$31[ \t]*$')
 lis_re = re.compile(r'^([ 	]*)li\.s[ 	]+(\$f\d+),[ 	]*(\S+)[ 	]*$')
-lid_re = re.compile(r'^[ 	]*li\.d')
+lid_re = re.compile(r'^([ 	]*)li\.d[ 	]+(\$f\d+),[ 	]*(\S+)[ 	]*$')
+
+
+class Pool:
+    """Per-object literal pool (.rodata): 4-byte floats and 8-byte-aligned doubles, first-use order, deduplicated."""
+
+    def __init__(self):
+        self.items = []          # (offset, size, value)
+        self.size = 0
+
+    def add(self, size, value):
+        for off, sz, val in self.items:
+            if sz == size and val == value:
+                return off
+        if size == 8 and self.size % 8:
+            self.size += 4       # align doubles to 8 (explicit zero pad emitted below)
+        off = self.size
+        self.items.append((off, size, value))
+        self.size += size
+        return off
+
+    def emit(self):
+        out, cur = ['	.section	.rodata'], 0
+        for off, size, value in self.items:
+            if off > cur:
+                out.append('	.word	0')
+            out.append(f'.LFL{off}:')
+            if size == 4:
+                out.append(f'	.word	0x{value:08X}')
+            else:
+                out.append(f'	.word	0x{value >> 32:08X}')
+                out.append(f'	.word	0x{value & 0xFFFFFFFF:08X}')
+            cur = off + size
+        out.append('	.text')
+        return out
+
 imm_div_re = re.compile(r'^[ \t]*(div|divu|rem|remu)[ \t]+\$[a-z0-9]+,[ \t]*\$[a-z0-9]+,[ \t]*[-0-9xXa-fA-F]+[ \t]*$')
 
 _label = [0]
@@ -48,7 +83,7 @@ def expand_div(ind, op, rd, rs, rt):
 
 def fix(text, mode, ro_va=None):
     out = []
-    pool = []                # float literal pool for this object: list of 32-bit words
+    pool = Pool()            # float/double literal pool for this object
     noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
     prev = None              # mnemonic of the previous real instruction; None after a label/directive
     for line in text.split('\n'):
@@ -63,16 +98,26 @@ def fix(text, mode, ro_va=None):
             mm = mnem_re.match(line)
         this = mm.group(1) if mm else None
 
-        if lid_re.match(line):
-            sys.stderr.write(f'gas_compat: li.d (double literal) not handled: {line.strip()}\n')
+        m = lid_re.match(line)
+        if m:
+            value = struct.unpack('>Q', struct.pack('>d', float(m.group(3))))[0]
+            off = pool.add(8, value)
+            ind = m.group(1)
+            ref = f'0x{ro_va + off:08X}' if ro_va is not None else f'.LFL{off}'
+            out.append('\n'.join([
+                f'{ind}.set\tnoat',
+                f'{ind}lui\t$1,%hi({ref})',
+                f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)',
+                f'{ind}.set\tat',
+            ]))
+            prev = 'ldc1'
+            continue
         m = lis_re.match(line)
         if m:
             word = struct.unpack('>I', struct.pack('>f', float(m.group(3))))[0]
-            if word not in pool:
-                pool.append(word)
-            idx = pool.index(word)
+            off = pool.add(4, word)
             ind = m.group(1)
-            ref = f'0x{ro_va + 4 * idx:08X}' if ro_va is not None else f'.LFL{idx}'
+            ref = f'0x{ro_va + off:08X}' if ro_va is not None else f'.LFL{off}'
             out.append('\n'.join([
                 f'{ind}.set\tnoat',
                 f'{ind}lui\t$1,%hi({ref})',
@@ -99,6 +144,14 @@ def fix(text, mode, ro_va=None):
             out.append(f'{ind}.set\tnoreorder\n{ind}j\t$31\n{ind}nop\n{ind}.set\treorder')
             prev = None
             continue
+        # old gas kept a nop between an FP compare and the following bc1t/bc1f (no VR4300 interlock knowledge)
+        if mode == 'lu' and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
+            ind = line[:len(line) - len(line.lstrip())]
+            if noreorder:
+                out.append(f'{ind}nop')
+            else:
+                out.append(f'{ind}.set\tnoreorder\n{ind}nop\n{ind}.set\treorder')
+            prev = 'nop'
         is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
         # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
         if mode == 'lu' and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS):
@@ -113,12 +166,8 @@ def fix(text, mode, ro_va=None):
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
                 prev = None
-    if pool:
-        out.append('\t.section\t.rodata')
-        for i, w in enumerate(pool):
-            out.append(f'.LFL{i}:')
-            out.append(f'\t.word\t0x{w:08X}')
-        out.append('\t.text')
+    if pool.items:
+        out.extend(pool.emit())
     return '\n'.join(out)
 
 if __name__ == '__main__':

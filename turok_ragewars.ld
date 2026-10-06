@@ -81,6 +81,8 @@ SECTIONS
         build/asm/C0554.o(.text);
         build/src/libultra/osViSwapBuffer.o(.text);
         build/asm/C05F4.o(.text);
+        build/src/libultra/__osViSwapContext.o(.text);
+        build/asm/C093C.o(.text);
         build/src/libultra/osCreateMesgQueue.o(.text);
         build/asm/C0974.o(.text);
         build/src/libultra/osCreateThread.o(.text);
@@ -164,6 +166,8 @@ SECTIONS
         build/asm/C0554.o(.data);
         build/src/libultra/osViSwapBuffer.o(.data);
         build/asm/C05F4.o(.data);
+        build/src/libultra/__osViSwapContext.o(.data);
+        build/asm/C093C.o(.data);
         build/src/libultra/osCreateMesgQueue.o(.data);
         build/asm/C0974.o(.data);
         build/src/libultra/osCreateThread.o(.data);
@@ -248,6 +252,9 @@ SECTIONS
         build/asm/C0554.o(.rodata);
         build/src/libultra/osViSwapBuffer.o(.rodata);
         build/asm/C05F4.o(.rodata);
+        build/assets/data_1.o(.data);
+        build/src/libultra/__osViSwapContext.o(.rodata);
+        build/asm/C093C.o(.rodata);
         build/src/libultra/osCreateMesgQueue.o(.rodata);
         build/asm/C0974.o(.rodata);
         build/src/libultra/osCreateThread.o(.rodata);
@@ -282,7 +289,7 @@ SECTIONS
         build/asm/C2BE8.o(.rodata);
         build/src/libultra/string.o(.rodata);
         build/asm/C3114.o(.rodata);
-        build/assets/data_1.o(.data);
+        build/assets/data_2.o(.data);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -337,6 +344,8 @@ SECTIONS
         build/asm/C0554.o(.bss);
         build/src/libultra/osViSwapBuffer.o(.bss);
         build/asm/C05F4.o(.bss);
+        build/src/libultra/__osViSwapContext.o(.bss);
+        build/asm/C093C.o(.bss);
         build/src/libultra/osCreateMesgQueue.o(.bss);
         build/asm/C0974.o(.bss);
         build/src/libultra/osCreateThread.o(.bss);
