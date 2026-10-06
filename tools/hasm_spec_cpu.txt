@@ -1,0 +1,25 @@
+# <file> <rom start> <rom end> [primary glabel]
+exceptasm               0xC1960 0xC205C __osExceptionPreamble
+__osEnqueueAndYield     0xC205C 0xC21F8
+__osEnqueueThread       0xC21F8 0xC2248
+__osPopThread           0xC2248 0xC2260
+__osDispatchThread      0xC2260 0xC245C
+__osCleanupThread       0xC245C 0xC2470 pad=3
+__osLeoInterrupt        0xC2470 0xC2980
+__osLeoAbnormalResume   0xC2980 0xC2A54
+__osLeoResume           0xC2A54 0xC2B10
+osGetCount              0xC2BF0 0xC2C00
+__osGetFpcCsr           0xC2C00 0xC2C10
+__osGetSR               0xC2C10 0xC2C20
+__osDisableInt          0xC2C20 0xC2C40
+__osRestoreInt          0xC2C40 0xC2C60
+osInvalDCache           0xC2C60 0xC2D00
+osInvalICache           0xC2D00 0xC2D70
+__osProbeTLB            0xC2D70 0xC2E40
+__osSetCompare          0xC2E40 0xC2E50
+__osSetFpcCsr           0xC2E50 0xC2E60
+osSetIntMask            0xC2E60 0xC2F10
+__osSetSR               0xC2F10 0xC2F20
+osUnmapTLBAll           0xC2F20 0xC2F70
+osWritebackDCache       0xC2F70 0xC2FE0
+osWritebackDCacheAll    0xC2FE0 0xC3010
