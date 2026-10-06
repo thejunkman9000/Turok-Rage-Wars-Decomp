@@ -1,0 +1,8 @@
+{"body": [
+"ALEvent evt; ALSoundState *s = sndp->sndState; if (s[sndp->target].state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = &s[sndp->target]; alEvtqPostEvent(&sndp->evtq, &evt, 0); }",
+"ALEvent evt; ALSoundState *s = sndp->sndState; if ((s + sndp->target)->state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = s + sndp->target; alEvtqPostEvent(&sndp->evtq, &evt, 0); }",
+"ALEvent evt; ALSoundState *update = sndp->sndState + sndp->target; if (update->state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = update; alEvtqPostEvent(&sndp->evtq, &evt, 0); }",
+"ALEvent evt; ALSoundState *update; update = &sndp->sndState[sndp->target]; if (update->state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = &sndp->sndState[sndp->target]; alEvtqPostEvent(&sndp->evtq, &evt, 0); }",
+"ALEvent evt; ALSoundState *update = &sndp->sndState[sndp->target]; if (update->state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = &sndp->sndState[sndp->target]; alEvtqPostEvent(&sndp->evtq, &evt, 0); }",
+"ALEvent evt; s32 t = sndp->target; ALSoundState *s = sndp->sndState; if (s[t].state == AL_STOPPED) { evt.type = AL_SNDP_PLAY_EVT; evt.msg.sndp.state = &s[sndp->target]; alEvtqPostEvent(&sndp->evtq, &evt, 0); }"
+]}

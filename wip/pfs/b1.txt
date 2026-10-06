@@ -1,0 +1,11 @@
+wip/c1/alSndpAllocate.c alSndpAllocate 0xB81E0
+wip/c1/alSndpDeallocate.c alSndpDeallocate 0xB82A0
+wip/c1/alSndpGetState.c alSndpGetState 0xB82F0
+wip/c1/alSndpPlay.c alSndpPlay 0xB8A50
+wip/c1/alSndpSetFXMix.c alSndpSetFXMix 0xB8AB0
+wip/c1/alSndpSetPan.c alSndpSetPan 0xB8B00
+wip/c1/alSndpSetPitch.c alSndpSetPitch 0xB8B50
+wip/c1/alSndpSetPriority.c alSndpSetPriority 0xB8BA0
+wip/c1/alSndpSetSound.c alSndpSetSound 0xB8BD0
+wip/c1/alSndpSetVol.c alSndpSetVol 0xB8BE0
+wip/c1/alSndpStop.c alSndpStop 0xB8C30

@@ -70,6 +70,11 @@ typedef struct {
         struct { s16 vol; } spvol;
         struct { void *seq; } spseq;
         struct { void *bank; } spbank;
+        struct { struct ALSoundState_s *state; } sndp;
+        struct { struct ALSoundState_s *state; u8 pan; } sndpan;
+        struct { struct ALSoundState_s *state; s16 vol; } sndvol;
+        struct { struct ALSoundState_s *state; f32 pitch; } sndpitch;
+        struct { struct ALSoundState_s *state; u8 fxmix; } sndfx;
     } msg;
 } ALEvent;
 
@@ -119,6 +124,49 @@ typedef struct {
     s32 curTicks;
     u16 lastStatus;
 } ALSeqMarker;
+
+/* sound player (sndplayer.c) */
+typedef struct {
+    u8 pad00[0x0D];
+    u8 sampleVolume;
+} ALSound;
+
+typedef struct ALSoundState_s {
+    ALLink node;
+    u8 voice[0x14];
+    ALSound *sound;
+    s16 priority;
+    f32 pitch;
+    s32 state;
+    s16 vol;
+    u8 pan;
+    u8 fxMix;
+} ALSoundState;
+
+typedef struct {
+    void *next;
+    s32 delta;
+    s32 samplesLeft;
+    void *handler;
+    void *clientData;
+    ALEventQueue evtq;
+    ALEvent nextEvent;
+    void *drvr;
+    s32 target;
+    ALSoundState *sndState;
+    s32 maxSounds;
+    s32 frameTime;
+    s32 nextDelta;
+    s32 curTime;
+} ALSndPlayer;
+
+#define AL_SNDP_PLAY_EVT 0
+#define AL_SNDP_STOP_EVT 1
+#define AL_SNDP_PAN_EVT 2
+#define AL_SNDP_VOL_EVT 3
+#define AL_SNDP_PITCH_EVT 4
+#define AL_SNDP_FX_EVT 8
+#define AL_STOPPED 0
 
 #define AL_SEQP_MIDI_EVT 2
 #define AL_SEQP_VOL_EVT 0xA

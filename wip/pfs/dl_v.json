@@ -1,0 +1,5 @@
+{"body": [
+"ALSoundState *update = &track[sndp->sndState]; if (update->state == AL_STOPPED) { update->sound = 0; if (sndp->target == track) { sndp->target = -1; } }",
+"ALSoundState *update = track + sndp->sndState; if (update->state == AL_STOPPED) { update->sound = 0; if (sndp->target == track) { sndp->target = -1; } }",
+"ALSoundState *update = sndp->sndState; update += track; if (update->state == AL_STOPPED) { update->sound = 0; if (sndp->target == track) { sndp->target = -1; } }"
+]}
