@@ -65,6 +65,7 @@ def compile_funcs(src):
             if rets: size = 4 * (rets[-1] + 2)      # drop alignment padding after the last return
             syms.append((n, a, size))
     relocs = collections.defaultdict(int)
+    relnames = {}                      # offset -> (reloc type, symbol name)
     in_text = False
     for l in sh(f"{P}-readelf -rW {tmp}/{base}.o").stdout.splitlines():
         if l.startswith('Relocation section'):
@@ -74,8 +75,10 @@ def compile_funcs(src):
         if in_text and len(f) >= 3 and re.fullmatch(r'[0-9a-f]+', f[0]):
             t = f[2]
             code = {'R_MIPS_26': 4, 'R_MIPS_HI16': 5, 'R_MIPS_LO16': 6}.get(t)
-            if code: relocs[int(f[0], 16)] = MASK[code]
-    return (text, syms, relocs), None
+            if code:
+                relocs[int(f[0], 16)] = MASK[code]
+                if len(f) >= 5: relnames[int(f[0], 16)] = (t, f[4])
+    return (text, syms, relocs, relnames), None
 
 def words(b): return struct.unpack('>%dI' % (len(b) // 4), b)
 
@@ -112,7 +115,7 @@ for src in srcs:
     res, err = compile_funcs(path)
     if res is None:
         print(f'{os.path.basename(path):26s} COMPILE FAIL: {err}'); continue
-    text, syms, relocs = res
+    text, syms, relocs, relnames = res
     for name, off, size in sorted(syms, key=lambda x: x[1]):
         n = size // 4
         eq, rom_off, reg = search(name, text, off, size, relocs)

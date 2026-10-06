@@ -1,0 +1,22 @@
+// Symbols recovered from the ROM (see tools/lu_syms.py and docs/libultra_matches.txt).
+// Data symbols use the KSEG0 alias (0x800Dxxxx) the game uses for data accesses.
+
+// libultra: C functions matched exactly
+osCreateMesgQueue = 0x002BFD50; // type:func
+osViBlack = 0x002BF2A0; // type:func
+osViSetEvent = 0x002BF740; // type:func
+osViSetMode = 0x002BF7A0; // type:func
+osViSwapBuffer = 0x002BF9B0; // type:func
+osSpTaskStartGo = 0x002BF06C; // type:func
+__osInsertTimer = 0x002C0B9C; // type:func
+
+// libultra: asm helpers called by the above
+__osDisableInt = 0x002C2020; // type:func
+__osRestoreInt = 0x002C2040; // type:func
+__osSpDeviceBusy = 0x002BF0A0; // type:func
+__osSpSetStatus = 0x002BF1F0; // type:func
+
+// libultra globals
+__osViNext = 0x800D8444;
+__osThreadTail = 0x800D9290;
+__osTimerList = 0x800D92B0;

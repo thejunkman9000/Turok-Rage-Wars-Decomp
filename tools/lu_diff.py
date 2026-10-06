@@ -8,7 +8,7 @@ code = open('tools/lu_match.py').read().split("tot = ex = 0")[0]
 exec(compile(code, 'lu_match', 'exec'))
 res, err = compile_funcs(f'{LU}/lib/src/{src}')
 if res is None: print('FAIL', err); sys.exit(1)
-text, syms, relocs = res
+text, syms, relocs, relnames = res
 for name, off, size in syms:
     if name not in funcs: continue
     eq, rom_off, reg = search(name, text, off, size, relocs)

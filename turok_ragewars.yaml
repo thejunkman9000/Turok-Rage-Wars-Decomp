@@ -59,6 +59,19 @@ segments:
     vram: 0x200400
     subsegments:
       - [0x1000, asm, entry]
+      # libultra functions already matched in C (src/libultra); the asm between them stays as asm
+      - [0xBFC6C, c, libultra/osSpTaskStartGo]
+      - [0xBFC98, asm]
+      - [0xBFEA0, c, libultra/osViBlack]
+      - [0xBFEFC, asm]
+      - [0xC0340, c, libultra/osViSetEvent]
+      - [0xC0398, asm]
+      - [0xC03A0, c, libultra/osViSetMode]
+      - [0xC03EC, asm]
+      - [0xC05B0, c, libultra/osViSwapBuffer]
+      - [0xC05F4, asm]
+      - [0xC0950, c, libultra/osCreateMesgQueue]
+      - [0xC0974, asm]
       - [0xC7010, bin, rsp_and_data_unsplit]
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

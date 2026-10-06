@@ -2,3 +2,6 @@
 *.ld text eol=lf
 *.s text eol=lf
 *.inc text eol=lf
+Makefile text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
