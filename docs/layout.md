@@ -68,3 +68,27 @@ Evidence (tools/compiler_id.py, whole ROM code):
 
 Next: find larger known-source functions (libultra: osCreateMesgQueue/osSendMesg/__osDispatchThread via
 libreultra) in the ROM and compile them with each GCC version to settle the version + libultra flags.
+
+## Compiler identification: libultra test (results)
+Method: compile libreultra C (github.com/mountainflaw/libreultra; its sources come from SM64's libultra,
+so version differences are possible) with each old GCC, mask relocated words, search the ROM
+(`tools/lu_match.py`, `tools/lu_diff.py`; sweeps in `tools/lu_*.sh`). Full table: `docs/libultra_matches.txt`.
+- **Libultra is in main at ROM ~0xBE9C0-0xC2B10** (osSpTaskStartGo 0xBFC6C, osViBlack 0xBFEA0, osViSetMode 0xC03A0,
+  osViSwapBuffer 0xC05B0, osCreateMesgQueue 0xC0950, osRecvMesg 0xC0F90, osSendMesg ~0xC1114,
+  __osInsertTimer 0xC179C, osDestroyThread 0xC2B10).
+- Exact (>=8 insns) counts, -O2: **gcc 2.8.1: 7/27**, 2.7.2: 5/24 (2.7.2 finds none of osSendMesg/osRecvMesg/osJamMesg),
+  egcs 2.91.66: 2/27, gcc 2.95.2: 4/27. 2.8.1 is the best fit; `osViSetMode`/`osSpTaskStartGo` match only on 2.8.1.
+- ISA/CPU flags (-mips1/2/3, -mcpu=r4000/r4300) make no difference.
+- osSendMesg is structurally identical to the ROM except one thing: after `beqz $v0,<loop>` the ROM puts the next
+  `lw` into the branch delay slot, ours leaves a `nop`. This delay-slot fill difference (not a source difference)
+  is what keeps the message-queue functions below 100%. Probably a Nintendo-modified or differently configured gcc.
+- Libultra returns have the `addiu $sp` in the `jr $ra` delay slot (modern gas behaviour); Acclaim's own code
+  (the 0x1100 function) has it BEFORE the jr with a nop in the slot -> game code and libultra were built/assembled differently.
+- Working hypothesis: libultra = GCC 2.8.1-class -O2; game code = GCC 2.7.2/2.8.1 family, not settled
+  (the 0x1100 function matches 2.7.2 default and 2.8.1 with -fno-delayed-branch).
+- Also downloaded for testing: gcc 2.91.66, 2.95.2 (tools/gcc, gitignored).
+
+## Next
+- Identify the remaining delay-slot discrepancy (try other 2.8.x builds, e.g. 2.8.0; check Nintendo-patched gcc notes).
+- Collect more known-source functions (libgcc helpers, string/bcopy, math) and larger game functions to pin the game compiler.
+- Then start the real work: name functions (libultra + LibTEngine structures), set up the matching build (asm-processor / include_asm).
