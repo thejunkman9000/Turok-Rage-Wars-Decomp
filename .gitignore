@@ -16,3 +16,4 @@ undefined_*_auto.txt
 
 !hardware_regs.ld
 !extra_syms.ld
+tools/gcc/

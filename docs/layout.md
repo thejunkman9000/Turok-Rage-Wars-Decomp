@@ -51,3 +51,20 @@ Notes: assembler needs `-W` (game uses odd float regs, thousands of warnings); s
 `subalign: 4` and `ld_align_*_vram_end: False`, and the code/data split in ovl_a sits at the
 16-aligned 0x1BCDA0 so linker padding does not shift the tail.
 Regenerate with: `.venv\Scripts\python -m splat split turok_ragewars.yaml` (Windows) then run the round trip in WSL.
+
+## Compiler identification (in progress)
+Evidence (tools/compiler_id.py, whole ROM code):
+- 17,692 register moves, **100% `addu rd,rs,$zero`**, 0 `or` -> not IDO; GCC-family with an old assembler.
+- Frame layout: `$s` regs saved low, `$ra` above them (e.g. F=0x18 ra@0x10, F=0x20 ra@0x18) -> GCC, not IDO.
+- Function at ROM 0x1100 (`s32 f(){ u32 s=a(); b(s&~1); return s&1; }`) **matches byte-for-byte** with
+  GCC 2.7.2 (also 2.7.2.3) default flags: `-meb -mips2 -mgp32 -mfp32 -G 0 -O2 -mno-abicalls -fno-pic`
+  (GCC does `jal` delay-slot filling itself via `.set noreorder`). GCC 2.8.1 matches only with `-fno-delayed-branch`.
+  So 2.7.2 default is the simplest fit; 2.7.2 vs 2.8.1 is NOT yet distinguished (needs bigger functions).
+- Assembler quirks to reproduce the original `as`: `move` must become `addu rd,rs,$0`, and a
+  `j $31` must keep a `nop` delay slot (modern gas would pull the `addu $sp` into it). `tools/cc_try.sh`
+  post-processes the compiler's .s accordingly.
+- Compilers: decompals/old-gcc release 0.17 (`tools/get_gcc.sh` -> `tools/gcc/<ver>/`, gitignored), run from WSL.
+  Copy sources to /tmp before compiling (old cpp fails on /mnt/d inodes: "Value too large").
+
+Next: find larger known-source functions (libultra: osCreateMesgQueue/osSendMesg/__osDispatchThread via
+libreultra) in the ROM and compile them with each GCC version to settle the version + libultra flags.
