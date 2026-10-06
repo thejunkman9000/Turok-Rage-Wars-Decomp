@@ -35,6 +35,7 @@ mnem_re = re.compile(r'^[ \t]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
 label_tok_re = re.compile(r'[$.][A-Za-z_][A-Za-z0-9_]*')
 
 _label = [0]
+NOFILL = False   # set by chk when the list line carries -DNOFILL: the assembler never moves an insn into a return slot
 
 BRANCHES = {'j', 'jal', 'jr', 'jalr', 'b', 'beq', 'bne', 'beqz', 'bnez', 'bgez', 'bgtz', 'blez', 'bltz',
             'bgezal', 'bltzal', 'bc1t', 'bc1f'}
@@ -196,7 +197,7 @@ def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
     return '\n'.join(out)
 
 
-bigoff_re = re.compile(r'^([ \t]*)(l[bhw]u?|lwc1|ldc1|s[bhw]|swc1|sdc1)[ \t]+(\$\w+),[ \t]*(-?\d+)\((\$\w+)\)[ \t]*$')
+bigoff_re = re.compile(r'^([ \t]*)(l[bhw]u?|lwc1|ldc1|s[bhw]|swc1|sdc1|l\.s|l\.d|s\.s|s\.d)[ \t]+(\$\w+),[ \t]*(-?\d+)\((\$\w+)\)[ \t]*$')
 
 
 def fix(text, mode, ro_va=None, ro_size=None):
@@ -227,13 +228,14 @@ def fix(text, mode, ro_va=None, ro_size=None):
             # old gas expands `op reg, BIG(base)` (|BIG| > 0x7FFF) via $at with the BASE FIRST:
             #   lui $at,hi; addu $at,base,$at; op reg,lo($at)
             ind, op, reg, off, base = m.groups()
+            op = {'l.s': 'lwc1', 'l.d': 'ldc1', 's.s': 'swc1', 's.d': 'sdc1'}.get(op, op)
             n = int(off)
             if n > 0x7FFF or n < -0x8000:
                 hi = ((n + 0x8000) >> 16) & 0xFFFF
                 lo = n - (((n + 0x8000) >> 16) << 16)
                 out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,{hi}', f'{ind}addu\t$1,{base},$1',
                                       f'{ind}{op}\t{reg},{lo}($1)', f'{ind}.set\tat']))
-                prev = op
+                prev = 'MACRO_AT'   # macro expansion: never moved into a return delay slot by the old assembler
                 continue
 
         m = symidx_re.match(line)
@@ -242,7 +244,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             ind, op, reg, sym, idx = m.groups()
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({sym})', f'{ind}addu\t$1,$1,{idx}',
                                   f'{ind}{op}\t{reg},%lo({sym})($1)', f'{ind}.set\tat']))
-            prev = op
+            prev = 'MACRO_AT'
             continue
         m = lid_re.match(line)
         if m:
@@ -289,7 +291,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
                 out.append(f'{ind}.set\tnoreorder\n{ind}nop\n{ind}.set\treorder')
             prev = 'nop'
         # the original assembler never emitted two FP multiplies back to back (VR4300 multiply erratum): nop between
-        if this in ('mul.s', 'mul.d') and (prev in ('mul.s', 'mul.d') or (prev is None and lastmul)):
+        if this in ('mul.s', 'mul.d', 'mult', 'multu') and (prev in ('mul.s', 'mul.d') or (prev is None and lastmul)):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
                 out.append(f'{ind}nop')
@@ -299,7 +301,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
         is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
         # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
         dep = is_ret and len(ih) == 2 and ih[0][0] is not None and ih[0][0] != '$0' and ih[0][0] in ih[1][1]
-        if mode in ('lu', 'lu2', 'lu3', 'lu4') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or dep):
+        if mode in ('lu', 'lu2', 'lu3', 'lu4') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or prev == 'MACRO_AT' or dep or NOFILL):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
             prev = None; lastmul = False
@@ -312,7 +314,9 @@ def fix(text, mode, ro_va=None, ro_size=None):
             ih = (ih + [reg_use(this, mm.group(2))])[-2:]
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
-                prev = None
+                # an FP compare directly before a label that is followed by bc1t/bc1f still needs the nop
+                if not (prev and prev.startswith('c.') and st.endswith(':')):
+                    prev = None
 
     if ro_va is not None:
         return finalize_rodata(out, pool, ro_va, ro_size)

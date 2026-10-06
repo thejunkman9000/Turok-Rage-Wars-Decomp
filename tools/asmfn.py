@@ -2,7 +2,8 @@
 """Print the asm of game functions: python tools/asmfn.py func_00245840 [...]   (reads asm/entry.s and asm/16E000.s)"""
 import re, sys
 want = set(sys.argv[1:])
-for p in ['asm/entry.s', 'asm/16E000.s']:
+import glob
+for p in sorted(glob.glob('asm/*.s')):
     out = None
     for l in open(p, encoding='utf-8'):
         m = re.match(r'glabel (\S+)', l)

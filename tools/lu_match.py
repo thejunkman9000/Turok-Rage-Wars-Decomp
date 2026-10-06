@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gas_compat
 
 def fix_asm(s):
+    gas_compat.NOFILL = '-DNOFILL' in extra
     s = gas_compat.fix(s, 'lu')
     return s
     s = re.sub(r'^([ \t]*)move[ \t]+(\$[a-z0-9]+),[ \t]*(\$[a-z0-9]+)', r'\1addu\t\2,\3,$0', s, flags=re.M)
