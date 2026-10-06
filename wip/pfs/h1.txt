@@ -1,0 +1,1 @@
+src/game/func_002549C8.c func_002549C8 0x555C8 -O2 -mcpu=r4300

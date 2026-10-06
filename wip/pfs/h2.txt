@@ -1,0 +1,3 @@
+src/game/func_002549C8.c func_002549C8 0x555C8 -O2 -mcpu=r4300
+src/libultra/alLink.c alLink 0xB8150
+src/game/func_0029AA48.c func_0029AA48 0x9B648 -O2 -mcpu=r4300

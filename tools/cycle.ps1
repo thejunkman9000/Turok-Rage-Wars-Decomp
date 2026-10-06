@@ -1,6 +1,7 @@
 # Full cycle: funcs.txt -> yaml -> splat -> fix asm -> WSL build + verify.  usage: .\tools\cycle.ps1 [-NoSplat]
 param([switch]$NoSplat)
 Set-Location D:\Projects\TurokRageWars
+.\.venv\Scripts\python.exe tools\gen_c_syms.py | Out-Null
 if (-not $NoSplat) {
   .\.venv\Scripts\python.exe tools\gen_yaml.py
   Remove-Item -Recurse -Force asm -ErrorAction SilentlyContinue

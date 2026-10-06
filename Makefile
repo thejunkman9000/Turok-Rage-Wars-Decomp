@@ -18,7 +18,7 @@ HEADERS   := $(wildcard include/*.h include/*.inc)
 OBJS := $(ASM_FILES:%.s=build/%.o) $(C_FILES:%.c=build/%.o) $(S_FILES:%.s=build/%.o) $(BIN_FILES:%.bin=build/%.o)
 
 LDSCRIPTS := -T $(NAME).ld -T hardware_regs.ld -T extra_syms.ld -T build/symbols.ld \
-             -T undefined_syms_auto.txt -T undefined_funcs_auto.txt
+             -T undefined_syms_auto.txt -T undefined_funcs_auto.txt -T c_syms.ld
 
 .PHONY: all verify clean
 all: verify

@@ -7,11 +7,18 @@ chk.ps1, try.ps1, vtry.py, vq.py ... use the copy and its own WSL build dir ~/tr
 copying the finished src/libultra/<fn>.c files into the main tree (then tools/to_c.py + tools/cycle.ps1 there)."""
 import os, shutil, sys, re
 name = sys.argv[1]
+update = '--update' in sys.argv
 src = r'D:\Projects\TurokRageWars'
 dst = rf'D:\Projects\ws\{name}'
-if os.path.exists(dst):
+if update:
+    for d in ('tools', 'docs'):
+        shutil.copytree(os.path.join(src, d), os.path.join(dst, d), dirs_exist_ok=True, ignore=shutil.ignore_patterns('gcc', '__pycache__'))
+    for h in os.listdir(os.path.join(src, 'include')):
+        if h.endswith('_types.h') or h in ('common.h', 'libaudio.h'):
+            shutil.copy(os.path.join(src, 'include', h), os.path.join(dst, 'include', h))
+elif os.path.exists(dst):
     shutil.rmtree(dst, ignore_errors=True)
-shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', *([] if '--asm' in sys.argv else ['asm']), 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s'))
+if not update: shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', *([] if '--asm' in sys.argv else ['asm']), 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s'))
 os.makedirs(os.path.join(dst, 'wip'), exist_ok=True)
 subs = [
     (r'D:\Projects\TurokRageWars', rf'D:\Projects\ws\{name}'),

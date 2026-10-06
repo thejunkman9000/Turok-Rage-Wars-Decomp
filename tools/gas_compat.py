@@ -196,6 +196,9 @@ def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
     return '\n'.join(out)
 
 
+bigoff_re = re.compile(r'^([ \t]*)(l[bhw]u?|lwc1|ldc1|s[bhw]|swc1|sdc1)[ \t]+(\$\w+),[ \t]*(-?\d+)\((\$\w+)\)[ \t]*$')
+
+
 def fix(text, mode, ro_va=None, ro_size=None):
     out = []
     pool = Pool()            # float/double literal pool for this object
@@ -218,6 +221,20 @@ def fix(text, mode, ro_va=None, ro_size=None):
         if st and not st.startswith(('.', '#', '$')) and not st.endswith(':'):
             mm = mnem_re.match(line)
         this = mm.group(1) if mm else None
+
+        m = bigoff_re.match(line)
+        if m:
+            # old gas expands `op reg, BIG(base)` (|BIG| > 0x7FFF) via $at with the BASE FIRST:
+            #   lui $at,hi; addu $at,base,$at; op reg,lo($at)
+            ind, op, reg, off, base = m.groups()
+            n = int(off)
+            if n > 0x7FFF or n < -0x8000:
+                hi = ((n + 0x8000) >> 16) & 0xFFFF
+                lo = n - (((n + 0x8000) >> 16) << 16)
+                out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,{hi}', f'{ind}addu\t$1,{base},$1',
+                                      f'{ind}{op}\t{reg},{lo}($1)', f'{ind}.set\tat']))
+                prev = op
+                continue
 
         m = symidx_re.match(line)
         if m:

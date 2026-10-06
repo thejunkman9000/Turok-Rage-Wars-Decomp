@@ -1,0 +1,2 @@
+wip/g/t3.c f_0029AA48 0x9B648 -O2 -mcpu=r4300
+wip/g/t1.c f_0029AA48 0x9B648 -O2 -mcpu=r4300

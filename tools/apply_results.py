@@ -31,6 +31,8 @@ todo = []
 for l in open(f'{ws}/wip/out/results.txt'):
     f = l.split('#')[0].split()
     if len(f) < 4 or f[3] != 'EXACT': continue
+    if 'needs gcc' in l or 'gcc 2.7' in l:
+        print('skipping (special compiler):', f[0]); continue
     fn, r, n = f[0], int(f[1], 16), int(f[2])
     ro = [t for t in f[4:] if t.startswith('ro=')]
     fl = ' '.join(f[4:])

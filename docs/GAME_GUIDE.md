@@ -35,3 +35,9 @@ chk says EXACT for the function with the flags above.  If a function is far from
 your best attempt in wip/hard/ and note why in results.txt.  Prefer breadth: do the easy functions of your list first.
 Functions that share a literal pool/jump table/strings in the original object may show overlapping or adjacent `ro=` pieces
 (see AGENT_GUIDE); record all `ro=` pieces chk prints for the function.
+
+## Relocation verification
+chk now also verifies that every symbol+offset relocation (`lui/addiu D_XXXXXXXX+off`, `jal func_XXXXXXXX`) resolves to
+exactly the address the ROM encodes (`RELOC-MISMATCH(words [..])` otherwise). When the ROM keeps `&sym` in a register and
+derives other addresses by `addiu reg, reg, -0xBCC` etc., the original C has ONE big symbol base and field offsets; get the
+struct offsets right (a wrong struct layout can pass the old masked compare).  Always trust only EXACT.

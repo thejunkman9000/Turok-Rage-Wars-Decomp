@@ -12,6 +12,42 @@ code = open('tools/lu_match.py').read().split("tot = ex = 0")[0]
 exec(compile(code, 'lu_match', 'exec'))
 ROOTD = os.path.expanduser('~/trw')
 okf = open('chk_ok.txt', 'w')
+
+import re as _re
+_SYMS = {}
+for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld'):
+    try:
+        for _l in open(os.path.join(os.path.expanduser('~/trw') if False else '.', _f), encoding='utf-8', errors='replace'):
+            _m = _re.match(r'\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
+            if _m: _SYMS[_m.group(1)] = int(_m.group(2), 16)
+    except OSError:
+        pass
+def _symaddr(n):
+    m = _re.fullmatch(r'(?:D|func|jtbl)_([0-9A-Fa-f]{8})', n)
+    if m: return int(m.group(1), 16)
+    return _SYMS.get(n)
+def reloc_check(off, n, fw, rw, relnames):
+    """verify that the symbol+addend of every relocation resolves to what the ROM encodes; returns list of word indexes"""
+    badr = []
+    hi = {}
+    sx = lambda v: v - 0x10000 if v & 0x8000 else v
+    for i in range(n):
+        o = off + 4 * i
+        if o not in relnames: continue
+        t, sym = relnames[o]
+        a = _symaddr(sym)
+        if a is None or sym.startswith('.'): continue
+        if t == 'R_MIPS_26':
+            exp = ((a + ((fw[i] & 0x3FFFFFF) << 2)) >> 2) & 0x3FFFFFF
+            if exp != (rw[i] & 0x3FFFFFF): badr.append(i)
+        elif t == 'R_MIPS_HI16':
+            hi[sym] = rw[i] & 0xFFFF
+        elif t == 'R_MIPS_LO16' and sym in hi:
+            rom_addr = ((hi[sym] << 16) + sx(rw[i] & 0xFFFF)) & 0xFFFFFFFF
+            exp = (a + sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF
+            if rom_addr != exp: badr.append(i)
+    return badr
+
 CACHE = {}
 
 for line in open(list_file):
@@ -40,6 +76,7 @@ for line in open(list_file):
     for i, (a, b) in enumerate(zip(fw, rw)):
         m = 0xFFFFFFFF ^ relocs.get(off + 4 * i, 0)
         if (a & m) != (b & m): bad.append(i)
+    rbad = reloc_check(off, n, fw, rw, relnames) if not bad else []
     # literal pool location from HI16/LO16 relocs against .rodata
     ro = LAST.get('ro', b'')
     pool = ''
@@ -59,7 +96,7 @@ for line in open(list_file):
         if addrs:
             base = min(addrs)
             pool = f'  ro=0x{(base & 0x1FFFFFFF) + 0xC00:X}:{len(ro)}'
-    status = 'EXACT' if not bad else f'{len(bad)} words differ'
+    status = ('EXACT' if not rbad else f'RELOC-MISMATCH(words {rbad[:4]})') if not bad else f'{len(bad)} words differ'
     if bad:
         import difflib
         def mn(w):
