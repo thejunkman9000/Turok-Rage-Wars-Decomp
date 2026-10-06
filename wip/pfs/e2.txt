@@ -1,0 +1,3 @@
+wip/c3/dbgPortSetFifoTrigger.c dbgPortSetFifoTrigger 0xB2914 -O2 -mips3 -mcpu=r4300 -fno-builtin
+wip/c3/dbgPortWaitTxEmpty.c dbgPortWaitTxEmpty 0xB2710 -O2 -mips3 -mcpu=r4300 -fno-builtin
+wip/c3/dbgPortWriteData.c dbgPortWriteData 0xB2BCC -O2 -mips3 -mcpu=r4300 -fno-builtin

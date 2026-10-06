@@ -84,6 +84,7 @@ SECTIONS
         build/src/libultra/dbgPortSetFifoRxReset.o(.text);
         build/src/libultra/dbgPortWriteData.o(.text);
         build/src/libultra/dbgPortGetOverrun.o(.text);
+        build/src/libultra/pad_0B2C48.o(.text);
         build/src/libultra/dbgLinkCmdExec.o(.text);
         build/src/libultra/dbgLinkCmdWriteByte.o(.text);
         build/src/libultra/dbgLinkCmdReadByte.o(.text);
@@ -540,6 +541,7 @@ SECTIONS
         build/src/libultra/dbgPortSetFifoRxReset.o(.data);
         build/src/libultra/dbgPortWriteData.o(.data);
         build/src/libultra/dbgPortGetOverrun.o(.data);
+        build/src/libultra/pad_0B2C48.o(.data);
         build/src/libultra/dbgLinkCmdExec.o(.data);
         build/src/libultra/dbgLinkCmdWriteByte.o(.data);
         build/src/libultra/dbgLinkCmdReadByte.o(.data);
@@ -997,6 +999,7 @@ SECTIONS
         build/src/libultra/dbgPortSetFifoRxReset.o(.rodata);
         build/src/libultra/dbgPortWriteData.o(.rodata);
         build/src/libultra/dbgPortGetOverrun.o(.rodata);
+        build/src/libultra/pad_0B2C48.o(.rodata);
         build/src/libultra/dbgLinkCmdExec.o(.rodata);
         build/src/libultra/dbgLinkCmdWriteByte.o(.rodata);
         build/src/libultra/dbgLinkCmdReadByte.o(.rodata);
@@ -1474,6 +1477,7 @@ SECTIONS
         build/src/libultra/dbgPortSetFifoRxReset.o(.bss);
         build/src/libultra/dbgPortWriteData.o(.bss);
         build/src/libultra/dbgPortGetOverrun.o(.bss);
+        build/src/libultra/pad_0B2C48.o(.bss);
         build/src/libultra/dbgLinkCmdExec.o(.bss);
         build/src/libultra/dbgLinkCmdWriteByte.o(.bss);
         build/src/libultra/dbgLinkCmdReadByte.o(.bss);

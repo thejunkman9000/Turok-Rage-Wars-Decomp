@@ -35,7 +35,7 @@ for k, combo in enumerate(combos):
         t = t.replace(f'@@{n}@@', variants[n][ci])
     fn = f'wip/_v_{k}.c'
     open(fn, 'w', encoding='utf-8', newline='\n').write(t)
-    lines.append(f'{fn} {func} {rom}')
+    lines.append(f'{fn} {func} {rom} ' + os.environ.get('VTRY_FLAGS', ''))
 open('wip_list.txt', 'w', newline='\n').write('\n'.join(lines) + '\n')
 r = subprocess.run(['powershell', '-NoProfile', '-File', 'tools/chk.ps1', 'wip_list.txt'], capture_output=True, text=True)
 res = []

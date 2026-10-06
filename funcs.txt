@@ -182,24 +182,25 @@ dbgLinkRecvString 0xB22B4 32 libultra
 dbgLinkSendHalf 0xB2334 23 libultra
 dbgLinkSendWord 0xB2390 36 libultra
 dbgLinkSendString 0xB2420 26 libultra
-dbgPortReadReg 0xB2488 14 libultra
-dbgPortWriteReg 0xB24C0 17 libultra
+dbgPortReadReg 0xB2488 14 libultra mode=lu3
+dbgPortWriteReg 0xB24C0 17 libultra mode=lu3
 dbgPortWaitRegMask 0xB2504 47 libultra
 dbgPortWaitDataReady 0xB25C0 42 libultra
 dbgPortWaitDataReadyFast 0xB2668 42 libultra
 dbgPortWaitTxEmpty 0xB2710 43 libultra
 dbgPortWaitModemBit6 0xB27BC 43 libultra
 dbgPortWaitOverrun 0xB2868 43 libultra
-dbgPortSetFifoTrigger 0xB2914 22 libultra
-dbgPortSetLineFormat 0xB296C 21 libultra
-dbgPortSetParityEnable 0xB29C0 22 libultra
-dbgPortSetIntModemStatus 0xB2A18 22 libultra
-dbgPortSetIntLineStatus 0xB2A70 22 libultra
-dbgPortSetIntTxEmpty 0xB2AC8 22 libultra
-dbgPortSetIntRxData 0xB2B20 21 libultra
-dbgPortSetFifoRxReset 0xB2B74 22 libultra
-dbgPortWriteData 0xB2BCC 17 libultra
-dbgPortGetOverrun 0xB2C10 16 libultra
+dbgPortSetFifoTrigger 0xB2914 22 libultra mode=lu3
+dbgPortSetLineFormat 0xB296C 21 libultra mode=lu3
+dbgPortSetParityEnable 0xB29C0 22 libultra mode=lu3
+dbgPortSetIntModemStatus 0xB2A18 22 libultra mode=lu3
+dbgPortSetIntLineStatus 0xB2A70 22 libultra mode=lu3
+dbgPortSetIntTxEmpty 0xB2AC8 22 libultra mode=lu3
+dbgPortSetIntRxData 0xB2B20 21 libultra mode=lu3
+dbgPortSetFifoRxReset 0xB2B74 22 libultra mode=lu3
+dbgPortWriteData 0xB2BCC 17 libultra mode=lu3
+dbgPortGetOverrun 0xB2C10 14 libultra mode=lu3
+pad_0B2C48 0xB2C48 2 libultra
 dbgLinkCmdExec 0xB2C50 57 libultra
 dbgLinkCmdWriteByte 0xB2D34 56 libultra
 dbgLinkCmdReadByte 0xB2E14 52 libultra

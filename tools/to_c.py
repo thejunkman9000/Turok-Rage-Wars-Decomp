@@ -17,6 +17,7 @@ lines = open(manifest).read().split('\n')
 for arg in args:
     arg, _, cn = arg.partition('#')
     name, _, ro = arg.partition('@')
+    ro = ro.replace('@', ' ')
     p = f'src/{sub}/{name}.s'
     pad = []
     if cn:

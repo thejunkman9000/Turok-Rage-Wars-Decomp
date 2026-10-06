@@ -1,0 +1,17 @@
+wip/c3/dbgPortReadReg.c dbgPortReadReg 0xB2488 -O2 -mcpu=r4300
+wip/c3/dbgPortWriteReg.c dbgPortWriteReg 0xB24C0 -O2 -mcpu=r4300
+wip/c3/dbgPortWaitDataReady.c dbgPortWaitDataReady 0xB25C0 -O2 -mcpu=r4300
+wip/c3/dbgPortWaitDataReadyFast.c dbgPortWaitDataReadyFast 0xB2668 -O2 -mcpu=r4300
+wip/c3/dbgPortWaitTxEmpty.c dbgPortWaitTxEmpty 0xB2710 -O2 -mcpu=r4300
+wip/c3/dbgPortWaitModemBit6.c dbgPortWaitModemBit6 0xB27BC -O2 -mcpu=r4300
+wip/c3/dbgPortWaitOverrun.c dbgPortWaitOverrun 0xB2868 -O2 -mcpu=r4300
+wip/c3/dbgPortSetFifoTrigger.c dbgPortSetFifoTrigger 0xB2914 -O2 -mcpu=r4300
+wip/c3/dbgPortSetLineFormat.c dbgPortSetLineFormat 0xB296C -O2 -mcpu=r4300
+wip/c3/dbgPortSetParityEnable.c dbgPortSetParityEnable 0xB29C0 -O2 -mcpu=r4300
+wip/c3/dbgPortSetIntModemStatus.c dbgPortSetIntModemStatus 0xB2A18 -O2 -mcpu=r4300
+wip/c3/dbgPortSetIntLineStatus.c dbgPortSetIntLineStatus 0xB2A70 -O2 -mcpu=r4300
+wip/c3/dbgPortSetIntTxEmpty.c dbgPortSetIntTxEmpty 0xB2AC8 -O2 -mcpu=r4300
+wip/c3/dbgPortSetIntRxData.c dbgPortSetIntRxData 0xB2B20 -O2 -mcpu=r4300
+wip/c3/dbgPortSetFifoRxReset.c dbgPortSetFifoRxReset 0xB2B74 -O2 -mcpu=r4300
+wip/c3/dbgPortWriteData.c dbgPortWriteData 0xB2BCC -O2 -mcpu=r4300
+wip/c3/dbgPortGetOverrun.c dbgPortGetOverrun 0xB2C10 -O2 -mcpu=r4300

@@ -108,6 +108,7 @@ segments:
       - [0xB2B74, c, libultra/dbgPortSetFifoRxReset]
       - [0xB2BCC, c, libultra/dbgPortWriteData]
       - [0xB2C10, c, libultra/dbgPortGetOverrun]
+      - [0xB2C48, c, libultra/pad_0B2C48]
       - [0xB2C50, c, libultra/dbgLinkCmdExec]
       - [0xB2D34, c, libultra/dbgLinkCmdWriteByte]
       - [0xB2E14, c, libultra/dbgLinkCmdReadByte]
