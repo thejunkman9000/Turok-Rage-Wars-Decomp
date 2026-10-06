@@ -110,3 +110,10 @@ __osSetSR 0xC2F10 4 libultra
 osUnmapTLBAll 0xC2F20 20 libultra
 osWritebackDCache 0xC2F70 28 libultra
 osWritebackDCacheAll 0xC2FE0 12 libultra
+osInitialize  0xC0B30  136  libultra
+__osSiRawReadIo  0xC0D50  36  libultra ro=0xCD830:20
+__osSiRawWriteIo  0xC0DE0  27  libultra ro=0xCD850:20
+__osResetGlobalIntMask  0xC10C0  18  libultra
+__osSetGlobalIntMask  0xC12A0  16  libultra
+osSetTimer  0xC13B0  35  libultra
+osYieldThread  0xC1910  18  libultra

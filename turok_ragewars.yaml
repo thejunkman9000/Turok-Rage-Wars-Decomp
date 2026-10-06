@@ -177,15 +177,24 @@ segments:
       - [0xC0AAC, asm]
       - [0xC0AB0, c, libultra/osGetTime]
       - [0xC0B2C, asm]
+      - [0xC0B30, c, libultra/osInitialize]
+      - [0xC0D50, c, libultra/__osSiRawReadIo]
+      - [0xC0DE0, c, libultra/__osSiRawWriteIo]
+      - [0xC0E4C, asm]
       - [0xC0E50, c, libultra/osJamMesg]
       - [0xC0F84, asm]
       - [0xC0F90, c, libultra/osRecvMesg]
       - [0xC10B4, asm]
+      - [0xC10C0, c, libultra/__osResetGlobalIntMask]
+      - [0xC1108, asm]
       - [0xC1110, c, libultra/osSendMesg]
       - [0xC1240, c, libultra/osSetEventMesg]
       - [0xC129C, asm]
+      - [0xC12A0, c, libultra/__osSetGlobalIntMask]
       - [0xC12E0, c, libultra/osSetThreadPri]
       - [0xC13A4, asm]
+      - [0xC13B0, c, libultra/osSetTimer]
+      - [0xC143C, asm]
       - [0xC1440, c, libultra/osStartThread]
       - [0xC1554, asm]
       - [0xC1560, c, libultra/__osDequeueThread]
@@ -196,7 +205,8 @@ segments:
       - [0xC179C, c, libultra/__osInsertTimer]
       - [0xC18A4, asm]
       - [0xC18B0, c, libultra/osVirtualToPhysical]
-      - [0xC1910, asm]
+      - [0xC1910, c, libultra/osYieldThread]
+      - [0xC1958, asm]
       - [0xC1960, c, libultra/exceptasm]
       - [0xC205C, c, libultra/__osEnqueueAndYield]
       - [0xC21F8, c, libultra/__osEnqueueThread]
@@ -244,6 +254,10 @@ segments:
       - {start: 0xCD814, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
       - {start: 0xCD82C, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD830, .rodata, libultra/__osSiRawReadIo]
+      - {start: 0xCD844, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
+      - {start: 0xCD864, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

@@ -9,3 +9,5 @@ osPiRawReadIo 0xCD7C0 20
 __osSiRawStartDma 0xCD7E0 20
 __osSpRawStartDma 0xCD800 20
 __osViSwapContext 0xCD820 12
+__osSiRawReadIo 0xCD830 20
+__osSiRawWriteIo 0xCD850 20

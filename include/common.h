@@ -287,7 +287,7 @@ typedef struct OSTimer_s {
     /* 0x08 */ u64 interval;
     /* 0x10 */ u64 remaining;
     /* 0x18 */ OSMesgQueue *mq;
-    /* 0x1C */ OSMesg *msg;
+    /* 0x1C */ OSMesg msg;
 } OSTimer;
 
 typedef struct {
@@ -431,6 +431,15 @@ extern u16 __osViRetraceCount;
 extern OSViContext *__osViCurr;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
+extern u32 __OSGlobalIntMask;
+extern OSTime osClockRate;
+extern u32 __osInitialized;
+extern u8 osAppNMIBuffer[0x40];
+typedef struct {
+    u32 inst1, inst2, inst3, inst4;
+} __osExceptionVector;
+extern u32 __osExceptionPreamble[];
+extern OSThread *__osFaultedThread;
 extern u32 __osBaseCounter;
 extern u32 __osViIntrCount;
 extern u32 __osTimerCounter;
@@ -462,6 +471,7 @@ extern OSMesg __osContMesgBuff[4];
 extern OSMesgQueue __osPiAccessQueue;
 extern __OSEventState __osEventStateTab[16];
 #define OS_TV_TYPE (*(u32 *)0x80000300)
+#define OS_RESET_TYPE (*(u32 *)0x8000030C)
 #define OS_ROM_BASE (*(u32 *)0x80000308) /* ROM base address passed in by the boot code */
 extern u32 __osPiAccessQueueEnabled;
 extern OSMesg __osPiAccessBuf[1];
@@ -483,6 +493,17 @@ s32 __osSiRawStartDma(s32 dir, void *dramAddr);
 s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);
 s32 __osSpSetPc(u32 pc);
 void osInvalDCache(void *vaddr, s32 nbytes);
+void osInvalICache(void *vaddr, s32 nbytes);
+void osMapMainTLB(void);
+void osInitialize(void);
+void osYieldThread(void);
+u32 __osGetSR(void);
+void __osSetSR(u32 value);
+u32 __osSetFpcCsr(u32 value);
+void __osSetGlobalIntMask(u32 mask);
+void __osResetGlobalIntMask(u32 mask);
+s32 __osSiRawReadIo(u32 devAddr, u32 *data);
+s32 __osSiRawWriteIo(u32 devAddr, u32 data);
 void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg msg);
 void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);
@@ -526,7 +547,7 @@ s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *data);
 s32 osContReset(OSMesgQueue *mq, OSContStatus *data);
 s32 osContStartQuery(OSMesgQueue *mq);
 void osContGetQuery(OSContStatus *data);
-u32 osSetTimer(OSTimer *timer, OSTime countdown, OSTime interval, OSMesgQueue *mq, OSMesg msg);
+s32 osSetTimer(OSTimer *timer, OSTime countdown, OSTime interval, OSMesgQueue *mq, OSMesg msg);
 OSTime osGetTime(void);
 void __osSiCreateAccessQueue(void);
 void guMtxIdentF(f32 mf[4][4]);
