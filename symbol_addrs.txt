@@ -242,3 +242,4 @@ guPerspectiveF = 0x002BC06C; // type:func
 sinf = 0x002BC200; // type:func
 sqrtf = 0x002BC380; // type:func
 osAiGetStatus = 0x002BC390; // type:func
+__osGetCurrFaultedThread = 0x002BFE60; // type:func
