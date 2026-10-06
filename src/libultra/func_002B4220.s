@@ -15,7 +15,7 @@ glabel func_002B4220
     /* B4E30 002B4230 8E040018 */  lw         $a0, 0x18($s0)
     /* B4E34 002B4234 1080005A */  beqz       $a0, .L002B43A0
     /* B4E38 002B4238 00000000 */   nop
-    /* B4E3C 002B423C 0C0ACDE3 */  jal        func_002B378C
+    /* B4E3C 002B423C 0C0ACDE3 */  jal        alCSeqNextEvent
     /* B4E40 002B4240 27A50010 */   addiu     $a1, $sp, 0x10
     /* B4E44 002B4244 97A20010 */  lhu        $v0, 0x10($sp)
     /* B4E48 002B4248 2442FFFF */  addiu      $v0, $v0, -0x1
@@ -39,7 +39,7 @@ glabel func_002B4220
     /* B4E90 002B4290 8E040018 */  lw         $a0, 0x18($s0)
     /* B4E94 002B4294 10800042 */  beqz       $a0, .L002B43A0
     /* B4E98 002B4298 00000000 */   nop
-    /* B4E9C 002B429C 0C0ACEA0 */  jal        func_002B3A80
+    /* B4E9C 002B429C 0C0ACEA0 */  jal        __alCSeqNextDelta
     /* B4EA0 002B42A0 27A50030 */   addiu     $a1, $sp, 0x30
     /* B4EA4 002B42A4 304200FF */  andi       $v0, $v0, 0xFF
     /* B4EA8 002B42A8 1040003D */  beqz       $v0, .L002B43A0
@@ -57,7 +57,7 @@ glabel func_002B4220
     /* B4ED8 002B42D8 8E040018 */  lw         $a0, 0x18($s0)
     /* B4EDC 002B42DC 10800030 */  beqz       $a0, .L002B43A0
     /* B4EE0 002B42E0 00000000 */   nop
-    /* B4EE4 002B42E4 0C0ACEA0 */  jal        func_002B3A80
+    /* B4EE4 002B42E4 0C0ACEA0 */  jal        __alCSeqNextDelta
     /* B4EE8 002B42E8 27A50034 */   addiu     $a1, $sp, 0x34
     /* B4EEC 002B42EC 304200FF */  andi       $v0, $v0, 0xFF
     /* B4EF0 002B42F0 1040002B */  beqz       $v0, .L002B43A0
@@ -83,7 +83,7 @@ glabel func_002B4220
     /* B4F40 002B4340 8E040018 */  lw         $a0, 0x18($s0)
     /* B4F44 002B4344 10800016 */  beqz       $a0, .L002B43A0
     /* B4F48 002B4348 00000000 */   nop
-    /* B4F4C 002B434C 0C0ACEA0 */  jal        func_002B3A80
+    /* B4F4C 002B434C 0C0ACEA0 */  jal        __alCSeqNextDelta
     /* B4F50 002B4350 27A50038 */   addiu     $a1, $sp, 0x38
     /* B4F54 002B4354 304200FF */  andi       $v0, $v0, 0xFF
     /* B4F58 002B4358 10400011 */  beqz       $v0, .L002B43A0

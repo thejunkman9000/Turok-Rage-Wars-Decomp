@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xB3D00-0xB3F60 (VRAM 0x002B3100) */
-glabel func_002B3100
+glabel __alCSeqGetTrackEvent
     /* B3D00 002B3100 27BDFFD8 */  addiu      $sp, $sp, -0x28
     /* B3D04 002B3104 AFB10014 */  sw         $s1, 0x14($sp)
     /* B3D08 002B3108 00808821 */  addu       $s1, $a0, $zero
@@ -17,7 +17,7 @@ glabel func_002B3100
     /* B3D18 002B3118 00C09021 */  addu       $s2, $a2, $zero
     /* B3D1C 002B311C AFBF0024 */  sw         $ra, 0x24($sp)
     /* B3D20 002B3120 AFB40020 */  sw         $s4, 0x20($sp)
-    /* B3D24 002B3124 0C0ACD74 */  jal        func_002B35D0
+    /* B3D24 002B3124 0C0ACD74 */  jal        __getTrackByte
     /* B3D28 002B3128 AFB00010 */   sw        $s0, 0x10($sp)
     /* B3D2C 002B312C 00408021 */  addu       $s0, $v0, $zero
     /* B3D30 002B3130 321400FF */  andi       $s4, $s0, 0xFF
@@ -25,7 +25,7 @@ glabel func_002B3100
     /* B3D38 002B3138 1682005D */  bne        $s4, $v0, .L002B32B0
     /* B3D3C 002B313C 24020001 */   addiu     $v0, $zero, 0x1
     /* B3D40 002B3140 02202021 */  addu       $a0, $s1, $zero
-    /* B3D44 002B3144 0C0ACD74 */  jal        func_002B35D0
+    /* B3D44 002B3144 0C0ACD74 */  jal        __getTrackByte
     /* B3D48 002B3148 02602821 */   addu      $a1, $s3, $zero
     /* B3D4C 002B314C 00403021 */  addu       $a2, $v0, $zero
     /* B3D50 002B3150 30C300FF */  andi       $v1, $a2, 0xFF
@@ -37,15 +37,15 @@ glabel func_002B3100
     /* B3D68 002B3168 24020003 */  addiu      $v0, $zero, 0x3
     /* B3D6C 002B316C A6420000 */  sh         $v0, 0x0($s2)
     /* B3D70 002B3170 A2500008 */  sb         $s0, 0x8($s2)
-    /* B3D74 002B3174 0C0ACD74 */  jal        func_002B35D0
+    /* B3D74 002B3174 0C0ACD74 */  jal        __getTrackByte
     /* B3D78 002B3178 A2460009 */   sb        $a2, 0x9($s2)
     /* B3D7C 002B317C 02202021 */  addu       $a0, $s1, $zero
     /* B3D80 002B3180 02602821 */  addu       $a1, $s3, $zero
-    /* B3D84 002B3184 0C0ACD74 */  jal        func_002B35D0
+    /* B3D84 002B3184 0C0ACD74 */  jal        __getTrackByte
     /* B3D88 002B3188 A242000B */   sb        $v0, 0xB($s2)
     /* B3D8C 002B318C 02202021 */  addu       $a0, $s1, $zero
     /* B3D90 002B3190 02602821 */  addu       $a1, $s3, $zero
-    /* B3D94 002B3194 0C0ACD74 */  jal        func_002B35D0
+    /* B3D94 002B3194 0C0ACD74 */  jal        __getTrackByte
     /* B3D98 002B3198 A242000C */   sb        $v0, 0xC($s2)
     /* B3D9C 002B319C A242000D */  sb         $v0, 0xD($s2)
     /* B3DA0 002B31A0 02331021 */  addu       $v0, $s1, $s3
@@ -71,10 +71,10 @@ glabel func_002B3100
     /* B3DE4 002B31E4 1462000C */  bne        $v1, $v0, .L002B3218
     /* B3DE8 002B31E8 2402002D */   addiu     $v0, $zero, 0x2D
     /* B3DEC 002B31EC 02202021 */  addu       $a0, $s1, $zero
-    /* B3DF0 002B31F0 0C0ACD74 */  jal        func_002B35D0
+    /* B3DF0 002B31F0 0C0ACD74 */  jal        __getTrackByte
     /* B3DF4 002B31F4 02602821 */   addu      $a1, $s3, $zero
     /* B3DF8 002B31F8 02202021 */  addu       $a0, $s1, $zero
-    /* B3DFC 002B31FC 0C0ACD74 */  jal        func_002B35D0
+    /* B3DFC 002B31FC 0C0ACD74 */  jal        __getTrackByte
     /* B3E00 002B3200 02602821 */   addu      $a1, $s3, $zero
     /* B3E04 002B3204 02331021 */  addu       $v0, $s1, $s3
     /* B3E08 002B3208 A04000A8 */  sb         $zero, 0xA8($v0)
@@ -129,7 +129,7 @@ glabel func_002B3100
     /* B3EB8 002B32B8 10400008 */  beqz       $v0, .L002B32DC
     /* B3EBC 002B32BC 02202021 */   addu      $a0, $s1, $zero
     /* B3EC0 002B32C0 02602821 */  addu       $a1, $s3, $zero
-    /* B3EC4 002B32C4 0C0ACD74 */  jal        func_002B35D0
+    /* B3EC4 002B32C4 0C0ACD74 */  jal        __getTrackByte
     /* B3EC8 002B32C8 A2500008 */   sb        $s0, 0x8($s2)
     /* B3ECC 002B32CC A2420009 */  sb         $v0, 0x9($s2)
     /* B3ED0 002B32D0 02331021 */  addu       $v0, $s1, $s3
@@ -148,7 +148,7 @@ glabel func_002B3100
     /* B3EFC 002B32FC 240200D0 */   addiu     $v0, $zero, 0xD0
     /* B3F00 002B3300 1062000D */  beq        $v1, $v0, .L002B3338
     /* B3F04 002B3304 02202021 */   addu      $a0, $s1, $zero
-    /* B3F08 002B3308 0C0ACD74 */  jal        func_002B35D0
+    /* B3F08 002B3308 0C0ACD74 */  jal        __getTrackByte
     /* B3F0C 002B330C 02602821 */   addu      $a1, $s3, $zero
     /* B3F10 002B3310 92430008 */  lbu        $v1, 0x8($s2)
     /* B3F14 002B3314 A242000A */  sb         $v0, 0xA($s2)
@@ -156,7 +156,7 @@ glabel func_002B3100
     /* B3F1C 002B331C 306300F0 */  andi       $v1, $v1, 0xF0
     /* B3F20 002B3320 14620006 */  bne        $v1, $v0, .L002B333C
     /* B3F24 002B3324 02202021 */   addu      $a0, $s1, $zero
-    /* B3F28 002B3328 0C0ACEBF */  jal        func_002B3AFC
+    /* B3F28 002B3328 0C0ACEBF */  jal        __readVarLen
     /* B3F2C 002B332C 02602821 */   addu      $a1, $s3, $zero
     /* B3F30 002B3330 080ACCCF */  j          .L002B333C
     /* B3F34 002B3334 AE42000C */   sw        $v0, 0xC($s2)
@@ -172,4 +172,4 @@ glabel func_002B3100
     /* B3F54 002B3354 24020001 */  addiu      $v0, $zero, 0x1
     /* B3F58 002B3358 03E00008 */  jr         $ra
     /* B3F5C 002B335C 27BD0028 */   addiu     $sp, $sp, 0x28
-endlabel func_002B3100
+endlabel __alCSeqGetTrackEvent

@@ -238,3 +238,16 @@ spaces = 0x800D92E0;
 zeroes = 0x800D9304;
 ldigs = 0x800D9330;
 udigs = 0x800D9344;
+
+__alCSeqGetTrackEvent = 0x002B3100; // type:func
+alCSeqNewMarker = 0x002B3360; // type:func
+__getTrackByte = 0x002B35D0; // type:func
+alCSeqNew = 0x002B3688; // type:func
+alCSeqNextEvent = 0x002B378C; // type:func
+alCSeqGetTicks = 0x002B3880; // type:func
+alCSeqTicksToSec = 0x002B388C; // type:func
+alCSeqSecToTicks = 0x002B38F4; // type:func
+alCSeqSetLoc = 0x002B3998; // type:func
+alCSeqGetLoc = 0x002B3A0C; // type:func
+__alCSeqNextDelta = 0x002B3A80; // type:func
+__readVarLen = 0x002B3AFC; // type:func

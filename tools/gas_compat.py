@@ -41,6 +41,23 @@ BRANCHES = {'j', 'jal', 'jr', 'jalr', 'b', 'beq', 'bne', 'beqz', 'bnez', 'bgez',
 LOADS = {'lb', 'lbu', 'lh', 'lhu', 'lw', 'lwl', 'lwr', 'lwc1', 'ld', 'ldc1', 'll', 'l.s', 'l.d'}
 
 
+STORES = {'sb', 'sh', 'sw', 'sd', 'swc1', 'sdc1', 'swl', 'swr', 's.s', 's.d'}
+NODEST = BRANCHES | STORES | {'nop', 'break', 'mtc1', 'mtc0', 'ctc1', 'mult', 'multu', 'div', 'divu'}
+reg_re = re.compile(r'\$[A-Za-z0-9]+')
+
+
+def reg_use(mnemonic, rest):
+    """(dest register or None, set of source registers) of one instruction, from its operand text."""
+    regs = reg_re.findall(rest)
+    if not regs:
+        return None, set()
+    if mnemonic in NODEST:
+        return None, set(regs)
+    if mnemonic in LOADS:
+        return regs[0], set(regs[1:])
+    return regs[0], set(regs[1:])
+
+
 class Pool:
     """Per-object literal pool: 4-byte floats and 8-byte doubles, first-use order, one literal per use."""
 
@@ -139,7 +156,7 @@ def rodata_size(text):
     return 0
 
 
-def finalize_rodata(base_lines, pool, ro_va):
+def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
     """Resolve rodata label references to absolute addresses and re-emit the pool with explicit padding."""
     pass1 = '\n'.join(base_lines + (pool.emit_aligned() if pool.items else []))
     offsets = rodata_labels(pass1)
@@ -172,14 +189,19 @@ def finalize_rodata(base_lines, pool, ro_va):
     out = [sub(l) for l in '\n'.join(base_lines).split('\n')]
     if pool.items:
         out += pool.emit_explicit(offsets['.LFLS'], [offsets[f'.LFL{i}'] for i in range(len(pool.items))])
+        # the object's rodata piece may be longer than its data (4-byte pad before the next object's double)
+        end = offsets[f'.LFL{len(pool.items) - 1}'] + pool.items[-1][0]
+        if ro_size and ro_size > end:
+            out += ['\t.section\t.rodata', f'\t.space\t{ro_size - end}', '\t.text']
     return '\n'.join(out)
 
 
-def fix(text, mode, ro_va=None):
+def fix(text, mode, ro_va=None, ro_size=None):
     out = []
     pool = Pool()            # float/double literal pool for this object
     noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
     prev = None              # mnemonic of the previous real instruction; None after a label/directive
+    ih = []                  # (dest, sources) of the last two real instructions
     for line in text.split('\n'):
         st = line.strip()
         if rdata_re.match(line):
@@ -258,7 +280,8 @@ def fix(text, mode, ro_va=None):
             prev = 'nop'
         is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
         # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
-        if mode in ('lu', 'lu2') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS):
+        dep = is_ret and len(ih) == 2 and ih[0][0] is not None and ih[0][0] != '$0' and ih[0][0] in ih[1][1]
+        if mode in ('lu', 'lu2') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or dep):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
             prev = None
@@ -267,12 +290,13 @@ def fix(text, mode, ro_va=None):
         out.append(line)
         if this:
             prev = this
+            ih = (ih + [reg_use(this, mm.group(2))])[-2:]
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
                 prev = None
 
     if ro_va is not None:
-        return finalize_rodata(out, pool, ro_va)
+        return finalize_rodata(out, pool, ro_va, ro_size)
     if pool.items:
         out.extend(pool.emit_aligned())
     return '\n'.join(out)
@@ -281,5 +305,6 @@ def fix(text, mode, ro_va=None):
 if __name__ == '__main__':
     mode, path = sys.argv[1], sys.argv[2]
     ro_va = int(sys.argv[3], 0) if len(sys.argv) > 3 else None
+    ro_size = int(sys.argv[4], 0) if len(sys.argv) > 4 else None
     s = open(path).read()
-    open(path, 'w', newline='\n').write(fix(s, mode, ro_va))
+    open(path, 'w', newline='\n').write(fix(s, mode, ro_va, ro_size))

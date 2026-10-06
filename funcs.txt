@@ -219,18 +219,9 @@ func_002B2870 0xB3470 85 libultra
 func_002B29C4 0xB35C4 19 libultra
 func_002B2A10 0xB3610 43 libultra
 func_002B2ABC 0xB36BC 401 libultra
-func_002B3100 0xB3D00 152 libultra
-func_002B3360 0xB3F60 156 libultra
-func_002B35D0 0xB41D0 46 libultra
-func_002B3688 0xB4288 65 libultra
-func_002B378C 0xB438C 61 libultra
-func_002B3880 0xB4480 3 libultra
-func_002B388C 0xB448C 26 libultra
-func_002B38F4 0xB44F4 41 libultra
-func_002B3998 0xB4598 29 libultra
-func_002B3A0C 0xB460C 29 libultra
-func_002B3A80 0xB4680 31 libultra
-func_002B3AFC 0xB46FC 29 libultra
+__alCSeqGetTrackEvent 0xB3D00 152 libultra
+alCSeqNewMarker 0xB3F60 156 libultra
+__getTrackByte 0xB41D0 46 libultra
 func_002B3B70 0xB4770 4 libultra
 func_002B3B80 0xB4780 92 libultra
 func_002B3CF0 0xB48F0 332 libultra
@@ -440,3 +431,7 @@ __floatdisf 0xC7600 44 libultra
 pad_0C7010 0xC7010 4 libultra
 xprintf  0xC3120  620  libultra ro=0xCD940:376
 xlitob  0xC3AD0  182  libultra
+cseq_new  0xB4288  65  libultra ro=0xCD150:16
+cseq_next  0xB438C  61  libultra
+cseq_ticks  0xB4480  70  libultra ro=0xCD160:52
+cseq2  0xB4598  118  libultra

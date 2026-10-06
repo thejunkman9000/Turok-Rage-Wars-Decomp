@@ -19,7 +19,7 @@ glabel func_002B4DD0
     /* B59F0 002B4DF0 8E040018 */  lw         $a0, 0x18($s0)
     /* B59F4 002B4DF4 1080000D */  beqz       $a0, .L002B4E2C
     /* B59F8 002B4DF8 00000000 */   nop
-    /* B59FC 002B4DFC 0C0ACEA0 */  jal        func_002B3A80
+    /* B59FC 002B4DFC 0C0ACEA0 */  jal        __alCSeqNextDelta
     /* B5A00 002B4E00 27A50020 */   addiu     $a1, $sp, 0x20
     /* B5A04 002B4E04 304200FF */  andi       $v0, $v0, 0xFF
     /* B5A08 002B4E08 10400008 */  beqz       $v0, .L002B4E2C

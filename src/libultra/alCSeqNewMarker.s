@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xB3F60-0xB41D0 (VRAM 0x002B3360) */
-glabel func_002B3360
+glabel alCSeqNewMarker
     /* B3F60 002B3360 27BDFEC0 */  addiu      $sp, $sp, -0x140
     /* B3F64 002B3364 AFB5012C */  sw         $s5, 0x12C($sp)
     /* B3F68 002B3368 00A0A821 */  addu       $s5, $a1, $zero
@@ -48,7 +48,7 @@ glabel func_002B3360
     /* B3FF0 002B33F0 00431025 */  or         $v0, $v0, $v1
     /* B3FF4 002B33F4 AFA20024 */  sw         $v0, 0x24($sp)
     /* B3FF8 002B33F8 02461021 */  addu       $v0, $s2, $a2
-    /* B3FFC 002B33FC 0C0ACEBF */  jal        func_002B3AFC
+    /* B3FFC 002B33FC 0C0ACEBF */  jal        __readVarLen
     /* B4000 002B3400 AE220018 */   sw        $v0, 0x18($s1)
     /* B4004 002B3404 080ACD04 */  j          .L002B3410
     /* B4008 002B3408 AE2200B8 */   sw        $v0, 0xB8($s1)
@@ -134,7 +134,7 @@ glabel func_002B3360
     /* B4128 002B3528 24840004 */   addiu     $a0, $a0, 0x4
     /* B412C 002B352C 27A40020 */  addiu      $a0, $sp, 0x20
     /* B4130 002B3530 02802821 */  addu       $a1, $s4, $zero
-    /* B4134 002B3534 0C0ACC40 */  jal        func_002B3100
+    /* B4134 002B3534 0C0ACC40 */  jal        __alCSeqGetTrackEvent
     /* B4138 002B3538 02203021 */   addu      $a2, $s1, $zero
     /* B413C 002B353C AE300004 */  sw         $s0, 0x4($s1)
     /* B4140 002B3540 8FA2002C */  lw         $v0, 0x2C($sp)
@@ -145,7 +145,7 @@ glabel func_002B3360
     /* B4154 002B3554 24020012 */  addiu      $v0, $zero, 0x12
     /* B4158 002B3558 10620008 */  beq        $v1, $v0, .L002B357C
     /* B415C 002B355C 27A40020 */   addiu     $a0, $sp, 0x20
-    /* B4160 002B3560 0C0ACEBF */  jal        func_002B3AFC
+    /* B4160 002B3560 0C0ACEBF */  jal        __readVarLen
     /* B4164 002B3564 02802821 */   addu      $a1, $s4, $zero
     /* B4168 002B3568 00142080 */  sll        $a0, $s4, 2
     /* B416C 002B356C 02442021 */  addu       $a0, $s2, $a0
@@ -175,4 +175,4 @@ glabel func_002B3360
     /* B41C4 002B35C4 8FB00118 */  lw         $s0, 0x118($sp)
     /* B41C8 002B35C8 03E00008 */  jr         $ra
     /* B41CC 002B35CC 27BD0140 */   addiu     $sp, $sp, 0x140
-endlabel func_002B3360
+endlabel alCSeqNewMarker

@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xB41D0-0xB4288 (VRAM 0x002B35D0) */
-glabel func_002B35D0
+glabel __getTrackByte
     /* B41D0 002B35D0 00854021 */  addu       $t0, $a0, $a1
     /* B41D4 002B35D4 91020098 */  lbu        $v0, 0x98($t0)
     /* B41D8 002B35D8 10400007 */  beqz       $v0, .L002B35F8
@@ -57,4 +57,4 @@ glabel func_002B35D0
   .L002B3680:
     /* B4280 002B3680 03E00008 */  jr         $ra
     /* B4284 002B3684 00801021 */   addu      $v0, $a0, $zero
-endlabel func_002B35D0
+endlabel __getTrackByte
