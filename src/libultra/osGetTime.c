@@ -8,7 +8,7 @@ OSTime osGetTime(void) {
 
     saveMask = __osDisableInt();
     count = osGetCount();
-    elapsed = count - __osTimerCounter;
+    elapsed = count - __osBaseCounter;
     time = _osCurrentTime;
     __osRestoreInt(saveMask);
 

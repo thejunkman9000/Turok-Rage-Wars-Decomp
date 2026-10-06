@@ -136,6 +136,17 @@ typedef union {
 } OSContPackedStruct;
 
 typedef struct {
+    u32 ramarray[15];
+    u32 pifstatus;
+} OSPifRam;
+
+typedef struct {
+    u16 type;
+    u8 status;
+    u8 errno;
+} OSContStatus;
+
+typedef struct {
     u16 button;
     s8 stick_x;
     s8 stick_y;
@@ -270,8 +281,13 @@ extern OSThread *__osActiveQueue;
 extern OSViContext *__osViNext;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
+extern u32 __osBaseCounter;
+extern u32 __osViIntrCount;
 extern u32 __osTimerCounter;
 extern OSContPackedStruct __osContBuffer[7];
+#define __osContPifRam (*(OSPifRam *)&__osContBuffer) /* same storage as __osContBuffer */
+extern u32 __osContPifStatus; /* word 15 of the 64-byte PIF RAM image */
+extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
 extern OSMesgQueue __osPiAccessQueue;
@@ -295,6 +311,9 @@ void __osCleanupThread(void);
 u32 osVirtualToPhysical(void *addr);
 u32 __osProbeTLB(void *addr);
 u32 osGetCount(void);
+void __osSetCompare(u32 value);
+void __osSetTimerIntr(u64 time);
+u64 __osInsertTimer(OSTimer *timer);
 void osWritebackDCache(void *addr, s32 size);
 s32 __osSpSetPc(u32 pc);
 s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);
@@ -302,6 +321,13 @@ void *memcpy(void *dst, const void *src, u32 n);
 u32 strlen(const u8 *str);
 const u8 *strchr(const u8 *str, u32 ch);
 void osContGetReadData(OSContPad *pad);
+s32 osContStartReadData(OSMesgQueue *mq);
+void __osPackReadData(void);
+void __osPackRequestData(u8 cmd);
+void __osContGetInitData(u8 *pattern, OSContStatus *status);
+void __osSiGetAccess(void);
+void __osSiRelAccess(void);
+s32 __osSiRawStartDma(s32 dir, void *dramAddr);
 void osViSetSpecialFeatures(u32 func);
 OSMesgQueue *osPiGetCmdQueue(void);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);

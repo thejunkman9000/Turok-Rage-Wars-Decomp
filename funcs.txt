@@ -34,3 +34,9 @@ string             0xC3090  33  libultra
 osPiStartDma       0xBE9C0  43  libultra
 osPiRawStartDma    0xBF730  53  libultra
 osSpTaskYielded    0xBFE30  19  libultra
+__osTimerInterrupt 0xC15A0  82  libultra
+__osTimerServicesInit 0xC16E8 21 libultra
+__osSetTimerIntr   0xC173C  24  libultra
+__osPackReadData   0xBD35C  45  libultra
+__osPackRequestData 0xBD6F0 46  libultra
+__osContGetInitData 0xBD7A8 45  libultra

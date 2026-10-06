@@ -31,7 +31,7 @@ __osEnqueueAndYield = 0x002C145C; // type:func
 __osPopThread = 0x002C1648; // type:func
 __osRunningThread = 0x800D92A0;
 _osCurrentTime = 0x8014FE28;
-__osTimerCounter = 0x8014FE20;
+__osBaseCounter = 0x8014FE20;
 
 // task helpers
 _VirtualToPhysicalTask = 0x002BEE80; // type:func
@@ -80,3 +80,18 @@ osPiRawStartDma = 0x002BEB30; // type:func
 osSpTaskYielded = 0x002BF230; // type:func
 __osPiAccessQueueEnabled = 0x800D83C0;
 __osPiAccessBuf = 0x8014EA50;
+
+// timers
+__osTimerInterrupt = 0x002C09A0; // type:func
+__osTimerServicesInit = 0x002C0AE8; // type:func
+__osSetTimerIntr = 0x002C0B3C; // type:func
+__osSetCompare = 0x002C2240; // type:func
+__osTimerCounter = 0x8014FE30;
+__osViIntrCount = 0x8014FE24;
+
+// controller helpers
+__osPackReadData = 0x002BC75C; // type:func
+__osPackRequestData = 0x002BCAF0; // type:func
+__osContGetInitData = 0x002BCBA8; // type:func
+__osContPifStatus = 0x8014D4AC;
+__osContLastCmd = 0x8014D4B0;
