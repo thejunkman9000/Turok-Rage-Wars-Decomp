@@ -1,0 +1,16 @@
+﻿# Copyrighted game data - never commit
+baserom*.z64
+baserom*.n64
+baserom*.v64
+*.z64
+*.n64
+*.v64
+assets/
+build/
+expected/
+.venv/
+__pycache__/
+*.pyc
+asm/
+undefined_*_auto.txt
+*.ld

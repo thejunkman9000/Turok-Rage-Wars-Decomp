@@ -1,0 +1,77 @@
+name: "Turok - Rage Wars (North America) v1.1"
+sha1: 037fb397cee2669048ed6b762a64698de4a4d88a
+options:
+  basename: turok_ragewars
+  target_path: baserom.us.v11.z64
+  elf_path: build/turok_ragewars.elf
+  base_path: .
+  platform: n64
+  compiler: GCC
+
+  asm_path: asm
+  src_path: src
+  build_path: build
+  create_asm_dependencies: True
+
+  ld_script_path: turok_ragewars.ld
+  ld_dependencies: True
+
+  find_file_boundaries: False
+  header_encoding: ASCII
+
+  o_as_suffix: True
+  use_legacy_include_asm: False
+  mips_abi_float_regs: o32
+
+  symbol_addrs_path:
+    - symbol_addrs.txt
+  # reloc_addrs_path:
+  #   - reloc_addrs.txt
+
+  undefined_funcs_auto_path: undefined_funcs_auto.txt
+  undefined_syms_auto_path: undefined_syms_auto.txt
+
+  extensions_path: tools/splat_ext
+
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  hardware_regs: True
+
+# Address-space layout (derived from the boot stub + jal-target analysis, see docs/layout.md):
+#   entry stub maps TLB: VA 0x00200000 -> phys 0x000000, VA 0x00300000 -> phys 0x100000 (1 MB pages)
+#   IPL3 copies ROM 0x1000.. to RAM phys 0x400 (=> ROM 0x1000 is VA 0x00200400 once TLB-mapped)
+#   overlay A: VA 0x00400000 <-> ROM 0x16E000 (61% of internal jal targets hit function prologues)
+segments:
+  - name: header
+    type: header
+    start: 0x0
+
+  - name: ipl3
+    type: bin
+    start: 0x40
+
+  - name: main
+    type: code
+    start: 0x1000
+    vram: 0x200400
+    subsegments:
+      - [0x1000, asm, entry]
+      - [0xC7010, bin, rsp_and_data_unsplit]
+
+  # 56 KB code chunk, calls both main and overlay A. Own VA base still unresolved.
+  - name: ovl_unknown_160000
+    type: code
+    start: 0x160000
+    vram: 0x160000
+    subsegments:
+      - [0x160000, asm]
+
+  - name: ovl_a
+    type: code
+    start: 0x16E000
+    vram: 0x400000
+    subsegments:
+      - [0x16E000, asm]
+      - [0x1BCD94, bin, ovl_a_tail]
+
+  - [0x800000]
