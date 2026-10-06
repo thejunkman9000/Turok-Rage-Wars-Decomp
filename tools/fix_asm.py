@@ -36,16 +36,15 @@ for p in sorted(glob.glob('asm/*.s')):
     if n: print(f'{p}: {n} instruction(s) -> .word'); total += n
 print(f'fix_asm: {total} fixed')
 
-# splat writes a stub .c (INCLUDE_ASM lines only) for every `c` subsegment that has no source yet; where a
+# splat writes a stub .c for every `c` subsegment that has no source yet; where a
 # hand-written .s of the same name exists the stub would define the same symbols a second time, so delete it.
 import os
 removed = 0
 for sp in glob.glob('src/**/*.s', recursive=True):
     cp = sp[:-2] + '.c'
     if os.path.exists(cp):
-        body = [l.strip() for l in open(cp, encoding='utf-8').read().split('\n') if l.strip()]
-        if all(l.startswith('#include') or l.startswith('INCLUDE_ASM') for l in body):
-            os.remove(cp)
-            removed += 1
+        # (splat also writes `void f(void) {}` skeletons for trivial functions) - a name cannot have both sources
+        os.remove(cp)
+        removed += 1
 if removed:
     print(f'fix_asm: removed {removed} stub .c file(s) shadowed by .s sources')
