@@ -281,3 +281,7 @@ DATA STRUCTURE / GAME CODE HINTS
 - func_002A1238/12E8/13F4 are strlen / strcat / strcasecmp; 0029FBE4/FCBC/FFE4/A0118 are 4x4 f32 matrix helpers (scale by vec3, uniform scale, get translation row 3,
   extract the three basis rows); 002A9700/97F0 build a 16-bit texture-image load block in the global display list pointer D_80110634.
 - Libultra calls are ordinary: osCreateThread/osStartThread/osSetThreadPri/osSetIntMask prototypes from common.h work unchanged.
+
+NOTE (lead): refer to code symbols as func_00XXXXXX (VA 0x00XXXXXX, e.g. func_002BC380), never func_802BC380 (KSEG0 spelling copied from try.ps1 side-by-side output).
+
+NOTE (lead): the whole game is probably built with -fno-builtin too (functions calling sqrtf via jal need it; gcc expands sqrt.s inline otherwise). If a function calls sqrtf/memcpy/strlen/abs etc. and does not match, add -fno-builtin to the chk flags (or declare sqrtf through __asm__("sqrtf")). Report in results.txt which functions needed it ("needs -fno-builtin").

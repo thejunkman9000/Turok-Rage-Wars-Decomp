@@ -23,8 +23,10 @@ if game:
         f = l.split(); gf[f[1]] = (int(f[0], 16), int(f[2]))
 os.makedirs(f'src/{sub}', exist_ok=True)
 for h in os.listdir(f'{ws}/include'):
-    if h.endswith('_types.h') and not os.path.exists(f'include/{h}'):
-        shutil.copy(f'{ws}/include/{h}', f'include/{h}'); print('new header', h)
+    if h.endswith('_types.h'):
+        a, b = f'{ws}/include/{h}', f'include/{h}'
+        if not os.path.exists(b) or (os.path.getmtime(a) > os.path.getmtime(b) and open(a, 'rb').read() != open(b, 'rb').read()):
+            shutil.copy(a, b); print('header updated:', h)
 lines = open(manifest).read().split('\n')
 have = {l.split('#')[0].split()[0]: i for i, l in enumerate(lines) if l.split('#')[0].split()}
 todo = []
@@ -77,7 +79,13 @@ for fn, r, n, ro, mode in todo:
         p = f'src/{sub}/{fn}.s'
         if os.path.exists(p) and not dry: os.remove(p)
     if not dry: shutil.copy(src, f'src/{sub}/{fn}.c')
-lines = [l for l in lines]
+have_names = set(have)
+uniq = []
+for e in new:
+    nm = e.split()[0]
+    if nm in have_names: continue
+    have_names.add(nm); uniq.append(e)
+new = uniq
 lines += new
 if not dry: open(manifest, 'w', newline='\n').write('\n'.join(lines).rstrip('\n') + '\n')
 print(len(todo), 'exact results processed;', len(new), 'new manifest lines')

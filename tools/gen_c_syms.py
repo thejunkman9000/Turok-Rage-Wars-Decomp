@@ -9,6 +9,8 @@ for p in glob.glob('src/**/*.c', recursive=True) + glob.glob('include/*.h'):
     names.update(re.findall(r'\bjtbl_[0-9A-Fa-f]{8}\b', t))
 out = []
 for n in sorted(names):
-    out.append(f'{n} = 0x{n.split("_")[1].upper()};')
+    v = int(n.split('_')[1], 16)
+    if n.startswith('func_') and v >= 0x80000000: v &= 0x00FFFFFF   # KSEG0 spelling of a TLB-mapped code address
+    out.append(f'{n} = 0x{v:08X};')
 open('c_syms.ld', 'w', newline='\n').write('\n'.join(out) + '\n')
 print(len(out), 'symbols')
