@@ -200,6 +200,7 @@ segments:
       - [0xB81E0, c, libultra/alSndpAllocate]
       - [0xB8298, c, libultra/pad_0B8298]
       - [0xB82A0, c, libultra/alSndpDeallocate]
+      - [0xB82E4, c, libultra/pad_0B82E4]
       - [0xB82F0, c, libultra/alSndpGetState]
       - [0xB8314, c, libultra/pad_0B8314]
       - [0xB8320, c, libultra/alSndpNew]
@@ -207,6 +208,7 @@ segments:
       - [0xB888C, c, libultra/_sndpVoiceHandler]
       - [0xB8918, c, libultra/_removeEvents]
       - [0xB89C0, c, libultra/__sndpTimeAtPitch]
+      - [0xB8A48, c, libultra/pad_0B8A48]
       - [0xB8A50, c, libultra/alSndpPlay]
       - [0xB8AB0, c, libultra/alSndpSetFXMix]
       - [0xB8AFC, c, libultra/pad_0B8AFC]
@@ -241,6 +243,7 @@ segments:
       - [0xB92A4, c, libultra/synth_linker_fragment_B92A4]
       - [0xB92AC, c, libultra/synth_linker_fragment_B92AC]
       - [0xB92B0, c, libultra/alSynStartVoiceParams]
+      - [0xB93B4, c, libultra/pad_0B93B4]
       - [0xB93C0, c, libultra/alSynStopVoice]
       - [0xB943C, c, libultra/pad_0B943C]
       - [0xB9440, c, libultra/alSynNew]
@@ -521,54 +524,61 @@ segments:
       - [0xC75F8, c, libultra/pad_0C75F8]
       - [0xC7600, c, libultra/__floatdisf]
       - [0xC76B0, bin, rsp_and_data_0]
+      - [0xCC090, .rodata, libultra/dbgLinkServerLoop]
+      - {start: 0xCC150, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
       - [0xCD150, .rodata, libultra/cseq_new]
       - [0xCD160, .rodata, libultra/cseq_ticks]
-      - {start: 0xCD194, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD194, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD280, .rodata, libultra/alCents2Ratio]
+      - {start: 0xCD28C, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
       - [0xCD330, .rodata, libultra/seq]
-      - {start: 0xCD358, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD358, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
       - [0xCD360, .rodata, libultra/alSndpAllocate]
-      - {start: 0xCD364, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD364, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD370, .rodata, libultra/_handleEvent]
+      - [0xCD398, .rodata, libultra/__sndpTimeAtPitch]
+      - {start: 0xCD3B8, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
       - [0xCD3C0, .rodata, libultra/__nextSampleTime]
       - [0xCD3D8, .rodata, libultra/_timeToSamplesNoRound]
       - [0xCD3E0, .rodata, libultra/_timeToSamplesNoRound_2]
-      - {start: 0xCD3E8, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD3E8, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
       - [0xCD430, .rodata, libultra/alResampleNew]
-      - {start: 0xCD434, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD434, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
       - [0xCD660, .rodata, libultra/cosf]
       - [0xCD6C0, .rodata, libultra/guLookAt]
       - [0xCD6D0, .rodata, libultra/guMtxIdent]
       - [0xCD6D8, .rodata, libultra/guMtxIdentF]
       - [0xCD6DC, .rodata, libultra/guMtxF2L]
       - [0xCD6E0, .rodata, libultra/guMtxL2F]
-      - {start: 0xCD6E4, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD6E4, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
       - [0xCD6F0, .rodata, libultra/guPerspective]
-      - {start: 0xCD720, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD720, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
       - [0xCD770, .rodata, libultra/osAiSetFrequency]
-      - {start: 0xCD780, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD780, type: bin, name: data_11, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7A0, .rodata, libultra/osEPiRawReadIo]
-      - {start: 0xCD7B4, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7B4, type: bin, name: data_12, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
-      - {start: 0xCD7D4, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7D4, type: bin, name: data_13, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7E0, .rodata, libultra/__osSiRawStartDma]
-      - {start: 0xCD7F4, type: bin, name: data_11, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7F4, type: bin, name: data_14, linker_section_order: .rodata, linker_section: .data}
       - [0xCD800, .rodata, libultra/__osSpRawStartDma]
-      - {start: 0xCD814, type: bin, name: data_12, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD814, type: bin, name: data_15, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_13, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_16, linker_section_order: .rodata, linker_section: .data}
       - [0xCD830, .rodata, libultra/__osSiRawReadIo]
-      - {start: 0xCD844, type: bin, name: data_14, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD844, type: bin, name: data_17, linker_section_order: .rodata, linker_section: .data}
       - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
-      - {start: 0xCD864, type: bin, name: data_15, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD864, type: bin, name: data_18, linker_section_order: .rodata, linker_section: .data}
       - [0xCD940, .rodata, libultra/xprintf]
-      - {start: 0xCDAB8, type: bin, name: data_16, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDAB8, type: bin, name: data_19, linker_section_order: .rodata, linker_section: .data}
       - [0xCDB50, .rodata, libultra/__divdi3]
       - [0xCDC50, .rodata, libultra/__moddi3]
       - [0xCDD50, .rodata, libultra/__udivdi3]
       - [0xCDE50, .rodata, libultra/__umoddi3]
       - [0xCDF50, .rodata, libultra/__floatdidf]
-      - {start: 0xCDF68, type: bin, name: data_17, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDF68, type: bin, name: data_20, linker_section_order: .rodata, linker_section: .data}
       - [0xCDF70, .rodata, libultra/__floatdisf]
-      - {start: 0xCDF88, type: bin, name: data_18, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDF88, type: bin, name: data_21, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

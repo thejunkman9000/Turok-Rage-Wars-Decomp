@@ -201,6 +201,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
     pool = Pool()            # float/double literal pool for this object
     noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
     prev = None              # mnemonic of the previous real instruction; None after a label/directive
+    lastmul = False          # last real instruction was an FP multiply (survives labels: fall-through still hazards)
     ih = []                  # (dest, sources) of the last two real instructions
     for line in text.split('\n'):
         st = line.strip()
@@ -271,7 +272,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
                 out.append(f'{ind}.set\tnoreorder\n{ind}nop\n{ind}.set\treorder')
             prev = 'nop'
         # the original assembler never emitted two FP multiplies back to back (VR4300 multiply erratum): nop between
-        if this in ('mul.s', 'mul.d') and prev in ('mul.s', 'mul.d'):
+        if this in ('mul.s', 'mul.d') and (prev in ('mul.s', 'mul.d') or (prev is None and lastmul)):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
                 out.append(f'{ind}nop')
@@ -284,12 +285,13 @@ def fix(text, mode, ro_va=None, ro_size=None):
         if mode in ('lu', 'lu2', 'lu3', 'lu4') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS or dep):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
-            prev = None
+            prev = None; lastmul = False
             continue
 
         out.append(line)
         if this:
             prev = this
+            lastmul = this in ('mul.s', 'mul.d')
             ih = (ih + [reg_use(this, mm.group(2))])[-2:]
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):

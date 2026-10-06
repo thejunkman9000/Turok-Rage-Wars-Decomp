@@ -11,7 +11,7 @@ src = r'D:\Projects\TurokRageWars'
 dst = rf'D:\Projects\ws\{name}'
 if os.path.exists(dst):
     shutil.rmtree(dst, ignore_errors=True)
-shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', 'asm', 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s'))
+shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', *([] if '--asm' in sys.argv else ['asm']), 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s'))
 os.makedirs(os.path.join(dst, 'wip'), exist_ok=True)
 subs = [
     (r'D:\Projects\TurokRageWars', rf'D:\Projects\ws\{name}'),

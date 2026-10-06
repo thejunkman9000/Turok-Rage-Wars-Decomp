@@ -154,44 +154,44 @@ pad_0C650C 0xC650C 1 libultra
 __moddi3 0xC6510 350 libultra ro=0xCDC50:256 mode=lu4
 pad_0C6A88 0xC6A88 2 libultra
 __udivdi3 0xC6A90 353 libultra ro=0xCDD50:256 mode=lu4
-dbgLinkRecvByte 0xAEF80 139 libultra
+dbgLinkRecvByte 0xAEF80 139 libultra mode=lu3
 dbgLinkSendByte 0xAF1AC 162 libultra
-dbgLinkRecvBlock 0xAF434 160 libultra
-dbgLinkSendBlock 0xAF6B4 229 libultra
-dbgLinkCmdCallHook 0xAFA48 79 libultra
-dbgLinkCmdSendVersion 0xAFB84 88 libultra
-dbgLinkCmdWriteHalf 0xAFCE4 67 libultra
-dbgLinkCmdWriteWord 0xAFDF0 83 libultra
-dbgLinkCmdReadHalf 0xAFF3C 58 libultra
-dbgLinkCmdReadWord 0xB0024 72 libultra
-dbgLinkCmdWriteBlock 0xB0144 87 libultra
-dbgLinkCmdReadBlock 0xB02A0 86 libultra
-dbgLinkCmdLoadProgram 0xB03F8 102 libultra
-dbgLinkServerLoop 0xB0590 213 libultra
-dbgHostFopen 0xB08E4 194 libultra
-dbgHostFclose 0xB0BEC 160 libultra
+dbgLinkRecvBlock 0xAF434 160 libultra mode=lu3
+dbgLinkSendBlock 0xAF6B4 229 libultra mode=lu3
+dbgLinkCmdCallHook 0xAFA48 79 libultra mode=lu3
+dbgLinkCmdSendVersion 0xAFB84 88 libultra mode=lu3
+dbgLinkCmdWriteHalf 0xAFCE4 67 libultra mode=lu3
+dbgLinkCmdWriteWord 0xAFDF0 83 libultra mode=lu3
+dbgLinkCmdReadHalf 0xAFF3C 58 libultra mode=lu3
+dbgLinkCmdReadWord 0xB0024 72 libultra mode=lu3
+dbgLinkCmdWriteBlock 0xB0144 87 libultra mode=lu3
+dbgLinkCmdReadBlock 0xB02A0 86 libultra mode=lu3
+dbgLinkCmdLoadProgram 0xB03F8 102 libultra mode=lu3
+dbgLinkServerLoop 0xB0590 213 libultra ro=0xCC090:192 mode=lu3
+dbgHostFopen 0xB08E4 194 libultra mode=lu3
+dbgHostFclose 0xB0BEC 160 libultra mode=lu3
 dbgHostFread 0xB0E6C 215 libultra
-dbgHostFwrite 0xB11C8 213 libultra
-dbgHostFseek 0xB151C 264 libultra
-dbgHostFtell 0xB193C 211 libultra
-dbgHostSendWord 0xB1C88 160 libultra
-dbgHostPuts 0xB1F08 147 libultra
-dbgLinkNop 0xB2154 2 libultra
-dbgLinkSetCallHook 0xB215C 4 libultra
-dbgLinkRecvHalf 0xB216C 32 libultra
-dbgLinkRecvWord 0xB21EC 50 libultra
-dbgLinkRecvString 0xB22B4 32 libultra
-dbgLinkSendHalf 0xB2334 23 libultra
-dbgLinkSendWord 0xB2390 36 libultra
-dbgLinkSendString 0xB2420 26 libultra
+dbgHostFwrite 0xB11C8 213 libultra mode=lu3
+dbgHostFseek 0xB151C 264 libultra mode=lu3
+dbgHostFtell 0xB193C 211 libultra mode=lu3
+dbgHostSendWord 0xB1C88 160 libultra mode=lu3
+dbgHostPuts 0xB1F08 147 libultra mode=lu3
+dbgLinkNop 0xB2154 2 libultra mode=lu3
+dbgLinkSetCallHook 0xB215C 4 libultra mode=lu3
+dbgLinkRecvHalf 0xB216C 32 libultra mode=lu3
+dbgLinkRecvWord 0xB21EC 50 libultra mode=lu3
+dbgLinkRecvString 0xB22B4 32 libultra mode=lu3
+dbgLinkSendHalf 0xB2334 23 libultra mode=lu3
+dbgLinkSendWord 0xB2390 36 libultra mode=lu3
+dbgLinkSendString 0xB2420 26 libultra mode=lu3
 dbgPortReadReg 0xB2488 14 libultra mode=lu3
 dbgPortWriteReg 0xB24C0 17 libultra mode=lu3
-dbgPortWaitRegMask 0xB2504 47 libultra
-dbgPortWaitDataReady 0xB25C0 42 libultra
-dbgPortWaitDataReadyFast 0xB2668 42 libultra
-dbgPortWaitTxEmpty 0xB2710 43 libultra
-dbgPortWaitModemBit6 0xB27BC 43 libultra
-dbgPortWaitOverrun 0xB2868 43 libultra
+dbgPortWaitRegMask 0xB2504 47 libultra mode=lu3
+dbgPortWaitDataReady 0xB25C0 42 libultra mode=lu3
+dbgPortWaitDataReadyFast 0xB2668 42 libultra mode=lu3
+dbgPortWaitTxEmpty 0xB2710 43 libultra mode=lu3
+dbgPortWaitModemBit6 0xB27BC 43 libultra mode=lu3
+dbgPortWaitOverrun 0xB2868 43 libultra mode=lu3
 dbgPortSetFifoTrigger 0xB2914 22 libultra mode=lu3
 dbgPortSetLineFormat 0xB296C 21 libultra mode=lu3
 dbgPortSetParityEnable 0xB29C0 22 libultra mode=lu3
@@ -203,10 +203,10 @@ dbgPortSetFifoRxReset 0xB2B74 22 libultra mode=lu3
 dbgPortWriteData 0xB2BCC 17 libultra mode=lu3
 dbgPortGetOverrun 0xB2C10 14 libultra mode=lu3
 pad_0B2C48 0xB2C48 2 libultra
-dbgLinkCmdExec 0xB2C50 57 libultra
-dbgLinkCmdWriteByte 0xB2D34 56 libultra
-dbgLinkCmdReadByte 0xB2E14 52 libultra
-dbgLinkHandshake 0xB2EE4 23 libultra
+dbgLinkCmdExec 0xB2C50 57 libultra mode=lu3
+dbgLinkCmdWriteByte 0xB2D34 56 libultra mode=lu3
+dbgLinkCmdReadByte 0xB2E14 52 libultra mode=lu3
+dbgLinkHandshake 0xB2EE4 23 libultra mode=lu3
 F32ToTrunc16 0xB2F40 4 libultra
 Trunc16ToF32 0xB2F50 6 libultra
 padding_002B2368 0xB2F68 4 libultra
@@ -238,7 +238,7 @@ __CSPPostNextSeqEvent 0xB59D0 27 libultra
 __CSPRepostEvent 0xB5A3C 36 libultra
 __setUsptFromTempo_2 0xB5ACC 12 libultra
 pad_0B5AFC 0xB5AFC 1 libultra
-alCents2Ratio 0xB5B00 20 libultra
+alCents2Ratio 0xB5B00 20 libultra ro=0xCD280:12 mode=lu
 alCSPPlay 0xB5B50 11 libultra
 pad_0B5B7C 0xB5B7C 1 libultra
 alCSPSetBank 0xB5B80 12 libultra
@@ -250,7 +250,7 @@ alCSPStop 0xB5C60 11 libultra
 pad_0B5C8C 0xB5C8C 1 libultra
 alEvtqNew 0xB5C90 31 libultra
 alEvtqNextEvent 0xB5D0C 38 libultra
-alEvtqPostEvent 0xB5DA4 67 libultra
+alEvtqPostEvent 0xB5DA4 67 libultra mode=lu
 alEvtqFlush 0xB5EB0 30 libultra
 alEvtqFlushType 0xB5F28 44 libultra
 pad_0B5FD8 0xB5FD8 2 libultra
@@ -286,14 +286,14 @@ alClose 0xB81A0 15 libultra
 pad_0B81DC 0xB81DC 1 libultra
 alSndpAllocate 0xB81E0 46 libultra ro=0xCD360:4
 pad_0B8298 0xB8298 2 libultra
-alSndpDeallocate 0xB82A0 20 libultra
+alSndpDeallocate 0xB82A0 17 libultra mode=lu
 alSndpGetState 0xB82F0 9 libultra
 pad_0B8314 0xB8314 3 libultra
-alSndpNew 0xB8320 76 libultra
-_handleEvent 0xB8450 271 libultra
-_sndpVoiceHandler 0xB888C 35 libultra
-_removeEvents 0xB8918 42 libultra
-__sndpTimeAtPitch 0xB89C0 36 libultra
+alSndpNew 0xB8320 76 libultra mode=lu
+_handleEvent 0xB8450 271 libultra ro=0xCD370:40 mode=lu
+_sndpVoiceHandler 0xB888C 35 libultra mode=lu
+_removeEvents 0xB8918 42 libultra mode=lu
+__sndpTimeAtPitch 0xB89C0 34 libultra ro=0xCD398:32 mode=lu
 alSndpPlay 0xB8A50 24 libultra
 alSndpSetFXMix 0xB8AB0 19 libultra
 pad_0B8AFC 0xB8AFC 1 libultra
@@ -327,11 +327,11 @@ synth_linker_fragment_B9208 0xB9208 2 libultra
 alSynStartVoice 0xB9210 37 libultra
 synth_linker_fragment_B92A4 0xB92A4 2 libultra
 synth_linker_fragment_B92AC 0xB92AC 1 libultra
-alSynStartVoiceParams 0xB92B0 68 libultra
+alSynStartVoiceParams 0xB92B0 65 libultra mode=lu
 alSynStopVoice 0xB93C0 31 libultra
 pad_0B943C 0xB943C 1 libultra
-alSynNew 0xB9440 181 libultra
-alAudioFrame 0xB9714 109 libultra
+alSynNew 0xB9440 181 libultra mode=lu
+alAudioFrame 0xB9714 109 libultra mode=lu
 __allocParam 0xB98C8 11 libultra
 __freeParam 0xB98F4 6 libultra
 _freePVoice 0xB990C 16 libultra
@@ -376,7 +376,7 @@ pad_0BC048 0xBC048 2 libultra
 alSavePull 0xBC050 64 libultra
 alSaveParam 0xBC150 13 libultra
 pad_0BC184 0xBC184 3 libultra
-alSynAllocFX 0xBC190 37 libultra
+alSynAllocFX 0xBC190 37 libultra mode=lu
 libaudio_fragment_0BC224 0xBC224 3 libultra
 pad_0BC334 0xBC334 3 libultra
 pad_0BC848 0xBC848 2 libultra
@@ -461,3 +461,7 @@ cseq2  0xB4598  118  libultra
 alHeapInit 0xB6060 13 libultra
 alSeqpNew 0xB6094 100 libultra
 __voiceHandler 0xB6224 335 libultra
+
+pad_0B82E4 0xB82E4 3 libultra
+pad_0B8A48 0xB8A48 2 libultra
+pad_0B93B4 0xB93B4 3 libultra

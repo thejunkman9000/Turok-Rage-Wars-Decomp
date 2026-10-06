@@ -54,3 +54,8 @@ from `include/`), plus your new header(s) `include/<topic>_types.h`.  Write `wip
 `<fn> <rom hex> <c insn count from chk> EXACT|PARTIAL|NONE [ro=0xROM:bytes] [flags: ...] [# note]`.
 The `c insn count` must be copied from chk (it may be smaller than the stub's count; the rest is padding I handle).
 Do not touch files outside your workspace; do not run cycle/splat/make.
+
+## Speed tip
+`tools/chk.ps1` rsyncs the whole project (~40 s per call).  Use `powershell -NoProfile -File tools/fchk.ps1 <listfile>` instead:
+it refreshes only include/, src/ and wip/ and runs chk directly (~1 s).  Put the candidate .c files under wip/ or src/.
+`tools/vtry.py` / `tools/vq.py` already run many variants in one chk call; they use chk.ps1 for that one call.

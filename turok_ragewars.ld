@@ -176,6 +176,7 @@ SECTIONS
         build/src/libultra/alSndpAllocate.o(.text);
         build/src/libultra/pad_0B8298.o(.text);
         build/src/libultra/alSndpDeallocate.o(.text);
+        build/src/libultra/pad_0B82E4.o(.text);
         build/src/libultra/alSndpGetState.o(.text);
         build/src/libultra/pad_0B8314.o(.text);
         build/src/libultra/alSndpNew.o(.text);
@@ -183,6 +184,7 @@ SECTIONS
         build/src/libultra/_sndpVoiceHandler.o(.text);
         build/src/libultra/_removeEvents.o(.text);
         build/src/libultra/__sndpTimeAtPitch.o(.text);
+        build/src/libultra/pad_0B8A48.o(.text);
         build/src/libultra/alSndpPlay.o(.text);
         build/src/libultra/alSndpSetFXMix.o(.text);
         build/src/libultra/pad_0B8AFC.o(.text);
@@ -217,6 +219,7 @@ SECTIONS
         build/src/libultra/synth_linker_fragment_B92A4.o(.text);
         build/src/libultra/synth_linker_fragment_B92AC.o(.text);
         build/src/libultra/alSynStartVoiceParams.o(.text);
+        build/src/libultra/pad_0B93B4.o(.text);
         build/src/libultra/alSynStopVoice.o(.text);
         build/src/libultra/pad_0B943C.o(.text);
         build/src/libultra/alSynNew.o(.text);
@@ -640,6 +643,7 @@ SECTIONS
         build/src/libultra/alSndpAllocate.o(.data);
         build/src/libultra/pad_0B8298.o(.data);
         build/src/libultra/alSndpDeallocate.o(.data);
+        build/src/libultra/pad_0B82E4.o(.data);
         build/src/libultra/alSndpGetState.o(.data);
         build/src/libultra/pad_0B8314.o(.data);
         build/src/libultra/alSndpNew.o(.data);
@@ -647,6 +651,7 @@ SECTIONS
         build/src/libultra/_sndpVoiceHandler.o(.data);
         build/src/libultra/_removeEvents.o(.data);
         build/src/libultra/__sndpTimeAtPitch.o(.data);
+        build/src/libultra/pad_0B8A48.o(.data);
         build/src/libultra/alSndpPlay.o(.data);
         build/src/libultra/alSndpSetFXMix.o(.data);
         build/src/libultra/pad_0B8AFC.o(.data);
@@ -681,6 +686,7 @@ SECTIONS
         build/src/libultra/synth_linker_fragment_B92A4.o(.data);
         build/src/libultra/synth_linker_fragment_B92AC.o(.data);
         build/src/libultra/alSynStartVoiceParams.o(.data);
+        build/src/libultra/pad_0B93B4.o(.data);
         build/src/libultra/alSynStopVoice.o(.data);
         build/src/libultra/pad_0B943C.o(.data);
         build/src/libultra/alSynNew.o(.data);
@@ -1038,6 +1044,7 @@ SECTIONS
         build/src/libultra/__alCSeqGetTrackEvent.o(.rodata);
         build/src/libultra/alCSeqNewMarker.o(.rodata);
         build/src/libultra/__getTrackByte.o(.rodata);
+        build/assets/data_1.o(.data);
         build/src/libultra/cseq_new.o(.rodata);
         build/src/libultra/cseq_next.o(.rodata);
         build/src/libultra/cseq_ticks.o(.rodata);
@@ -1053,6 +1060,7 @@ SECTIONS
         build/src/libultra/__CSPRepostEvent.o(.rodata);
         build/src/libultra/__setUsptFromTempo_2.o(.rodata);
         build/src/libultra/pad_0B5AFC.o(.rodata);
+        build/assets/data_2.o(.data);
         build/src/libultra/alCents2Ratio.o(.rodata);
         build/src/libultra/alCSPPlay.o(.rodata);
         build/src/libultra/pad_0B5B7C.o(.rodata);
@@ -1095,7 +1103,7 @@ SECTIONS
         build/src/libultra/__postNextSeqEvent.o(.rodata);
         build/src/libultra/__handleMetaMsg.o(.rodata);
         build/src/libultra/__setUsptFromTempo.o(.rodata);
-        build/assets/data_1.o(.data);
+        build/assets/data_3.o(.data);
         build/src/libultra/seq.o(.rodata);
         build/src/libultra/pad_0B8114.o(.rodata);
         build/src/libultra/alUnlink.o(.rodata);
@@ -1103,17 +1111,20 @@ SECTIONS
         build/src/libultra/alInit.o(.rodata);
         build/src/libultra/alClose.o(.rodata);
         build/src/libultra/pad_0B81DC.o(.rodata);
-        build/assets/data_2.o(.data);
+        build/assets/data_4.o(.data);
         build/src/libultra/alSndpAllocate.o(.rodata);
         build/src/libultra/pad_0B8298.o(.rodata);
         build/src/libultra/alSndpDeallocate.o(.rodata);
+        build/src/libultra/pad_0B82E4.o(.rodata);
         build/src/libultra/alSndpGetState.o(.rodata);
         build/src/libultra/pad_0B8314.o(.rodata);
         build/src/libultra/alSndpNew.o(.rodata);
+        build/assets/data_5.o(.data);
         build/src/libultra/_handleEvent.o(.rodata);
         build/src/libultra/_sndpVoiceHandler.o(.rodata);
         build/src/libultra/_removeEvents.o(.rodata);
         build/src/libultra/__sndpTimeAtPitch.o(.rodata);
+        build/src/libultra/pad_0B8A48.o(.rodata);
         build/src/libultra/alSndpPlay.o(.rodata);
         build/src/libultra/alSndpSetFXMix.o(.rodata);
         build/src/libultra/pad_0B8AFC.o(.rodata);
@@ -1148,6 +1159,7 @@ SECTIONS
         build/src/libultra/synth_linker_fragment_B92A4.o(.rodata);
         build/src/libultra/synth_linker_fragment_B92AC.o(.rodata);
         build/src/libultra/alSynStartVoiceParams.o(.rodata);
+        build/src/libultra/pad_0B93B4.o(.rodata);
         build/src/libultra/alSynStopVoice.o(.rodata);
         build/src/libultra/pad_0B943C.o(.rodata);
         build/src/libultra/alSynNew.o(.rodata);
@@ -1156,7 +1168,7 @@ SECTIONS
         build/src/libultra/__freeParam.o(.rodata);
         build/src/libultra/_freePVoice.o(.rodata);
         build/src/libultra/_collectPVoices.o(.rodata);
-        build/assets/data_3.o(.data);
+        build/assets/data_6.o(.data);
         build/src/libultra/__nextSampleTime.o(.rodata);
         build/src/libultra/_timeToSamplesNoRound.o(.rodata);
         build/src/libultra/_timeToSamplesNoRound_2.o(.rodata);
@@ -1168,7 +1180,7 @@ SECTIONS
         build/src/libultra/alLoadNew.o(.rodata);
         build/src/libultra/alAuxBusNew.o(.rodata);
         build/src/libultra/alMainBusNew.o(.rodata);
-        build/assets/data_4.o(.data);
+        build/assets/data_7.o(.data);
         build/src/libultra/alResampleNew.o(.rodata);
         build/src/libultra/alSaveNew.o(.rodata);
         build/src/libultra/alEnvmixerNew.o(.rodata);
@@ -1200,7 +1212,7 @@ SECTIONS
         build/src/libultra/pad_0BC184.o(.rodata);
         build/src/libultra/alSynAllocFX.o(.rodata);
         build/src/libultra/libaudio_fragment_0BC224.o(.rodata);
-        build/assets/data_5.o(.data);
+        build/assets/data_8.o(.data);
         build/src/libultra/cosf.o(.rodata);
         build/src/libultra/pad_0BC334.o(.rodata);
         build/src/libultra/guLookAt.o(.rodata);
@@ -1210,7 +1222,7 @@ SECTIONS
         build/src/libultra/guMtxF2L.o(.rodata);
         build/src/libultra/guMtxL2F.o(.rodata);
         build/src/libultra/pad_0BCABC.o(.rodata);
-        build/assets/data_6.o(.data);
+        build/assets/data_9.o(.data);
         build/src/libultra/guPerspective.o(.rodata);
         build/src/libultra/pad_0BCDF8.o(.rodata);
         build/src/libultra/sinf.o(.rodata);
@@ -1218,7 +1230,7 @@ SECTIONS
         build/src/libultra/sqrtf.o(.rodata);
         build/src/libultra/osAiGetStatus.o(.rodata);
         build/src/libultra/pad_0BCFA4.o(.rodata);
-        build/assets/data_7.o(.data);
+        build/assets/data_10.o(.data);
         build/src/libultra/osAiSetFrequency.o(.rodata);
         build/src/libultra/pad_0BD0C8.o(.rodata);
         build/src/libultra/osAiSetNextBuffer.o(.rodata);
@@ -1266,7 +1278,7 @@ SECTIONS
         build/src/libultra/__osDevMgrMain.o(.rodata);
         build/src/libultra/osEPiRawStartDma.o(.rodata);
         build/src/libultra/pad_0BF274.o(.rodata);
-        build/assets/data_8.o(.data);
+        build/assets/data_11.o(.data);
         build/src/libultra/osEPiRawReadIo.o(.rodata);
         build/src/libultra/pad_0BF414.o(.rodata);
         build/src/libultra/osEPiRawWriteIo.o(.rodata);
@@ -1276,12 +1288,12 @@ SECTIONS
         build/src/libultra/pad_0BF728.o(.rodata);
         build/src/libultra/osPiRawStartDma.o(.rodata);
         build/src/libultra/pad_0BF804.o(.rodata);
-        build/assets/data_9.o(.data);
+        build/assets/data_12.o(.data);
         build/src/libultra/osPiRawReadIo.o(.rodata);
         build/src/libultra/pad_0BF8A4.o(.rodata);
         build/src/libultra/siacs.o(.rodata);
         build/src/libultra/pad_0BF998.o(.rodata);
-        build/assets/data_10.o(.data);
+        build/assets/data_13.o(.data);
         build/src/libultra/__osSiRawStartDma.o(.rodata);
         build/src/libultra/pad_0BFA58.o(.rodata);
         build/src/libultra/__osSiDeviceBusy.o(.rodata);
@@ -1292,7 +1304,7 @@ SECTIONS
         build/src/libultra/pad_0BFC98.o(.rodata);
         build/src/libultra/__osSpDeviceBusy.o(.rodata);
         build/src/libultra/pad_0BFCB8.o(.rodata);
-        build/assets/data_11.o(.data);
+        build/assets/data_14.o(.data);
         build/src/libultra/__osSpRawStartDma.o(.rodata);
         build/src/libultra/pad_0BFDBC.o(.rodata);
         build/src/libultra/__osSpSetPc.o(.rodata);
@@ -1323,7 +1335,7 @@ SECTIONS
         build/src/libultra/pad_0C05A4.o(.rodata);
         build/src/libultra/osViSwapBuffer.o(.rodata);
         build/src/libultra/pad_0C05F4.o(.rodata);
-        build/assets/data_12.o(.data);
+        build/assets/data_15.o(.data);
         build/src/libultra/__osViSwapContext.o(.rodata);
         build/src/libultra/pad_0C093C.o(.rodata);
         build/src/libultra/osCreateMesgQueue.o(.rodata);
@@ -1338,9 +1350,9 @@ SECTIONS
         build/src/libultra/osGetTime.o(.rodata);
         build/src/libultra/pad_0C0B2C.o(.rodata);
         build/src/libultra/osInitialize.o(.rodata);
-        build/assets/data_13.o(.data);
+        build/assets/data_16.o(.data);
         build/src/libultra/__osSiRawReadIo.o(.rodata);
-        build/assets/data_14.o(.data);
+        build/assets/data_17.o(.data);
         build/src/libultra/__osSiRawWriteIo.o(.rodata);
         build/src/libultra/pad_0C0E4C.o(.rodata);
         build/src/libultra/osJamMesg.o(.rodata);
@@ -1398,7 +1410,7 @@ SECTIONS
         build/src/libultra/sprintf.o(.rodata);
         build/src/libultra/string.o(.rodata);
         build/src/libultra/pad_0C3114.o(.rodata);
-        build/assets/data_15.o(.data);
+        build/assets/data_18.o(.data);
         build/src/libultra/xprintf.o(.rodata);
         build/src/libultra/xlitob.o(.rodata);
         build/asm/C3DA8.o(.rodata);
@@ -1427,7 +1439,7 @@ SECTIONS
         build/src/libultra/adecNextFrame.o(.rodata);
         build/src/libultra/adecGetStopFlag.o(.rodata);
         build/src/libultra/adecClearStopFlag.o(.rodata);
-        build/assets/data_16.o(.data);
+        build/assets/data_19.o(.data);
         build/src/libultra/__divdi3.o(.rodata);
         build/src/libultra/pad_0C650C.o(.rodata);
         build/src/libultra/__moddi3.o(.rodata);
@@ -1440,9 +1452,9 @@ SECTIONS
         build/src/libultra/pad_0C7568.o(.rodata);
         build/src/libultra/__floatdidf.o(.rodata);
         build/src/libultra/pad_0C75F8.o(.rodata);
-        build/assets/data_17.o(.data);
+        build/assets/data_20.o(.data);
         build/src/libultra/__floatdisf.o(.rodata);
-        build/assets/data_18.o(.data);
+        build/assets/data_21.o(.data);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -1592,6 +1604,7 @@ SECTIONS
         build/src/libultra/alSndpAllocate.o(.bss);
         build/src/libultra/pad_0B8298.o(.bss);
         build/src/libultra/alSndpDeallocate.o(.bss);
+        build/src/libultra/pad_0B82E4.o(.bss);
         build/src/libultra/alSndpGetState.o(.bss);
         build/src/libultra/pad_0B8314.o(.bss);
         build/src/libultra/alSndpNew.o(.bss);
@@ -1599,6 +1612,7 @@ SECTIONS
         build/src/libultra/_sndpVoiceHandler.o(.bss);
         build/src/libultra/_removeEvents.o(.bss);
         build/src/libultra/__sndpTimeAtPitch.o(.bss);
+        build/src/libultra/pad_0B8A48.o(.bss);
         build/src/libultra/alSndpPlay.o(.bss);
         build/src/libultra/alSndpSetFXMix.o(.bss);
         build/src/libultra/pad_0B8AFC.o(.bss);
@@ -1633,6 +1647,7 @@ SECTIONS
         build/src/libultra/synth_linker_fragment_B92A4.o(.bss);
         build/src/libultra/synth_linker_fragment_B92AC.o(.bss);
         build/src/libultra/alSynStartVoiceParams.o(.bss);
+        build/src/libultra/pad_0B93B4.o(.bss);
         build/src/libultra/alSynStopVoice.o(.bss);
         build/src/libultra/pad_0B943C.o(.bss);
         build/src/libultra/alSynNew.o(.bss);
