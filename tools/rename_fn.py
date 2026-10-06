@@ -53,5 +53,5 @@ for old, new in pairs:
             open(p, 'w', encoding='utf-8', newline='\n').write(t2); n += 1
     print(f'{old} -> {new}: {n} file(s) updated' + ('' if va is not None else '  (no address found!)'))
 
-open('funcs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(funcs))
-open('symbol_addrs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(sym))
+open('funcs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(funcs).rstrip('\n') + '\n')
+open('symbol_addrs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(sym).rstrip('\n') + '\n')

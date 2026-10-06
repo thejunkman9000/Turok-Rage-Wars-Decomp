@@ -124,11 +124,7 @@ sinf  0xBCE00  95  libultra
 osAiGetStatus  0xBCF90  5  libultra
 sqrtf 0xBCF80 4 libultra
 sprintf  0xC3010  32  libultra
-_Printf 0xC3120 337 libultra
-func_002C2A64 0xC3664 283 libultra
-func_002C2ED0 0xC3AD0 148 libultra
-func_002C3120 0xC3D20 36 libultra
-func_002C31B0 0xC3DB0 2 libultra
+_Ldtob 0xC3DB0 2 libultra
 func_002C31B8 0xC3DB8 275 libultra
 func_002C3604 0xC4204 225 libultra
 func_002C3988 0xC4588 131 libultra
@@ -442,3 +438,5 @@ __umoddi3 0xC7020 320 libultra
 __floatdidf 0xC7520 56 libultra
 __floatdisf 0xC7600 44 libultra
 pad_0C7010 0xC7010 4 libultra
+xprintf  0xC3120  620  libultra ro=0xCD940:376
+xlitob  0xC3AD0  182  libultra

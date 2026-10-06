@@ -14,3 +14,4 @@ __osSpRawStartDma 0xCD800 20
 __osViSwapContext 0xCD820 12
 __osSiRawReadIo 0xCD830 20
 __osSiRawWriteIo 0xCD850 20
+xprintf 0xCD940 376

@@ -482,6 +482,39 @@ extern u32 __osPiAccessQueueEnabled;
 extern OSMesg __osPiAccessBuf[1];
 extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask */
 
+/* printf internals (xprintf.c) */
+#define FLAGS_SPACE 1
+#define FLAGS_PLUS 2
+#define FLAGS_MINUS 4
+#define FLAGS_HASH 8
+#define FLAGS_ZERO 16
+typedef struct {
+    union {
+        s64 ll;
+        f64 ld;
+    } v;
+    u8 *s;
+    s32 n0;
+    s32 nz0;
+    s32 n1;
+    s32 nz1;
+    s32 n2;
+    s32 nz2;
+    s32 prec;
+    s32 width;
+    u32 nchar;
+    u32 flags;
+    u8 qual;
+} _Pft;
+/* GCC emits a file's functions in the order their names are first declared: _Litob before lldiv */
+void _Litob(_Pft *x, u8 type);
+typedef struct {
+    s64 quot;
+    s64 rem;
+} lldiv_t;
+void lldiv(lldiv_t *ans, s64 num, s64 den);
+void _Ldtob(_Pft *x, u8 type);
+
 /* libultra functions (asm or C) */
 u32 __osDisableInt(void);
 void __osRestoreInt(u32 mask);

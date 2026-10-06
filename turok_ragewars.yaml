@@ -465,11 +465,10 @@ segments:
       - [0xC3010, c, libultra/sprintf]
       - [0xC3090, c, libultra/string]
       - [0xC3114, c, libultra/pad_0C3114]
-      - [0xC3120, c, libultra/_Printf]
-      - [0xC3664, c, libultra/func_002C2A64]
-      - [0xC3AD0, c, libultra/func_002C2ED0]
-      - [0xC3D20, c, libultra/func_002C3120]
-      - [0xC3DB0, c, libultra/func_002C31B0]
+      - [0xC3120, c, libultra/xprintf]
+      - [0xC3AD0, c, libultra/xlitob]
+      - [0xC3DA8, asm]
+      - [0xC3DB0, c, libultra/_Ldtob]
       - [0xC3DB8, c, libultra/func_002C31B8]
       - [0xC4204, c, libultra/func_002C3604]
       - [0xC4588, c, libultra/func_002C3988]
@@ -526,6 +525,8 @@ segments:
       - {start: 0xCD844, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
       - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
       - {start: 0xCD864, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD940, .rodata, libultra/xprintf]
+      - {start: 0xCDAB8, type: bin, name: data_11, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
