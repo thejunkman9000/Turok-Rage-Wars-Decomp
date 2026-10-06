@@ -18,6 +18,9 @@ typedef void *OSMesg;
 typedef u64 OSTime;
 typedef s32 OSPri;
 typedef s32 OSId;
+typedef char *va_list;
+/* o32 va_arg for types of at most word alignment: the value is read before the pointer is advanced */
+#define va_arg(ap, type) (*(type *)(((ap) = (va_list)((((u32)(ap) + sizeof(type) - 1) & ~(sizeof(type) - 1)) + sizeof(type))) - sizeof(type)))
 
 #define NULL ((void *)0)
 #define TRUE 1
@@ -580,6 +583,8 @@ void __osSiRelAccess(void);
 void __assert(const char *exp, const char *file, s32 line);
 void bzero(void *ptr, u32 n);
 void *memset(void *s, int c, u32 n);
+s32 sprintf(char *dst, const char *fmt, ...);
+s32 _Printf(char *(*prout)(char *, const char *, u32), char *arg, const char *fmt, va_list args);
 s32 osEPiRawReadIo(OSPiHandle *pihandle, u32 devAddr, u32 *data);
 s32 osEPiRawWriteIo(OSPiHandle *pihandle, u32 devAddr, u32 data);
 s32 osEPiRawStartDma(OSPiHandle *pihandle, s32 dir, u32 cart_addr, void *dram_addr, u32 size);

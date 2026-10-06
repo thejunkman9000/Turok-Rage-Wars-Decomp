@@ -186,9 +186,40 @@ build/turok_ragewars.elf: \
     build/src/libultra/osUnmapTLBAll.o \
     build/src/libultra/osWritebackDCache.o \
     build/src/libultra/osWritebackDCacheAll.o \
-    build/asm/C3010.o \
+    build/src/libultra/sprintf.o \
     build/src/libultra/string.o \
     build/asm/C3114.o \
+    build/src/libultra/_Printf.o \
+    build/src/libultra/func_002C2A64.o \
+    build/src/libultra/func_002C2ED0.o \
+    build/src/libultra/func_002C3120.o \
+    build/src/libultra/func_002C31B0.o \
+    build/src/libultra/func_002C31B8.o \
+    build/src/libultra/func_002C3604.o \
+    build/src/libultra/func_002C3988.o \
+    build/src/libultra/func_002C3B94.o \
+    build/src/libultra/func_002C3D24.o \
+    build/src/libultra/func_002C3EA0.o \
+    build/src/libultra/func_002C4074.o \
+    build/src/libultra/func_002C4478.o \
+    build/src/libultra/func_002C4604.o \
+    build/src/libultra/func_002C476C.o \
+    build/src/libultra/func_002C48F4.o \
+    build/src/libultra/func_002C4A18.o \
+    build/src/libultra/func_002C4B9C.o \
+    build/src/libultra/func_002C4F2C.o \
+    build/src/libultra/func_002C4F58.o \
+    build/src/libultra/func_002C5020.o \
+    build/src/libultra/func_002C5080.o \
+    build/src/libultra/func_002C50FC.o \
+    build/src/libultra/func_002C5134.o \
+    build/src/libultra/func_002C51A0.o \
+    build/src/libultra/func_002C525C.o \
+    build/src/libultra/func_002C52FC.o \
+    build/src/libultra/func_002C530C.o \
+    build/src/libultra/func_002C5320.o \
+    build/src/libultra/func_002C5910.o \
+    build/src/libultra/func_002C5E90.o \
     build/assets/rsp_and_data_0.o \
     build/assets/data_1.o \
     build/assets/data_2.o \
@@ -390,9 +421,40 @@ build/src/libultra/__osSetSR.o:
 build/src/libultra/osUnmapTLBAll.o:
 build/src/libultra/osWritebackDCache.o:
 build/src/libultra/osWritebackDCacheAll.o:
-build/asm/C3010.o:
+build/src/libultra/sprintf.o:
 build/src/libultra/string.o:
 build/asm/C3114.o:
+build/src/libultra/_Printf.o:
+build/src/libultra/func_002C2A64.o:
+build/src/libultra/func_002C2ED0.o:
+build/src/libultra/func_002C3120.o:
+build/src/libultra/func_002C31B0.o:
+build/src/libultra/func_002C31B8.o:
+build/src/libultra/func_002C3604.o:
+build/src/libultra/func_002C3988.o:
+build/src/libultra/func_002C3B94.o:
+build/src/libultra/func_002C3D24.o:
+build/src/libultra/func_002C3EA0.o:
+build/src/libultra/func_002C4074.o:
+build/src/libultra/func_002C4478.o:
+build/src/libultra/func_002C4604.o:
+build/src/libultra/func_002C476C.o:
+build/src/libultra/func_002C48F4.o:
+build/src/libultra/func_002C4A18.o:
+build/src/libultra/func_002C4B9C.o:
+build/src/libultra/func_002C4F2C.o:
+build/src/libultra/func_002C4F58.o:
+build/src/libultra/func_002C5020.o:
+build/src/libultra/func_002C5080.o:
+build/src/libultra/func_002C50FC.o:
+build/src/libultra/func_002C5134.o:
+build/src/libultra/func_002C51A0.o:
+build/src/libultra/func_002C525C.o:
+build/src/libultra/func_002C52FC.o:
+build/src/libultra/func_002C530C.o:
+build/src/libultra/func_002C5320.o:
+build/src/libultra/func_002C5910.o:
+build/src/libultra/func_002C5E90.o:
 build/assets/rsp_and_data_0.o:
 build/assets/data_1.o:
 build/assets/data_2.o:
@@ -407,4 +469,4 @@ build/assets/data_10.o:
 build/assets/ovl_unresolved_160000.o:
 build/asm/16E000.o:
 build/assets/ovl_a_tail.o:
--include build/asm/header.d build/assets/ipl3.d build/asm/entry.d build/src/libultra/cosf.d build/asm/BC334.d build/src/libultra/guLookAt.d build/asm/BC848.d build/src/libultra/guMtxIdent.d build/src/libultra/guMtxIdentF.d build/src/libultra/guMtxF2L.d build/src/libultra/guMtxL2F.d build/asm/BCABC.d build/src/libultra/guPerspective.d build/asm/BCDF8.d build/src/libultra/sinf.d build/asm/BCF7C.d build/src/libultra/sqrtf.d build/src/libultra/osAiGetStatus.d build/asm/BCFA4.d build/src/libultra/osAiSetFrequency.d build/asm/BD0C8.d build/src/libultra/osAiSetNextBuffer.d build/asm/BD15C.d build/src/libultra/__osAiDeviceBusy.d build/asm/BD174.d build/src/libultra/osContStartQuery.d build/src/libultra/osContGetQuery.d build/asm/BD228.d build/src/libultra/osContStartReadData.d build/src/libultra/osContGetReadData.d build/src/libultra/__osPackReadData.d build/src/libultra/osContReset.d build/src/libultra/__osPackResetData.d build/src/libultra/osContInit.d build/src/libultra/__osPackRequestData.d build/src/libultra/__osContGetInitData.d build/asm/BD85C.d build/src/libultra/osDpSetNextBuffer.d build/asm/BD8FC.d build/src/libultra/__osDpDeviceBusy.d build/asm/BD918.d build/src/libultra/osMotorStop.d build/src/libultra/osMotorStart.d build/src/libultra/osMotorInit.d build/asm/BE184.d build/src/libultra/__osContRamRead.d build/src/libultra/__osPackRamReadData.d build/asm/BE548.d build/src/libultra/__osContRamWrite.d build/src/libultra/__osPackRamWriteData.d build/asm/BE908.d build/src/libultra/__osContAddressCrc.d build/src/libultra/__osContDataCrc.d build/asm/BE9B8.d build/src/libultra/osPiStartDma.d build/asm/BEA6C.d build/src/libultra/osPiGetCmdQueue.d build/asm/BEA98.d build/src/libultra/osPiGetStatus.d build/asm/BEAB4.d build/src/libultra/osCreatePiManager.d build/asm/BEC38.d build/src/libultra/osCartRomInit.d build/src/libultra/__osDevMgrMain.d build/src/libultra/osEPiRawStartDma.d build/asm/BF274.d build/src/libultra/osEPiRawReadIo.d build/asm/BF414.d build/src/libultra/osEPiRawWriteIo.d build/src/libultra/osDriveRomInit.d build/asm/BF634.d build/src/libultra/piacs.d build/asm/BF728.d build/src/libultra/osPiRawStartDma.d build/asm/BF804.d build/src/libultra/osPiRawReadIo.d build/asm/BF8A4.d build/src/libultra/siacs.d build/asm/BF998.d build/src/libultra/__osSiRawStartDma.d build/asm/BFA58.d build/src/libultra/__osSiDeviceBusy.d build/asm/BFA78.d build/src/libultra/_VirtualToPhysicalTask.d build/src/libultra/osSpTaskLoad.d build/src/libultra/osSpTaskStartGo.d build/asm/BFC98.d build/src/libultra/__osSpDeviceBusy.d build/asm/BFCB8.d build/src/libultra/__osSpRawStartDma.d build/asm/BFDBC.d build/src/libultra/__osSpSetPc.d build/asm/BFDEC.d build/src/libultra/__osSpSetStatus.d build/asm/BFE04.d build/src/libultra/osSpTaskYield.d build/asm/BFE2C.d build/src/libultra/osSpTaskYielded.d build/asm/BFE7C.d build/src/libultra/__osSpGetStatus.d build/asm/BFE94.d build/src/libultra/osViBlack.d build/asm/BFEFC.d build/src/libultra/__osViInit.d build/asm/BFFFC.d build/src/libultra/osViGetCurrentFramebuffer.d build/asm/C0038.d build/src/libultra/osCreateViManager.d build/src/libultra/__osViGetCurrentContext.d build/src/libultra/osViSetEvent.d build/asm/C0398.d build/src/libultra/osViSetMode.d build/asm/C03EC.d build/src/libultra/osViSetSpecialFeatures.d build/asm/C0554.d build/src/libultra/osViSetYScale.d build/asm/C05A4.d build/src/libultra/osViSwapBuffer.d build/asm/C05F4.d build/src/libultra/__osViSwapContext.d build/asm/C093C.d build/src/libultra/osCreateMesgQueue.d build/asm/C0974.d build/src/libultra/osCreateThread.d build/asm/C0A58.d build/src/libultra/osGetThreadId.d build/asm/C0A8C.d build/src/libultra/osGetThreadPri.d build/asm/C0AAC.d build/src/libultra/osGetTime.d build/asm/C0B2C.d build/src/libultra/osInitialize.d build/src/libultra/__osSiRawReadIo.d build/src/libultra/__osSiRawWriteIo.d build/asm/C0E4C.d build/src/libultra/osJamMesg.d build/asm/C0F84.d build/src/libultra/osRecvMesg.d build/asm/C10B4.d build/src/libultra/__osResetGlobalIntMask.d build/asm/C1108.d build/src/libultra/osSendMesg.d build/src/libultra/osSetEventMesg.d build/asm/C129C.d build/src/libultra/__osSetGlobalIntMask.d build/src/libultra/osSetThreadPri.d build/asm/C13A4.d build/src/libultra/osSetTimer.d build/asm/C143C.d build/src/libultra/osStartThread.d build/asm/C1554.d build/src/libultra/__osDequeueThread.d build/asm/C1594.d build/src/libultra/__osTimerInterrupt.d build/src/libultra/__osTimerServicesInit.d build/src/libultra/__osSetTimerIntr.d build/src/libultra/__osInsertTimer.d build/asm/C18A4.d build/src/libultra/osVirtualToPhysical.d build/src/libultra/osYieldThread.d build/asm/C1958.d build/src/libultra/exceptasm.d build/src/libultra/__osEnqueueAndYield.d build/src/libultra/__osEnqueueThread.d build/src/libultra/__osPopThread.d build/src/libultra/__osDispatchThread.d build/src/libultra/__osCleanupThread.d build/src/libultra/__osLeoInterrupt.d build/src/libultra/__osLeoAbnormalResume.d build/src/libultra/__osLeoResume.d build/src/libultra/osDestroyThread.d build/asm/C2BE8.d build/src/libultra/osGetCount.d build/src/libultra/__osGetFpcCsr.d build/src/libultra/__osGetSR.d build/src/libultra/__osDisableInt.d build/src/libultra/__osRestoreInt.d build/src/libultra/osInvalDCache.d build/src/libultra/osInvalICache.d build/src/libultra/__osProbeTLB.d build/src/libultra/__osSetCompare.d build/src/libultra/__osSetFpcCsr.d build/src/libultra/osSetIntMask.d build/src/libultra/__osSetSR.d build/src/libultra/osUnmapTLBAll.d build/src/libultra/osWritebackDCache.d build/src/libultra/osWritebackDCacheAll.d build/asm/C3010.d build/src/libultra/string.d build/asm/C3114.d build/assets/rsp_and_data_0.d build/assets/data_1.d build/assets/data_2.d build/assets/data_3.d build/assets/data_4.d build/assets/data_5.d build/assets/data_6.d build/assets/data_7.d build/assets/data_8.d build/assets/data_9.d build/assets/data_10.d build/assets/ovl_unresolved_160000.d build/asm/16E000.d build/assets/ovl_a_tail.d
+-include build/asm/header.d build/assets/ipl3.d build/asm/entry.d build/src/libultra/cosf.d build/asm/BC334.d build/src/libultra/guLookAt.d build/asm/BC848.d build/src/libultra/guMtxIdent.d build/src/libultra/guMtxIdentF.d build/src/libultra/guMtxF2L.d build/src/libultra/guMtxL2F.d build/asm/BCABC.d build/src/libultra/guPerspective.d build/asm/BCDF8.d build/src/libultra/sinf.d build/asm/BCF7C.d build/src/libultra/sqrtf.d build/src/libultra/osAiGetStatus.d build/asm/BCFA4.d build/src/libultra/osAiSetFrequency.d build/asm/BD0C8.d build/src/libultra/osAiSetNextBuffer.d build/asm/BD15C.d build/src/libultra/__osAiDeviceBusy.d build/asm/BD174.d build/src/libultra/osContStartQuery.d build/src/libultra/osContGetQuery.d build/asm/BD228.d build/src/libultra/osContStartReadData.d build/src/libultra/osContGetReadData.d build/src/libultra/__osPackReadData.d build/src/libultra/osContReset.d build/src/libultra/__osPackResetData.d build/src/libultra/osContInit.d build/src/libultra/__osPackRequestData.d build/src/libultra/__osContGetInitData.d build/asm/BD85C.d build/src/libultra/osDpSetNextBuffer.d build/asm/BD8FC.d build/src/libultra/__osDpDeviceBusy.d build/asm/BD918.d build/src/libultra/osMotorStop.d build/src/libultra/osMotorStart.d build/src/libultra/osMotorInit.d build/asm/BE184.d build/src/libultra/__osContRamRead.d build/src/libultra/__osPackRamReadData.d build/asm/BE548.d build/src/libultra/__osContRamWrite.d build/src/libultra/__osPackRamWriteData.d build/asm/BE908.d build/src/libultra/__osContAddressCrc.d build/src/libultra/__osContDataCrc.d build/asm/BE9B8.d build/src/libultra/osPiStartDma.d build/asm/BEA6C.d build/src/libultra/osPiGetCmdQueue.d build/asm/BEA98.d build/src/libultra/osPiGetStatus.d build/asm/BEAB4.d build/src/libultra/osCreatePiManager.d build/asm/BEC38.d build/src/libultra/osCartRomInit.d build/src/libultra/__osDevMgrMain.d build/src/libultra/osEPiRawStartDma.d build/asm/BF274.d build/src/libultra/osEPiRawReadIo.d build/asm/BF414.d build/src/libultra/osEPiRawWriteIo.d build/src/libultra/osDriveRomInit.d build/asm/BF634.d build/src/libultra/piacs.d build/asm/BF728.d build/src/libultra/osPiRawStartDma.d build/asm/BF804.d build/src/libultra/osPiRawReadIo.d build/asm/BF8A4.d build/src/libultra/siacs.d build/asm/BF998.d build/src/libultra/__osSiRawStartDma.d build/asm/BFA58.d build/src/libultra/__osSiDeviceBusy.d build/asm/BFA78.d build/src/libultra/_VirtualToPhysicalTask.d build/src/libultra/osSpTaskLoad.d build/src/libultra/osSpTaskStartGo.d build/asm/BFC98.d build/src/libultra/__osSpDeviceBusy.d build/asm/BFCB8.d build/src/libultra/__osSpRawStartDma.d build/asm/BFDBC.d build/src/libultra/__osSpSetPc.d build/asm/BFDEC.d build/src/libultra/__osSpSetStatus.d build/asm/BFE04.d build/src/libultra/osSpTaskYield.d build/asm/BFE2C.d build/src/libultra/osSpTaskYielded.d build/asm/BFE7C.d build/src/libultra/__osSpGetStatus.d build/asm/BFE94.d build/src/libultra/osViBlack.d build/asm/BFEFC.d build/src/libultra/__osViInit.d build/asm/BFFFC.d build/src/libultra/osViGetCurrentFramebuffer.d build/asm/C0038.d build/src/libultra/osCreateViManager.d build/src/libultra/__osViGetCurrentContext.d build/src/libultra/osViSetEvent.d build/asm/C0398.d build/src/libultra/osViSetMode.d build/asm/C03EC.d build/src/libultra/osViSetSpecialFeatures.d build/asm/C0554.d build/src/libultra/osViSetYScale.d build/asm/C05A4.d build/src/libultra/osViSwapBuffer.d build/asm/C05F4.d build/src/libultra/__osViSwapContext.d build/asm/C093C.d build/src/libultra/osCreateMesgQueue.d build/asm/C0974.d build/src/libultra/osCreateThread.d build/asm/C0A58.d build/src/libultra/osGetThreadId.d build/asm/C0A8C.d build/src/libultra/osGetThreadPri.d build/asm/C0AAC.d build/src/libultra/osGetTime.d build/asm/C0B2C.d build/src/libultra/osInitialize.d build/src/libultra/__osSiRawReadIo.d build/src/libultra/__osSiRawWriteIo.d build/asm/C0E4C.d build/src/libultra/osJamMesg.d build/asm/C0F84.d build/src/libultra/osRecvMesg.d build/asm/C10B4.d build/src/libultra/__osResetGlobalIntMask.d build/asm/C1108.d build/src/libultra/osSendMesg.d build/src/libultra/osSetEventMesg.d build/asm/C129C.d build/src/libultra/__osSetGlobalIntMask.d build/src/libultra/osSetThreadPri.d build/asm/C13A4.d build/src/libultra/osSetTimer.d build/asm/C143C.d build/src/libultra/osStartThread.d build/asm/C1554.d build/src/libultra/__osDequeueThread.d build/asm/C1594.d build/src/libultra/__osTimerInterrupt.d build/src/libultra/__osTimerServicesInit.d build/src/libultra/__osSetTimerIntr.d build/src/libultra/__osInsertTimer.d build/asm/C18A4.d build/src/libultra/osVirtualToPhysical.d build/src/libultra/osYieldThread.d build/asm/C1958.d build/src/libultra/exceptasm.d build/src/libultra/__osEnqueueAndYield.d build/src/libultra/__osEnqueueThread.d build/src/libultra/__osPopThread.d build/src/libultra/__osDispatchThread.d build/src/libultra/__osCleanupThread.d build/src/libultra/__osLeoInterrupt.d build/src/libultra/__osLeoAbnormalResume.d build/src/libultra/__osLeoResume.d build/src/libultra/osDestroyThread.d build/asm/C2BE8.d build/src/libultra/osGetCount.d build/src/libultra/__osGetFpcCsr.d build/src/libultra/__osGetSR.d build/src/libultra/__osDisableInt.d build/src/libultra/__osRestoreInt.d build/src/libultra/osInvalDCache.d build/src/libultra/osInvalICache.d build/src/libultra/__osProbeTLB.d build/src/libultra/__osSetCompare.d build/src/libultra/__osSetFpcCsr.d build/src/libultra/osSetIntMask.d build/src/libultra/__osSetSR.d build/src/libultra/osUnmapTLBAll.d build/src/libultra/osWritebackDCache.d build/src/libultra/osWritebackDCacheAll.d build/src/libultra/sprintf.d build/src/libultra/string.d build/asm/C3114.d build/src/libultra/_Printf.d build/src/libultra/func_002C2A64.d build/src/libultra/func_002C2ED0.d build/src/libultra/func_002C3120.d build/src/libultra/func_002C31B0.d build/src/libultra/func_002C31B8.d build/src/libultra/func_002C3604.d build/src/libultra/func_002C3988.d build/src/libultra/func_002C3B94.d build/src/libultra/func_002C3D24.d build/src/libultra/func_002C3EA0.d build/src/libultra/func_002C4074.d build/src/libultra/func_002C4478.d build/src/libultra/func_002C4604.d build/src/libultra/func_002C476C.d build/src/libultra/func_002C48F4.d build/src/libultra/func_002C4A18.d build/src/libultra/func_002C4B9C.d build/src/libultra/func_002C4F2C.d build/src/libultra/func_002C4F58.d build/src/libultra/func_002C5020.d build/src/libultra/func_002C5080.d build/src/libultra/func_002C50FC.d build/src/libultra/func_002C5134.d build/src/libultra/func_002C51A0.d build/src/libultra/func_002C525C.d build/src/libultra/func_002C52FC.d build/src/libultra/func_002C530C.d build/src/libultra/func_002C5320.d build/src/libultra/func_002C5910.d build/src/libultra/func_002C5E90.d build/assets/rsp_and_data_0.d build/assets/data_1.d build/assets/data_2.d build/assets/data_3.d build/assets/data_4.d build/assets/data_5.d build/assets/data_6.d build/assets/data_7.d build/assets/data_8.d build/assets/data_9.d build/assets/data_10.d build/assets/ovl_unresolved_160000.d build/asm/16E000.d build/assets/ovl_a_tail.d
