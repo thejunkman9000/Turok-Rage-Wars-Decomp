@@ -1,0 +1,46 @@
+func_002B1554  dbgLinkNop  low  # empty stub (jr ra; nop) in debug-link driver block, no callers
+func_002B155C  dbgLinkSetCallHook  med  # stores arg0 in D_800D364C, the callback invoked by dbg server cmd 0x23 (dbgLinkCmdCallHook); entry.s init passes func_002953FC
+func_002B156C  dbgLinkRecvHalf  med  # client-side: 2x dbgLinkRecvByte (func_002AE380) with D_8014D3E8 timeout flag, builds a 16-bit value, returns 1/0
+func_002B15EC  dbgLinkRecvWord  med  # 4x dbgLinkRecvByte, builds a 32-bit big-endian value into *arg0, returns 1/0
+func_002B16B4  dbgLinkRecvString  med  # reads bytes until NUL into buf arg0 (max arg1, extra bytes dropped), returns 1 when NUL seen / 0 on timeout
+func_002B1734  dbgLinkSendHalf  med  # 2x dbgLinkSendByte (func_002AE5AC): hi byte then lo byte of arg0, returns 1/0
+func_002B1790  dbgLinkSendWord  med  # 4x dbgLinkSendByte, MSB first, returns 1/0
+func_002B1820  dbgLinkSendString  med  # sends bytes of arg0 including terminating NUL via dbgLinkSendByte, returns 1/0
+func_002B1888  dbgPortReadReg  med  # waits osPiGetStatus idle, returns byte at arg0+1 (PI read of a 0xB2000000 dev-port register)
+func_002B18C0  dbgPortWriteReg  med  # waits osPiGetStatus idle, writes (arg1 & 0xFF) as halfword to arg0 (PI write of dev-port register)
+func_002B1904  dbgPortWaitRegMask  med  # polls (reg[1] & arg1) == (arg2&0xFF) with spin count arg3 and outer timeout D_800D3650; sets D_8014D3E8 on timeout; returns 1 on success
+func_002B19C0  dbgPortWaitDataReady  med  # polls D_B2000015 bit0 (16550-style LSR data-ready) == arg0, spin 0x4E20, outer timeout D_800D3650
+func_002B1A68  dbgPortWaitDataReadyFast  low  # same as dbgPortWaitDataReady (LSR bit0) but inner spin count 1 (timeout counted per poll)
+func_002B1B10  dbgPortWaitTxEmpty  low  # polls D_B2000015 bit6 (LSR transmitter-empty) == arg0, spin 0x4E20, timeout D_800D3650
+func_002B1BBC  dbgPortWaitModemBit6  low  # polls D_B2000011 bit6 == arg0, spin 0x4E20, timeout D_800D3650
+func_002B1C68  dbgPortWaitOverrun  low  # polls D_B2000015 bit1 (LSR overrun error) == arg0, spin 0x4E20, timeout D_800D3650
+func_002B1D14  dbgPortSetFifoTrigger  low  # sets bit6 of shadow D_8014D3E2 (16550 FCR rx trigger) = arg0 and writes it to D_B2000008
+func_002B1D6C  dbgPortSetLineFormat  low  # replaces low 3 bits of shadow D_8014D3E3 (16550 LCR word length/stop bits) with arg0, writes D_B200000C
+func_002B1DC0  dbgPortSetParityEnable  low  # sets bit3 of shadow D_8014D3E3 (16550 LCR parity enable) = arg0, writes D_B200000C
+func_002B1E18  dbgPortSetIntModemStatus  low  # sets bit3 of shadow D_8014D3E1 (16550 IER modem-status int enable), writes D_B2000004
+func_002B1E70  dbgPortSetIntLineStatus  low  # sets bit2 of shadow D_8014D3E1 (16550 IER line-status int enable), writes D_B2000004
+func_002B1EC8  dbgPortSetIntTxEmpty  low  # sets bit1 of shadow D_8014D3E1 (16550 IER THRE int enable), writes D_B2000004
+func_002B1F20  dbgPortSetIntRxData  low  # sets bit0 of shadow D_8014D3E1 (16550 IER rx-data int enable), writes D_B2000004
+func_002B1F74  dbgPortSetFifoRxReset  low  # sets bit1 of shadow D_8014D3E2 (16550 FCR rx FIFO reset) = arg0, writes D_B2000008
+func_002B1FCC  dbgPortWriteData  low  # stores arg0 in shadow D_8014D3E0 and writes byte to D_B2000000 (data/THR register)
+func_002B2010  dbgPortGetOverrun  low  # returns (D_B2000015 >> 1) & 1 (LSR overrun bit); trailing sub-entry func_002B2048 just returns 1 (no separate file)
+func_002B2050  dbgLinkCmdExec  med  # server cmd 0x22: reads 32-bit address; if nonzero masks ints, writeback D-cache, invalidates I-cache, calls the address; returns 1/0
+func_002B2134  dbgLinkCmdWriteByte  med  # server cmd 0x40: reads 32-bit addr + 8-bit value from host, *(u8*)addr = value (poke8)
+func_002B2214  dbgLinkCmdReadByte  med  # server cmd 0x44: reads 32-bit addr, sends *(u8*)addr to host (peek8)
+func_002B22E4  dbgLinkHandshake  med  # client side of link handshake: sends 0x10 and expects 0x11 reply; returns 1 on success
+func_002B2340  F32ToTrunc16  med  # float arg stored to stack, returns its upper 16 bits (lhu 0(sp)) = truncated float (bfloat16-like); 8 callers in game code
+func_002B2350  Trunc16ToF32  med  # inverse: (arg0 << 16) reinterpreted as float; 75 callers in game code
+func_002B2368  padding_002B2368  low  # not a real function: 4 insns of linker padding (garbage copied from other code) before func_002B2378; no callers
+func_002B2378  LevelIdToWorld  low  # maps level/area id to group 1..6 by thousands (1000-1999 ->1 ... 6000-6999 ->6), special ids 99/1999/2999/3999/4999/5999/6999 -> 0, else -1; called from 0x16E000 game code (D_800E28BC+0x24, D_8013B2BC)
+func_002B2440  osMapTLB  med  # writes one TLB entry: index a0 (INX), pagemask a1, EntryHi a2, even/odd phys a3 and 0x10(sp) (-1 = invalid -> func_002B24C0 path), flags 0x14(sp)&7|0x18 into EntryLo0/1, tlbwi, restores EntryHi (called with pagemask 0x1FE000, vaddr 0x400000 from game MMU setup)
+func_002B24C0  osUnmapTLB  high  # SDK osUnmapTLB: saves EntryHi, INX=a0, EntryHi=0x80000000, EntryLo0/1=0, tlbwi, restore EntryHi (also the invalid-entry branch target of osMapTLB)
+func_002B24FC  osReadAllTLBEntries  low  # loops 30 (0x1E) TLB indices: tlbr, stores pagemask>>13, EntryHi>>12, lo0/lo1 pfn (>>6 minus 0x156) as 4 halfwords per entry into table D_800D7FA0 (TLB dump/debug)
+func_002B2590  rncUnpackMethod1  high  # wrapper for RNC (Rob Northen) Pro-Pack method 1 decompress: saves s0-s7/ra, moves a0..a3 to s0..s3, calls func_002B2600; caller checks 'RNC\x01' magic 0x524E43 and passes hdr+0x12
+func_002B2600  rncUnpackMethod1Body  high  # RNC method 1 (Huffman+LZ) unpack loop: 3 huffman tables (raw/dist/len) built via func_002B2870, per-block chunk copy, 16-bit bit buffer in t6
+func_002B276C  rncReadHuffCode  high  # RNC: decodes one Huffman symbol from bit buffer using table at s0 (value/code pairs), consumes bits, extra-bits expansion for values >=2
+func_002B2810  rncInputBits  high  # RNC input_bits: t0 = bitbuf & mask, advances bit buffer by t1 bits, refills via func_002B2838
+func_002B2838  rncRefillBitBuf  high  # RNC bit-buffer refill: shifts consumed bits out and pulls the next 16 bits from the source stream (s3 += 2)
+func_002B2870  rncMakeHuffTable  high  # RNC make_huftable: reads 5-bit code counts (up to 16 lengths) and builds code/mask/length entries into table at s0
+func_002B29C4  dbgSetWatchpoint  low  # CP0 WatchLo ($18) = (arg0 & 0x0FFFFFF8) | (arg1 & 3) (R/W trap bits) then reads WatchHi ($19); no callers
+func_002B2A10  rncUnpackMethod2  high  # wrapper for RNC method 2 decompress: saves regs, jalr to entry D_002B2AB8 (t6 = a0 src) which falls into func_002B2ABC; called when RNC header method byte == 2
+func_002B2ABC  rncUnpackMethod2Body  high  # RNC method 2 (bitwise LZ, 8-bit sentinel bit reader, gamma-coded lengths/offsets, +8 long run, trailing literal copy) decompressor; entry at 0x002B2AB8

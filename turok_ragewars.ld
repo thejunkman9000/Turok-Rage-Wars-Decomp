@@ -1842,6 +1842,7 @@ SECTIONS
         build/src/ovl_a/osPfsDeleteFile.o(.text);
         build/src/ovl_a/__osPfsReleasePages.o(.text);
         build/src/ovl_a/__osBlockSum.o(.text);
+        build/src/ovl_a/pad_1B566C.o(.text);
         build/src/ovl_a/osPfsFileState.o(.text);
         build/src/ovl_a/osPfsFreeBlocks.o(.text);
         build/src/ovl_a/__osPfsGetStatus.o(.text);
@@ -1886,6 +1887,7 @@ SECTIONS
         build/src/ovl_a/osPfsDeleteFile.o(.data);
         build/src/ovl_a/__osPfsReleasePages.o(.data);
         build/src/ovl_a/__osBlockSum.o(.data);
+        build/src/ovl_a/pad_1B566C.o(.data);
         build/src/ovl_a/osPfsFileState.o(.data);
         build/src/ovl_a/osPfsFreeBlocks.o(.data);
         build/src/ovl_a/__osPfsGetStatus.o(.data);
@@ -1931,6 +1933,7 @@ SECTIONS
         build/src/ovl_a/osPfsDeleteFile.o(.rodata);
         build/src/ovl_a/__osPfsReleasePages.o(.rodata);
         build/src/ovl_a/__osBlockSum.o(.rodata);
+        build/src/ovl_a/pad_1B566C.o(.rodata);
         build/src/ovl_a/osPfsFileState.o(.rodata);
         build/src/ovl_a/osPfsFreeBlocks.o(.rodata);
         build/src/ovl_a/__osPfsGetStatus.o(.rodata);
@@ -1980,6 +1983,7 @@ SECTIONS
         build/src/ovl_a/osPfsDeleteFile.o(.bss);
         build/src/ovl_a/__osPfsReleasePages.o(.bss);
         build/src/ovl_a/__osBlockSum.o(.bss);
+        build/src/ovl_a/pad_1B566C.o(.bss);
         build/src/ovl_a/osPfsFileState.o(.bss);
         build/src/ovl_a/osPfsFreeBlocks.o(.bss);
         build/src/ovl_a/__osPfsGetStatus.o(.bss);

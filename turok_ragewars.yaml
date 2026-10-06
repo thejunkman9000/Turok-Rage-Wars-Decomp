@@ -550,6 +550,7 @@ segments:
       - [0x1B51D0, c, ovl_a/osPfsDeleteFile]
       - [0x1B53FC, c, ovl_a/__osPfsReleasePages]
       - [0x1B559C, c, ovl_a/__osBlockSum]
+      - [0x1B566C, c, ovl_a/pad_1B566C]
       - [0x1B5670, c, ovl_a/osPfsFileState]
       - [0x1B58B0, c, ovl_a/osPfsFreeBlocks]
       - [0x1B59D0, c, ovl_a/__osPfsGetStatus]

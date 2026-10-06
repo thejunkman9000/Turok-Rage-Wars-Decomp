@@ -1,0 +1,2 @@
+src/ovl_a/__osClearPage.c __osClearPage 0x1B5140
+src/ovl_a/__osBlockSum.c __osBlockSum 0x1B559C

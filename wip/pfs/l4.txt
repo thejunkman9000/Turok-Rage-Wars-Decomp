@@ -1,0 +1,3 @@
+src/ovl_a/__osPfsRequestOneChannel.c __osPfsRequestOneChannel 0x1B5AA8
+src/ovl_a/__osPfsGetOneChannelData.c __osPfsGetOneChannelData 0x1B5B34
+src/ovl_a/__osPfsGetStatus.c __osPfsGetStatus 0x1B59D0

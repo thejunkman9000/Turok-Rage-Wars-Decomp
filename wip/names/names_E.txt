@@ -1,0 +1,36 @@
+func_002B7D18  _removeEvents  high  # sndplayer.c static: walks sndp evtq allocList, unlinks (alUnlink/alLink to free list) every event whose msg.state==a1, adds its delta to the next item (alEvtqFlushType-style)
+func_002B7DC0  __sndpTimeAtPitch  low  # sndplayer.c line 285 assert(EX) float != 0; returns (s32)(a0 / pitch) saturated to 0x7FFFFFFF; called from sndp voice handler with state->pitch(0x24) to scale envelope times
+func_002B7E50  alSndpPlay  high  # sndp->sndState[sndp->target]; if state->state(0x28)==0 posts event type 0 (AL_SNDP_PLAY_EVT) with state ptr to sndp->evtq(0x14)
+func_002B7EB0  alSndpSetFXMix  high  # posts event type 8 (FX mix) with u8 arg to sndp evtq for sndState[target]
+func_002B7F00  alSndpSetPan  high  # posts event type 2 (pan) with u8 arg
+func_002B7F50  alSndpSetPitch  high  # posts event type 4 (pitch) with f32 arg
+func_002B7FA0  alSndpSetPriority  high  # sndp->sndState[id].priority(0x20) = (u8)prio, direct store, no event
+func_002B7FD0  alSndpSetSound  high  # sndp->target(0x3C) = (s16)id
+func_002B7FE0  alSndpSetVol  high  # posts event type 3 (volume) with s16 arg
+func_002B8030  alSndpStop  high  # posts event type 1 (AL_SNDP_STOP_EVT) for sndState[target]
+func_002B8078  sndp_linker_fragment_B8C78  low  # 2-insn stray fragment (addiu s1,2 / lui s2,0x800E) between alSndpStop and next func; split artifact, not a real function
+func_002B8080  alSynAddPlayer  high  # synthesizer.c: under osSetIntMask, client->samplesLeft(0x10)=drvr->curSamples(0x20); client->next=drvr->head; drvr->head=client
+func_002B80D0  alSynAllocVoice  high  # synthesizer.c: fills ALVoice (priority 0x16, fxmix 0x1A, 0x18), _allocatePVoice, posts SET_VOLUME(0xB) and STOP_VOICE(0xF) param events; returns bool pvoice!=NULL
+func_002B8200  _allocatePVoice  high  # synthesizer.c static: take from pLameList(0x14), else pFreeList(0x4), else steal lowest-priority pvoice from pAllocList(0xC) (priority at voice+0x16, offset 0xD8==0); links into pAllocList
+func_002B82C0  alSynDelete  med  # synthesizer.c: drvr->head = NULL (4-insn stub, alphabetically between synallocvoice and synfreevoice)
+func_002B82D0  alSynFreeVoice  high  # synthesizer.c: if pvoice offset!=0 posts param event type 0 (voice stop/free via filter handler) else _freePVoice; voice->pvoice = NULL
+func_002B836C  synth_linker_fragment_B8F6C  low  # 1-insn stray fragment (addiu a1,7) split artifact, not a real function
+func_002B8370  alSynSetFXMix  high  # synthesizer.c: param event type 0x10 (SET_FXAMT) with abs(fxmix) in data, filter handler(pvoice->filter, 3, param); fxmix handling same as in alSynStartVoiceParams
+func_002B8420  alSynSetPan  high  # synthesizer.c: param event type 0xC (SET_PAN) with u8 pan
+func_002B84B0  alSynSetPitch  high  # synthesizer.c: param event type 7 (SET_PITCH) with f32 ratio
+func_002B8540  alSynSetPriority  high  # synthesizer.c: voice->priority(0x16) = (s16)priority
+func_002B8550  alSynSetVol  high  # synthesizer.c: param event type 0xB (SET_VOLUME) with vol and delta converted via _timeToSamplesNoRound (func_002B8DA0)
+func_002B8608  synth_linker_fragment_B9208  low  # 2-insn stray fragment (addiu a3,1 / move a0,zero) split artifact, not a real function
+func_002B8610  alSynStartVoice  high  # synthesizer.c: param event type 0xE (SET_WAVETABLE) with wavetable ptr, copies voice->0x1A
+func_002B86A4  synth_linker_fragment_B92A4  low  # 2-insn stray fragment (jr ra / addiu sp,0x18) split artifact, not a real function
+func_002B86AC  synth_linker_fragment_B92AC  low  # 1-insn stray fragment (addiu sp,-0x28) split artifact, not a real function
+func_002B86B0  alSynStartVoiceParams  high  # synthesizer.c: (drvr,voice,wave,pitch,vol,pan,fxmix,delta) param event type 0xD with all fields, abs(fxmix), _timeToSamplesNoRound
+func_002B87C0  alSynStopVoice  high  # synthesizer.c: param event type 0xF (STOP_VOICE)
+func_002B8840  alSynNew  high  # synthesizer.c: initializes ALSynth from ALSynConfig (allocs PVoices of 0xDC bytes with resample/env/mixer/aux filters, param list, save/reverb filters)
+func_002B8B14  alAudioFrame  high  # synthesizer.c: runs player handlers via __nextSampleTime until frame end, builds cmd list in 0xA0-sample chunks, then _collectPVoices
+func_002B8CC8  __allocParam  high  # synthesizer.c: pops ALParam node from global drvr->paramList (D_800D80A0 + 0x2C)
+func_002B8CF4  __freeParam  high  # synthesizer.c: pushes ALParam node back onto drvr->paramList
+func_002B8D0C  _freePVoice  high  # synthesizer.c static: alUnlink pvoice, alLink onto drvr->pLameList (drvr+0x14)
+func_002B8D4C  _collectPVoices  high  # synthesizer.c static: move every pvoice in pLameList to pFreeList (drvr+4)
+func_002B8DA0  _timeToSamplesNoRound  high  # synthesizer.c: (micros * drvr->outputRate(0x44) * const + const) truncated and & ~0xF
+func_002B8DE0  __nextSampleTime  high  # synthesizer.c line 307 assert(drvr->head != NULL); finds player with smallest (samplesLeft - curSamples), returns its samplesLeft

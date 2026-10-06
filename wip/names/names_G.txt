@@ -1,0 +1,34 @@
+func_002BAC64  alFxParamHdl  high  # reverb: param handler; idx=(paramID-2)/8, sub=(paramID-2)%8 switch (input/output/fbcons/gain/chorus-rate/depth...) writes ALDelay fields in r->delay[idx] (+0x20 array, stride 0x28), 8-way jtbl_800CC9E8
+func_002BAE40  _loadOutputBuffer  high  # reverb: if delay has resampler (d->rs) emit A_SETBUFF/A_RESAMPLE(0x05) w/ _doModFunc-derived ratio, else plain _loadBuffer; returns Acmd*
+func_002BB038  _saveBuffer  high  # reverb: emit A_SETBUFF(0x08)+A_SAVEBUFF(0x06) into delay line with ring-buffer wrap at base+length*2 (osVirtualToPhysical)
+func_002BB1A8  alFxParam  med  # reverb filter setParam: only AL_FILTER_SET_SOURCE (1) -> *filter=param, returns 0 (called directly by alSynAllocFX)
+func_002BB1BC  _loadBuffer  high  # reverb: emit A_SETBUFF + A_LOADBUFF(0x04) from delay ring buffer with wrap, then trailing A_SETBUFF; returns Acmd*
+func_002BB32C  _filterBuffer  high  # reverb: emit A_LOADADPCM(0x0B, 32 bytes of lowpass coef) + A_POLEF(0x0E) with lp->first/gain/state
+func_002BB3D0  _doModFunc  high  # reverb: chorus LFO: d->rsval += d->rsinc*count, wrap at const, abs, return d->rsgain*(abs-const)
+func_002BB448  alSavePull  high  # ALSave pull handler (real entry D_002BB450, 2 junk leading insns): assert(source) line 0x22, call source handler, A_SETBUFF/A_INTERLEAVE(0x0D, 0x440/0x580)/A_SAVEBUFF to dramout
+func_002BB550  alSaveParam  high  # ALSave setParam: AL_FILTER_SET_SOURCE(1)->source, AL_FILTER_SET_DRAM(6)->dramout (+0x14); passed to alSaveNew
+func_002BB590  alSynAllocFX  med  # alFxNew(synth->auxBus[bus]+0x20, cfg, heap) (func_002B8FE0), set fx source, add to main bus (func_002BA610 ADD_SOURCE), returns fx; stride 0x4C, called from alSynNew
+func_002BB624  libaudio_fragment_0BC224  low  # 3-insn non-function fragment (addiu sp; move a0,s4; lui at,0x8015) with no jr; leftover tail/pad before cosf
+func_002C31B8  alAdpcmPull  high  # ADPCM load/decode filter pull (real entry D_002C31C0 after 2 junk insns): A_LOADADPCM(0x0B) of book, DMA chunks, _decodeChunk, loop handling; set as handler by alLoadParam type 0
+func_002C3604  alRaw16Pull  high  # raw 16-bit PCM pull: dma callback (f+0x30), A_SETBUFF/A_LOADBUFF(4)/A_DMEMMOVE(0x0A), A_CLEARBUFF(2) past end, loop count handling; set by alLoadParam type 1
+func_002C3988  alAdecPull  low  # custom (Acclaim) pull for wavetable type 2: when table nonempty pulls 0x100-sample frames from decoder func_002C525C into buffer D_800D9360 (osWritebackDCache 0x200) and emits SETBUFF/LOADBUFF/DMEMMOVE; else A_CLEARBUFF
+func_002C3B94  alLoadParam  high  # ALLoadFilter setParam: case 5 AL_FILTER_SET_WAVETABLE (select pull handler by wavetable type 0=adpcm,1=raw16,2=custom, load loop info), case 4 AL_FILTER_RESET
+func_002C3D24  _decodeChunk  high  # emits (dma+A_SETBUFF+A_LOADBUFF) + optional A_SETLOOP(0x0F) + A_SETBUFF + A_ADPCM(0x01, flags) for one ADPCM chunk
+func_002C3EA0  adecReadBits  med  # custom compressed-audio bitstream reader: unpacks arg2 fields of arg1 bits (optional sign-extend arg3) into array arg0 from stream ptr in ctx+0x14; bit buffer D_80151090/D_800D94E8
+func_002C4074  adecHuffDecode  med  # custom codec: Huffman-tree decode of N symbols (tree nodes 0x800 marker, escape codes 0x900/0xA00/0xB00 via 0x1B8-byte codebook entries), segment table stride 0x14, uses adecReadBits
+func_002C4478  adecDecodeFrame  med  # custom codec: decode one frame's header (16 band indices w/ delta accumulation D_801510A0) and 0x100 coefficients via adecHuffDecode into frame ctx (+0x18,+0xB8); returns 1/-1
+func_002C4604  mdctInitTwiddles  med  # builds 128-entry cos/sin tables (D_801510C0/D_801512C0, 801514C0/801516C0 pre/post twiddle) and zeroes overlap buffer D_801518C0 using cosf/sinf
+func_002C476C  mdctFftInit  med  # FFT setup for n points: cos table, -sin table (cosf/sinf), bit-reversal index table with swap pass; fills D_800D9370 {cos,sin,bitrev,n}, returns ptr
+func_002C48F4  adecDequantize  med  # dequantize 256 coefficients: per band (16 bands, widths D_800D93C8) out[i]=q[i]/D_800D93E8[band scale]*const, zero-fill rest to 256
+func_002C4A18  mdctFft  med  # in-place radix-2 complex FFT: bit-reverse permute via index table, butterfly loops using cos/sin tables, sign arg
+func_002C4B9C  adecImdctFrame  med  # inverse MDCT of one frame: lazy init (twiddles+FFT n=0x80), dequantize, pack 128 complex, pre-twiddle, FFT, post-twiddle, overlap-add with previous, scale, round/clamp to s16, write 256 PCM samples
+func_002C4F2C  adecDecodeFrameOk  med  # returns (adecDecodeFrame() != -1 ? 1 : 0) i.e. ~ret>>>31
+func_002C4F58  mdctBuildBitrevTable  med  # builds bit-reversal permutation table for n entries (same algorithm as in mdctFftInit)
+func_002C5020  mdctPackSpectrum  med  # copy 128 pairs: out[k]={in[2k], in[255-2k]} (even/odd fold of 256 coeffs into 128 complex)
+func_002C5080  mdctTwiddleMul  med  # 128-entry complex multiply of data by (cos,sin) table pair (pre/post twiddle step)
+func_002C50FC  mdctFftCtx  low  # thin wrapper: mdctFft(data, ctx->n, sign, ctx->cos, ctx->sin, ctx->bitrev) from FFT ctx struct
+func_002C5134  adecRoundClampS16  med  # float->s16 with +/-0.5 rounding bias and clamp to 32767/-32768
+func_002C51A0  adecStreamOpen  med  # init stream decoder state D_80151CC8 from header (0xC bytes: sample count/frames/etc.), reset bit-reader state, *arg2=header word0; calls func_002C5E90 (64-bit math) to compute total length; used with 22050Hz music/ambience streaming
+func_002C525C  adecNextFrame  med  # if frames remaining: adecDecodeFrame + adecImdctFrame into ring of 6 x 0x200-byte buffers at D_80151F80, decrement remaining; returns buffer ptr or NULL
+func_002C52FC  adecGetStopFlag  low  # returns D_80151CD8 (stream state flag), polled by main audio-stream task (func_0025CCB0)
+func_002C530C  adecClearStopFlag  low  # D_80151CD8 = 0

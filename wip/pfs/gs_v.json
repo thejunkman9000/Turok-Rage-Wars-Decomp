@@ -1,0 +1,7 @@
+{"body": [
+"if ((data.status & 1) && (data.status & 2)) { return 2; } if (((*(u16 *)&data.status) & 0x1FF) != 0x100) { return 1; } return (data.status & 4) ? 4 : ret;",
+"if ((data.status & 1) && (data.status & 2)) { return 2; } if (((*(u16 *)&data.status) & 0x1FF) != 0x100) { return 1; } return (data.status & 4) == 0 ? ret : 4;",
+"if ((data.status & 1) && (data.status & 2)) { return 2; } if (((*(u16 *)&data.status) & 0x1FF) != 0x100) { return 1; } ret = (data.status & 4) ? 4 : ret; return ret;",
+"if ((data.status & 1) && (data.status & 2)) { return 2; } if (((*(u16 *)&data.status) & 0x1FF) != 0x100) { return 1; } if (data.status & 4) { ret = 4; } return ret;",
+"if ((data.status & 1) && (data.status & 2)) { return 2; } if (((*(u16 *)&data.status) & 0x1FF) != 0x100) { return 1; } if (data.status & 4) { return 4; } return ret;"
+]}

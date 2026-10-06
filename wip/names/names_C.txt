@@ -1,0 +1,28 @@
+func_002B3B70  alCSPGetState  high  # csplayer: returns seqp->state (+0x2C: 0 stopped, 1 playing, 2 stopping)
+func_002B3B80  alCSPNew  high  # csplayer: init ALCSPlayer from ALSeqpConfig (vol 0x7FFF, uspt 488, frame 16000us), alloc chanState/vvoices/events via alHeapDBAlloc, alEvtqNew, register __CSPVoiceHandler with alSynAddPlayer
+func_002B3CF0  __CSPVoiceHandler  high  # csplayer: ALPlayer handler; pops evtq events and dispatches via 0x18-entry jump table (NEXT_SEQ, MIDI, META, note end, osc, play/stop/stopping, vol, set seq/bank, assert on unknown); returns next delta
+func_002B4220  __CSPHandleNextSeqEvent  high  # csplayer: alCSeqNextEvent then jump-table on type (midi/meta/end/loop...), re-post next ref event using __alCSeqNextDelta*uspt; assert line 0x190
+func_002B43B0  __CSPHandleMIDIMsg  high  # csplayer: MIDI message handler (note on/off, controllers, program, bend) using __mapVoice/__lookupVoice/__vsVol; assert line 0x2C7
+func_002B4C3C  __CSPHandleMetaMsg  high  # csplayer: meta 0xFF/0x51 tempo -> __setUsptFromTempo_2, then rescales pending AL_SEQ_REF (0x15) event delays by new uspt
+func_002B4DD0  __CSPPostNextSeqEvent  high  # csplayer: if playing and target seq, __alCSeqNextDelta and post AL_SEQ_REF event (type 0) after delta*uspt
+func_002B4E3C  __CSPRepostEvent  high  # csplayer: static; re-insert an event item into evtq alloc list in delta order (osSetIntMask protected)
+func_002B4ECC  __setUsptFromTempo_2  high  # csplayer: uspt = (s32)(tempo * seq->qnpt) or 488 (0x1E8) when no seq (csplayer copy of seqplayer's __setUsptFromTempo)
+func_002B4F00  alCents2Ratio  high  # f32 pow loop: base 1.0005778 (=2^(1/1200)), square-and-multiply, inverse base for negative cents
+func_002B4F50  alCSPPlay  high  # csplayer: post event 0xF (AL_SEQP_PLAY_EVT) with delay 0
+func_002B4F80  alCSPSetBank  high  # csplayer: post event 0xE (AL_SEQP_BANK_EVT) with bank pointer in msg
+func_002B4FB0  alCSPSetChlFXMix  med  # csplayer: post MIDI event status=0xB0|chan, controller 0x5B (effects send), value=a2
+func_002B5000  alCSPSetSeq  high  # csplayer: post event 0xD (AL_SEQP_SEQ_EVT) with seq pointer in msg
+func_002B5030  alCSPSetVol  high  # csplayer: post event 0xA (AL_SEQP_VOL_EVT) with s16 vol in msg
+func_002B5060  alCSPStop  high  # csplayer: post event 0x11 (AL_SEQP_STOP_EVT) with delay 0
+func_002B5090  alEvtqNew  high  # evtq.c: init ALEventQueue (freeList/allocList empty, count 0) and link N 0x1C-byte ALEventListItems onto freeList
+func_002B510C  alEvtqNextEvent  high  # evtq.c: pop first alloc-list item under osSetIntMask, copy its ALEvent (0x10 bytes) to out via alCopy, return item delta; else out type=-1, return 0
+func_002B51A4  alEvtqPostEvent  high  # evtq.c: take free item, copy event, insert into alloc list in delta order (delta 0x7FFFFFFF = never, kept at tail)
+func_002B52B0  alEvtqFlush  high  # evtq.c: move every item from alloc list back to free list under osSetIntMask
+func_002B5328  alEvtqFlushType  high  # evtq.c: remove all queued events of given s16 type (adding their delta to the next item), return items to free list
+func_002B53E0  alCopy  high  # copy.c: byte copy loop (src a0, dst a1, len a2)
+func_002B5410  alHeapDBAlloc  high  # heap.c: (file,line,heap,num,size) bump-allocate num*size rounded to 16 from ALHeap{base,cur,len}; returns NULL if it would overflow
+func_002B5460  alHeapInit  high  # heap.c: align base up to 16, heap->base=cur=aligned, len=a2, count=0 (blob 0xB6060-0xB6760 also contains alSeqpNew @func_002B5494 and __voiceHandler @func_002B5624)
+func_002B5494  alSeqpNew  high  # seqplayer.c (embedded in func_002B5460 blob at ROM 0xB6094): init ALSeqPlayer from ALSeqpConfig, alloc chanState/vvoices/events, __initChanState, alEvtqNew, register __voiceHandler via alSynAddPlayer
+func_002B5624  __voiceHandler  high  # seqplayer.c (embedded in func_002B5460 blob at ROM 0xB6224, alabel D_002B5624): ALPlayer handler; jump-table dispatch of evtq events (next seq, note end, osc, midi, meta, play/stop/stopping, vol, loop, priority, seq, bank; asserts in "audio/seqplayer.c")
+func_002B5B60  __handleNextSeqEvent  high  # seqplayer.c: alSeqNextEvent then switch on type (1 midi -> __handleMIDIMsg, 3 meta -> __handleMetaMsg, 4 end -> loop via alSeqSetLoc or post STOPPING 0x10); re-post AL_SEQ_REF; assert line 0x19C
+func_002B5D64  __handleMIDIMsg  high  # seqplayer.c: MIDI message handler (note on/off, controller, program change, pitch bend) using __mapVoice/__lookupVoice/__vsVol/__vsDelta; asserts lines 0x1B4,0x2CA (continues past 0xB6A00 to ROM 0xB71EC)

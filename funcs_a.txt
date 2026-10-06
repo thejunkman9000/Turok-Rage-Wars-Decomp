@@ -5,15 +5,16 @@ func_00446B44 0x1B4B44 14 ovl_a
 func_00446B7C 0x1B4B7C 21 ovl_a
 osPfsAllocateFile 0x1B4BD0 233 ovl_a
 __osPfsDeclearPage 0x1B4F74 115 ovl_a
-__osClearPage 0x1B5140 36 ovl_a
+__osClearPage 0x1B5140 36 ovl_a mode=lu
 osPfsDeleteFile 0x1B51D0 139 ovl_a
 __osPfsReleasePages 0x1B53FC 104 ovl_a
-__osBlockSum 0x1B559C 53 ovl_a
+__osBlockSum 0x1B559C 52 ovl_a mode=lu
+pad_1B566C 0x1B566C 1 ovl_a
 osPfsFileState 0x1B5670 144 ovl_a
 osPfsFreeBlocks 0x1B58B0 72 ovl_a
-__osPfsGetStatus 0x1B59D0 54 ovl_a
-__osPfsRequestOneChannel 0x1B5AA8 35 ovl_a
-__osPfsGetOneChannelData 0x1B5B34 31 ovl_a
+__osPfsGetStatus 0x1B59D0 54 ovl_a mode=lu
+__osPfsRequestOneChannel 0x1B5AA8 35 ovl_a mode=lu
+__osPfsGetOneChannelData 0x1B5B34 31 ovl_a mode=lu
 osPfsInitPak 0x1B5BB0 116 ovl_a
 osPfsChecker 0x1B5D80 271 ovl_a
 corrupted_init 0x1B61BC 83 ovl_a
