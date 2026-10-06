@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B5BB0-0x1B5D80 (VRAM 0x00447BB0) */
-glabel func_00447BB0
+glabel osPfsInitPak
     /* 1B5BB0 00447BB0 27BDFF90 */  addiu      $sp, $sp, -0x70
     /* 1B5BB4 00447BB4 AFB1005C */  sw         $s1, 0x5C($sp)
     /* 1B5BB8 00447BB8 00808821 */  addu       $s1, $a0, $zero
@@ -29,7 +29,7 @@ glabel func_00447BB0
     /* 1B5BF8 00447BF8 AE510004 */  sw         $s1, 0x4($s2)
     /* 1B5BFC 00447BFC AE530008 */  sw         $s3, 0x8($s2)
     /* 1B5C00 00447C00 AE400000 */  sw         $zero, 0x0($s2)
-    /* 1B5C04 00447C04 0C112645 */  jal        func_00449914
+    /* 1B5C04 00447C04 0C112645 */  jal        __osPfsSelectBank
     /* 1B5C08 00447C08 A2400065 */   sb        $zero, 0x65($s2)
     /* 1B5C0C 00447C0C 00408021 */  addu       $s0, $v0, $zero
     /* 1B5C10 00447C10 16000054 */  bnez       $s0, .L00447D64
@@ -116,7 +116,7 @@ glabel func_00447BB0
     /* 1B5D44 00447D44 00408021 */  addu       $s0, $v0, $zero
     /* 1B5D48 00447D48 16000006 */  bnez       $s0, .L00447D64
     /* 1B5D4C 00447D4C 02001021 */   addu      $v0, $s0, $zero
-    /* 1B5D50 00447D50 0C111F60 */  jal        func_00447D80
+    /* 1B5D50 00447D50 0C111F60 */  jal        osPfsChecker
     /* 1B5D54 00447D54 02402021 */   addu      $a0, $s2, $zero
     /* 1B5D58 00447D58 8E430000 */  lw         $v1, 0x0($s2)
     /* 1B5D5C 00447D5C 34630001 */  ori        $v1, $v1, 0x1
@@ -129,4 +129,4 @@ glabel func_00447BB0
     /* 1B5D74 00447D74 8FB00058 */  lw         $s0, 0x58($sp)
     /* 1B5D78 00447D78 03E00008 */  jr         $ra
     /* 1B5D7C 00447D7C 27BD0070 */   addiu     $sp, $sp, 0x70
-endlabel func_00447BB0
+endlabel osPfsInitPak

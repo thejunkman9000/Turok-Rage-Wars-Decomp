@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B5670-0x1B58B0 (VRAM 0x00447670) */
-glabel func_00447670
+glabel osPfsFileState
     /* 1B5670 00447670 27BDFEA8 */  addiu      $sp, $sp, -0x158
     /* 1B5674 00447674 AFB3013C */  sw         $s3, 0x13C($sp)
     /* 1B5678 00447678 00809821 */  addu       $s3, $a0, $zero
@@ -39,7 +39,7 @@ glabel func_00447670
     /* 1B56E0 004476E0 10400006 */  beqz       $v0, .L004476FC
     /* 1B56E4 004476E4 27A70110 */   addiu     $a3, $sp, 0x110
     /* 1B56E8 004476E8 A2600065 */  sb         $zero, 0x65($s3)
-    /* 1B56EC 004476EC 0C112645 */  jal        func_00449914
+    /* 1B56EC 004476EC 0C112645 */  jal        __osPfsSelectBank
     /* 1B56F0 004476F0 02602021 */   addu      $a0, $s3, $zero
     /* 1B56F4 004476F4 14400062 */  bnez       $v0, .L00447880
     /* 1B56F8 004476F8 27A70110 */   addiu     $a3, $sp, 0x110
@@ -167,4 +167,4 @@ glabel func_00447670
 
 
     /* 1B58AC 004478AC 14400003 */  .word      0x14400003 /* linker padding */
-endlabel func_00447670
+endlabel osPfsFileState

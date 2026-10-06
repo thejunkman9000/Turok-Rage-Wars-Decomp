@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B6688-0x1B673C (VRAM 0x00448688) */
-glabel func_00448688
+glabel __osPfsGetInitData
     /* 1B6688 00448688 27BDFFF8 */  addiu      $sp, $sp, -0x8
     /* 1B668C 0044868C 00A04021 */  addu       $t0, $a1, $zero
     /* 1B6690 00448690 00004821 */  addu       $t1, $zero, $zero
@@ -56,4 +56,4 @@ glabel func_00448688
     /* 1B6730 00448730 A0890000 */  sb         $t1, 0x0($a0)
     /* 1B6734 00448734 03E00008 */  jr         $ra
     /* 1B6738 00448738 27BD0008 */   addiu     $sp, $sp, 0x8
-endlabel func_00448688
+endlabel __osPfsGetInitData

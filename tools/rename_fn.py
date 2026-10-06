@@ -10,6 +10,7 @@ import re, os, glob, sys
 args = sys.argv[1:]
 pairs = list(zip(args[0::2], args[1::2]))
 funcs = open('funcs.txt', encoding='utf-8').read().split('\n')
+funcs_a = open('funcs_a.txt', encoding='utf-8').read().split('\n')
 sym = open('symbol_addrs.txt', encoding='utf-8').read().split('\n')
 files = glob.glob('src/**/*.[sch]', recursive=True) + glob.glob('wip/*.c') + glob.glob('include/*.h')
 
@@ -17,11 +18,12 @@ for old, new in pairs:
     pat = re.compile(rf'(?<![\w$.]){re.escape(old)}(?![\w$.])')
     # funcs.txt
     sub = None
-    for i, l in enumerate(funcs):
-        f = l.split('#')[0].split()
-        if f and f[0] == old:
-            sub = f[3] if len(f) > 3 else 'libultra'
-            funcs[i] = pat.sub(new, l)
+    for lst in (funcs, funcs_a):
+        for i, l in enumerate(lst):
+            f = l.split('#')[0].split()
+            if f and f[0] == old:
+                sub = f[3] if len(f) > 3 else 'libultra'
+                lst[i] = pat.sub(new, l)
     # source files
     for sp in (f'src/{sub}/{old}.s', f'src/{sub}/{old}.c') if sub else ():
         if os.path.exists(sp):
@@ -54,4 +56,5 @@ for old, new in pairs:
     print(f'{old} -> {new}: {n} file(s) updated' + ('' if va is not None else '  (no address found!)'))
 
 open('funcs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(funcs).rstrip('\n') + '\n')
+open('funcs_a.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(funcs_a).rstrip('\n') + '\n')
 open('symbol_addrs.txt', 'w', encoding='utf-8', newline='\n').write('\n'.join(sym).rstrip('\n') + '\n')

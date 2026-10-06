@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B61BC-0x1B6308 (VRAM 0x004481BC) */
-glabel func_004481BC
+glabel corrupted_init
     /* 1B61BC 004481BC 27BDFED0 */  addiu      $sp, $sp, -0x130
     /* 1B61C0 004481C0 AFB20118 */  sw         $s2, 0x118($sp)
     /* 1B61C4 004481C4 00809021 */  addu       $s2, $a0, $zero
@@ -100,4 +100,4 @@ glabel func_004481BC
     /* 1B62FC 004482FC 8FB00110 */  lw         $s0, 0x110($sp)
     /* 1B6300 00448300 03E00008 */  jr         $ra
     /* 1B6304 00448304 27BD0130 */   addiu     $sp, $sp, 0x130
-endlabel func_004481BC
+endlabel corrupted_init

@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B51D0-0x1B53FC (VRAM 0x004471D0) */
-glabel func_004471D0
+glabel osPfsDeleteFile
     /* 1B51D0 004471D0 27BDFE98 */  addiu      $sp, $sp, -0x168
     /* 1B51D4 004471D4 AFB20150 */  sw         $s2, 0x150($sp)
     /* 1B51D8 004471D8 00809021 */  addu       $s2, $a0, $zero
@@ -38,7 +38,7 @@ glabel func_004471D0
     /* 1B523C 0044723C 10400006 */  beqz       $v0, .L00447258
     /* 1B5240 00447240 02402021 */   addu      $a0, $s2, $zero
     /* 1B5244 00447244 A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B5248 00447248 0C112645 */  jal        func_00449914
+    /* 1B5248 00447248 0C112645 */  jal        __osPfsSelectBank
     /* 1B524C 0044724C 02402021 */   addu      $a0, $s2, $zero
     /* 1B5250 00447250 14400061 */  bnez       $v0, .L004473D8
     /* 1B5254 00447254 02402021 */   addu      $a0, $s2, $zero
@@ -91,7 +91,7 @@ glabel func_004471D0
     /* 1B5300 00447300 27A70144 */  addiu      $a3, $sp, 0x144
     /* 1B5304 00447304 AFB00010 */  sw         $s0, 0x10($sp)
     /* 1B5308 00447308 AFB40014 */  sw         $s4, 0x14($sp)
-    /* 1B530C 0044730C 0C111CFF */  jal        func_004473FC
+    /* 1B530C 0044730C 0C111CFF */  jal        __osPfsReleasePages
     /* 1B5310 00447310 AFB50018 */   sw        $s5, 0x18($sp)
     /* 1B5314 00447314 14400030 */  bnez       $v0, .L004473D8
     /* 1B5318 00447318 02402021 */   addu      $a0, $s2, $zero
@@ -157,4 +157,4 @@ glabel func_004471D0
     /* 1B53F0 004473F0 8FB00148 */  lw         $s0, 0x148($sp)
     /* 1B53F4 004473F4 03E00008 */  jr         $ra
     /* 1B53F8 004473F8 27BD0168 */   addiu     $sp, $sp, 0x168
-endlabel func_004471D0
+endlabel osPfsDeleteFile

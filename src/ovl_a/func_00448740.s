@@ -54,7 +54,7 @@ glabel func_00448740
     /* 1B67E4 004487E4 10400007 */  beqz       $v0, .L00448804
     /* 1B67E8 004487E8 27A70018 */   addiu     $a3, $sp, 0x18
     /* 1B67EC 004487EC A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B67F0 004487F0 0C112645 */  jal        func_00449914
+    /* 1B67F0 004487F0 0C112645 */  jal        __osPfsSelectBank
     /* 1B67F4 004487F4 02402021 */   addu      $a0, $s2, $zero
     /* 1B67F8 004487F8 00401821 */  addu       $v1, $v0, $zero
     /* 1B67FC 004487FC 146000D1 */  bnez       $v1, .L00448B44
@@ -231,7 +231,7 @@ glabel func_00448740
     /* 1B6A60 00448A60 10430007 */  beq        $v0, $v1, .L00448A80
     /* 1B6A64 00448A64 00000000 */   nop
     /* 1B6A68 00448A68 A2430065 */  sb         $v1, 0x65($s2)
-    /* 1B6A6C 00448A6C 0C112645 */  jal        func_00449914
+    /* 1B6A6C 00448A6C 0C112645 */  jal        __osPfsSelectBank
     /* 1B6A70 00448A70 02402021 */   addu      $a0, $s2, $zero
     /* 1B6A74 00448A74 00401821 */  addu       $v1, $v0, $zero
     /* 1B6A78 00448A78 14600032 */  bnez       $v1, .L00448B44
@@ -274,7 +274,7 @@ glabel func_00448740
     /* 1B6AFC 00448AFC 02402021 */  addu       $a0, $s2, $zero
     /* 1B6B00 00448B00 34620002 */  ori        $v0, $v1, 0x2
     /* 1B6B04 00448B04 A3A20020 */  sb         $v0, 0x20($sp)
-    /* 1B6B08 00448B08 0C112645 */  jal        func_00449914
+    /* 1B6B08 00448B08 0C112645 */  jal        __osPfsSelectBank
     /* 1B6B0C 00448B0C A2400065 */   sb        $zero, 0x65($s2)
     /* 1B6B10 00448B10 00401821 */  addu       $v1, $v0, $zero
     /* 1B6B14 00448B14 1460000B */  bnez       $v1, .L00448B44

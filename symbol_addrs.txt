@@ -114,7 +114,7 @@ osContReset = 0x002BC810; // type:func
 __osPackResetData = 0x002BC91C; // type:func
 osContInit = 0x002BC950; // type:func
 // PFS / motor
-__osPfsGetStatus = 0x004479D0; // type:func
+__osPfsGetStatus = 0x004479D0; // type:func segment:ovl_a
 __osPfsPifRam = 0x80154110;
 __osMotorInitialized = 0x800D8380;
 __osMotorStartData = 0x8014D4C0;
@@ -251,3 +251,18 @@ alCSeqSetLoc = 0x002B3998; // type:func
 alCSeqGetLoc = 0x002B3A0C; // type:func
 __alCSeqNextDelta = 0x002B3A80; // type:func
 __readVarLen = 0x002B3AFC; // type:func
+
+osPfsAllocateFile = 0x00446BD0; // type:func segment:ovl_a
+__osPfsDeclearPage = 0x00446F74; // type:func segment:ovl_a
+osPfsDeleteFile = 0x004471D0; // type:func segment:ovl_a
+__osPfsReleasePages = 0x004473FC; // type:func segment:ovl_a
+osPfsFileState = 0x00447670; // type:func segment:ovl_a
+osPfsFreeBlocks = 0x004478B0; // type:func segment:ovl_a
+osPfsInitPak = 0x00447BB0; // type:func segment:ovl_a
+osPfsChecker = 0x00447D80; // type:func segment:ovl_a
+corrupted_init = 0x004481BC; // type:func segment:ovl_a
+__osPfsRequestData = 0x004485EC; // type:func segment:ovl_a
+__osPfsGetInitData = 0x00448688; // type:func segment:ovl_a
+__osPfsSelectBank = 0x00449914; // type:func segment:ovl_a
+corrupted = 0x00448308; // type:func segment:ovl_a
+osPfsIsPlug = 0x00448470; // type:func segment:ovl_a

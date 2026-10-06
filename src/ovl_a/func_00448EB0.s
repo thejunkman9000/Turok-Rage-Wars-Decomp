@@ -22,7 +22,7 @@ glabel func_00448EB0
     /* 1B6EDC 00448EDC 92420065 */  lbu        $v0, 0x65($s2)
     /* 1B6EE0 00448EE0 10400005 */  beqz       $v0, .L00448EF8
     /* 1B6EE4 00448EE4 00C0A021 */   addu      $s4, $a2, $zero
-    /* 1B6EE8 00448EE8 0C112645 */  jal        func_00449914
+    /* 1B6EE8 00448EE8 0C112645 */  jal        __osPfsSelectBank
     /* 1B6EEC 00448EEC A2400065 */   sb        $zero, 0x65($s2)
     /* 1B6EF0 00448EF0 1440009F */  bnez       $v0, .L00449170
     /* 1B6EF4 00448EF4 00000000 */   nop
@@ -44,7 +44,7 @@ glabel func_00448EB0
     /* 1B6F30 00448F30 AE830014 */  sw         $v1, 0x14($s4)
     /* 1B6F34 00448F34 A2510065 */  sb         $s1, 0x65($s2)
   .L00448F38:
-    /* 1B6F38 00448F38 0C112645 */  jal        func_00449914
+    /* 1B6F38 00448F38 0C112645 */  jal        __osPfsSelectBank
     /* 1B6F3C 00448F3C 02402021 */   addu      $a0, $s2, $zero
     /* 1B6F40 00448F40 1440008B */  bnez       $v0, .L00449170
     /* 1B6F44 00448F44 00003021 */   addu      $a2, $zero, $zero
@@ -97,7 +97,7 @@ glabel func_00448EB0
     /* 1B6FF4 00448FF4 5A200011 */  blezl      $s1, .L0044903C
     /* 1B6FF8 00448FF8 26310001 */   addiu     $s1, $s1, 0x1
     /* 1B6FFC 00448FFC A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B7000 00449000 0C112645 */  jal        func_00449914
+    /* 1B7000 00449000 0C112645 */  jal        __osPfsSelectBank
     /* 1B7004 00449004 02402021 */   addu      $a0, $s2, $zero
     /* 1B7008 00449008 14400059 */  bnez       $v0, .L00449170
     /* 1B700C 0044900C 00003021 */   addu      $a2, $zero, $zero
@@ -118,7 +118,7 @@ glabel func_00448EB0
     /* 1B7044 00449044 A2510065 */   sb        $s1, 0x65($s2)
     /* 1B7048 00449048 A2400065 */  sb         $zero, 0x65($s2)
   .L0044904C:
-    /* 1B704C 0044904C 0C112645 */  jal        func_00449914
+    /* 1B704C 0044904C 0C112645 */  jal        __osPfsSelectBank
     /* 1B7050 00449050 02402021 */   addu      $a0, $s2, $zero
     /* 1B7054 00449054 14400046 */  bnez       $v0, .L00449170
     /* 1B7058 00449058 2686001C */   addiu     $a2, $s4, 0x1C

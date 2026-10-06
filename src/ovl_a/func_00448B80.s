@@ -16,7 +16,7 @@ glabel func_00448B80
     /* 1B6B94 00448B94 92220065 */  lbu        $v0, 0x65($s1)
     /* 1B6B98 00448B98 10400006 */  beqz       $v0, .L00448BB4
     /* 1B6B9C 00448B9C 24060001 */   addiu     $a2, $zero, 0x1
-    /* 1B6BA0 00448BA0 0C112645 */  jal        func_00449914
+    /* 1B6BA0 00448BA0 0C112645 */  jal        __osPfsSelectBank
     /* 1B6BA4 00448BA4 A2200065 */   sb        $zero, 0x65($s1)
   .L00448BA8:
     /* 1B6BA8 00448BA8 00401821 */  addu       $v1, $v0, $zero

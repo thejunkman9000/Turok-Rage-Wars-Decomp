@@ -18,7 +18,7 @@ glabel func_0044759C
     /* 1B55B8 004475B8 AFBF0044 */  sw         $ra, 0x44($sp)
     /* 1B55BC 004475BC AFB10034 */  sw         $s1, 0x34($sp)
     /* 1B55C0 004475C0 AFB00030 */  sw         $s0, 0x30($sp)
-    /* 1B55C4 004475C4 0C112645 */  jal        func_00449914
+    /* 1B55C4 004475C4 0C112645 */  jal        __osPfsSelectBank
     /* 1B55C8 004475C8 A2470065 */   sb        $a3, 0x65($s2)
     /* 1B55CC 004475CC 00408021 */  addu       $s0, $v0, $zero
     /* 1B55D0 004475D0 12000008 */  beqz       $s0, .L004475F4
@@ -27,7 +27,7 @@ glabel func_0044759C
     /* 1B55DC 004475DC 00000000 */   nop
   .L004475E0:
     /* 1B55E0 004475E0 A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B55E4 004475E4 0C112645 */  jal        func_00449914
+    /* 1B55E4 004475E4 0C112645 */  jal        __osPfsSelectBank
     /* 1B55E8 004475E8 02402021 */   addu      $a0, $s2, $zero
     /* 1B55EC 004475EC 08111D93 */  j          .L0044764C
     /* 1B55F0 004475F0 02001021 */   addu      $v0, $s0, $zero
@@ -53,7 +53,7 @@ glabel func_0044759C
     /* 1B5638 00447638 1440FFF0 */  bnez       $v0, .L004475FC
     /* 1B563C 0044763C A6830000 */   sh        $v1, 0x0($s4)
     /* 1B5640 00447640 A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B5644 00447644 0C112645 */  jal        func_00449914
+    /* 1B5644 00447644 0C112645 */  jal        __osPfsSelectBank
     /* 1B5648 00447648 02402021 */   addu      $a0, $s2, $zero
   .L0044764C:
     /* 1B564C 0044764C 8FBF0044 */  lw         $ra, 0x44($sp)

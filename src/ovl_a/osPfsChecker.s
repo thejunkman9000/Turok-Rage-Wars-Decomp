@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B5D80-0x1B61BC (VRAM 0x00447D80) */
-glabel func_00447D80
+glabel osPfsChecker
     /* 1B5D80 00447D80 27BDFB78 */  addiu      $sp, $sp, -0x488
     /* 1B5D84 00447D84 AFB20468 */  sw         $s2, 0x468($sp)
     /* 1B5D88 00447D88 00809021 */  addu       $s2, $a0, $zero
@@ -36,7 +36,7 @@ glabel func_00447D80
     /* 1B5DDC 00447DDC 08112063 */  j          .L0044818C
     /* 1B5DE0 00447DE0 00601021 */   addu      $v0, $v1, $zero
   .L00447DE4:
-    /* 1B5DE4 00447DE4 0C11206F */  jal        func_004481BC
+    /* 1B5DE4 00447DE4 0C11206F */  jal        corrupted_init
     /* 1B5DE8 00447DE8 27A50258 */   addiu     $a1, $sp, 0x258
     /* 1B5DEC 00447DEC 00401821 */  addu       $v1, $v0, $zero
     /* 1B5DF0 00447DF0 146000E6 */  bnez       $v1, .L0044818C
@@ -89,7 +89,7 @@ glabel func_00447D80
   .L00447EA0:
     /* 1B5EA0 00447EA0 02002821 */  addu       $a1, $s0, $zero
     /* 1B5EA4 00447EA4 27A60258 */  addiu      $a2, $sp, 0x258
-    /* 1B5EA8 00447EA8 0C1120C2 */  jal        func_00448308
+    /* 1B5EA8 00447EA8 0C1120C2 */  jal        corrupted
     /* 1B5EAC 00447EAC 00052C00 */   sll       $a1, $a1, 16
     /* 1B5EB0 00447EB0 00542823 */  subu       $a1, $v0, $s4
     /* 1B5EB4 00447EB4 14A0001A */  bnez       $a1, .L00447F20
@@ -133,7 +133,7 @@ glabel func_00447D80
     /* 1B5F38 00447F38 10400007 */  beqz       $v0, .L00447F58
     /* 1B5F3C 00447F3C 00000000 */   nop
     /* 1B5F40 00447F40 A2400065 */  sb         $zero, 0x65($s2)
-    /* 1B5F44 00447F44 0C112645 */  jal        func_00449914
+    /* 1B5F44 00447F44 0C112645 */  jal        __osPfsSelectBank
     /* 1B5F48 00447F48 02402021 */   addu      $a0, $s2, $zero
     /* 1B5F4C 00447F4C 00401821 */  addu       $v1, $v0, $zero
     /* 1B5F50 00447F50 1460008E */  bnez       $v1, .L0044818C
@@ -313,4 +313,4 @@ glabel func_00447D80
     /* 1B61B0 004481B0 8FB00460 */  lw         $s0, 0x460($sp)
     /* 1B61B4 004481B4 03E00008 */  jr         $ra
     /* 1B61B8 004481B8 27BD0488 */   addiu     $sp, $sp, 0x488
-endlabel func_00447D80
+endlabel osPfsChecker

@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B58B0-0x1B59D0 (VRAM 0x004478B0) */
-glabel func_004478B0
+glabel osPfsFreeBlocks
     /* 1B58B0 004478B0 27BDFED0 */  addiu      $sp, $sp, -0x130
     /* 1B58B4 004478B4 AFB3011C */  sw         $s3, 0x11C($sp)
     /* 1B58B8 004478B8 00809821 */  addu       $s3, $a0, $zero
@@ -91,4 +91,4 @@ glabel func_004478B0
 
     /* 1B59C8 004479C8 10620009 */  .word      0x10620009 /* linker padding */
     /* 1B59CC 004479CC 27B0013A */  .word      0x27B0013A /* linker padding */
-endlabel func_004478B0
+endlabel osPfsFreeBlocks

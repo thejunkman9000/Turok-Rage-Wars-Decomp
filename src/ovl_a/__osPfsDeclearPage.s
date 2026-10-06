@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0x1B4F74-0x1B5140 (VRAM 0x00446F74) */
-glabel func_00446F74
+glabel __osPfsDeclearPage
     /* 1B4F74 00446F74 27BDFFA8 */  addiu      $sp, $sp, -0x58
     /* 1B4F78 00446F78 AFB60048 */  sw         $s6, 0x48($sp)
     /* 1B4F7C 00446F7C 0080B021 */  addu       $s6, $a0, $zero
@@ -136,4 +136,4 @@ glabel func_00446F74
     /* 1B5134 00447134 8FB00030 */  lw         $s0, 0x30($sp)
     /* 1B5138 00447138 03E00008 */  jr         $ra
     /* 1B513C 0044713C 27BD0058 */   addiu     $sp, $sp, 0x58
-endlabel func_00446F74
+endlabel __osPfsDeclearPage
