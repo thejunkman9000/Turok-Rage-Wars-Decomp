@@ -27,6 +27,8 @@ div_re = re.compile(rf'^([ \t]*)(div|divu|rem|remu)[ \t]+{REG},[ \t]*{REG},[ \t]
 ret_re = re.compile(r'^([ \t]*)j[ \t]+\$31[ \t]*$')
 lis_re = re.compile(r'^([ \t]*)li\.s[ \t]+(\$f\d+),[ \t]*(\S+)[ \t]*$')
 lid_re = re.compile(r'^([ \t]*)li\.d[ \t]+(\$f\d+),[ \t]*(\S+)[ \t]*$')
+symidx_re = re.compile(r'^([ \t]*)(lw|lh|lhu|lb|lbu|sw|sh|sb|lwc1|swc1|ldc1|sdc1)[ \t]+(\$\w+),[ \t]*'
+                       r'([A-Za-z_.$][\w.$]*(?:[+-]\d+)?)\((\$(?!0\b)\w+)\)[ \t]*$')
 imm_div_re = re.compile(r'^[ \t]*(div|divu|rem|remu)[ \t]+\$[a-z0-9]+,[ \t]*\$[a-z0-9]+,[ \t]*[-0-9xXa-fA-F]+[ \t]*$')
 rdata_re = re.compile(r'^[ \t]*(\.rdata|\.section[ \t]+\.rdata\b.*|\.section[ \t]+\.rodata\b.*)$')
 mnem_re = re.compile(r'^[ \t]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
@@ -129,12 +131,20 @@ def finalize_rodata(base_lines, pool, ro_va):
         return '\n'.join(base_lines)
     absaddr = {name: ro_va + off for name, off in offsets.items()}
 
+    la_re = re.compile(r'^([ \t]*)la[ \t]+(\$\w+),[ \t]*([A-Za-z_.$][\w.$]*)((?:[+-]\d+)?)[ \t]*$')
+
     def sub(line):
         st = line.strip()
         if not st or st.endswith(':') or st.startswith('#'):
             return line
         if st.startswith('.') and not st.startswith('.word'):
             return line
+        m = la_re.match(line)
+        if m and m.group(3) in absaddr:
+            # `la reg,label` -> lui/addiu (modern gas would use lui/ori for an absolute constant)
+            ind, reg, lab, off = m.groups()
+            ref = f'0x{absaddr[lab]:08X}{off}'
+            return f'{ind}lui\t{reg},%hi({ref})\n{ind}addiu\t{reg},{reg},%lo({ref})'
         return label_tok_re.sub(lambda m: f'0x{absaddr[m.group(0)]:08X}' if m.group(0) in absaddr else m.group(0), line)
 
     out = [sub(l) for l in '\n'.join(base_lines).split('\n')]
@@ -164,6 +174,14 @@ def fix(text, mode, ro_va=None):
             mm = mnem_re.match(line)
         this = mm.group(1) if mm else None
 
+        m = symidx_re.match(line)
+        if m:
+            # old gas always used $at for `op reg, sym(idx)`: lui $at,%hi(sym); addu $at,$at,idx; op reg,%lo(sym)($at)
+            ind, op, reg, sym, idx = m.groups()
+            out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({sym})', f'{ind}addu\t$1,$1,{idx}',
+                                  f'{ind}{op}\t{reg},%lo({sym})($1)', f'{ind}.set\tat']))
+            prev = op
+            continue
         m = lid_re.match(line)
         if m:
             value = struct.unpack('>Q', struct.pack('>d', float(m.group(3))))[0]
@@ -201,7 +219,7 @@ def fix(text, mode, ro_va=None):
             prev = None
             continue
         # old gas kept a nop between an FP compare and the following bc1t/bc1f
-        if mode == 'lu' and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
+        if mode in ('lu', 'lu2') and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
                 out.append(f'{ind}nop')
@@ -210,7 +228,7 @@ def fix(text, mode, ro_va=None):
             prev = 'nop'
         is_ret = this == 'jr' or (this == 'j' and mm.group(2).strip() == '$31')
         # old gas only moved an instruction into a RETURN's delay slot (and never a load); calls/branches keep a nop
-        if mode == 'lu' and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS):
+        if mode in ('lu', 'lu2') and this in BRANCHES and not noreorder and (not is_ret or prev in LOADS):
             ind = line[:len(line) - len(line.lstrip())]
             out.append(f'{ind}.set\tnoreorder\n{line}\n{ind}nop\n{ind}.set\treorder')
             prev = None

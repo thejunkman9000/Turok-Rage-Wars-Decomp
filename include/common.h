@@ -231,6 +231,50 @@ typedef struct {
     /* 0x65 */ u8 activebank;
 } OSPfs;
 
+/* PI device handles */
+typedef struct {
+    u32 errStatus;
+    void *dramAddr;
+    void *C2Addr;
+    u32 sectorSize;
+    u32 C1ErrNum;
+    u32 C1ErrSector[4];
+} __OSBlockInfo;
+
+typedef struct {
+    u32 cmdType;
+    u16 transferMode;
+    u16 blockNum;
+    s32 sectorNum;
+    u32 devAddr;
+    u32 bmCtlShadow;
+    u32 seqCtlShadow;
+    __OSBlockInfo block[2];
+} __OSTranxInfo;
+
+typedef struct OSPiHandle_s {
+    /* 0x00 */ struct OSPiHandle_s *next;
+    /* 0x04 */ u8 type;
+    /* 0x05 */ u8 latency;
+    /* 0x06 */ u8 pageSize;
+    /* 0x07 */ u8 relDuration;
+    /* 0x08 */ u8 pulse;
+    /* 0x09 */ u8 domain;
+    /* 0x0C */ u32 baseAddress;
+    /* 0x10 */ u32 speed;
+    /* 0x14 */ __OSTranxInfo transferInfo;
+} OSPiHandle;
+
+#define PI_BSD_DOM1_LAT_REG 0x04600014
+#define PI_BSD_DOM1_PWD_REG 0x04600018
+#define PI_BSD_DOM1_PGS_REG 0x0460001C
+#define PI_BSD_DOM1_RLS_REG 0x04600020
+#define PI_BSD_DOM2_LAT_REG 0x04600024
+#define PI_BSD_DOM2_LWD_REG 0x04600028
+#define PI_BSD_DOM2_PGS_REG 0x0460002C
+#define PI_BSD_DOM2_RLS_REG 0x04600030
+#define IO_WRITE(addr, data) (*(volatile u32 *)PHYS_TO_K1(addr) = (u32)(data))
+
 typedef struct OSTimer_s {
     /* 0x00 */ struct OSTimer_s *next;
     /* 0x04 */ struct OSTimer_s *prev;
@@ -366,6 +410,11 @@ extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
 extern OSPifRam __osPfsPifRam;
+extern OSPiHandle *__osCurrentHandle[2];
+extern OSPiHandle *__osPiTable;
+extern u32 __osSiAccessQueueEnabled;
+extern OSMesgQueue __osSiAccessQueue;
+extern OSMesg __osSiAccessBuf[1];
 extern s32 __osMotorInitialized[4];
 extern OSPifRam __osMotorStartData[4];
 extern u8 __osMotorStartBuf[BLOCKSIZE];
@@ -441,6 +490,17 @@ void osViSetSpecialFeatures(u32 func);
 OSMesgQueue *osPiGetCmdQueue(void);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 void __osPiCreateAccessQueue(void);
+void __osSiGetAccess(void);
+void __osSiRelAccess(void);
+void __assert(const char *exp, const char *file, s32 line);
+void bzero(void *ptr, u32 n);
+void *memset(void *s, int c, u32 n);
+s32 osEPiRawReadIo(OSPiHandle *pihandle, u32 devAddr, u32 *data);
+s32 osEPiRawWriteIo(OSPiHandle *pihandle, u32 devAddr, u32 data);
+s32 osPiRawReadIo(u32 devAddr, u32 *data);
+u32 osPiGetStatus(void);
+OSPiHandle *osCartRomInit(void);
+OSPiHandle *osDriveRomInit(void);
 void __osPiGetAccess(void);
 void __osPiRelAccess(void);
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msgBuf, s32 count);

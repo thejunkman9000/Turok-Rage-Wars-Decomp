@@ -5,11 +5,16 @@
 #   game : Acclaim's code - same compiler for now; `j $31` keeps a nop delay slot (old gas behaviour)
 set -euo pipefail
 mode=$1; in=$2; out=$3
+# per-file override (mode_map.txt, generated from funcs.txt `mode=` tokens)
+if [ -f mode_map.txt ]; then
+  ov=$(awk -v n="$(basename "$in" .c)" '$1==n {print $2}' mode_map.txt)
+  [ -n "$ov" ] && mode=$ov
+fi
 ver=${GCC_VER:-2.8.1}
 G=$PWD/tools/gcc/$ver
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
-"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic ${CC_OPT:-$([ "$mode" = lu ] && echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300" || echo -O2)} \
+"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; *) echo -O2;; esac)} \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in"
 
 # reproduce the original assembler's output (move -> addu, div/rem expansion, return delay slot)

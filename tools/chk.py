@@ -7,7 +7,7 @@ Prints per function: EXACT, or the number of differing words with the first few 
 location found from lui/lwc1 relocations (`ro=0xROM:bytes`) when the object has .rodata."""
 import sys, os, struct
 list_file = sys.argv[1]
-sys.argv = ['lu_match.py', '2.8.1', '-O2 -fforce-addr -fno-builtin -mcpu=r4300', '--', 'x.c']
+sys.argv = ['lu_match.py', '2.8.1', '-O3 -fforce-addr -fno-builtin -mcpu=r4300', '--', 'x.c']
 code = open('tools/lu_match.py').read().split("tot = ex = 0")[0]
 exec(compile(code, 'lu_match', 'exec'))
 ROOTD = os.path.expanduser('~/trw')
@@ -19,7 +19,7 @@ for line in open(list_file):
     if not line: continue
     f = line.split()
     path, func, rom_hex = f[0], f[1], int(f[2], 16)
-    extra[:] = f[3:] if len(f) > 3 else ['-O2', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
+    extra[:] = f[3:] if len(f) > 3 else ['-O3', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
     full = path if os.path.isabs(path) else f'{ROOTD}/src/libultra/{path}'
     if not os.path.exists(full): full = f'{ROOTD}/{path}'
     key = (full, tuple(extra))

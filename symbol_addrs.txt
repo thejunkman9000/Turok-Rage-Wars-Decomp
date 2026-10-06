@@ -136,3 +136,23 @@ __osMotorStartData = 0x8014D4C0;
 __osMotorStartBuf = 0x8014D5C0;
 __osMotorStopData = 0x8014D5E0;
 __osMotorStopBuf = 0x8014D6E0;
+
+// PI / SI access, device I/O
+__assert = 0x002BFD40; // type:func
+memset = 0x002A101C; // type:func
+osEPiRawReadIo = 0x002BE680; // type:func
+osEPiRawWriteIo = 0x002BE820; // type:func
+osPiRawReadIo = 0x002BEC10; // type:func
+osPiGetStatus = 0x002BDEA0; // type:func
+osCartRomInit = 0x002BE040; // type:func
+osDriveRomInit = 0x002BE960; // type:func
+__osPiCreateAccessQueue = 0x002BEA40; // type:func
+__osPiGetAccess = 0x002BEA94; // type:func
+__osSiAccessQueueEnabled = 0x800D83D0;
+__osSiAccessQueue = 0x8014EA78;
+__osSiAccessBuf = 0x8014EA70;
+__osCurrentHandle = 0x800D83B0;
+__osPiTable = 0x800D83AC;
+CartRomHandle = 0x8014E950;
+DriveRomHandle = 0x8014E9D0;
+__osDiskHandle = 0x8014EA44;

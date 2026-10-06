@@ -26,11 +26,10 @@ osDestroyThread    0xC2B10  54  libultra
 __osAiDeviceBusy    0xBD160   5  libultra
 osContGetReadData  0xBD2C4  38  libultra
 osPiGetCmdQueue    0xBEA70  10  libultra
-__osPiRelAccess    0xBF700  10  libultra
 __osSiDeviceBusy   0xBFA60   6  libultra
 __osSpGetStatus    0xBFE80   5  libultra
 osViSetSpecialFeatures 0xC03F0 89 libultra
-string             0xC3090  33  libultra
+string             0xC3090  33  libultra mode=lu2
 osPiStartDma       0xBE9C0  43  libultra
 osPiRawStartDma    0xBF730  53  libultra
 osSpTaskYielded    0xBFE30  19  libultra
@@ -55,3 +54,11 @@ osContStartReadData 0xBD230 37 libultra
 osContReset 0xBD410 67 libultra
 __osPackResetData 0xBD51C 13 libultra
 osContInit 0xBD550 104 libultra
+piacs              0xBF640  58  libultra
+siacs              0xBF8B0  58  libultra
+osEPiRawReadIo 0xBF280 101 libultra ro=0xCD7A0:20
+osEPiRawWriteIo 0xBF420 80 libultra
+osPiRawReadIo 0xBF810 37 libultra ro=0xCD7C0:20
+osPiGetStatus 0xBEAA0 5 libultra
+osCartRomInit 0xBEC40 48 libultra
+osDriveRomInit 0xBF560 53 libultra

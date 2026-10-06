@@ -8,5 +8,5 @@ run() {
   printf "   near: %s\n" "$(grep -E ' [0-9]+/[0-9]+ ' /tmp/fc.txt | awk '{split($3,a,"/"); if (a[1]*2>=a[2]) printf "%s(%s) ", $1, $3}')"
 }
 run "-O2 -fforce-addr -fno-builtin"
-run "-O2 -fforce-addr -fno-builtin -mcpu=r4300"
+run "-O3 -fforce-addr -fno-builtin -mcpu=r4300"
 run "-O2 -fforce-addr -fno-builtin -mcpu=r4600"

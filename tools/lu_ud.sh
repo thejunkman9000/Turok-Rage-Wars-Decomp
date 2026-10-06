@@ -4,5 +4,5 @@
 cd /mnt/d/Projects/TurokRageWars
 f=$1; shift
 rm -f build_ud.json
-python3 tools/lu_json.py "${GCC_VER:-2.8.1}" "${FLAGS:--O2 -fforce-addr -fno-builtin -mcpu=r4300}" "$f" /tmp/lu_ud.json "$@" || { echo "lu_ud: compile failed"; exit 1; }
+python3 tools/lu_json.py "${GCC_VER:-2.8.1}" "${FLAGS:--O3 -fforce-addr -fno-builtin -mcpu=r4300}" "$f" /tmp/lu_ud.json "$@" || { echo "lu_ud: compile failed"; exit 1; }
 cp /tmp/lu_ud.json build_ud.json

@@ -85,10 +85,23 @@ segments:
       - [0xBEA6C, asm]
       - [0xBEA70, c, libultra/osPiGetCmdQueue]
       - [0xBEA98, asm]
-      - [0xBF700, c, libultra/__osPiRelAccess]
+      - [0xBEAA0, c, libultra/osPiGetStatus]
+      - [0xBEAB4, asm]
+      - [0xBEC40, c, libultra/osCartRomInit]
+      - [0xBED00, asm]
+      - [0xBF280, c, libultra/osEPiRawReadIo]
+      - [0xBF414, asm]
+      - [0xBF420, c, libultra/osEPiRawWriteIo]
+      - [0xBF560, c, libultra/osDriveRomInit]
+      - [0xBF634, asm]
+      - [0xBF640, c, libultra/piacs]
       - [0xBF728, asm]
       - [0xBF730, c, libultra/osPiRawStartDma]
       - [0xBF804, asm]
+      - [0xBF810, c, libultra/osPiRawReadIo]
+      - [0xBF8A4, asm]
+      - [0xBF8B0, c, libultra/siacs]
+      - [0xBF998, asm]
       - [0xBFA60, c, libultra/__osSiDeviceBusy]
       - [0xBFA78, asm]
       - [0xBFA80, c, libultra/_VirtualToPhysicalTask]
@@ -157,8 +170,12 @@ segments:
       - {start: 0xCD6E4, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
       - [0xCD770, .rodata, libultra/osAiSetFrequency]
       - {start: 0xCD780, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD7A0, .rodata, libultra/osEPiRawReadIo]
+      - {start: 0xCD7B4, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
+      - {start: 0xCD7D4, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
