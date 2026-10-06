@@ -59,8 +59,8 @@ glabel alSndpNew
     /* B83D8 002B77D8 8E460004 */  lw         $a2, 0x4($s2)
     /* B83DC 002B77DC 0C0AD424 */  jal        alEvtqNew
     /* B83E0 002B77E0 00402821 */   addu      $a1, $v0, $zero
-    /* B83E4 002B77E4 3C02800E */  lui        $v0, %hi(D_800D80A0)
-    /* B83E8 002B77E8 8C4280A0 */  lw         $v0, %lo(D_800D80A0)($v0)
+    /* B83E4 002B77E4 3C02800E */  lui        $v0, %hi(alGlobalsp)
+    /* B83E8 002B77E8 8C4280A0 */  lw         $v0, %lo(alGlobalsp)($v0)
     /* B83EC 002B77EC 02202821 */  addu       $a1, $s1, $zero
     /* B83F0 002B77F0 AE200000 */  sw         $zero, 0x0($s1)
     /* B83F4 002B77F4 AE310004 */  sw         $s1, 0x4($s1)

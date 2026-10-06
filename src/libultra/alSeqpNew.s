@@ -19,8 +19,8 @@ glabel alSeqpNew
     /* B60B4 002B54B4 AFBF0024 */  sw         $ra, 0x24($sp)
     /* B60B8 002B54B8 AFB20020 */  sw         $s2, 0x20($sp)
     /* B60BC 002B54BC 8E32000C */  lw         $s2, 0xC($s1)
-    /* B60C0 002B54C0 3C03800E */  lui        $v1, %hi(D_800D80A0)
-    /* B60C4 002B54C4 8C6380A0 */  lw         $v1, %lo(D_800D80A0)($v1)
+    /* B60C0 002B54C0 3C03800E */  lui        $v1, %hi(alGlobalsp)
+    /* B60C4 002B54C4 8C6380A0 */  lw         $v1, %lo(alGlobalsp)($v1)
     /* B60C8 002B54C8 240200FF */  addiu      $v0, $zero, 0xFF
     /* B60CC 002B54CC A6020030 */  sh         $v0, 0x30($s0)
     /* B60D0 002B54D0 240201E8 */  addiu      $v0, $zero, 0x1E8
@@ -96,8 +96,8 @@ glabel alSeqpNew
     /* B61E0 002B55E0 0C0AD424 */  jal        alEvtqNew
     /* B61E4 002B55E4 00402821 */   addu      $a1, $v0, $zero
     /* B61E8 002B55E8 02002821 */  addu       $a1, $s0, $zero
-    /* B61EC 002B55EC 3C04800E */  lui        $a0, %hi(D_800D80A0)
-    /* B61F0 002B55F0 8C8480A0 */  lw         $a0, %lo(D_800D80A0)($a0)
+    /* B61EC 002B55EC 3C04800E */  lui        $a0, %hi(alGlobalsp)
+    /* B61F0 002B55F0 8C8480A0 */  lw         $a0, %lo(alGlobalsp)($a0)
     /* B61F4 002B55F4 3C02002B */  lui        $v0, %hi(__voiceHandler)
     /* B61F8 002B55F8 24425624 */  addiu      $v0, $v0, %lo(__voiceHandler)
     /* B61FC 002B55FC ACA00000 */  sw         $zero, 0x0($a1)

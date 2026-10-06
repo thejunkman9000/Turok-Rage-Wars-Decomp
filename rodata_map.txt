@@ -3,6 +3,7 @@ cseq_new 0xCD150 16
 cseq_ticks 0xCD160 52
 seq 0xCD330 40
 alSndpAllocate 0xCD360 4
+_timeToSamplesNoRound 0xCD3D8 8
 cosf 0xCD660 96
 guLookAt 0xCD6C0 16
 guMtxIdent 0xCD6D0 8

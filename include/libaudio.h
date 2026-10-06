@@ -143,12 +143,16 @@ typedef struct ALSoundState_s {
     u8 fxMix;
 } ALSoundState;
 
-typedef struct {
-    void *next;
-    s32 delta;
-    s32 samplesLeft;
-    void *handler;
+typedef struct ALPlayer_s {
+    struct ALPlayer_s *next;
     void *clientData;
+    void *handler;
+    s32 callTime;
+    s32 samplesLeft;
+} ALPlayer;
+
+typedef struct {
+    ALPlayer node;
     ALEventQueue evtq;
     ALEvent nextEvent;
     void *drvr;
@@ -167,6 +171,56 @@ typedef struct {
 #define AL_SNDP_PITCH_EVT 4
 #define AL_SNDP_FX_EVT 8
 #define AL_STOPPED 0
+
+/* synthesizer (synthesizer.c) */
+typedef struct ALFilter_s {
+    struct ALFilter_s *source;
+    void *setSource;
+    s32 (*setParam)(struct ALFilter_s *filter, s32 type, void *param);
+    void *handler;
+} ALFilter;
+
+typedef struct ALParam_s {
+    struct ALParam_s *next;
+    s32 delta;
+    s16 type;
+    s16 pad;
+    s32 data;
+} ALParam;
+
+typedef struct ALPVoice_s {
+    ALLink node;
+    u8 pad08[4];
+    ALFilter *channelKnob;
+    u8 pad10[0xD8 - 0x10];
+    s32 offset;
+} ALPVoice;
+
+typedef struct {
+    ALLink node;
+    ALPVoice *pvoice;
+    u8 pad0C[0x16 - 0x0C];
+    s16 priority;
+} ALVoice;
+
+typedef struct ALSynth_s {
+    ALPlayer *head;
+    ALLink pFreeList;
+    ALLink pAllocList;
+    ALLink pLameList;
+    s32 paramSamples;
+    s32 curSamples;
+    u8 pad24[0x2C - 0x24];
+    ALParam *paramList;
+    u8 pad30[0x44 - 0x30];
+    s32 outputRate;
+} ALSynth;
+
+typedef struct {
+    ALSynth drvr;
+} ALGlobals;
+
+extern ALGlobals *alGlobalsp;
 
 #define AL_SEQP_MIDI_EVT 2
 #define AL_SEQP_VOL_EVT 0xA

@@ -10,8 +10,8 @@
 glabel alAudioFrame
     /* B9714 002B8B14 27BDFFB8 */  addiu      $sp, $sp, -0x48
     /* B9718 002B8B18 AFB10024 */  sw         $s1, 0x24($sp)
-    /* B971C 002B8B1C 3C11800E */  lui        $s1, %hi(D_800D80A0)
-    /* B9720 002B8B20 8E3180A0 */  lw         $s1, %lo(D_800D80A0)($s1)
+    /* B971C 002B8B1C 3C11800E */  lui        $s1, %hi(alGlobalsp)
+    /* B9720 002B8B20 8E3180A0 */  lw         $s1, %lo(alGlobalsp)($s1)
     /* B9724 002B8B24 AFB7003C */  sw         $s7, 0x3C($sp)
     /* B9728 002B8B28 0080B821 */  addu       $s7, $a0, $zero
     /* B972C 002B8B2C AFBE0040 */  sw         $fp, 0x40($sp)

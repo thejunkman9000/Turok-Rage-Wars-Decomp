@@ -276,7 +276,8 @@ pad_0B8114 0xB8114 3 libultra
 alUnlink 0xB8120 12 libultra
 alLink 0xB8150 8 libultra
 alInit 0xB8170 12 libultra
-alClose 0xB81A0 16 libultra
+alClose 0xB81A0 15 libultra
+pad_0B81DC 0xB81DC 1 libultra
 alSndpAllocate 0xB81E0 46 libultra ro=0xCD360:4
 pad_0B8298 0xB8298 2 libultra
 alSndpDeallocate 0xB82A0 20 libultra
@@ -304,27 +305,30 @@ sndp_linker_fragment_B8C78 0xB8C78 2 libultra
 alSynAddPlayer 0xB8C80 20 libultra
 alSynAllocVoice 0xB8CD0 76 libultra
 _allocatePVoice 0xB8E00 48 libultra
-alSynDelete 0xB8EC0 4 libultra
+alSynDelete 0xB8EC0 2 libultra
+pad_0B8EC8 0xB8EC8 2 libultra
 alSynFreeVoice 0xB8ED0 39 libultra
 synth_linker_fragment_B8F6C 0xB8F6C 1 libultra
 alSynSetFXMix 0xB8F70 44 libultra
 alSynSetPan 0xB9020 36 libultra
 alSynSetPitch 0xB90B0 36 libultra
-alSynSetPriority 0xB9140 4 libultra
+alSynSetPriority 0xB9140 2 libultra
+pad_0B9148 0xB9148 2 libultra
 alSynSetVol 0xB9150 46 libultra
 synth_linker_fragment_B9208 0xB9208 2 libultra
 alSynStartVoice 0xB9210 37 libultra
 synth_linker_fragment_B92A4 0xB92A4 2 libultra
 synth_linker_fragment_B92AC 0xB92AC 1 libultra
 alSynStartVoiceParams 0xB92B0 68 libultra
-alSynStopVoice 0xB93C0 32 libultra
+alSynStopVoice 0xB93C0 31 libultra
+pad_0B943C 0xB943C 1 libultra
 alSynNew 0xB9440 181 libultra
 alAudioFrame 0xB9714 109 libultra
 __allocParam 0xB98C8 11 libultra
 __freeParam 0xB98F4 6 libultra
 _freePVoice 0xB990C 16 libultra
 _collectPVoices 0xB994C 21 libultra
-_timeToSamplesNoRound 0xB99A0 16 libultra
+_timeToSamplesNoRound 0xB99A0 16 libultra ro=0xCD3D8:8
 __nextSampleTime 0xB99E0 42 libultra
 _timeToSamplesNoRound_2 0xB9A88 15 libultra
 alMainBusPull 0xB9AC4 58 libultra

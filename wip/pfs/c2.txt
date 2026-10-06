@@ -1,0 +1,12 @@
+wip/c2/alInit.c alInit 0xB8170
+wip/c2/alClose.c alClose 0xB81A0
+wip/c2/alSynAddPlayer.c alSynAddPlayer 0xB8C80
+wip/c2/alSynDelete.c alSynDelete 0xB8EC0
+wip/c2/alSynFreeVoice.c alSynFreeVoice 0xB8ED0
+wip/c2/alSynSetPriority.c alSynSetPriority 0xB9140
+wip/c2/alSynStopVoice.c alSynStopVoice 0xB93C0
+wip/c2/__allocParam.c __allocParam 0xB98C8
+wip/c2/__freeParam.c __freeParam 0xB98F4
+wip/c2/_freePVoice.c _freePVoice 0xB990C
+wip/c2/_collectPVoices.c _collectPVoices 0xB994C
+wip/c2/_timeToSamplesNoRound.c _timeToSamplesNoRound 0xB99A0

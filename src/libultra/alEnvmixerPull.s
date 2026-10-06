@@ -293,8 +293,8 @@ glabel alEnvmixerPull
     /* BA834 002B9C34 080AE727 */  j          .L002B9C9C
     /* BA838 002B9C38 00003021 */   addu      $a2, $zero, $zero
     /* BA83C 002B9C3C 8E02003C */  lw         $v0, 0x3C($s0)
-    /* BA840 002B9C40 3C04800E */  lui        $a0, %hi(D_800D80A0)
-    /* BA844 002B9C44 8C8480A0 */  lw         $a0, %lo(D_800D80A0)($a0)
+    /* BA840 002B9C40 3C04800E */  lui        $a0, %hi(alGlobalsp)
+    /* BA844 002B9C44 8C8480A0 */  lw         $a0, %lo(alGlobalsp)($a0)
     /* BA848 002B9C48 8C43000C */  lw         $v1, 0xC($v0)
     /* BA84C 002B9C4C AC6000D8 */  sw         $zero, 0xD8($v1)
     /* BA850 002B9C50 8C45000C */  lw         $a1, 0xC($v0)

@@ -76,8 +76,8 @@ glabel alFxParamHdl
     /* BB964 002BAD64 00451021 */  addu       $v0, $v0, $a1
     /* BB968 002BAD68 000210C0 */  sll        $v0, $v0, 3
     /* BB96C 002BAD6C 8C830020 */  lw         $v1, 0x20($a0)
-    /* BB970 002BAD70 3C04800E */  lui        $a0, %hi(D_800D80A0)
-    /* BB974 002BAD74 8C8480A0 */  lw         $a0, %lo(D_800D80A0)($a0)
+    /* BB970 002BAD70 3C04800E */  lui        $a0, %hi(alGlobalsp)
+    /* BB974 002BAD74 8C8480A0 */  lw         $a0, %lo(alGlobalsp)($a0)
     /* BB978 002BAD78 46000000 */  add.s      $fv0, $fv0, $fv0
     /* BB97C 002BAD7C 00431021 */  addu       $v0, $v0, $v1
     /* BB980 002BAD80 C4810044 */  lwc1       $fv0f, 0x44($a0)
