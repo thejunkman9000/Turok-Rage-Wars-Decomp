@@ -48,3 +48,4 @@ guMtxF2L           0xBC98C  38  libultra ro=0xCD6DC:4
 guMtxL2F           0xBCA24  38  libultra ro=0xCD6E0:4
 guMtxIdent         0xBC850  59  libultra ro=0xCD6D0:8
 __osViSwapContext  0xC0600 207  libultra ro=0xCD820:12
+osAiSetFrequency   0xBCFB0  70  libultra ro=0xCD770:16

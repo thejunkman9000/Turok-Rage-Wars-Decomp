@@ -41,6 +41,8 @@ SECTIONS
         build/src/libultra/guMtxF2L.o(.text);
         build/src/libultra/guMtxL2F.o(.text);
         build/asm/BCABC.o(.text);
+        build/src/libultra/osAiSetFrequency.o(.text);
+        build/asm/BD0C8.o(.text);
         build/src/libultra/__osAiDeviceBusy.o(.text);
         build/asm/BD174.o(.text);
         build/src/libultra/osContGetReadData.o(.text);
@@ -126,6 +128,8 @@ SECTIONS
         build/src/libultra/guMtxF2L.o(.data);
         build/src/libultra/guMtxL2F.o(.data);
         build/asm/BCABC.o(.data);
+        build/src/libultra/osAiSetFrequency.o(.data);
+        build/asm/BD0C8.o(.data);
         build/src/libultra/__osAiDeviceBusy.o(.data);
         build/asm/BD174.o(.data);
         build/src/libultra/osContGetReadData.o(.data);
@@ -212,6 +216,9 @@ SECTIONS
         build/src/libultra/guMtxF2L.o(.rodata);
         build/src/libultra/guMtxL2F.o(.rodata);
         build/asm/BCABC.o(.rodata);
+        build/assets/data_1.o(.data);
+        build/src/libultra/osAiSetFrequency.o(.rodata);
+        build/asm/BD0C8.o(.rodata);
         build/src/libultra/__osAiDeviceBusy.o(.rodata);
         build/asm/BD174.o(.rodata);
         build/src/libultra/osContGetReadData.o(.rodata);
@@ -252,7 +259,7 @@ SECTIONS
         build/asm/C0554.o(.rodata);
         build/src/libultra/osViSwapBuffer.o(.rodata);
         build/asm/C05F4.o(.rodata);
-        build/assets/data_1.o(.data);
+        build/assets/data_2.o(.data);
         build/src/libultra/__osViSwapContext.o(.rodata);
         build/asm/C093C.o(.rodata);
         build/src/libultra/osCreateMesgQueue.o(.rodata);
@@ -289,7 +296,7 @@ SECTIONS
         build/asm/C2BE8.o(.rodata);
         build/src/libultra/string.o(.rodata);
         build/asm/C3114.o(.rodata);
-        build/assets/data_2.o(.data);
+        build/assets/data_3.o(.data);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -304,6 +311,8 @@ SECTIONS
         build/src/libultra/guMtxF2L.o(.bss);
         build/src/libultra/guMtxL2F.o(.bss);
         build/asm/BCABC.o(.bss);
+        build/src/libultra/osAiSetFrequency.o(.bss);
+        build/asm/BD0C8.o(.bss);
         build/src/libultra/__osAiDeviceBusy.o(.bss);
         build/asm/BD174.o(.bss);
         build/src/libultra/osContGetReadData.o(.bss);

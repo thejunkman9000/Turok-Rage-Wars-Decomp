@@ -2,7 +2,7 @@
 
 ## Toolchain (established by matching real functions byte-for-byte)
 - Compiler: **GCC 2.8.1** (decompals/old-gcc build), flags
-  `-meb -mips2 -mgp32 -mfp32 -G 0 -mno-abicalls -fno-pic -O2 -fforce-addr -fno-builtin -mcpu=r4300`.
+  `-meb -mips2 -mgp32 -mfp32 -G 0 -mno-abicalls -fno-pic -O2 -fforce-addr -fno-builtin -mcpu=r4300 -mips3 -mgp32`.
   - `-fforce-addr`: changes address-calculation scheduling (osSetEventMesg).
   - `-fno-builtin`: the ROM *calls* `memcpy` (in `_VirtualToPhysicalTask`) instead of inlining it.
   - `-mcpu=r4300`: VR4300 scheduling (no load-delay hoisting); fixed osStartThread/osSetThreadPri/osGetTime etc.
@@ -31,19 +31,27 @@ _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo, osSpTaskYield, osSpTaskYi
 osViSetMode, osViSwapBuffer, osViSetSpecialFeatures, osContGetReadData, osPiGetCmdQueue, osPiStartDma,
 osPiRawStartDma, __osAiDeviceBusy, __osSiDeviceBusy, __osSpGetStatus, memcpy, strchr, strlen, __osPiRelAccess,
 __osTimerInterrupt, __osTimerServicesInit, __osSetTimerIntr, __osPackReadData, __osPackRequestData,
-__osContGetInitData, __osSpDeviceBusy, osSetEventMesg, __osDequeueThread.
+__osContGetInitData, __osSpDeviceBusy, osSetEventMesg, __osDequeueThread, guMtxIdent, guMtxIdentF, guMtxF2L,
+guMtxL2F, __osViSwapContext, osAiSetFrequency.
 
-## Blocked on a build feature
-- **Float literal pools**: the original `as` expanded `li.s`/float constants into `.rodata` literals loaded with
-  `lui $at; lwc1 ...($at)`; modern gas emits `lui $at,0x3F80; mtc1`. Needs rodata handling (splat rodata subsegments +
-  an `li.s` -> literal-pool expansion in `gas_compat.py`). Affects `guMtxIdentF` (0xBC93C), `guMtxF2L` (0xBC850),
-  `guMtxL2F` (0xBCA24), `guMtxIdent` and every other float-using function. Sources are in `wip/guMtx*.c`.
+## Float literal pools (solved)
+The original `as` expanded `li.s`/`li.d` into a **per-object literal pool** in `.rodata` (first-use order, duplicates
+shared, doubles 8-aligned) loaded with `lui $at,%hi(pool); lwc1/ldc1 $fN,%lo(pool)($at)`.
+- `tools/gas_compat.py` does the expansion; in the real build the pool address is absolute (`rodata_map.txt` gives the
+  object's rodata ROM offset, `VA = 0x80000000 + ROM - 0xC00`), so the instruction bytes match the ROM.
+- `funcs.txt` lines carry `ro=<rom offset>:<bytes>`; `tools/gen_yaml.py` splits the data blob around those pieces so the
+  object's `.rodata` is linked exactly there (splat `linker_section_order: .rodata` keeps ROM order).
+- `tools/as.sh` assembles `.rodata` in an alignment-1 section too (no padding).
+- To find a function's pool: run it through `tools/try_many.ps1`; the `symbols:` line shows `.rodata=0x800C....`
+  (ROM = VA - 0x80000000 + 0xC00); the number of distinct addresses/entries gives the size.
+- Float ISA: libultra uses **`-mips3 -mgp32`** (packed `$f0-$f3`; the ROM saves odd FP registers in thread contexts).
+- Old gas also kept a `nop` between an FP compare (`c.le.s`) and the `bc1t/bc1tl` that follows.
 
 ## Close but not matching yet (see docs/libultra_locations.txt)
 - `__osPiCreateAccessQueue`/`__osPiGetAccess` (0xBF640): the ROM's first function looks like GetAccess with the
   queue creation inlined; sources in `wip/`.
 - `osSetTimer` 0xC13B0, `osContInit`, `osContStartReadData` (not found at the libreultra position; sources in `wip/`)
-- `__osViSwapContext` 0xC0600 (207 insns), `osCreateViManager`, `osAiSetFrequency` 0xBCFB0, `osAiGetLength`
+- `osCreateViManager`, `osAiSetNextBuffer`, `osAiGetLength`, `guPerspectiveF`, `osInitialize` (115 insns @0xC0B2C), `osCreatePiManager`
 - printf family (`_Printf`, `_Ldtob`, `_Litob`, `sprintf`): libreultra's headers use `__builtin_va_list`, which
   GCC 2.8.1 lacks - needs a `stdarg`-style rewrite.
 

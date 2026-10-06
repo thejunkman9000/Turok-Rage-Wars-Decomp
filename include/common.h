@@ -267,6 +267,10 @@ typedef union {
 #define VI_V_BURST_REG 0x0440002C
 #define VI_X_SCALE_REG 0x04400030
 #define VI_Y_SCALE_REG 0x04400034
+#define AI_LEN_REG 0x04500004
+#define AI_CONTROL_REG 0x04500008
+#define AI_DACRATE_REG 0x04500010
+#define AI_BITRATE_REG 0x04500014
 #define PI_DRAM_ADDR_REG 0x04600000
 #define PI_CART_ADDR_REG 0x04600004
 #define PI_RD_LEN_REG 0x04600008
@@ -309,6 +313,7 @@ extern OSThread *__osThreadTail;
 extern OSThread *__osRunningThread;
 extern OSThread *__osRunQueue;
 extern OSThread *__osActiveQueue;
+extern s32 osViClock;
 extern OSViContext *__osViNext;
 extern OSViContext *__osViCurr;
 extern OSTimer *__osTimerList;
@@ -380,6 +385,7 @@ s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *v
 s32 osPiRawStartDma(s32 dir, u32 cart_addr, void *dram_addr, u32 size);
 s32 osSpTaskYielded(OSTask *task);
 s32 __osAiDeviceBusy(void);
+s32 osAiSetFrequency(u32 freq);
 s32 __osSiDeviceBusy(void);
 u32 __osSpGetStatus(void);
 

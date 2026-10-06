@@ -31,5 +31,5 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
 ## Status
-43 libultra functions are decompiled to matching C (`funcs.txt`, `src/libultra/`); the rest of the ROM is still asm.
+47 libultra function entries (string.c covers 3) are decompiled to matching C (`funcs.txt`, `src/libultra/`); the rest of the ROM is still asm.
 Helpers for finding/diffing functions: `tools/try.ps1`, `tools/try_many.ps1`, `tools/locate.ps1`, `tools/lu_locate_all.py`.

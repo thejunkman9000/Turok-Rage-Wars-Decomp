@@ -65,6 +65,8 @@ segments:
       - [0xBC98C, c, libultra/guMtxF2L]
       - [0xBCA24, c, libultra/guMtxL2F]
       - [0xBCABC, asm]
+      - [0xBCFB0, c, libultra/osAiSetFrequency]
+      - [0xBD0C8, asm]
       - [0xBD160, c, libultra/__osAiDeviceBusy]
       - [0xBD174, asm]
       - [0xBD2C4, c, libultra/osContGetReadData]
@@ -147,8 +149,10 @@ segments:
       - [0xCD6DC, .rodata, libultra/guMtxF2L]
       - [0xCD6E0, .rodata, libultra/guMtxL2F]
       - {start: 0xCD6E4, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD770, .rodata, libultra/osAiSetFrequency]
+      - {start: 0xCD780, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
