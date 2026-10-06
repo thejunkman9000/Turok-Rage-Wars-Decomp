@@ -127,3 +127,12 @@ osContStartReadData = 0x002BC630; // type:func
 osContReset = 0x002BC810; // type:func
 __osPackResetData = 0x002BC91C; // type:func
 osContInit = 0x002BC950; // type:func
+
+// PFS / motor
+__osPfsGetStatus = 0x004479D0; // type:func
+__osPfsPifRam = 0x80154110;
+__osMotorInitialized = 0x800D8380;
+__osMotorStartData = 0x8014D4C0;
+__osMotorStartBuf = 0x8014D5C0;
+__osMotorStopData = 0x8014D5E0;
+__osMotorStopBuf = 0x8014D6E0;

@@ -12,6 +12,7 @@ code = open('tools/lu_match.py').read().split("tot = ex = 0")[0]
 exec(compile(code, 'lu_match', 'exec'))
 ROOTD = os.path.expanduser('~/trw')
 okf = open('chk_ok.txt', 'w')
+CACHE = {}
 
 for line in open(list_file):
     line = line.split('#')[0].strip()
@@ -21,7 +22,11 @@ for line in open(list_file):
     extra[:] = f[3:] if len(f) > 3 else ['-O2', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
     full = path if os.path.isabs(path) else f'{ROOTD}/src/libultra/{path}'
     if not os.path.exists(full): full = f'{ROOTD}/{path}'
-    res, err = compile_funcs(full)
+    key = (full, tuple(extra))
+    if key not in CACHE:
+        CACHE[key] = (compile_funcs(full), dict(LAST))
+    (res, err), last = CACHE[key]
+    LAST.clear(); LAST.update(last)
     if res is None:
         print(f'{func:28s} COMPILE FAIL: {err}'); continue
     text, syms, relocs, relnames = res

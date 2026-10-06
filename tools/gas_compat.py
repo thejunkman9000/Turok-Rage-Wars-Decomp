@@ -7,65 +7,78 @@ usage: gas_compat.py <lu|game> <file.s> [rodata_va]      (rewrites the file in p
   * 3-operand `div/rem/divu/remu` -> explicit expansion         (old gas: div; bnez; nop; break 7; ...; mfhi/mflo;
                                     modern gas moves the div into the bnez delay slot)
   * game code only: `j $31`       -> `j $31; nop` in noreorder  (old gas never filled the return delay slot)
-  * `li.s $fN,<float>`           -> `lui $at,%hi(pool); lwc1 $fN,%lo(pool)($at)`, with the literals collected in a
-                                    per-object pool in `.rodata` (first-use order, duplicates shared) - old gas
-                                    behaviour. With `rodata_va` the pool is addressed absolutely (the real build:
-                                    the pool is linked at a fixed ROM spot); without it a local label is used so the
-                                    diff tools see relocations.
+  * `li.s/li.d $fN,<value>`      -> `lui $at,%hi(lit); lwc1/ldc1 $fN,%lo(lit)($at)`, with the literals collected in a
+                                    per-object pool at the end of `.rodata` (first-use order, duplicates shared;
+                                    floats 4-aligned, doubles 8-aligned) - old gas behaviour.
   * libultra only: old gas only filled a RETURN's delay slot (and never with a load); every call/branch that GCC
                     left to the assembler keeps a nop slot (modern gas would move the previous instruction in).
+                    A nop also sits between an FP compare and the following bc1t/bc1f.
+
+rodata: GCC's `.rdata` (strings, jump tables) and the literal pool are one `.rodata` section. With `rodata_va` (the real
+build, where the object's rodata is linked at a fixed ROM spot / KSEG0 address) every reference to a rodata label from
+code is replaced by its absolute address (found by assembling once with `as -L`), and the pool uses explicit padding so
+no alignment directive changes the section size. Without `rodata_va` (diff tools) labels stay relocatable.
 """
-import re, sys, struct
+import os, re, struct, subprocess, sys, tempfile
 
 REG = r'(\$[a-z0-9]+)'
 move_re = re.compile(rf'^([ \t]*)move[ \t]+{REG},[ \t]*{REG}[ \t]*$')
 div_re = re.compile(rf'^([ \t]*)(div|divu|rem|remu)[ \t]+{REG},[ \t]*{REG},[ \t]*{REG}[ \t]*$')
 ret_re = re.compile(r'^([ \t]*)j[ \t]+\$31[ \t]*$')
-lis_re = re.compile(r'^([ 	]*)li\.s[ 	]+(\$f\d+),[ 	]*(\S+)[ 	]*$')
-lid_re = re.compile(r'^([ 	]*)li\.d[ 	]+(\$f\d+),[ 	]*(\S+)[ 	]*$')
-
-
-class Pool:
-    """Per-object literal pool (.rodata): 4-byte floats and 8-byte-aligned doubles, first-use order, deduplicated."""
-
-    def __init__(self):
-        self.items = []          # (offset, size, value)
-        self.size = 0
-
-    def add(self, size, value):
-        for off, sz, val in self.items:
-            if sz == size and val == value:
-                return off
-        if size == 8 and self.size % 8:
-            self.size += 4       # align doubles to 8 (explicit zero pad emitted below)
-        off = self.size
-        self.items.append((off, size, value))
-        self.size += size
-        return off
-
-    def emit(self):
-        out, cur = ['	.section	.rodata'], 0
-        for off, size, value in self.items:
-            if off > cur:
-                out.append('	.word	0')
-            out.append(f'.LFL{off}:')
-            if size == 4:
-                out.append(f'	.word	0x{value:08X}')
-            else:
-                out.append(f'	.word	0x{value >> 32:08X}')
-                out.append(f'	.word	0x{value & 0xFFFFFFFF:08X}')
-            cur = off + size
-        out.append('	.text')
-        return out
-
+lis_re = re.compile(r'^([ \t]*)li\.s[ \t]+(\$f\d+),[ \t]*(\S+)[ \t]*$')
+lid_re = re.compile(r'^([ \t]*)li\.d[ \t]+(\$f\d+),[ \t]*(\S+)[ \t]*$')
 imm_div_re = re.compile(r'^[ \t]*(div|divu|rem|remu)[ \t]+\$[a-z0-9]+,[ \t]*\$[a-z0-9]+,[ \t]*[-0-9xXa-fA-F]+[ \t]*$')
+rdata_re = re.compile(r'^[ \t]*(\.rdata|\.section[ \t]+\.rdata\b.*|\.section[ \t]+\.rodata\b.*)$')
+mnem_re = re.compile(r'^[ \t]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
+label_tok_re = re.compile(r'[$.][A-Za-z_][A-Za-z0-9_]*')
 
 _label = [0]
 
 BRANCHES = {'j', 'jal', 'jr', 'jalr', 'b', 'beq', 'bne', 'beqz', 'bnez', 'bgez', 'bgtz', 'blez', 'bltz',
             'bgezal', 'bltzal', 'bc1t', 'bc1f'}
 LOADS = {'lb', 'lbu', 'lh', 'lhu', 'lw', 'lwl', 'lwr', 'lwc1', 'ld', 'ldc1', 'll', 'l.s', 'l.d'}
-mnem_re = re.compile(r'^[ 	]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
+
+
+class Pool:
+    """Per-object literal pool: 4-byte floats and 8-byte doubles, first-use order, deduplicated."""
+
+    def __init__(self):
+        self.items = []          # (size, value)
+
+    def add(self, size, value):
+        for i, it in enumerate(self.items):
+            if it == (size, value):
+                return i
+        self.items.append((size, value))
+        return len(self.items) - 1
+
+    @staticmethod
+    def _data(size, value):
+        if size == 4:
+            return [f'\t.word\t0x{value:08X}']
+        return [f'\t.word\t0x{value >> 32:08X}', f'\t.word\t0x{value & 0xFFFFFFFF:08X}']
+
+    def emit_aligned(self):
+        """Pool with alignment directives (used to learn the label offsets, or by the diff tools)."""
+        out = ['\t.section\t.rodata', '.LFLS:']
+        for i, (size, value) in enumerate(self.items):
+            out.append('\t.align\t2' if size == 4 else '\t.align\t3')
+            out.append(f'.LFL{i}:')
+            out += self._data(size, value)
+        out.append('\t.text')
+        return out
+
+    def emit_explicit(self, start, offsets):
+        """Pool with explicit padding (no alignment directive, so the section keeps alignment 1)."""
+        out, cur = ['\t.section\t.rodata'], start
+        for i, (size, value) in enumerate(self.items):
+            if offsets[i] > cur:
+                out.append(f'\t.space\t{offsets[i] - cur}')
+            out += self._data(size, value)
+            cur = offsets[i] + size
+        out.append('\t.text')
+        return out
+
 
 def expand_div(ind, op, rd, rs, rt):
     _label[0] += 1
@@ -73,13 +86,62 @@ def expand_div(ind, op, rd, rs, rt):
     a, b = f'.Ldiv{n}a', f'.Ldiv{n}b'
     signed = op in ('div', 'rem')
     res = 'mfhi' if op in ('rem', 'remu') else 'mflo'
-    L = [f'.set noreorder', f'.set nomacro', f'.set noat',
+    L = ['.set noreorder', '.set nomacro', '.set noat',
          f'{"div" if signed else "divu"} $0,{rs},{rt}',
          f'bnez {rt},{a}', 'nop', 'break 7', f'{a}:']
     if signed:
         L += ['addiu $1,$0,-1', f'bne {rt},$1,{b}', 'lui $1,0x8000', f'bne {rs},$1,{b}', 'nop', 'break 6', f'{b}:']
     L += [f'{res} {rd}', '.set at', '.set macro', '.set reorder']
     return '\n'.join(ind + x for x in L)
+
+
+def rodata_labels(text):
+    """Assemble `text` once (keeping local labels) and return {label: offset in .rodata}."""
+    with tempfile.TemporaryDirectory() as d:
+        obj = os.path.join(d, 'p.o')
+        r = subprocess.run(['mips-linux-gnu-as', '-EB', '-march=vr4300', '-mabi=32', '-mno-pdr', '-W', '-L',
+                            '-I', 'include', '-I', '.', '-o', obj, '-'],
+                           input=text, capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError('gas_compat: pass-1 assemble failed:\n' + r.stderr)
+        secs = subprocess.run(['mips-linux-gnu-readelf', '-SW', obj], capture_output=True, text=True).stdout
+        idx = None
+        for line in secs.split('\n'):
+            m = re.match(r'\s*\[\s*(\d+)\]\s+(\S+)', line)
+            if m and m.group(2) == '.rodata':
+                idx = m.group(1)
+        if idx is None:
+            return {}
+        syms = subprocess.run(['mips-linux-gnu-readelf', '-sW', obj], capture_output=True, text=True).stdout
+        offsets = {}
+        for line in syms.split('\n'):
+            f = line.split()
+            if len(f) >= 8 and f[6] == idx and f[7] != '.rodata':
+                offsets[f[7]] = int(f[1], 16)
+        return offsets
+
+
+def finalize_rodata(base_lines, pool, ro_va):
+    """Resolve rodata label references to absolute addresses and re-emit the pool with explicit padding."""
+    pass1 = '\n'.join(base_lines + (pool.emit_aligned() if pool.items else []))
+    offsets = rodata_labels(pass1)
+    if not offsets:
+        return '\n'.join(base_lines)
+    absaddr = {name: ro_va + off for name, off in offsets.items()}
+
+    def sub(line):
+        st = line.strip()
+        if not st or st.endswith(':') or st.startswith('#'):
+            return line
+        if st.startswith('.') and not st.startswith('.word'):
+            return line
+        return label_tok_re.sub(lambda m: f'0x{absaddr[m.group(0)]:08X}' if m.group(0) in absaddr else m.group(0), line)
+
+    out = [sub(l) for l in '\n'.join(base_lines).split('\n')]
+    if pool.items:
+        out += pool.emit_explicit(offsets['.LFLS'], [offsets[f'.LFL{i}'] for i in range(len(pool.items))])
+    return '\n'.join(out)
+
 
 def fix(text, mode, ro_va=None):
     out = []
@@ -88,6 +150,10 @@ def fix(text, mode, ro_va=None):
     prev = None              # mnemonic of the previous real instruction; None after a label/directive
     for line in text.split('\n'):
         st = line.strip()
+        if rdata_re.match(line):
+            out.append('\t.section\t.rodata')       # GCC's .rdata and our pool are the same section
+            prev = None
+            continue
         if st.startswith('.set'):
             if 'noreorder' in st:
                 noreorder = True
@@ -101,29 +167,19 @@ def fix(text, mode, ro_va=None):
         m = lid_re.match(line)
         if m:
             value = struct.unpack('>Q', struct.pack('>d', float(m.group(3))))[0]
-            off = pool.add(8, value)
+            ref = f'.LFL{pool.add(8, value)}'
             ind = m.group(1)
-            ref = f'0x{ro_va + off:08X}' if ro_va is not None else f'.LFL{off}'
-            out.append('\n'.join([
-                f'{ind}.set\tnoat',
-                f'{ind}lui\t$1,%hi({ref})',
-                f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)',
-                f'{ind}.set\tat',
-            ]))
+            out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
+                                  f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat']))
             prev = 'ldc1'
             continue
         m = lis_re.match(line)
         if m:
             word = struct.unpack('>I', struct.pack('>f', float(m.group(3))))[0]
-            off = pool.add(4, word)
+            ref = f'.LFL{pool.add(4, word)}'
             ind = m.group(1)
-            ref = f'0x{ro_va + off:08X}' if ro_va is not None else f'.LFL{off}'
-            out.append('\n'.join([
-                f'{ind}.set\tnoat',
-                f'{ind}lui\t$1,%hi({ref})',
-                f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)',
-                f'{ind}.set\tat',
-            ]))
+            out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
+                                  f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat']))
             prev = 'lwc1'
             continue
         if imm_div_re.match(line):
@@ -144,7 +200,7 @@ def fix(text, mode, ro_va=None):
             out.append(f'{ind}.set\tnoreorder\n{ind}j\t$31\n{ind}nop\n{ind}.set\treorder')
             prev = None
             continue
-        # old gas kept a nop between an FP compare and the following bc1t/bc1f (no VR4300 interlock knowledge)
+        # old gas kept a nop between an FP compare and the following bc1t/bc1f
         if mode == 'lu' and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
@@ -166,9 +222,13 @@ def fix(text, mode, ro_va=None):
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
                 prev = None
+
+    if ro_va is not None:
+        return finalize_rodata(out, pool, ro_va)
     if pool.items:
-        out.extend(pool.emit())
+        out.extend(pool.emit_aligned())
     return '\n'.join(out)
+
 
 if __name__ == '__main__':
     mode, path = sys.argv[1], sys.argv[2]

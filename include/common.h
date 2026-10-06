@@ -193,6 +193,44 @@ typedef struct {
     OSMesg message;
 } __OSEventState;
 
+/* Controller Pak / Rumble Pak support */
+#define BLOCKSIZE 32
+#define CONT_BLOCK_DETECT 0x400
+#define PFS_ERR_NOPACK 1
+#define PFS_ERR_NEW_PACK 2
+#define PFS_ERR_CONTRFAIL 4
+#define PFS_ERR_INVALID 5
+#define PFS_ERR_DEVICE 11
+#define CHNL_ERR(format) (((format).rxsize & 0xC0) >> 4)
+
+typedef struct {
+    u8 dummy;
+    u8 txsize;
+    u8 rxsize;
+    u8 cmd;
+    u16 address;
+    u8 data[BLOCKSIZE];
+    u8 datacrc;
+} __OSContRamReadFormat;
+
+typedef __OSContRamReadFormat __OSContRamWriteFormat;
+
+typedef struct {
+    /* 0x00 */ s32 status;
+    /* 0x04 */ OSMesgQueue *queue;
+    /* 0x08 */ s32 channel;
+    /* 0x0C */ u8 id[32];
+    /* 0x2C */ u8 label[32];
+    /* 0x4C */ s32 version;
+    /* 0x50 */ s32 dir_size;
+    /* 0x54 */ s32 inode_table;
+    /* 0x58 */ s32 minode_table;
+    /* 0x5C */ s32 dir_table;
+    /* 0x60 */ s32 inode_start_page;
+    /* 0x64 */ u8 banks;
+    /* 0x65 */ u8 activebank;
+} OSPfs;
+
 typedef struct OSTimer_s {
     /* 0x00 */ struct OSTimer_s *next;
     /* 0x04 */ struct OSTimer_s *prev;
@@ -327,6 +365,12 @@ extern u32 __osContPifStatus; /* word 15 of the 64-byte PIF RAM image */
 extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
+extern OSPifRam __osPfsPifRam;
+extern s32 __osMotorInitialized[4];
+extern OSPifRam __osMotorStartData[4];
+extern u8 __osMotorStartBuf[BLOCKSIZE];
+extern OSPifRam __osMotorStopData[4];
+extern u8 __osMotorStopBuf[BLOCKSIZE];
 extern s32 __osContinitialized;
 extern OSMesgQueue __osContMesgQueue;
 extern OSMesg __osContMesgBuff[4];
@@ -366,6 +410,16 @@ const u8 *strchr(const u8 *str, u32 ch);
 void osContGetReadData(OSContPad *pad);
 s32 osContStartReadData(OSMesgQueue *mq);
 void __osPackReadData(void);
+s32 osMotorInit(OSMesgQueue *mq, OSPfs *pfs, int channel);
+s32 osMotorStart(OSPfs *pfs);
+s32 osMotorStop(OSPfs *pfs);
+s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer);
+s32 __osContRamWrite(OSMesgQueue *mq, int channel, u16 address, u8 *buffer, int force);
+void __osPackRamReadData(int channel, u16 address);
+void __osPackRamWriteData(int channel, u16 address, u8 *buffer);
+u8 __osContAddressCrc(u32 addr);
+u8 __osContDataCrc(u8 *data);
+s32 __osPfsGetStatus(OSMesgQueue *queue, int channel);
 void __osPackResetData(void);
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *data);
 s32 osContReset(OSMesgQueue *mq, OSContStatus *data);
