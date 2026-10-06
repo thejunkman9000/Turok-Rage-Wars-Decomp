@@ -1,4 +1,4 @@
-func_002B8E88  _timeToSamplesNoRound  med  # (ALSynth*, micros) -> (s32)(micros*outputRate(0x44)/1e6 + 0.5); called from alAudioFrame (func_002B8B14), result masked by caller
+func_002B8E88  _timeToSamplesNoRound_2  med  # (ALSynth*, micros) -> (s32)(micros*outputRate(0x44)/1e6 + 0.5); called from alAudioFrame (func_002B8B14), result masked by caller
 func_002B8EC4  alMainBusPull  high  # real entry is func_002B8EC4+0xC (3 leading padding words); aClearBuffer 0x6C0/0x800 then calls each source's pull handler; installed by alMainBusNew
 func_002B8FAC  alMainBusParam  high  # setParam: only AL_FILTER_ADD_SOURCE (2) -> sources[sourceCount++] = param
 func_002B8FE0  alFxNew  high  # reverb: alFilterNew(type 5 AL_FX), handler=func_002BA8C0 (alFxPull), paramHdl=func_002BAC64, picks delay table by fxType (jtbl), allocs delays/lowpass state, inits lowpass coefs
@@ -11,11 +11,11 @@ func_002B96AC  alEnvmixerNew  high  # alFilterNew(alEnvmixerPull, alEnvmixerPara
 func_002B975C  init_lpfilter  high  # reverb.c static: zero fstate[8], fgain=0x4000-fc/2, builds fcoef table via repeated mul; called from alFxParamHdl (func_002BAC64); same code inlined in alFxNew
 func_002B9800  alEnvmixerPull  high  # env.c: ctrl list event switch (jtbl, 0x..0x10 events), __assert(delta>=0 / <=UPDATE_SIZE 0xA0), calls _pullSubFrame, uses vol curve table D_800D8240
 func_002B9D4C  _pullSubFrame  high  # env.c static: pulls source, emits aSetBuffer/aLoadBuffer(0x08..)/aEnvMixer cmds (0x09xx0000 aSetVol, 0x03 aLoadBuffer/aSaveBuffer w/ osVirtualToPhysical), assert(source) line 0x16E, updates vol/rate via _getRate
-func_002BA038  _getRate  high  # env.c static: computes envelope ramp rate (m/l halves) from (vol, tgt, count, *ratel) using inlined frexp/ldexp and a pow loop; returns s16 ratem
+func_002BA038  _getRate  high  # env.c static: computes envelope ramp rate (m/l halves) from (vol, tgt, count, *ratel) using inlined libm_frexp/libm_ldexp and a pow loop; returns s16 ratem
 func_002BA288  alEnvmixerParam  high  # setParam switch on AL_FILTER_{SET_SOURCE=1,ADD_UPDATE=3,RESET=4,START=9...}; forwards to source->setParam
 func_002BA358  _getVol  high  # env.c: given ivol (f32), samples>>3, ratem, ratel -> iterated pow multiply (square-and-multiply) volume after n steps
-func_002BA3D0  frexp  med  # standalone frexp(double, int*): normalises to [0.5,1) counting exponent into *ex (same code inlined into _getRate)
-func_002BA484  ldexp  low  # double*(1<<n) if n!=0 (positive-exponent ldexp helper, same code inlined into _getRate); 3 trailing padding words
+func_002BA3D0  libm_frexp  med  # standalone frexp(double, int*): normalises to [0.5,1) counting exponent into *ex (same code inlined into _getRate)
+func_002BA484  libm_ldexp  low  # double*(1<<n) if n!=0 (positive-exponent ldexp helper, same code inlined into _getRate); 3 trailing padding words
 func_002BA4B0  alFilterNew  high  # f->source=0, handler=a1, setParam=a2, inp/outp=0, type=a3
 func_002BA4CC  alAuxBusPull  high  # real entry is func_002BA4CC+4 (1 leading padding word); aClearBuffer 0x440/0x580, calls each source's pull, aMix 0x0C007FFF into aux L/R
 func_002BA610  alAuxBusParam  high  # identical to alMainBusParam: AL_FILTER_ADD_SOURCE(2) appends source
