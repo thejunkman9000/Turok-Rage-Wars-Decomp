@@ -41,7 +41,7 @@ def compile_funcs(src):
     base = os.path.basename(src)[:-2]
     cp = f'{tmp}/{base}.c'; open(cp, 'w').write(open(src).read())
     flags = ' '.join(extra) or '-O2'
-    isa = os.environ.get('LU_ISA', '-mips2 -mgp32 -mfp32')   # override e.g. LU_ISA="-mips3 -mgp32 -mfp32"
+    isa = os.environ.get('LU_ISA', '-mips3 -mgp32')   # override e.g. LU_ISA="-mips2 -mgp32 -mfp32"
     r = sh(f"cd {tmp} && {G}/gcc -B{G}/ -meb {isa} -G 0 -mno-abicalls -fno-pic {flags} "
            f"-I{os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))} -I{LU}/include -I{LU}/include/PR -I{LU}/lib/src -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -DTARGET_N64 -D_FINALROM -DNDEBUG -S -o {base}.s {base}.c")
     if r.returncode:

@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """Make modern gas reproduce what the original (1990s) assembler produced from GCC's output.
 
-usage: gas_compat.py <lu|game> <file.s>      (rewrites the file in place)
+usage: gas_compat.py <lu|game> <file.s> [rodata_va]      (rewrites the file in place)
 
   * `move rd,rs`                 -> `addu rd,rs,$0`            (old gas; modern gas emits `or`)
   * 3-operand `div/rem/divu/remu` -> explicit expansion         (old gas: div; bnez; nop; break 7; ...; mfhi/mflo;
                                     modern gas moves the div into the bnez delay slot)
   * game code only: `j $31`       -> `j $31; nop` in noreorder  (old gas never filled the return delay slot)
+  * `li.s $fN,<float>`           -> `lui $at,%hi(pool); lwc1 $fN,%lo(pool)($at)`, with the literals collected in a
+                                    per-object pool in `.rodata` (first-use order, duplicates shared) - old gas
+                                    behaviour. With `rodata_va` the pool is addressed absolutely (the real build:
+                                    the pool is linked at a fixed ROM spot); without it a local label is used so the
+                                    diff tools see relocations.
   * libultra only: old gas only filled a RETURN's delay slot (and never with a load); every call/branch that GCC
                     left to the assembler keeps a nop slot (modern gas would move the previous instruction in).
 """
-import re, sys
+import re, sys, struct
 
 REG = r'(\$[a-z0-9]+)'
 move_re = re.compile(rf'^([ \t]*)move[ \t]+{REG},[ \t]*{REG}[ \t]*$')
 div_re = re.compile(rf'^([ \t]*)(div|divu|rem|remu)[ \t]+{REG},[ \t]*{REG},[ \t]*{REG}[ \t]*$')
 ret_re = re.compile(r'^([ \t]*)j[ \t]+\$31[ \t]*$')
+lis_re = re.compile(r'^([ 	]*)li\.s[ 	]+(\$f\d+),[ 	]*(\S+)[ 	]*$')
+lid_re = re.compile(r'^[ 	]*li\.d')
 imm_div_re = re.compile(r'^[ \t]*(div|divu|rem|remu)[ \t]+\$[a-z0-9]+,[ \t]*\$[a-z0-9]+,[ \t]*[-0-9xXa-fA-F]+[ \t]*$')
 
 _label = [0]
@@ -39,8 +46,9 @@ def expand_div(ind, op, rd, rs, rt):
     L += [f'{res} {rd}', '.set at', '.set macro', '.set reorder']
     return '\n'.join(ind + x for x in L)
 
-def fix(text, mode):
+def fix(text, mode, ro_va=None):
     out = []
+    pool = []                # float literal pool for this object: list of 32-bit words
     noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
     prev = None              # mnemonic of the previous real instruction; None after a label/directive
     for line in text.split('\n'):
@@ -55,6 +63,24 @@ def fix(text, mode):
             mm = mnem_re.match(line)
         this = mm.group(1) if mm else None
 
+        if lid_re.match(line):
+            sys.stderr.write(f'gas_compat: li.d (double literal) not handled: {line.strip()}\n')
+        m = lis_re.match(line)
+        if m:
+            word = struct.unpack('>I', struct.pack('>f', float(m.group(3))))[0]
+            if word not in pool:
+                pool.append(word)
+            idx = pool.index(word)
+            ind = m.group(1)
+            ref = f'0x{ro_va + 4 * idx:08X}' if ro_va is not None else f'.LFL{idx}'
+            out.append('\n'.join([
+                f'{ind}.set\tnoat',
+                f'{ind}lui\t$1,%hi({ref})',
+                f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)',
+                f'{ind}.set\tat',
+            ]))
+            prev = 'lwc1'
+            continue
         if imm_div_re.match(line):
             sys.stderr.write(f'gas_compat: immediate div form not handled: {line.strip()}\n')
         m = div_re.match(line)
@@ -87,9 +113,16 @@ def fix(text, mode):
         elif st and (st.endswith(':') or st.startswith('$') or st.startswith('.')):
             if not st.startswith(('.set', '.loc', '.ent', '.end', '.frame', '.mask', '.fmask')):
                 prev = None
+    if pool:
+        out.append('\t.section\t.rodata')
+        for i, w in enumerate(pool):
+            out.append(f'.LFL{i}:')
+            out.append(f'\t.word\t0x{w:08X}')
+        out.append('\t.text')
     return '\n'.join(out)
 
 if __name__ == '__main__':
     mode, path = sys.argv[1], sys.argv[2]
+    ro_va = int(sys.argv[3], 0) if len(sys.argv) > 3 else None
     s = open(path).read()
-    open(path, 'w', newline='\n').write(fix(s, mode))
+    open(path, 'w', newline='\n').write(fix(s, mode, ro_va))

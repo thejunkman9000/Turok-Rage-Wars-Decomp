@@ -43,3 +43,7 @@ __osContGetInitData 0xBD7A8 45  libultra
 __osSpDeviceBusy   0xBFCA0   6  libultra
 osSetEventMesg     0xC1240  23  libultra
 __osDequeueThread  0xC1560  13  libultra
+guMtxIdentF        0xBC93C  20  libultra ro=0xCD6D8:4
+guMtxF2L           0xBC98C  38  libultra ro=0xCD6DC:4
+guMtxL2F           0xBCA24  38  libultra ro=0xCD6E0:4
+guMtxIdent         0xBC850  59  libultra ro=0xCD6D0:8

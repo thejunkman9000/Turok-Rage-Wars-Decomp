@@ -36,6 +36,11 @@ SECTIONS
         FILL(0x00000000);
         main_TEXT_START = .;
         build/asm/entry.o(.text);
+        build/src/libultra/guMtxIdent.o(.text);
+        build/src/libultra/guMtxIdentF.o(.text);
+        build/src/libultra/guMtxF2L.o(.text);
+        build/src/libultra/guMtxL2F.o(.text);
+        build/asm/BCABC.o(.text);
         build/src/libultra/__osAiDeviceBusy.o(.text);
         build/asm/BD174.o(.text);
         build/src/libultra/osContGetReadData.o(.text);
@@ -114,6 +119,11 @@ SECTIONS
         main_TEXT_SIZE = ABSOLUTE(main_TEXT_END - main_TEXT_START);
         main_DATA_START = .;
         build/asm/entry.o(.data);
+        build/src/libultra/guMtxIdent.o(.data);
+        build/src/libultra/guMtxIdentF.o(.data);
+        build/src/libultra/guMtxF2L.o(.data);
+        build/src/libultra/guMtxL2F.o(.data);
+        build/asm/BCABC.o(.data);
         build/src/libultra/__osAiDeviceBusy.o(.data);
         build/asm/BD174.o(.data);
         build/src/libultra/osContGetReadData.o(.data);
@@ -188,11 +198,16 @@ SECTIONS
         build/asm/C2BE8.o(.data);
         build/src/libultra/string.o(.data);
         build/asm/C3114.o(.data);
-        build/assets/rsp_and_data_unsplit.o(.data);
+        build/assets/rsp_and_data_0.o(.data);
         main_DATA_END = .;
         main_DATA_SIZE = ABSOLUTE(main_DATA_END - main_DATA_START);
         main_RODATA_START = .;
         build/asm/entry.o(.rodata);
+        build/src/libultra/guMtxIdent.o(.rodata);
+        build/src/libultra/guMtxIdentF.o(.rodata);
+        build/src/libultra/guMtxF2L.o(.rodata);
+        build/src/libultra/guMtxL2F.o(.rodata);
+        build/asm/BCABC.o(.rodata);
         build/src/libultra/__osAiDeviceBusy.o(.rodata);
         build/asm/BD174.o(.rodata);
         build/src/libultra/osContGetReadData.o(.rodata);
@@ -267,6 +282,7 @@ SECTIONS
         build/asm/C2BE8.o(.rodata);
         build/src/libultra/string.o(.rodata);
         build/asm/C3114.o(.rodata);
+        build/assets/data_1.o(.data);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -276,6 +292,11 @@ SECTIONS
         FILL(0x00000000);
         main_BSS_START = .;
         build/asm/entry.o(.bss);
+        build/src/libultra/guMtxIdent.o(.bss);
+        build/src/libultra/guMtxIdentF.o(.bss);
+        build/src/libultra/guMtxF2L.o(.bss);
+        build/src/libultra/guMtxL2F.o(.bss);
+        build/asm/BCABC.o(.bss);
         build/src/libultra/__osAiDeviceBusy.o(.bss);
         build/asm/BD174.o(.bss);
         build/src/libultra/osContGetReadData.o(.bss);

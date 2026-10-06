@@ -99,3 +99,9 @@ __osContLastCmd = 0x8014D4B0;
 // event messages / thread queues
 osSetEventMesg = 0x002C0640; // type:func
 __osEventStateTab = 0x8014FDA0;
+
+// gu matrix helpers
+guMtxIdentF = 0x002BBD3C; // type:func
+guMtxF2L = 0x002BBD8C; // type:func
+guMtxL2F = 0x002BBE24; // type:func
+guMtxIdent = 0x002BBC50; // type:func
