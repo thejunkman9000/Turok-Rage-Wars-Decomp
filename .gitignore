@@ -18,3 +18,5 @@ undefined_*_auto.txt
 !extra_syms.ld
 tools/gcc/
 build_ud.json
+ud_json/
+scan_all.txt

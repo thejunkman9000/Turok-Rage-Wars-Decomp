@@ -65,6 +65,7 @@ def compile_funcs(src):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
         if end > a:
             size = end - a
+            size -= size % 4
             fw = struct.unpack('>%dI' % (size // 4), text[a:a + size])
             rets = [k for k, w in enumerate(fw) if w == 0x03E00008]
             if rets: size = 4 * (rets[-1] + 2)      # drop alignment padding after the last return

@@ -58,3 +58,18 @@ __osActiveQueue = 0x800D929C;
 osCreateThread = 0x002BFD80; // type:func
 osDestroyThread = 0x002C1F10; // type:func
 __osCleanupThread = 0x002C185C; // type:func
+
+// controller / PI / VI / string batch
+osContGetReadData = 0x002BC6C4; // type:func
+osPiGetCmdQueue = 0x002BDE70; // type:func
+osViSetSpecialFeatures = 0x002BF7F0; // type:func
+__osPiRelAccess = 0x002BEB00; // type:func
+__osAiDeviceBusy = 0x002BC560; // type:func
+__osSiDeviceBusy = 0x002BEE60; // type:func
+__osSpGetStatus = 0x002BF280; // type:func
+strchr = 0x002C24B8; // type:func
+strlen = 0x002C24F0; // type:func
+__osContBuffer = 0x8014D470;
+__osContNumControllers = 0x8014D46C;
+__osPiDevMgr = 0x800D8390;
+__osPiAccessQueue = 0x8014EA58;
