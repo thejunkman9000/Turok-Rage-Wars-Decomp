@@ -152,9 +152,9 @@ func_002C51A0 0xC5DA0 47 libultra
 func_002C525C 0xC5E5C 40 libultra
 func_002C52FC 0xC5EFC 4 libultra
 func_002C530C 0xC5F0C 5 libultra
-func_002C5320 0xC5F20 380 libultra
-func_002C5910 0xC6510 352 libultra
-func_002C5E90 0xC6A90 352 libultra
+__divdi3 0xC5F20 380 libultra
+__moddi3 0xC6510 352 libultra
+__udivdi3 0xC6A90 352 libultra
 func_002AE380 0xAEF80 139 libultra
 func_002AE5AC 0xAF1AC 162 libultra
 func_002AE834 0xAF434 160 libultra
@@ -438,3 +438,7 @@ pad_0C18A4 0xC18A4 3 libultra
 pad_0C1958 0xC1958 2 libultra
 pad_0C2BE8 0xC2BE8 2 libultra
 pad_0C3114 0xC3114 3 libultra
+__umoddi3 0xC7020 320 libultra
+__floatdidf 0xC7520 56 libultra
+__floatdisf 0xC7600 44 libultra
+pad_0C7010 0xC7010 4 libultra

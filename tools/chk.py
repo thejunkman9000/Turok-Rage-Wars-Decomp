@@ -60,6 +60,33 @@ for line in open(list_file):
             base = min(addrs)
             pool = f'  ro=0x{(base & 0x1FFFFFFF) + 0xC00:X}:{len(ro)}'
     status = 'EXACT' if not bad else f'{len(bad)} words differ'
+    if bad:
+        import difflib
+        def mn(w):
+            op = w >> 26
+            if op == 0: return ('s', w & 0x3F)
+            if op == 1: return ('r', (w >> 16) & 0x1F)
+            if op == 0x11:
+                rs = (w >> 21) & 0x1F
+                return ('c', rs, w & 0x3F) if rs in (16, 17) else ('c', rs, (w >> 16) & 3)
+            return op
+        rw2 = words(rom[rom_hex:rom_hex + size + 64])
+        a_mn = [mn(w) for w in fw]; b_mn = [mn(w) for w in rw2]
+        sm = difflib.SequenceMatcher(None, a_mn, b_mn, autojunk=False)
+        score = 0
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == 'equal':
+                for k in range(i1, i2):
+                    m = 0xFFFFFFFF ^ relocs.get(off + 4 * k, 0)
+                    kind = a_mn[k]
+                    if kind in (2, 3):
+                        m &= 0xFC000000
+                    elif kind in (4, 5, 6, 7, 20, 21, 22, 23) or (isinstance(kind, tuple) and (kind[0] == 'r' and kind[1] < 4 or kind[0] == 'c' and kind[1] == 8)):
+                        m &= 0xFFFF0000
+                    if (fw[k] & m) != (rw2[j1 + (k - i1)] & m): score += 1
+            else:
+                score += max(i2 - i1, j2 - j1) + 2
+        status += f'  score={score}'
     print(f'{func:28s} {n:4d} insns  {status}{pool}')
     if not bad:
         sub = os.path.dirname(path) or 'libultra'

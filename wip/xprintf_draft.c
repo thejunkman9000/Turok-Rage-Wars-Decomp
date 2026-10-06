@@ -27,7 +27,7 @@ typedef struct {
 
 #define MAX_PAD 32
 
-#define isdigit(c) ((u32)((c) - '0') < 10)
+#define isdigit(c) ((c) >= '0' && (c) <= '9')
 
 extern char spaces[];
 extern char zeroes[];
@@ -63,9 +63,9 @@ s32 _Printf(char *(*prout)(char *, const char *, u32), char *arg, const char *fm
 
     x.nchar = 0;
 
-    for (;;) {
+    while (TRUE) {
         const u8 *s;
-        u8 c;
+        s32 c;
         s32 n;
         const u8 *t;
 
@@ -85,9 +85,7 @@ s32 _Printf(char *(*prout)(char *, const char *, u32), char *arg, const char *fm
         }
 
         if (*s == '*') {
-            args = (va_list)(((u32)args + 3) & ~3);
-            x.width = *(s32 *)args;
-            args += 4;
+            { s32 w; s32 *ip = (s32 *)(((u32)args + 3) & ~3); w = *ip; args = (va_list)(ip + 1); x.width = w; }
             if (x.width < 0) {
                 x.width = -x.width;
                 x.flags |= FLAGS_MINUS;
@@ -104,10 +102,7 @@ s32 _Printf(char *(*prout)(char *, const char *, u32), char *arg, const char *fm
         if (*s != '.') {
             x.prec = -1;
         } else if (*++s == '*') {
-            args = (va_list)(((u32)args + 3) & ~3);
-            x.prec = *(s32 *)args;
-            args += 4;
-            ++s;
+            { s32 w; s32 *ip = (s32 *)(((u32)args + 3) & ~3); w = *ip; ++s; args = (va_list)(ip + 1); x.prec = w; }
         } else {
             for (x.prec = 0; isdigit(*s); s++) {
                 if (x.prec < 999) {

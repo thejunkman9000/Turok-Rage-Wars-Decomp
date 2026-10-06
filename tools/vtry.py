@@ -12,6 +12,9 @@ import itertools, json, os, random, re, subprocess, sys
 args = sys.argv[1:]
 cap = 150
 keep = False
+target_insns = 0
+if '--insns' in args:
+    i = args.index('--insns'); target_insns = int(args[i + 1]); del args[i:i + 2]
 if '--max' in args:
     i = args.index('--max'); cap = int(args[i + 1]); del args[i:i + 2]
 if '--keep' in args:
@@ -40,7 +43,9 @@ cur = None
 for l in r.stdout.split('\n'):
     if l.startswith(func + ' ') or l.startswith(func.ljust(28)):
         m = re.search(r'(\d+) words differ', l)
-        cur = [0 if 'EXACT' in l else (int(m.group(1)) if m else 10**6), 10**6 if 'EXACT' in l else -1, l.strip()]
+        mi = re.search(r'(\d+) insns', l)
+        ms = re.search(r'score=(\d+)', l)
+        cur = [0 if 'EXACT' in l else (int(m.group(1)) if m else 10**6), 10**6 if 'EXACT' in l else -1, l.strip(), int(mi.group(1)) if mi else 0, int(ms.group(1)) if ms else 0]
         res.append(cur)
     elif cur is not None and cur[1] == -1:
         m = re.match(r'\s+\[(\d+)\]', l)
@@ -49,9 +54,12 @@ for l in r.stdout.split('\n'):
 if len(res) != len(combos):
     print(r.stdout[-2000:])
     sys.exit(f'result count {len(res)} != {len(combos)}')
-order = sorted(range(len(combos)), key=lambda i: (-res[i][1], res[i][0]))
+if target_insns:
+    order = sorted(range(len(combos)), key=lambda i: (res[i][4], abs(res[i][3] - target_insns), res[i][0]))
+else:
+    order = sorted(range(len(combos)), key=lambda i: (-res[i][1], res[i][0]))
 for i in order[:8]:
-    print('first diff', res[i][1], 'words', res[i][0], [variants[n][ci][:40] for n, ci in zip(names, combos[i])])
+    print('first diff', res[i][1], 'words', res[i][0], 'score', res[i][4], [variants[n][ci][:40] for n, ci in zip(names, combos[i])])
 best = order[0]
 print('best file: wip/_v_%d.c  (%s)' % (best, res[best][2]))
 if not keep:

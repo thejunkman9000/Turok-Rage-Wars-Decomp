@@ -49,7 +49,7 @@ glabel func_002C51A0
     /* C5E38 002C5238 01003021 */  addu       $a2, $t0, $zero
     /* C5E3C 002C523C 00002010 */  mfhi       $a0
     /* C5E40 002C5240 00002812 */  mflo       $a1
-    /* C5E44 002C5244 0C0B17A4 */  jal        func_002C5E90
+    /* C5E44 002C5244 0C0B17A4 */  jal        __udivdi3
     /* C5E48 002C5248 01203821 */   addu      $a3, $t1, $zero
     /* C5E4C 002C524C 8FBF0010 */  lw         $ra, 0x10($sp)
     /* C5E50 002C5250 00601021 */  addu       $v0, $v1, $zero

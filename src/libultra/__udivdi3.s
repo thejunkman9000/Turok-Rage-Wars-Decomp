@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xC6A90-0xC7010 (VRAM 0x002C5E90) */
-glabel func_002C5E90
+glabel __udivdi3
     /* C6A90 002C5E90 00E04821 */  addu       $t1, $a3, $zero
     /* C6A94 002C5E94 00C04021 */  addu       $t0, $a2, $zero
     /* C6A98 002C5E98 150000E8 */  bnez       $t0, .L002C623C
@@ -400,4 +400,4 @@ glabel func_002C5E90
     /* C7004 002C6404 01406021 */  addu       $t4, $t2, $zero
     /* C7008 002C6408 01801021 */  addu       $v0, $t4, $zero
     /* C700C 002C640C 03E00008 */  jr         $ra
-endlabel func_002C5E90
+endlabel __udivdi3

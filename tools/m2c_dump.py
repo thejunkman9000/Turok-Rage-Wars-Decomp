@@ -4,13 +4,13 @@ import sys, re, glob, os, subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 lo, hi = int(sys.argv[1], 0), int(sys.argv[2], 0)
-done = set()
+done = set()      # ROM offsets that already have C source (hand-written asm in src/*.s still gets dumped)
 for l in open('funcs.txt'):
     f = l.split('#')[0].split()
-    if len(f) >= 4: done.add(int(f[1], 16))
+    if len(f) >= 4 and os.path.exists(f'src/{f[3]}/{f[0]}.c'): done.add(int(f[1], 16))
 
 funcs = {}   # rom -> (name, file)
-for p in glob.glob('asm/*.s') + glob.glob('asm/nonmatchings/**/*.s', recursive=True):
+for p in glob.glob('asm/*.s') + glob.glob('asm/nonmatchings/**/*.s', recursive=True) + glob.glob('src/**/*.s', recursive=True):
     t = open(p, encoding='utf-8').read()
     for m in re.finditer(r'glabel (\S+)\n\s+/\* ([0-9A-F]+) ', t):
         funcs[int(m.group(2), 16)] = (m.group(1), p)

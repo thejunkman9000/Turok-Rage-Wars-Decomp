@@ -12,7 +12,7 @@ The block between the BEGIN/END GENERATED markers is replaced.
 """
 import re, sys
 
-MAIN_START, MAIN_CODE_END, DATA_END = 0x1000, 0xC7010, 0x160000
+MAIN_START, MAIN_CODE_END, DATA_END = 0x1000, 0xC76B0, 0x160000
 funcs, ros, modes = [], [], []
 for line in open('funcs.txt'):
     line = line.split('#')[0].strip()

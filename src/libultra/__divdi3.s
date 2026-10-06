@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xC5F20-0xC6510 (VRAM 0x002C5320) */
-glabel func_002C5320
+glabel __divdi3
     /* C5F20 002C5320 04810008 */  bgez       $a0, .L002C5344
     /* C5F24 002C5324 0000C021 */   addu      $t8, $zero, $zero
     /* C5F28 002C5328 2418FFFF */  addiu      $t8, $zero, -0x1
@@ -434,4 +434,4 @@ glabel func_002C5320
 
 glabel func_002C590C
     /* C650C 002C590C 03E00008 */  jr         $ra
-endlabel func_002C5320
+endlabel __divdi3

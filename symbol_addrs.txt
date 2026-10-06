@@ -1,6 +1,5 @@
 // Symbols recovered from the ROM (see tools/lu_syms.py and docs/libultra_matches.txt).
 // Data symbols use the KSEG0 alias (0x800Dxxxx) the game uses for data accesses.
-
 // libultra: C functions matched exactly
 osCreateMesgQueue = 0x002BFD50; // type:func
 osViBlack = 0x002BF2A0; // type:func
@@ -9,18 +8,15 @@ osViSetMode = 0x002BF7A0; // type:func
 osViSwapBuffer = 0x002BF9B0; // type:func
 osSpTaskStartGo = 0x002BF06C; // type:func
 __osInsertTimer = 0x002C0B9C; // type:func
-
 // libultra: asm helpers called by the above
 __osDisableInt = 0x002C2020; // type:func
 __osRestoreInt = 0x002C2040; // type:func
 __osSpDeviceBusy = 0x002BF0A0; // type:func
 __osSpSetStatus = 0x002BF1F0; // type:func
-
 // libultra globals
 __osViNext = 0x800D8444;
 __osThreadTail = 0x800D9290;
 __osTimerList = 0x800D92B0;
-
 // libultra: more recovered symbols
 osSpTaskYield = 0x002BF210; // type:func
 osJamMesg = 0x002C0250; // type:func
@@ -32,7 +28,6 @@ __osPopThread = 0x002C1648; // type:func
 __osRunningThread = 0x800D92A0;
 _osCurrentTime = 0x8014FE28;
 __osBaseCounter = 0x8014FE20;
-
 // task helpers
 _VirtualToPhysicalTask = 0x002BEE80; // type:func
 osSpTaskLoad = 0x002BEF68; // type:func
@@ -42,7 +37,6 @@ __osSpSetPc = 0x002BF1C0; // type:func
 __osSpRawStartDma = 0x002BF0C0; // type:func
 memcpy = 0x002C2490; // type:func
 __osTmpTask = 0x8014EA90;
-
 // thread / time / tlb
 osGetThreadId = 0x002BFE70; // type:func
 osGetThreadPri = 0x002BFE90; // type:func
@@ -58,7 +52,6 @@ __osActiveQueue = 0x800D929C;
 osCreateThread = 0x002BFD80; // type:func
 osDestroyThread = 0x002C1F10; // type:func
 __osCleanupThread = 0x002C185C; // type:func
-
 // controller / PI / VI / string batch
 osContGetReadData = 0x002BC6C4; // type:func
 osPiGetCmdQueue = 0x002BDE70; // type:func
@@ -73,14 +66,12 @@ __osContBuffer = 0x8014D470;
 __osContNumControllers = 0x8014D46C;
 __osPiDevMgr = 0x800D8390;
 __osPiAccessQueue = 0x8014EA58;
-
 // PI DMA / task yield
 osPiStartDma = 0x002BDDC0; // type:func
 osPiRawStartDma = 0x002BEB30; // type:func
 osSpTaskYielded = 0x002BF230; // type:func
 __osPiAccessQueueEnabled = 0x800D83C0;
 __osPiAccessBuf = 0x8014EA50;
-
 // timers
 __osTimerInterrupt = 0x002C09A0; // type:func
 __osTimerServicesInit = 0x002C0AE8; // type:func
@@ -88,30 +79,25 @@ __osSetTimerIntr = 0x002C0B3C; // type:func
 __osSetCompare = 0x002C2240; // type:func
 __osTimerCounter = 0x8014FE30;
 __osViIntrCount = 0x8014FE24;
-
 // controller helpers
 __osPackReadData = 0x002BC75C; // type:func
 __osPackRequestData = 0x002BCAF0; // type:func
 __osContGetInitData = 0x002BCBA8; // type:func
 __osContPifStatus = 0x8014D4AC;
 __osContLastCmd = 0x8014D4B0;
-
 // event messages / thread queues
 osSetEventMesg = 0x002C0640; // type:func
 __osEventStateTab = 0x8014FDA0;
-
 // gu matrix helpers
 guMtxIdentF = 0x002BBD3C; // type:func
 guMtxF2L = 0x002BBD8C; // type:func
 guMtxL2F = 0x002BBE24; // type:func
 guMtxIdent = 0x002BBC50; // type:func
-
 // VI
 __osViSwapContext = 0x002BFA00; // type:func
 __osViCurr = 0x800D8440;
 osAiSetFrequency = 0x002BC3B0; // type:func
 osViClock = 0x800D9280;
-
 // controller / SI helpers (more)
 __osSiGetAccess = 0x002BED04; // type:func
 __osSiRelAccess = 0x002BED70; // type:func
@@ -127,7 +113,6 @@ osContStartReadData = 0x002BC630; // type:func
 osContReset = 0x002BC810; // type:func
 __osPackResetData = 0x002BC91C; // type:func
 osContInit = 0x002BC950; // type:func
-
 // PFS / motor
 __osPfsGetStatus = 0x004479D0; // type:func
 __osPfsPifRam = 0x80154110;
@@ -136,7 +121,6 @@ __osMotorStartData = 0x8014D4C0;
 __osMotorStartBuf = 0x8014D5C0;
 __osMotorStopData = 0x8014D5E0;
 __osMotorStopBuf = 0x8014D6E0;
-
 // PI / SI access, device I/O
 __assert = 0x002BFD40; // type:func
 memset = 0x002A101C; // type:func
@@ -156,7 +140,6 @@ __osPiTable = 0x800D83AC;
 CartRomHandle = 0x8014E950;
 DriveRomHandle = 0x8014E9D0;
 __osDiskHandle = 0x8014EA44;
-
 // PI manager
 osEPiRawStartDma = 0x002BE4A0; // type:func
 osCreatePiManager = 0x002BDEC0; // type:func
@@ -167,7 +150,6 @@ __osPiEventBuf = 0x8014E948;
 __osResetGlobalIntMask = 0x002C04C0; // type:func
 __osSetGlobalIntMask = 0x002C06A0; // type:func
 osYieldThread = 0x002C0D10; // type:func
-
 // PFS (near-matches kept as asm for now)
 __osContRamRead = 0x002BD590; // type:func
 __osPackRamReadData = 0x002BD7C0; // type:func
@@ -243,3 +225,9 @@ sinf = 0x002BC200; // type:func
 sqrtf = 0x002BC380; // type:func
 osAiGetStatus = 0x002BC390; // type:func
 __osGetCurrFaultedThread = 0x002BFE60; // type:func
+__divdi3 = 0x002C5320; // type:func
+__moddi3 = 0x002C5910; // type:func
+__udivdi3 = 0x002C5E90; // type:func
+__umoddi3 = 0x002C6420; // type:func
+__floatdidf = 0x002C6920; // type:func
+__floatdisf = 0x002C6A00; // type:func

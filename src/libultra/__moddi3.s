@@ -7,7 +7,7 @@
 .section .text, "ax"
 
 /* hand-written assembly, ROM 0xC6510-0xC6A90 (VRAM 0x002C5910) */
-glabel func_002C5910
+glabel __moddi3
     /* C6510 002C5910 27BDFFE8 */  addiu      $sp, $sp, -0x18
     /* C6514 002C5914 AFB20010 */  sw         $s2, 0x10($sp)
     /* C6518 002C5918 00009021 */  addu       $s2, $zero, $zero
@@ -401,4 +401,4 @@ glabel func_002C5910
 
     /* C6A88 002C5E88 BF800000 */  .word      0xBF800000 /* linker padding */
     /* C6A8C 002C5E8C BF800000 */  .word      0xBF800000 /* linker padding */
-endlabel func_002C5910
+endlabel __moddi3

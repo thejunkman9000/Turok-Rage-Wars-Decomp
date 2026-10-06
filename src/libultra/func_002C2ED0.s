@@ -71,7 +71,7 @@ glabel func_002C2ED0
     /* C3BA4 002C2FA4 02402021 */  addu       $a0, $s2, $zero
     /* C3BA8 002C2FA8 02602821 */  addu       $a1, $s3, $zero
     /* C3BAC 002C2FAC 27B00010 */  addiu      $s0, $sp, 0x10
-    /* C3BB0 002C2FB0 0C0B1908 */  jal        func_002C6420
+    /* C3BB0 002C2FB0 0C0B1908 */  jal        __umoddi3
     /* C3BB4 002C2FB4 02148021 */   addu      $s0, $s0, $s4
     /* C3BB8 002C2FB8 02E31021 */  addu       $v0, $s7, $v1
     /* C3BBC 002C2FBC 90420000 */  lbu        $v0, 0x0($v0)
@@ -80,7 +80,7 @@ glabel func_002C2ED0
   .L002C2FC8:
     /* C3BC8 002C2FC8 00003021 */  addu       $a2, $zero, $zero
     /* C3BCC 002C2FCC 02402021 */  addu       $a0, $s2, $zero
-    /* C3BD0 002C2FD0 0C0B17A4 */  jal        func_002C5E90
+    /* C3BD0 002C2FD0 0C0B17A4 */  jal        __udivdi3
     /* C3BD4 002C2FD4 02602821 */   addu      $a1, $s3, $zero
     /* C3BD8 002C2FD8 AEA20000 */  sw         $v0, 0x0($s5)
     /* C3BDC 002C2FDC AEA30004 */  sw         $v1, 0x4($s5)
@@ -96,14 +96,14 @@ glabel func_002C2ED0
     /* C3C00 002C3000 02003021 */  addu       $a2, $s0, $zero
     /* C3C04 002C3004 02203821 */  addu       $a3, $s1, $zero
     /* C3C08 002C3008 02402021 */  addu       $a0, $s2, $zero
-    /* C3C0C 002C300C 0C0B14C8 */  jal        func_002C5320
+    /* C3C0C 002C300C 0C0B14C8 */  jal        __divdi3
     /* C3C10 002C3010 02602821 */   addu      $a1, $s3, $zero
     /* C3C14 002C3014 02402021 */  addu       $a0, $s2, $zero
     /* C3C18 002C3018 02602821 */  addu       $a1, $s3, $zero
     /* C3C1C 002C301C 02003021 */  addu       $a2, $s0, $zero
     /* C3C20 002C3020 AFA20028 */  sw         $v0, 0x28($sp)
     /* C3C24 002C3024 AFA3002C */  sw         $v1, 0x2C($sp)
-    /* C3C28 002C3028 0C0B1644 */  jal        func_002C5910
+    /* C3C28 002C3028 0C0B1644 */  jal        __moddi3
     /* C3C2C 002C302C 02203821 */   addu      $a3, $s1, $zero
     /* C3C30 002C3030 8FA40028 */  lw         $a0, 0x28($sp)
     /* C3C34 002C3034 8FA5002C */  lw         $a1, 0x2C($sp)

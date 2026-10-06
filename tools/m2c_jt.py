@@ -14,7 +14,7 @@ base = (tbl & 0x1FFFFFFF) + 0xC00
 targets = [struct.unpack_from('>I', rom, base + 4 * i)[0] for i in range(count)]
 
 src = None
-for p in glob.glob('asm/*.s') + glob.glob('asm/nonmatchings/**/*.s', recursive=True):
+for p in glob.glob('asm/*.s') + glob.glob('asm/nonmatchings/**/*.s', recursive=True) + glob.glob('src/**/*.s', recursive=True):
     t = open(p, encoding='utf-8').read()
     m = re.search(rf'glabel {re.escape(name)}\n.*?endlabel {re.escape(name)}\n', t, re.S)
     if m:
