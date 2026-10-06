@@ -35,7 +35,7 @@ The whole library region of the main image (ROM 0xAEF80-0xC76B0: debugger stubs,
 libgcc helpers) is now in `src/libultra/`: matched C where possible (`funcs.txt`, ~110 objects incl. printf, gu, osViManager,
 PI/SI/SP/AI/DP/motor, cseq) and named hand-written asm (`*.s`; exception handler, TLB/cache primitives, 64DD interrupt code,
 the remaining audio functions as `func_<VRAM>.s`) plus `pad_*.s` for linker padding. Everything is byte-identical to the ROM
-(`powershell tools/cycle.ps1`). Remaining work: turn the `func_*.s` audio-library functions into named C, the PFS code in
-overlay A, then the game code. Helper scripts: `tools/chk.ps1` (score a C candidate), `tools/try.ps1 -Align`, `tools/vtry.py`
+(`powershell tools/cycle.ps1`). The Controller-Pak (PFS) code in overlay A (ROM 0x1B4BD0-0x1B7970, `funcs_a.txt`, `src/ovl_a/`) is
+named hand-written asm. Remaining work: turn the named `.s` audio/PFS functions into matching C, then the game code. Helper scripts: `tools/chk.ps1` (score a C candidate), `tools/try.ps1 -Align`, `tools/vtry.py`
 (variant search), `tools/perm_setup.sh` (decomp-permuter), `tools/regen_hasm.ps1`/`mkspec.py`/`mkhasm.py` (asm -> src/*.s),
 `tools/rename_fn.py`.
