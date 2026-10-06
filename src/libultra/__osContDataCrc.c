@@ -1,5 +1,6 @@
 #include "common.h"
 
+#ifdef NON_MATCHING
 u8 __osContDataCrc(u8 *data) {
     s32 i;
     s32 j;
@@ -22,3 +23,6 @@ u8 __osContDataCrc(u8 *data) {
 
     return crc & 0xFF;
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/libultra/__osContDataCrc", __osContDataCrc);
+#endif

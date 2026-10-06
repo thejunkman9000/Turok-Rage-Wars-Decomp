@@ -62,3 +62,9 @@ osPiRawReadIo 0xBF810 37 libultra ro=0xCD7C0:20
 osPiGetStatus 0xBEAA0 5 libultra
 osCartRomInit 0xBEC40 48 libultra
 osDriveRomInit 0xBF560 53 libultra
+__osContAddressCrc 0xBE910  18  libultra
+__osContDataCrc    0xBE958  24  libultra
+__osContRamRead    0xBE190 140  libultra
+__osDevMgrMain     0xBED00 232  libultra
+__osPackRamReadData 0xBE3C0 98 libultra
+__osPackRamWriteData 0xBE770 102 libultra

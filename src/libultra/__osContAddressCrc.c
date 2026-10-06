@@ -1,5 +1,6 @@
 #include "common.h"
 
+#ifdef NON_MATCHING
 u8 __osContAddressCrc(u32 addr) {
     u32 temp = 0;
     u32 temp2 = addr;
@@ -19,3 +20,6 @@ u8 __osContAddressCrc(u32 addr) {
 
     return crc & 0x1F;
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/libultra/__osContAddressCrc", __osContAddressCrc);
+#endif

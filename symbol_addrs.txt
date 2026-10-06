@@ -156,3 +156,23 @@ __osPiTable = 0x800D83AC;
 CartRomHandle = 0x8014E950;
 DriveRomHandle = 0x8014E9D0;
 __osDiskHandle = 0x8014EA44;
+
+// PI manager
+osEPiRawStartDma = 0x002BE4A0; // type:func
+osCreatePiManager = 0x002BDEC0; // type:func
+__osPiThread = 0x8014D700;
+__osPiThreadStack = 0x8014D930;
+__osPiEventQueue = 0x8014E930;
+__osPiEventBuf = 0x8014E948;
+__osResetGlobalIntMask = 0x002C04C0; // type:func
+__osSetGlobalIntMask = 0x002C06A0; // type:func
+osYieldThread = 0x002C0D10; // type:func
+
+// PFS (near-matches kept as asm for now)
+__osContRamRead = 0x002BD590; // type:func
+__osPackRamReadData = 0x002BD7C0; // type:func
+__osContRamWrite = 0x002BD950; // type:func
+__osPackRamWriteData = 0x002BDB70; // type:func
+__osContAddressCrc = 0x002BDD10; // type:func
+__osContDataCrc = 0x002BDD58; // type:func
+__osDevMgrMain = 0x002BE100; // type:func

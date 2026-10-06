@@ -1,5 +1,6 @@
 #include "common.h"
 
+#ifdef NON_MATCHING
 s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer) {
     s32 ret;
     int i;
@@ -48,3 +49,6 @@ s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer) {
 
     return ret;
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/libultra/__osContRamRead", __osContRamRead);
+#endif

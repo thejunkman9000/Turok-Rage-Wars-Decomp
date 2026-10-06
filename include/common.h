@@ -18,6 +18,8 @@ typedef s32 OSPri;
 typedef s32 OSId;
 
 #define NULL ((void *)0)
+#define TRUE 1
+#define FALSE 0
 #define UNUSED __attribute__((unused))
 
 #define OS_MESG_NOBLOCK 0
@@ -155,6 +157,8 @@ typedef struct {
     u8 errno;
 } OSContPad;
 
+struct OSPiHandle_s;
+
 /* Device manager state (PI manager: __osPiDevMgr) */
 typedef struct {
     /* 0x00 */ u32 initialized;
@@ -163,7 +167,7 @@ typedef struct {
     /* 0x0C */ OSMesgQueue *evtQueue;
     /* 0x10 */ OSMesgQueue *acsQueue;
     /* 0x14 */ s32 (*dma_func)(s32, u32, void *, u32);
-    u64 force_align;
+    /* 0x18 */ s32 (*edma_func)(struct OSPiHandle_s *, s32, u32, void *, u32);
 } OSMgrArgs;
 
 typedef struct {
@@ -178,7 +182,7 @@ typedef struct {
     /* 0x08 */ void *dramAddr;
     /* 0x0C */ u32 devAddr;
     /* 0x10 */ u32 size;
-    /* 0x14 */ void *piHandle;
+    /* 0x14 */ struct OSPiHandle_s *piHandle;
 } OSIoMesg;
 
 typedef union {
@@ -409,6 +413,10 @@ extern u32 __osContPifStatus; /* word 15 of the 64-byte PIF RAM image */
 extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
+extern OSThread __osPiThread;
+extern u8 __osPiThreadStack[4096];
+extern OSMesgQueue __osPiEventQueue;
+extern OSMesg __osPiEventBuf[1];
 extern OSPifRam __osPfsPifRam;
 extern OSPiHandle *__osCurrentHandle[2];
 extern OSPiHandle *__osPiTable;
@@ -497,6 +505,15 @@ void bzero(void *ptr, u32 n);
 void *memset(void *s, int c, u32 n);
 s32 osEPiRawReadIo(OSPiHandle *pihandle, u32 devAddr, u32 *data);
 s32 osEPiRawWriteIo(OSPiHandle *pihandle, u32 devAddr, u32 data);
+s32 osEPiRawStartDma(OSPiHandle *pihandle, s32 dir, u32 cart_addr, void *dram_addr, u32 size);
+void __osDevMgrMain(void *args);
+void osCreatePiManager(OSPri pri, OSMesgQueue *cmdQ, OSMesg *cmdBuf, s32 cmdMsgCnt);
+OSPri osGetThreadPri(OSThread *thread);
+void osSetThreadPri(OSThread *thread, OSPri pri);
+void osCreateThread(OSThread *thread, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri);
+void __osResetGlobalIntMask(u32 mask);
+void __osSetGlobalIntMask(u32 mask);
+void osYieldThread(void);
 s32 osPiRawReadIo(u32 devAddr, u32 *data);
 u32 osPiGetStatus(void);
 OSPiHandle *osCartRomInit(void);
