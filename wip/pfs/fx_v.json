@@ -1,0 +1,6 @@
+{"d": ["update->data.i = ((s8)fxmix < 0) ? -(s8)fxmix : (fxmix & 0xFF);",
+"update->data.i = ((s8)fxmix >= 0) ? fxmix : -(s8)fxmix;",
+"update->data.i = ((s8)fxmix < 0) ? -(s8)fxmix : fxmix;",
+"update->data.i = ((s8)fxmix >= 0) ? (u8)fxmix : -(s8)fxmix;",
+"{ s8 m = fxmix; update->data.i = (m >= 0) ? (u8)fxmix : -m; }",
+"update->data.i = (s8)fxmix > 0x7F ? 0 : fxmix;"]}

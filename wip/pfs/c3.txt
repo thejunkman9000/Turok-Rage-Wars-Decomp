@@ -1,0 +1,5 @@
+wip/c2/alSynSetFXMix.c alSynSetFXMix 0xB8F70
+wip/c2/alSynSetPan.c alSynSetPan 0xB9020
+wip/c2/alSynSetPitch.c alSynSetPitch 0xB90B0
+wip/c2/alSynSetVol.c alSynSetVol 0xB9150
+wip/c2/alSynStartVoice.c alSynStartVoice 0xB9210

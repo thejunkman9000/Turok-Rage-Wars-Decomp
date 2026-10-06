@@ -197,6 +197,7 @@ SECTIONS
         build/src/libultra/alSynAddPlayer.o(.text);
         build/src/libultra/alSynAllocVoice.o(.text);
         build/src/libultra/_allocatePVoice.o(.text);
+        build/src/libultra/pad_0B8EB8.o(.text);
         build/src/libultra/alSynDelete.o(.text);
         build/src/libultra/pad_0B8EC8.o(.text);
         build/src/libultra/alSynFreeVoice.o(.text);
@@ -204,6 +205,7 @@ SECTIONS
         build/src/libultra/alSynSetFXMix.o(.text);
         build/src/libultra/alSynSetPan.o(.text);
         build/src/libultra/alSynSetPitch.o(.text);
+        build/src/libultra/pad_0B913C.o(.text);
         build/src/libultra/alSynSetPriority.o(.text);
         build/src/libultra/pad_0B9148.o(.text);
         build/src/libultra/alSynSetVol.o(.text);
@@ -644,6 +646,7 @@ SECTIONS
         build/src/libultra/alSynAddPlayer.o(.data);
         build/src/libultra/alSynAllocVoice.o(.data);
         build/src/libultra/_allocatePVoice.o(.data);
+        build/src/libultra/pad_0B8EB8.o(.data);
         build/src/libultra/alSynDelete.o(.data);
         build/src/libultra/pad_0B8EC8.o(.data);
         build/src/libultra/alSynFreeVoice.o(.data);
@@ -651,6 +654,7 @@ SECTIONS
         build/src/libultra/alSynSetFXMix.o(.data);
         build/src/libultra/alSynSetPan.o(.data);
         build/src/libultra/alSynSetPitch.o(.data);
+        build/src/libultra/pad_0B913C.o(.data);
         build/src/libultra/alSynSetPriority.o(.data);
         build/src/libultra/pad_0B9148.o(.data);
         build/src/libultra/alSynSetVol.o(.data);
@@ -1094,6 +1098,7 @@ SECTIONS
         build/src/libultra/alSynAddPlayer.o(.rodata);
         build/src/libultra/alSynAllocVoice.o(.rodata);
         build/src/libultra/_allocatePVoice.o(.rodata);
+        build/src/libultra/pad_0B8EB8.o(.rodata);
         build/src/libultra/alSynDelete.o(.rodata);
         build/src/libultra/pad_0B8EC8.o(.rodata);
         build/src/libultra/alSynFreeVoice.o(.rodata);
@@ -1101,6 +1106,7 @@ SECTIONS
         build/src/libultra/alSynSetFXMix.o(.rodata);
         build/src/libultra/alSynSetPan.o(.rodata);
         build/src/libultra/alSynSetPitch.o(.rodata);
+        build/src/libultra/pad_0B913C.o(.rodata);
         build/src/libultra/alSynSetPriority.o(.rodata);
         build/src/libultra/pad_0B9148.o(.rodata);
         build/src/libultra/alSynSetVol.o(.rodata);
@@ -1559,6 +1565,7 @@ SECTIONS
         build/src/libultra/alSynAddPlayer.o(.bss);
         build/src/libultra/alSynAllocVoice.o(.bss);
         build/src/libultra/_allocatePVoice.o(.bss);
+        build/src/libultra/pad_0B8EB8.o(.bss);
         build/src/libultra/alSynDelete.o(.bss);
         build/src/libultra/pad_0B8EC8.o(.bss);
         build/src/libultra/alSynFreeVoice.o(.bss);
@@ -1566,6 +1573,7 @@ SECTIONS
         build/src/libultra/alSynSetFXMix.o(.bss);
         build/src/libultra/alSynSetPan.o(.bss);
         build/src/libultra/alSynSetPitch.o(.bss);
+        build/src/libultra/pad_0B913C.o(.bss);
         build/src/libultra/alSynSetPriority.o(.bss);
         build/src/libultra/pad_0B9148.o(.bss);
         build/src/libultra/alSynSetVol.o(.bss);

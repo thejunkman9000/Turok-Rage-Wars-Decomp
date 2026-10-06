@@ -11,7 +11,7 @@ void alSynFreeVoice(ALSynth *drvr, ALVoice *voice) {
             if (update != 0) {
                 update->delta = drvr->paramSamples + voice->pvoice->offset;
                 update->type = 0;
-                update->data = (s32)voice->pvoice;
+                update->data.p = voice->pvoice;
                 voice->pvoice->channelKnob->setParam(voice->pvoice->channelKnob, 3, update);
                 voice->pvoice = 0;
             }

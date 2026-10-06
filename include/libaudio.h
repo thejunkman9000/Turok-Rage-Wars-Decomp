@@ -184,24 +184,41 @@ typedef struct ALParam_s {
     struct ALParam_s *next;
     s32 delta;
     s16 type;
-    s16 pad;
-    s32 data;
+    s16 moredata;
+    union {
+        s32 i;
+        f32 f;
+        void *p;
+    } data;
+    s32 data2;
 } ALParam;
+
+struct ALVoice_s;
 
 typedef struct ALPVoice_s {
     ALLink node;
-    u8 pad08[4];
+    struct ALVoice_s *vvoice;
     ALFilter *channelKnob;
     u8 pad10[0xD8 - 0x10];
     s32 offset;
 } ALPVoice;
 
-typedef struct {
+typedef struct ALVoice_s {
     ALLink node;
     ALPVoice *pvoice;
-    u8 pad0C[0x16 - 0x0C];
+    void *table;
+    void *clientPrivate;
+    s16 state;
     s16 priority;
+    s16 fxBus;
+    s16 unityPitch;
 } ALVoice;
+
+typedef struct {
+    s16 priority;
+    s16 fxBus;
+    u8 unityPitch;
+} ALVoiceConfig;
 
 typedef struct ALSynth_s {
     ALPlayer *head;

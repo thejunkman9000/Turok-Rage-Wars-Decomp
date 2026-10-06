@@ -1,0 +1,2 @@
+wip/c2/alSynAllocVoice.c alSynAllocVoice 0xB8CD0
+wip/c2/alSynSetFXMix.c alSynSetFXMix 0xB8F70
