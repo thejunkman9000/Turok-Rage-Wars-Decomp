@@ -67,8 +67,48 @@ typedef struct {
         ALMIDIEvent midi;
         ALTempoEvent tempo;
         s32 ticks;
+        struct { s16 vol; } spvol;
+        struct { void *seq; } spseq;
+        struct { void *bank; } spbank;
     } msg;
 } ALEvent;
+
+typedef u32 OSIntMask;
+typedef s32 ALMicroTime;
+
+typedef struct ALLink_s {
+    struct ALLink_s *next;
+    struct ALLink_s *prev;
+} ALLink;
+
+typedef struct {
+    ALLink node;
+    ALMicroTime delta;
+    ALEvent evt;
+} ALEventQueueItem;
+
+typedef struct {
+    ALLink freeList;
+    ALLink allocList;
+    s32 eventCount;
+} ALEventQueue;
+
+/* compact-sequence player (csplayer.c); only the fields recovered so far */
+typedef struct {
+    u8 pad00[0x2C];
+    s32 state;
+    u8 pad30[0x48 - 0x30];
+    ALEventQueue evtq;
+} ALCSPlayer;
+
+#define AL_SEQP_MIDI_EVT 2
+#define AL_SEQP_VOL_EVT 0xA
+#define AL_SEQP_SEQ_EVT 0xD
+#define AL_SEQP_BANK_EVT 0xE
+#define AL_SEQP_PLAY_EVT 0xF
+#define AL_SEQP_STOP_EVT 0x11
+
+OSIntMask osSetIntMask(OSIntMask mask);
 
 /* NOTE: GCC emits a file's functions in the order their names are first declared, so function prototypes belong in
    the .c files (in ROM order), not in this header. */

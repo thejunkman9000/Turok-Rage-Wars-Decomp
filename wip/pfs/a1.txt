@@ -1,0 +1,14 @@
+alLink.c alLink 0xB8150
+alUnlink.c alUnlink 0xB8120
+alCopy.c alCopy 0xB5FE0
+alHeapInit.c alHeapInit 0xB6060
+alHeapDBAlloc.c alHeapDBAlloc 0xB6010
+alEvtqNew.c alEvtqNew 0xB5C90
+alEvtqFlush.c alEvtqFlush 0xB5EB0
+alCSPGetState.c alCSPGetState 0xB4770
+alCSPPlay.c alCSPPlay 0xB5B50
+alCSPStop.c alCSPStop 0xB5C60
+alCSPSetBank.c alCSPSetBank 0xB5B80
+alCSPSetSeq.c alCSPSetSeq 0xB5C00
+alCSPSetVol.c alCSPSetVol 0xB5C30
+alCSPSetChlFXMix.c alCSPSetChlFXMix 0xB5BB0
