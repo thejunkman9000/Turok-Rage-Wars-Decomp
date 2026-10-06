@@ -184,6 +184,13 @@ typedef union {
     long long int force_structure_alignment;
 } Mtx;
 
+typedef u32 OSEvent;
+
+typedef struct {
+    OSMesgQueue *messageQueue;
+    OSMesg message;
+} __OSEventState;
+
 typedef struct OSTimer_s {
     /* 0x00 */ struct OSTimer_s *next;
     /* 0x04 */ struct OSTimer_s *prev;
@@ -259,6 +266,9 @@ typedef union {
 #define SI_STATUS_IO_READ_BUSY 0x2
 
 /* RSP status register read bits */
+#define SPSTATUS_DMA_BUSY 0x00000004
+#define SPSTATUS_DMA_FULL 0x00000008
+#define SPSTATUS_IO_FULL 0x00000010
 #define SPSTATUS_SIGNAL0_SET 0x00000080
 #define SPSTATUS_SIGNAL1_SET 0x00000100
 
@@ -296,6 +306,7 @@ extern u8 __osContLastCmd;
 extern u8 __osContNumControllers;
 extern OSMgrArgs __osPiDevMgr;
 extern OSMesgQueue __osPiAccessQueue;
+extern __OSEventState __osEventStateTab[16];
 #define OS_ROM_BASE (*(u32 *)0x80000308) /* ROM base address passed in by the boot code */
 extern u32 __osPiAccessQueueEnabled;
 extern OSMesg __osPiAccessBuf[1];
@@ -305,6 +316,7 @@ extern OSTask __osTmpTask; /* static task buffer used by _VirtualToPhysicalTask 
 u32 __osDisableInt(void);
 void __osRestoreInt(u32 mask);
 s32 __osSpDeviceBusy(void);
+void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg msg);
 void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);
 OSThread *__osPopThread(OSThread **queue);

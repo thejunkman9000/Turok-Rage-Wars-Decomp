@@ -40,3 +40,6 @@ __osSetTimerIntr   0xC173C  24  libultra
 __osPackReadData   0xBD35C  45  libultra
 __osPackRequestData 0xBD6F0 46  libultra
 __osContGetInitData 0xBD7A8 45  libultra
+__osSpDeviceBusy   0xBFCA0   6  libultra
+osSetEventMesg     0xC1240  23  libultra
+__osDequeueThread  0xC1560  13  libultra

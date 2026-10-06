@@ -31,7 +31,7 @@ _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo, osSpTaskYield, osSpTaskYi
 osViSetMode, osViSwapBuffer, osViSetSpecialFeatures, osContGetReadData, osPiGetCmdQueue, osPiStartDma,
 osPiRawStartDma, __osAiDeviceBusy, __osSiDeviceBusy, __osSpGetStatus, memcpy, strchr, strlen, __osPiRelAccess,
 __osTimerInterrupt, __osTimerServicesInit, __osSetTimerIntr, __osPackReadData, __osPackRequestData,
-__osContGetInitData.
+__osContGetInitData, __osSpDeviceBusy, osSetEventMesg, __osDequeueThread.
 
 ## Blocked on a build feature
 - **Float literal pools**: the original `as` expanded `li.s`/float constants into `.rodata` literals loaded with

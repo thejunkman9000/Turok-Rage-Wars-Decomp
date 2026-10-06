@@ -95,3 +95,7 @@ __osPackRequestData = 0x002BCAF0; // type:func
 __osContGetInitData = 0x002BCBA8; // type:func
 __osContPifStatus = 0x8014D4AC;
 __osContLastCmd = 0x8014D4B0;
+
+// event messages / thread queues
+osSetEventMesg = 0x002C0640; // type:func
+__osEventStateTab = 0x8014FDA0;
