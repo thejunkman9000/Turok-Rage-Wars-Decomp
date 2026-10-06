@@ -339,6 +339,7 @@ typedef union {
 /* hardware registers (physical addresses) */
 #define HW_REG(reg, type) (*(volatile type *)((reg) | 0xA0000000))
 #define SP_STATUS_REG 0x04040010
+#define SP_STATUS_HALT 0x0001
 #define VI_CONTROL_REG 0x04400000
 #define VI_ORIGIN_REG 0x04400004
 #define VI_WIDTH_REG 0x04400008
@@ -353,6 +354,18 @@ typedef union {
 #define VI_V_BURST_REG 0x0440002C
 #define VI_X_SCALE_REG 0x04400030
 #define VI_Y_SCALE_REG 0x04400034
+#define SP_MEM_ADDR_REG 0x04040000
+#define SP_DRAM_ADDR_REG 0x04040004
+#define SP_RD_LEN_REG 0x04040008
+#define SP_WR_LEN_REG 0x0404000C
+#define SP_PC_REG 0x04080000
+#define DPC_START_REG 0x04100000
+#define DPC_END_REG 0x04100004
+#define DPC_STATUS_REG 0x0410000C
+#define SI_DRAM_ADDR_REG 0x04800000
+#define SI_PIF_ADDR_RD64B_REG 0x04800004
+#define SI_PIF_ADDR_WR64B_REG 0x04800010
+#define AI_DRAM_ADDR_REG 0x04500000
 #define AI_LEN_REG 0x04500004
 #define AI_CONTROL_REG 0x04500008
 #define AI_DACRATE_REG 0x04500010
@@ -401,6 +414,18 @@ extern OSThread *__osRunQueue;
 extern OSThread *__osActiveQueue;
 extern s32 osViClock;
 extern OSViContext *__osViNext;
+extern OSViContext __osViContexts[2];
+extern OSViMode osViModeNtscLan1;
+extern OSViMode osViModePalLan1;
+extern OSViMode osViModeMpalLan1;
+extern OSMgrArgs __osViDevMgr;
+extern OSThread __osViThread;
+extern u8 __osViThreadStack[4096];
+extern OSMesgQueue __osViEventQueue;
+extern OSMesg __osViEventBuf[5];
+extern OSIoMesg __osViRetraceMsg;
+extern OSIoMesg __osViCounterMsg;
+extern u16 __osViRetraceCount;
 extern OSViContext *__osViCurr;
 extern OSTimer *__osTimerList;
 extern OSTime _osCurrentTime;
@@ -433,6 +458,7 @@ extern OSMesgQueue __osContMesgQueue;
 extern OSMesg __osContMesgBuff[4];
 extern OSMesgQueue __osPiAccessQueue;
 extern __OSEventState __osEventStateTab[16];
+#define OS_TV_TYPE (*(u32 *)0x80000300)
 #define OS_ROM_BASE (*(u32 *)0x80000308) /* ROM base address passed in by the boot code */
 extern u32 __osPiAccessQueueEnabled;
 extern OSMesg __osPiAccessBuf[1];
@@ -443,6 +469,14 @@ u32 __osDisableInt(void);
 void __osRestoreInt(u32 mask);
 s32 __osSpDeviceBusy(void);
 void __osViSwapContext(void);
+void __osViInit(void);
+void *osViGetCurrentFramebuffer(void);
+void osCreateViManager(OSPri pri);
+void __osViMgrMain(void *arg);
+s32 __osSiRawStartDma(s32 dir, void *dramAddr);
+s32 __osSpRawStartDma(s32 dir, u32 devAddr, void *dramAddr, u32 size);
+s32 __osSpSetPc(u32 pc);
+void osInvalDCache(void *vaddr, s32 nbytes);
 void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg msg);
 void __osSpSetStatus(u32 value);
 void __osEnqueueAndYield(OSThread **queue);

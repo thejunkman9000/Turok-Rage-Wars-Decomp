@@ -68,3 +68,7 @@ __osContRamRead    0xBE190 140  libultra
 __osDevMgrMain     0xBED00 232  libultra
 __osPackRamReadData 0xBE3C0 98 libultra
 __osPackRamWriteData 0xBE770 102 libultra
+__osSiRawStartDma  0xBF9A0  46  libultra ro=0xCD7E0:20
+__osSpRawStartDma  0xBFCC0  63  libultra ro=0xCD800:20
+__osSpSetPc        0xBFDC0  11  libultra
+__osSpSetStatus    0xBFDF0   5  libultra

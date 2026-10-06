@@ -11,10 +11,11 @@ ASFLAGS  := -EB -march=vr4300 -mabi=32 -mno-pdr -W -I include -I .
 
 ASM_FILES := $(sort $(wildcard asm/*.s))
 C_FILES   := $(sort $(shell find src -name '*.c' 2>/dev/null))
+S_FILES   := $(sort $(shell find src -name '*.s' 2>/dev/null))
 BIN_FILES := $(sort $(wildcard assets/*.bin))
 HEADERS   := $(wildcard include/*.h include/*.inc)
 
-OBJS := $(ASM_FILES:%.s=build/%.o) $(C_FILES:%.c=build/%.o) $(BIN_FILES:%.bin=build/%.o)
+OBJS := $(ASM_FILES:%.s=build/%.o) $(C_FILES:%.c=build/%.o) $(S_FILES:%.s=build/%.o) $(BIN_FILES:%.bin=build/%.o)
 
 LDSCRIPTS := -T $(NAME).ld -T hardware_regs.ld -T extra_syms.ld -T build/symbols.ld \
              -T undefined_syms_auto.txt -T undefined_funcs_auto.txt
@@ -32,6 +33,11 @@ build/asm/%.o: asm/%.s $(HEADERS)
 build/src/%.o: src/%.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	bash tools/cc.sh $(cc_mode) $< $@
+
+# hand-written asm kept as source (functions that were never compiled C)
+build/src/%.o: src/%.s $(HEADERS)
+	@mkdir -p $(dir $@)
+	bash tools/as.sh $< $@
 
 build/assets/%.o: assets/%.bin
 	@mkdir -p $(dir $@)

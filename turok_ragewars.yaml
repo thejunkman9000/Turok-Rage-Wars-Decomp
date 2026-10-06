@@ -111,6 +111,8 @@ segments:
       - [0xBF8A4, asm]
       - [0xBF8B0, c, libultra/siacs]
       - [0xBF998, asm]
+      - [0xBF9A0, c, libultra/__osSiRawStartDma]
+      - [0xBFA58, asm]
       - [0xBFA60, c, libultra/__osSiDeviceBusy]
       - [0xBFA78, asm]
       - [0xBFA80, c, libultra/_VirtualToPhysicalTask]
@@ -119,6 +121,12 @@ segments:
       - [0xBFC98, asm]
       - [0xBFCA0, c, libultra/__osSpDeviceBusy]
       - [0xBFCB8, asm]
+      - [0xBFCC0, c, libultra/__osSpRawStartDma]
+      - [0xBFDBC, asm]
+      - [0xBFDC0, c, libultra/__osSpSetPc]
+      - [0xBFDEC, asm]
+      - [0xBFDF0, c, libultra/__osSpSetStatus]
+      - [0xBFE04, asm]
       - [0xBFE10, c, libultra/osSpTaskYield]
       - [0xBFE2C, asm]
       - [0xBFE30, c, libultra/osSpTaskYielded]
@@ -183,8 +191,12 @@ segments:
       - {start: 0xCD7B4, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
       - {start: 0xCD7D4, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD7E0, .rodata, libultra/__osSiRawStartDma]
+      - {start: 0xCD7F4, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD800, .rodata, libultra/__osSpRawStartDma]
+      - {start: 0xCD814, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

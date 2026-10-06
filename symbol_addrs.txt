@@ -176,3 +176,4 @@ __osPackRamWriteData = 0x002BDB70; // type:func
 __osContAddressCrc = 0x002BDD10; // type:func
 __osContDataCrc = 0x002BDD58; // type:func
 __osDevMgrMain = 0x002BE100; // type:func
+osInvalDCache = 0x002C2060; // type:func

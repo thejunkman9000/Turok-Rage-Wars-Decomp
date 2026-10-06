@@ -6,4 +6,6 @@ guMtxL2F 0xCD6E0 4
 osAiSetFrequency 0xCD770 16
 osEPiRawReadIo 0xCD7A0 20
 osPiRawReadIo 0xCD7C0 20
+__osSiRawStartDma 0xCD7E0 20
+__osSpRawStartDma 0xCD800 20
 __osViSwapContext 0xCD820 12

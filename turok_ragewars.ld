@@ -87,6 +87,8 @@ SECTIONS
         build/asm/BF8A4.o(.text);
         build/src/libultra/siacs.o(.text);
         build/asm/BF998.o(.text);
+        build/src/libultra/__osSiRawStartDma.o(.text);
+        build/asm/BFA58.o(.text);
         build/src/libultra/__osSiDeviceBusy.o(.text);
         build/asm/BFA78.o(.text);
         build/src/libultra/_VirtualToPhysicalTask.o(.text);
@@ -95,6 +97,12 @@ SECTIONS
         build/asm/BFC98.o(.text);
         build/src/libultra/__osSpDeviceBusy.o(.text);
         build/asm/BFCB8.o(.text);
+        build/src/libultra/__osSpRawStartDma.o(.text);
+        build/asm/BFDBC.o(.text);
+        build/src/libultra/__osSpSetPc.o(.text);
+        build/asm/BFDEC.o(.text);
+        build/src/libultra/__osSpSetStatus.o(.text);
+        build/asm/BFE04.o(.text);
         build/src/libultra/osSpTaskYield.o(.text);
         build/asm/BFE2C.o(.text);
         build/src/libultra/osSpTaskYielded.o(.text);
@@ -202,6 +210,8 @@ SECTIONS
         build/asm/BF8A4.o(.data);
         build/src/libultra/siacs.o(.data);
         build/asm/BF998.o(.data);
+        build/src/libultra/__osSiRawStartDma.o(.data);
+        build/asm/BFA58.o(.data);
         build/src/libultra/__osSiDeviceBusy.o(.data);
         build/asm/BFA78.o(.data);
         build/src/libultra/_VirtualToPhysicalTask.o(.data);
@@ -210,6 +220,12 @@ SECTIONS
         build/asm/BFC98.o(.data);
         build/src/libultra/__osSpDeviceBusy.o(.data);
         build/asm/BFCB8.o(.data);
+        build/src/libultra/__osSpRawStartDma.o(.data);
+        build/asm/BFDBC.o(.data);
+        build/src/libultra/__osSpSetPc.o(.data);
+        build/asm/BFDEC.o(.data);
+        build/src/libultra/__osSpSetStatus.o(.data);
+        build/asm/BFE04.o(.data);
         build/src/libultra/osSpTaskYield.o(.data);
         build/asm/BFE2C.o(.data);
         build/src/libultra/osSpTaskYielded.o(.data);
@@ -321,6 +337,9 @@ SECTIONS
         build/asm/BF8A4.o(.rodata);
         build/src/libultra/siacs.o(.rodata);
         build/asm/BF998.o(.rodata);
+        build/assets/data_4.o(.data);
+        build/src/libultra/__osSiRawStartDma.o(.rodata);
+        build/asm/BFA58.o(.rodata);
         build/src/libultra/__osSiDeviceBusy.o(.rodata);
         build/asm/BFA78.o(.rodata);
         build/src/libultra/_VirtualToPhysicalTask.o(.rodata);
@@ -329,6 +348,13 @@ SECTIONS
         build/asm/BFC98.o(.rodata);
         build/src/libultra/__osSpDeviceBusy.o(.rodata);
         build/asm/BFCB8.o(.rodata);
+        build/assets/data_5.o(.data);
+        build/src/libultra/__osSpRawStartDma.o(.rodata);
+        build/asm/BFDBC.o(.rodata);
+        build/src/libultra/__osSpSetPc.o(.rodata);
+        build/asm/BFDEC.o(.rodata);
+        build/src/libultra/__osSpSetStatus.o(.rodata);
+        build/asm/BFE04.o(.rodata);
         build/src/libultra/osSpTaskYield.o(.rodata);
         build/asm/BFE2C.o(.rodata);
         build/src/libultra/osSpTaskYielded.o(.rodata);
@@ -345,7 +371,7 @@ SECTIONS
         build/asm/C0554.o(.rodata);
         build/src/libultra/osViSwapBuffer.o(.rodata);
         build/asm/C05F4.o(.rodata);
-        build/assets/data_4.o(.data);
+        build/assets/data_6.o(.data);
         build/src/libultra/__osViSwapContext.o(.rodata);
         build/asm/C093C.o(.rodata);
         build/src/libultra/osCreateMesgQueue.o(.rodata);
@@ -382,7 +408,7 @@ SECTIONS
         build/asm/C2BE8.o(.rodata);
         build/src/libultra/string.o(.rodata);
         build/asm/C3114.o(.rodata);
-        build/assets/data_5.o(.data);
+        build/assets/data_7.o(.data);
         main_RODATA_END = .;
         main_RODATA_SIZE = ABSOLUTE(main_RODATA_END - main_RODATA_START);
     }
@@ -443,6 +469,8 @@ SECTIONS
         build/asm/BF8A4.o(.bss);
         build/src/libultra/siacs.o(.bss);
         build/asm/BF998.o(.bss);
+        build/src/libultra/__osSiRawStartDma.o(.bss);
+        build/asm/BFA58.o(.bss);
         build/src/libultra/__osSiDeviceBusy.o(.bss);
         build/asm/BFA78.o(.bss);
         build/src/libultra/_VirtualToPhysicalTask.o(.bss);
@@ -451,6 +479,12 @@ SECTIONS
         build/asm/BFC98.o(.bss);
         build/src/libultra/__osSpDeviceBusy.o(.bss);
         build/asm/BFCB8.o(.bss);
+        build/src/libultra/__osSpRawStartDma.o(.bss);
+        build/asm/BFDBC.o(.bss);
+        build/src/libultra/__osSpSetPc.o(.bss);
+        build/asm/BFDEC.o(.bss);
+        build/src/libultra/__osSpSetStatus.o(.bss);
+        build/asm/BFE04.o(.bss);
         build/src/libultra/osSpTaskYield.o(.bss);
         build/asm/BFE2C.o(.bss);
         build/src/libultra/osSpTaskYielded.o(.bss);
