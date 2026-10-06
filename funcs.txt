@@ -117,3 +117,9 @@ __osResetGlobalIntMask  0xC10C0  18  libultra
 __osSetGlobalIntMask  0xC12A0  16  libultra
 osSetTimer  0xC13B0  35  libultra
 osYieldThread  0xC1910  18  libultra
+cosf  0xBC230  65  libultra ro=0xCD660:96
+guLookAt  0xBC340  322  libultra ro=0xCD6C0:16
+guPerspective  0xBCAC0  206  libultra ro=0xCD6F0:48
+sinf  0xBCE00  95  libultra
+osAiGetStatus  0xBCF90  5  libultra
+sqrtf 0xBCF80 4 libultra

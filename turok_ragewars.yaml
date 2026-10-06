@@ -60,11 +60,22 @@ segments:
     subsegments:
       # BEGIN GENERATED main subsegments (tools/gen_yaml.py)
       - [0x1000, asm, entry]
+      - [0xBC230, c, libultra/cosf]
+      - [0xBC334, asm]
+      - [0xBC340, c, libultra/guLookAt]
+      - [0xBC848, asm]
       - [0xBC850, c, libultra/guMtxIdent]
       - [0xBC93C, c, libultra/guMtxIdentF]
       - [0xBC98C, c, libultra/guMtxF2L]
       - [0xBCA24, c, libultra/guMtxL2F]
       - [0xBCABC, asm]
+      - [0xBCAC0, c, libultra/guPerspective]
+      - [0xBCDF8, asm]
+      - [0xBCE00, c, libultra/sinf]
+      - [0xBCF7C, asm]
+      - [0xBCF80, c, libultra/sqrtf]
+      - [0xBCF90, c, libultra/osAiGetStatus]
+      - [0xBCFA4, asm]
       - [0xBCFB0, c, libultra/osAiSetFrequency]
       - [0xBD0C8, asm]
       - [0xBD0D0, c, libultra/osAiSetNextBuffer]
@@ -237,27 +248,31 @@ segments:
       - [0xC3090, c, libultra/string]
       - [0xC3114, asm]
       - [0xC7010, bin, rsp_and_data_0]
+      - [0xCD660, .rodata, libultra/cosf]
+      - [0xCD6C0, .rodata, libultra/guLookAt]
       - [0xCD6D0, .rodata, libultra/guMtxIdent]
       - [0xCD6D8, .rodata, libultra/guMtxIdentF]
       - [0xCD6DC, .rodata, libultra/guMtxF2L]
       - [0xCD6E0, .rodata, libultra/guMtxL2F]
       - {start: 0xCD6E4, type: bin, name: data_1, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD6F0, .rodata, libultra/guPerspective]
+      - {start: 0xCD720, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
       - [0xCD770, .rodata, libultra/osAiSetFrequency]
-      - {start: 0xCD780, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD780, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7A0, .rodata, libultra/osEPiRawReadIo]
-      - {start: 0xCD7B4, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7B4, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
-      - {start: 0xCD7D4, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7D4, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7E0, .rodata, libultra/__osSiRawStartDma]
-      - {start: 0xCD7F4, type: bin, name: data_5, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7F4, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
       - [0xCD800, .rodata, libultra/__osSpRawStartDma]
-      - {start: 0xCD814, type: bin, name: data_6, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD814, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_7, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
       - [0xCD830, .rodata, libultra/__osSiRawReadIo]
-      - {start: 0xCD844, type: bin, name: data_8, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD844, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
       - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
-      - {start: 0xCD864, type: bin, name: data_9, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD864, type: bin, name: data_10, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps

@@ -12,6 +12,8 @@ typedef unsigned int u32;
 typedef unsigned long long u64;
 typedef signed int s32;
 typedef float f32;
+typedef double f64;
+typedef signed long long s64;
 typedef void *OSMesg;
 typedef u64 OSTime;
 typedef s32 OSPri;
@@ -550,6 +552,16 @@ void osContGetQuery(OSContStatus *data);
 s32 osSetTimer(OSTimer *timer, OSTime countdown, OSTime interval, OSMesgQueue *mq, OSMesg msg);
 OSTime osGetTime(void);
 void __osSiCreateAccessQueue(void);
+/* GCC emits a file's functions in the order their names were first declared: keep the Mtx versions first. */
+void guLookAt(Mtx *m, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp);
+void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp, f32 zUp);
+void guPerspective(Mtx *m, u16 *perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale);
+void guPerspectiveF(f32 mf[4][4], u16 *perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale);
+f32 sinf(f32 x);
+f32 cosf(f32 x);
+f32 sqrtf(f32 x);
+#define fabsf(x) __builtin_fabsf(x)
+u32 osAiGetStatus(void);
 void guMtxIdentF(f32 mf[4][4]);
 void guMtxF2L(f32 mf[4][4], Mtx *m);
 void guMtxL2F(f32 mf[4][4], Mtx *m);

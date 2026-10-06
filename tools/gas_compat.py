@@ -8,7 +8,7 @@ usage: gas_compat.py <lu|game> <file.s> [rodata_va]      (rewrites the file in p
                                     modern gas moves the div into the bnez delay slot)
   * game code only: `j $31`       -> `j $31; nop` in noreorder  (old gas never filled the return delay slot)
   * `li.s/li.d $fN,<value>`      -> `lui $at,%hi(lit); lwc1/ldc1 $fN,%lo(lit)($at)`, with the literals collected in a
-                                    per-object pool at the end of `.rodata` (first-use order, duplicates shared;
+                                    per-object pool at the end of `.rodata` (first-use order, one literal per use - never shared;
                                     floats 4-aligned, doubles 8-aligned) - old gas behaviour.
   * libultra only: old gas only filled a RETURN's delay slot (and never with a load); every call/branch that GCC
                     left to the assembler keeps a nop slot (modern gas would move the previous instruction in).
@@ -42,15 +42,13 @@ LOADS = {'lb', 'lbu', 'lh', 'lhu', 'lw', 'lwl', 'lwr', 'lwc1', 'ld', 'ldc1', 'll
 
 
 class Pool:
-    """Per-object literal pool: 4-byte floats and 8-byte doubles, first-use order, deduplicated."""
+    """Per-object literal pool: 4-byte floats and 8-byte doubles, first-use order, one literal per use."""
 
     def __init__(self):
         self.items = []          # (size, value)
 
     def add(self, size, value):
-        for i, it in enumerate(self.items):
-            if it == (size, value):
-                return i
+        # no sharing: the original assembler gave every `li.s/li.d` its own literal (sinf/cosf hold 0.5 twice)
         self.items.append((size, value))
         return len(self.items) - 1
 
@@ -62,7 +60,8 @@ class Pool:
 
     def emit_aligned(self):
         """Pool with alignment directives (used to learn the label offsets, or by the diff tools)."""
-        out = ['\t.section\t.rodata', '.LFLS:']
+        # (the .space keeps gas from moving the .LFLS label past the following .align)
+        out = ['\t.section\t.rodata', '.LFLS:', '\t.space\t0']
         for i, (size, value) in enumerate(self.items):
             out.append('\t.align\t2' if size == 4 else '\t.align\t3')
             out.append(f'.LFL{i}:')
@@ -123,6 +122,23 @@ def rodata_labels(text):
         return offsets
 
 
+def rodata_size(text):
+    """Size of the `.rodata` section `text` assembles to (0 if it has none)."""
+    with tempfile.TemporaryDirectory() as d:
+        obj = os.path.join(d, 'p.o')
+        r = subprocess.run(['mips-linux-gnu-as', '-EB', '-march=vr4300', '-mabi=32', '-mno-pdr', '-W', '-L',
+                            '-I', 'include', '-I', '.', '-o', obj, '-'],
+                           input=text, capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError('gas_compat: size pass failed:\n' + r.stderr)
+        secs = subprocess.run(['mips-linux-gnu-readelf', '-SW', obj], capture_output=True, text=True).stdout
+        for line in secs.split('\n'):
+            m = re.match(r'\s*\[\s*\d+\]\s+\.rodata\s+\S+\s+\S+\s+\S+\s+([0-9a-f]+)', line)
+            if m:
+                return int(m.group(1), 16)
+    return 0
+
+
 def finalize_rodata(base_lines, pool, ro_va):
     """Resolve rodata label references to absolute addresses and re-emit the pool with explicit padding."""
     pass1 = '\n'.join(base_lines + (pool.emit_aligned() if pool.items else []))
@@ -145,8 +161,14 @@ def finalize_rodata(base_lines, pool, ro_va):
             ind, reg, lab, off = m.groups()
             ref = f'0x{absaddr[lab]:08X}{off}'
             return f'{ind}lui\t{reg},%hi({ref})\n{ind}addiu\t{reg},{reg},%lo({ref})'
-        return label_tok_re.sub(lambda m: f'0x{absaddr[m.group(0)]:08X}' if m.group(0) in absaddr else m.group(0), line)
+        line = label_tok_re.sub(lambda m: f'0x{absaddr[m.group(0)]:08X}' if m.group(0) in absaddr else m.group(0), line)
+        if named_re is not None:
+            # GCC's names for static data (`P.0`, `zero.4`) do not start with `.` or `$`
+            line = named_re.sub(lambda m: f'0x{absaddr[m.group(1)]:08X}', line)
+        return line
 
+    names = sorted((n for n in absaddr if n[0] not in '$.'), key=len, reverse=True)
+    named_re = re.compile(r'(?<![\w.$])(' + '|'.join(re.escape(n) for n in names) + r')(?![\w.$])') if names else None
     out = [sub(l) for l in '\n'.join(base_lines).split('\n')]
     if pool.items:
         out += pool.emit_explicit(offsets['.LFLS'], [offsets[f'.LFL{i}'] for i in range(len(pool.items))])
@@ -220,6 +242,14 @@ def fix(text, mode, ro_va=None):
             continue
         # old gas kept a nop between an FP compare and the following bc1t/bc1f
         if mode in ('lu', 'lu2') and this in ('bc1t', 'bc1f', 'bc1tl', 'bc1fl') and prev and prev.startswith('c.'):
+            ind = line[:len(line) - len(line.lstrip())]
+            if noreorder:
+                out.append(f'{ind}nop')
+            else:
+                out.append(f'{ind}.set\tnoreorder\n{ind}nop\n{ind}.set\treorder')
+            prev = 'nop'
+        # the original assembler never emitted two FP multiplies back to back (VR4300 multiply erratum): nop between
+        if this in ('mul.s', 'mul.d') and prev in ('mul.s', 'mul.d'):
             ind = line[:len(line) - len(line.lstrip())]
             if noreorder:
                 out.append(f'{ind}nop')
