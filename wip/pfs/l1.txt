@@ -1,0 +1,4 @@
+src/ovl_a/__osSumcalc.c __osSumcalc 0x1B77D4
+src/ovl_a/__osIdCheckSum.c __osIdCheckSum 0x1B7804
+src/ovl_a/__osCheckId.c __osCheckId 0x1B784C
+src/ovl_a/__osPfsSelectBank.c __osPfsSelectBank 0x1B7914

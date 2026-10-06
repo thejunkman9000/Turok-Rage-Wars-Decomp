@@ -574,6 +574,7 @@ segments:
       - [0x1B7804, c, ovl_a/__osIdCheckSum]
       - [0x1B784C, c, ovl_a/__osCheckId]
       - [0x1B7914, c, ovl_a/__osPfsSelectBank]
+      - [0x1B7968, c, ovl_a/pad_1B7968]
       - [0x1B7970, c, ovl_a/func_00449970]
       - [0x1B7B44, c, ovl_a/func_00449B44]
       - [0x1B7E38, c, ovl_a/func_00449E38]

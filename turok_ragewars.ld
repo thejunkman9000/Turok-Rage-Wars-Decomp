@@ -1866,6 +1866,7 @@ SECTIONS
         build/src/ovl_a/__osIdCheckSum.o(.text);
         build/src/ovl_a/__osCheckId.o(.text);
         build/src/ovl_a/__osPfsSelectBank.o(.text);
+        build/src/ovl_a/pad_1B7968.o(.text);
         build/src/ovl_a/func_00449970.o(.text);
         build/src/ovl_a/func_00449B44.o(.text);
         build/src/ovl_a/func_00449E38.o(.text);
@@ -1909,6 +1910,7 @@ SECTIONS
         build/src/ovl_a/__osIdCheckSum.o(.data);
         build/src/ovl_a/__osCheckId.o(.data);
         build/src/ovl_a/__osPfsSelectBank.o(.data);
+        build/src/ovl_a/pad_1B7968.o(.data);
         build/src/ovl_a/func_00449970.o(.data);
         build/src/ovl_a/func_00449B44.o(.data);
         build/src/ovl_a/func_00449E38.o(.data);
@@ -1953,6 +1955,7 @@ SECTIONS
         build/src/ovl_a/__osIdCheckSum.o(.rodata);
         build/src/ovl_a/__osCheckId.o(.rodata);
         build/src/ovl_a/__osPfsSelectBank.o(.rodata);
+        build/src/ovl_a/pad_1B7968.o(.rodata);
         build/src/ovl_a/func_00449970.o(.rodata);
         build/src/ovl_a/func_00449B44.o(.rodata);
         build/src/ovl_a/func_00449E38.o(.rodata);
@@ -2001,6 +2004,7 @@ SECTIONS
         build/src/ovl_a/__osIdCheckSum.o(.bss);
         build/src/ovl_a/__osCheckId.o(.bss);
         build/src/ovl_a/__osPfsSelectBank.o(.bss);
+        build/src/ovl_a/pad_1B7968.o(.bss);
         build/src/ovl_a/func_00449970.o(.bss);
         build/src/ovl_a/func_00449B44.o(.bss);
         build/src/ovl_a/func_00449E38.o(.bss);

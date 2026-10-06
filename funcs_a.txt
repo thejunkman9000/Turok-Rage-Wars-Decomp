@@ -29,8 +29,9 @@ __osGetId_b 0x1B7308 123 ovl_a
 __osPfsRWInode 0x1B74F4 184 ovl_a
 __osSumcalc 0x1B77D4 12 ovl_a
 __osIdCheckSum 0x1B7804 18 ovl_a
-__osCheckId 0x1B784C 50 ovl_a
-__osPfsSelectBank 0x1B7914 23 ovl_a
+__osCheckId 0x1B784C 50 ovl_a mode=lu
+__osPfsSelectBank 0x1B7914 21 ovl_a mode=lu
+pad_1B7968 0x1B7968 2 ovl_a
 func_00449970 0x1B7970 117 ovl_a
 func_00449B44 0x1B7B44 189 ovl_a
 func_00449E38 0x1B7E38 178 ovl_a

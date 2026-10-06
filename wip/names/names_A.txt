@@ -1,0 +1,22 @@
+func_002AE380  dbgLinkRecvByte  low  # PI-bus (0xB2000000 dev-cart parallel/FIFO port) handshake, reads one byte into *arg0 with timeout, sets D_8014D3E8 on timeout; returns 1/0
+func_002AE5AC  dbgLinkSendByte  low  # same port: writes byte arg0 with handshake/timeout (timeout flag D_8014D3E8); returns 1/0
+func_002AE834  dbgLinkRecvBlock  low  # receives arg1 bytes from host into buffer arg0 (rotate-add checksum out via *arg2), per-byte timeout
+func_002AEAB4  dbgLinkSendBlock  low  # sends arg1 bytes from buffer arg0 to host, per-byte timeout
+func_002AEE48  dbgLinkCmdCallHook  low  # server cmd 0x23: reads 32-bit arg, calls callback D_800D364C(arg) if set, sends 32-bit result back
+func_002AEF84  dbgLinkCmdSendVersion  med  # server cmd 0x20: sends length-prefixed version string "N64 V1.00" (D_800CB480), length clamped to strlen
+func_002AF0E4  dbgLinkCmdWriteHalf  med  # server cmd 0x41: reads 32-bit addr + 16-bit value from host, *(u16*)addr = value (poke16)
+func_002AF1F0  dbgLinkCmdWriteWord  med  # server cmd 0x42: reads 32-bit addr + 32-bit value, *(u32*)addr = value (poke32)
+func_002AF33C  dbgLinkCmdReadHalf  med  # server cmd 0x45: reads 32-bit addr, sends *(u16*)addr to host (peek16)
+func_002AF424  dbgLinkCmdReadWord  med  # server cmd 0x46: reads 32-bit addr, sends *(u32*)addr to host (peek32)
+func_002AF544  dbgLinkCmdWriteBlock  med  # server cmd 0x43: reads addr+len, then dbgLinkRecvBlock into memory at addr (download memory)
+func_002AF6A0  dbgLinkCmdReadBlock  med  # server cmd 0x47: reads addr+len, then dbgLinkSendBlock of memory at addr (upload memory)
+func_002AF7F8  dbgLinkCmdLoadProgram  med  # server cmd 0x18: reads size+checksum, receives block into 0x80100000, verifies checksum, sets D_800D3640=1, D_800D3644=addr, D_800D3648=size
+func_002AF990  dbgLinkServerLoop  high  # debug-monitor command server: calls port init, waits for 0x10/replies 0x11 handshake, reads cmd byte and dispatches via jtbl_800CB490 (0x18,0x20,0x22 exec,0x23,0x40-0x47,0x3c..); called from main-thread message handler in entry.s
+func_002AFCE4  dbgHostFopen  low  # host-call 0x80 (PC file service): handshake 0x10/0x11, sends 2 NUL-terminated strings (name, mode), returns 32-bit handle (fopen-like)
+func_002AFFEC  dbgHostFclose  low  # host-call 0x81: handshake, sends 32-bit handle arg0, no result (fclose-like)
+func_002B026C  dbgHostFread  med  # host-call 0x82 (buf,size,count,handle): sends handle + size*count, receives block into buf via dbgLinkRecvBlock; returns count (fread-like)
+func_002B05C8  dbgHostFwrite  med  # host-call 0x83 (buf,size,count,handle): sends handle + size*count, sends buf via dbgLinkSendBlock, waits ack; returns count (fwrite-like)
+func_002B091C  dbgHostFseek  low  # host-call 0x84: sends 3 words (handle, offset, whence), receives 32-bit result (fseek-like)
+func_002B0D3C  dbgHostFtell  low  # host-call 0x85: sends one word (handle), receives 32-bit result (ftell/fgetc-like)
+func_002B1088  dbgHostSendWord  low  # host-call 0xC0: sends one 32-bit word (e.g. exit code / put-char), no result
+func_002B1308  dbgHostPuts  low  # host-call 0xC1: sends NUL-terminated string arg0 to host (puts/print-like), no result

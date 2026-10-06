@@ -1,0 +1,40 @@
+func_002B65EC  __mapVoice  high  # seqp: pop ALVoiceState from vFreeList (+0x6C), append to alloc list (+0x64/+0x68), set channel/key/velocity, voice.clientPrivate=vs
+func_002B663C  __unmapVoice  high  # seqp: find ALVoiceState whose voice (vs+4)==arg1 in alloc list, unlink, push back on vFreeList
+func_002B66A0  __voiceNeedsNoteKillOff  high  # seqp: scan evtq alloc list for AL_NOTE_END (type 5) event of this voice; if killTime earlier, relink/shorten it, return 1/0
+func_002B6750  __lookupVoice  high  # seqp: walk vAllocHead for state with matching channel(+0x31)/key(+0x32) whose phase (+0x35) is not release(3)/off(4)
+func_002B67B0  __lookupSoundQuick  high  # seqp: binary search in channel instrument's soundArray (inst+0x10) by key/velocity ranges; assert(inst) line 0x376
+func_002B68E4  __vsVol  high  # seqp: voice volume = (velocity*chanVol*tremolo-ish) scaled >>6, * (instVol*seqVol*chanVol)>>14, *2 >>16
+func_002B6958  __vsDelta  high  # seqp: delta = vs->envEndTime - t; return 1000 if negative
+func_002B6974  __vsPan  high  # seqp: pan = chanPan + (sound pan - 0x40), clamped 0..127
+func_002B69B4  __initFromBank  high  # seqp: for each channel __resetPerfChanState + __setInstChanState(first inst of bank); percussion inst on channel 9
+func_002B6A60  __initChanState  high  # seqp: zero/default all maxChannels ALChanState entries (pan 0x40, vol 0x7F, prio 5, pitchbend 1.0 etc.)
+func_002B6B10  __resetPerfChanState  high  # seqp: reset one channel's performance state (pan 0x40, vol 0x7F, prio 5, fx 0, pitchbend 1.0, program-specific fields)
+func_002B6B90  __setInstChanState  high  # seqp: bind instrument to channel: chanState[chan].instrument=inst, pan/vol/priority/bendRange from inst
+func_002B6BE4  __seqpReleaseVoice  high  # seqp: remove pending decay events, set vs phase=release(3), envEndTime=curTime+delta, alSynSetPriority(0)/alSynSetVol(0), post AL_NOTE_END (type 5) event
+func_002B6D04  __seqpStopOsc  high  # seqp: walk evtq for AL_TREM_OSC(0x16)/AL_VIB_OSC(0x17) events of this state, call seqp->stopOsc(oscState), unlink, clear flag bit
+func_002B6DF4  __postNextSeqEvent  med  # seqp: if playing, get next delta from target (alSeqNextDelta), handle loop (alSeqSetLoc), post AL_SEQ_REF event after delta*uspt
+func_002B6EBC  __handleMetaMsg  high  # seqp: if meta (0xFF) tempo (0x51), build 24-bit tempo and call __setUsptFromTempo
+func_002B6F20  __setUsptFromTempo  high  # seqp: uspt = tempo * target->qnpt, or 488 (0x1E8) if no target sequence
+func_002B6F50  alSeqNextEvent  high  # seq.c: parse next MIDI event from ALSeq (varlen delta, running status, meta tempo 0x51 -> type 3, end-of-track 0x2F -> type 4, midi -> type 1)
+func_002B70B8  alSeqNew  high  # seq.c: init ALSeq from MIDI image: checks 'MThd' 0x4D546864, format 0, 1 track, division -> qnpt, 'MTrk' 0x4D54726B
+func_002B7198  alSeqGetTicks  high  # seq.c: returns seq->lastTicks (+0xC)
+func_002B71A4  alSeqTicksToSec  high  # seq.c: ticks*tempo / (division * 1e6)
+func_002B71F0  alSeqSecToTicks  high  # seq.c: sec*1e6*division/tempo -> ticks (u32 conversion w/ 2^31 fixup)
+func_002B7278  alSeqNewMarker  high  # seq.c: build ALSeqMarker for given tick (0 -> start of track) by scanning events with alSeqNextEvent, restoring state
+func_002B738C  alSeqSetLoc  high  # seq.c: restore curPtr/lastStatus/lastTicks from marker
+func_002B73A8  alSeqGetLoc  high  # seq.c: save curPtr/lastStatus/lastTicks into marker
+func_002B73C4  __alSeqNextDelta  high  # seq.c: if curPtr < base+len read varlen delta into *delta, return 1 else 0 (cf. __alCSeqNextDelta)
+func_002B742C  __alSeqReadVarLen  high  # seq.c: read MIDI variable-length quantity from seq->curPtr
+func_002B7480  __alSeqReadByte  high  # seq.c: read 1 byte from curPtr, advance
+func_002B7494  __alSeqReadShort  high  # seq.c: read big-endian u16 from curPtr, advance 2
+func_002B74C4  __alSeqReadWord  high  # seq.c: read big-endian u32 from curPtr, advance 4
+func_002B7520  alUnlink  high  # remove ALLink from doubly linked list (next->prev=prev; prev->next=next)
+func_002B7550  alLink  high  # insert ALLink after/at head: element->prev=ptr; element->next=*ptr; update next->prev; *ptr=element
+func_002B7570  alInit  high  # if (alGlobals==0) { alGlobals=g; alSynNew(...) }  global D_800D80A0
+func_002B75A0  alClose  high  # if (alGlobals) { alSynDelete(); alGlobals=0 }
+func_002B75E0  alSndpAllocate  high  # sndplayer: find free ALSndState (0x30 bytes, sound ptr +0x1C==0), init priority 5, state 0, pitch 1.0, pan 0x40, fxmix 0, vol from envelope; returns index or -1
+func_002B76A0  alSndpDeallocate  high  # sndplayer: if state==AL_STOPPED clear sound slot; if it was the current sound set target = -1
+func_002B76F0  alSndpGetState  high  # sndplayer: return sndState[sndp->target].state
+func_002B7720  alSndpNew  high  # sndplayer: init player from ALSndpConfig: alloc sndState/events from heap, alEvtqNew, register _sndpVoiceHandler with synth player list, post first AL_SNDP_API event
+func_002B7850  _handleEvent  high  # sndplayer: jump-table (9 cases) dispatch of ALSndpEvent: play/stop/pan/fxmix/volume/pitch/priority etc. calling synth set functions
+func_002B7C8C  _sndpVoiceHandler  high  # sndplayer: ALPlayer handler: loop popping events from evtq (_handleEvent or re-post frame event), returns next delta, accumulates curTime

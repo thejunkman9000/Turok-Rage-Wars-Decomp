@@ -1,0 +1,2 @@
+{"decl": ["int i; u16 sum;", "u16 sum; int i;", "int i; u16 sum; u8 *src = ptr;", "u16 sum = 0; int i;"],
+ "loop": ["sum = i = 0; for (; i < length; i++) { sum += *ptr++; }", "i = 0; sum = 0; for (; i < length; i++) { sum += *ptr++; }", "i = 0; sum = i; for (; i < length; i++) { sum += *ptr++; }", "for (i = sum = 0; i < length; i++) { sum += *ptr++; }", "sum = i = 0; for (; i < length; i++) { sum += *src++; }", "for (i = 0, sum = i; i < length; i++) { sum += *ptr++; }", "i = sum = 0; for (; i < length; i++) { sum += *ptr++; }"]}
