@@ -145,6 +145,7 @@ segments:
       - [0xB59D0, c, libultra/__CSPPostNextSeqEvent]
       - [0xB5A3C, c, libultra/__CSPRepostEvent]
       - [0xB5ACC, c, libultra/__setUsptFromTempo_2]
+      - [0xB5AFC, c, libultra/pad_0B5AFC]
       - [0xB5B00, c, libultra/alCents2Ratio]
       - [0xB5B50, c, libultra/alCSPPlay]
       - [0xB5B7C, c, libultra/pad_0B5B7C]
@@ -513,8 +514,10 @@ segments:
       - {start: 0xCD358, type: bin, name: data_2, linker_section_order: .rodata, linker_section: .data}
       - [0xCD360, .rodata, libultra/alSndpAllocate]
       - {start: 0xCD364, type: bin, name: data_3, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD3C0, .rodata, libultra/__nextSampleTime]
       - [0xCD3D8, .rodata, libultra/_timeToSamplesNoRound]
-      - {start: 0xCD3E0, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
+      - [0xCD3E0, .rodata, libultra/_timeToSamplesNoRound_2]
+      - {start: 0xCD3E8, type: bin, name: data_4, linker_section_order: .rodata, linker_section: .data}
       - [0xCD660, .rodata, libultra/cosf]
       - [0xCD6C0, .rodata, libultra/guLookAt]
       - [0xCD6D0, .rodata, libultra/guMtxIdent]

@@ -121,6 +121,7 @@ SECTIONS
         build/src/libultra/__CSPPostNextSeqEvent.o(.text);
         build/src/libultra/__CSPRepostEvent.o(.text);
         build/src/libultra/__setUsptFromTempo_2.o(.text);
+        build/src/libultra/pad_0B5AFC.o(.text);
         build/src/libultra/alCents2Ratio.o(.text);
         build/src/libultra/alCSPPlay.o(.text);
         build/src/libultra/pad_0B5B7C.o(.text);
@@ -570,6 +571,7 @@ SECTIONS
         build/src/libultra/__CSPPostNextSeqEvent.o(.data);
         build/src/libultra/__CSPRepostEvent.o(.data);
         build/src/libultra/__setUsptFromTempo_2.o(.data);
+        build/src/libultra/pad_0B5AFC.o(.data);
         build/src/libultra/alCents2Ratio.o(.data);
         build/src/libultra/alCSPPlay.o(.data);
         build/src/libultra/pad_0B5B7C.o(.data);
@@ -1020,6 +1022,7 @@ SECTIONS
         build/src/libultra/__CSPPostNextSeqEvent.o(.rodata);
         build/src/libultra/__CSPRepostEvent.o(.rodata);
         build/src/libultra/__setUsptFromTempo_2.o(.rodata);
+        build/src/libultra/pad_0B5AFC.o(.rodata);
         build/src/libultra/alCents2Ratio.o(.rodata);
         build/src/libultra/alCSPPlay.o(.rodata);
         build/src/libultra/pad_0B5B7C.o(.rodata);
@@ -1124,8 +1127,8 @@ SECTIONS
         build/src/libultra/_freePVoice.o(.rodata);
         build/src/libultra/_collectPVoices.o(.rodata);
         build/assets/data_3.o(.data);
-        build/src/libultra/_timeToSamplesNoRound.o(.rodata);
         build/src/libultra/__nextSampleTime.o(.rodata);
+        build/src/libultra/_timeToSamplesNoRound.o(.rodata);
         build/src/libultra/_timeToSamplesNoRound_2.o(.rodata);
         build/src/libultra/alMainBusPull.o(.rodata);
         build/src/libultra/alMainBusParam.o(.rodata);
@@ -1489,6 +1492,7 @@ SECTIONS
         build/src/libultra/__CSPPostNextSeqEvent.o(.bss);
         build/src/libultra/__CSPRepostEvent.o(.bss);
         build/src/libultra/__setUsptFromTempo_2.o(.bss);
+        build/src/libultra/pad_0B5AFC.o(.bss);
         build/src/libultra/alCents2Ratio.o(.bss);
         build/src/libultra/alCSPPlay.o(.bss);
         build/src/libultra/pad_0B5B7C.o(.bss);

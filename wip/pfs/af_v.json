@@ -1,0 +1,13 @@
+{"decl": [
+"Acmd *cmdp = cmdList; Acmd *cmdlistp = cmdList; ALPlayer *client; ALSynth *drvr = &alGlobalsp->drvr; s16 outp; s32 samplesLeft = outLen; s32 samples; ALFilter *sink; s32 delta;",
+"Acmd *cmdlistp; Acmd *cmdp; ALPlayer *client; ALSynth *drvr = &alGlobalsp->drvr; s16 outp; s32 samplesLeft; s32 samples; ALFilter *sink; s32 delta; cmdlistp = cmdp = cmdList; samplesLeft = outLen;",
+"ALSynth *drvr = &alGlobalsp->drvr; Acmd *cmdp = cmdList; Acmd *cmdlistp = cmdList; ALPlayer *client; s16 outp; s32 samplesLeft = outLen; s32 samples; ALFilter *sink; s32 delta;",
+"ALPlayer *client; ALSynth *drvr = &alGlobalsp->drvr; s32 samplesLeft = outLen; s32 samples; s16 outp; Acmd *cmdp = cmdList; Acmd *cmdlistp = cmdList; ALFilter *sink; s32 delta;"
+],
+ "init": ["outp = 0;", ""],
+ "smp": [
+"samples = (samplesLeft > drvr->maxOutSamples) ? drvr->maxOutSamples : samplesLeft;",
+"samples = samplesLeft; if (drvr->maxOutSamples < samplesLeft) { samples = drvr->maxOutSamples; }",
+"if (drvr->maxOutSamples < samplesLeft) { samples = drvr->maxOutSamples; } else { samples = samplesLeft; }",
+"samples = (drvr->maxOutSamples < samplesLeft) ? drvr->maxOutSamples : samplesLeft;"
+]}

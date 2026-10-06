@@ -24,7 +24,7 @@ s32 alSynAllocVoice(ALSynth *drvr, ALVoice *voice, ALVoiceConfig *vc) {
             update->delta = drvr->paramSamples;
             update->type = 0xB;
             update->data.i = 0;
-            update->data2 = pvoice->offset - 0x40;
+            update->d2.i = pvoice->offset - 0x40;
             f->setParam(f, 3, update);
             update = __allocParam();
             if (update != 0) {

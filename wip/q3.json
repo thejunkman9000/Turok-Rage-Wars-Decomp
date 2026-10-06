@@ -1,0 +1,6 @@
+{"name":"__vsVol","rom":"0xB74E4","sig":"s16 __vsVol(ALVoiceState *vs, ALSeqPlayer *seqp)","bodies":[
+ "s32 t1, t2; t1 = (vs->tremelo * vs->velocity * vs->envGain) >> 6; t2 = (vs->sound->sampleVolume * seqp->vol * seqp->chanState[vs->channel].vol) >> 14; return (t1 * t2) << 1 >> 16;",
+ "u32 t1, t2, t3; t1 = (vs->tremelo * vs->velocity * vs->envGain) >> 6; t2 = (vs->sound->sampleVolume * seqp->vol * seqp->chanState[vs->channel].vol) >> 14; t3 = t1 * t2; return (t3 << 1) >> 16;",
+ "u32 t1, t2; t2 = (vs->sound->sampleVolume * seqp->vol * seqp->chanState[vs->channel].vol) >> 14; t1 = (vs->tremelo * vs->velocity * vs->envGain) >> 6; return (t1 * t2) << 1 >> 16;",
+ "s32 t1, t2, t3; t1 = (vs->tremelo * vs->velocity * vs->envGain); t2 = (vs->sound->sampleVolume * seqp->vol * seqp->chanState[vs->channel].vol); t3 = (t1 >> 6) * (t2 >> 14); return (t3 << 1) >> 16;",
+ "u32 t1, t2; t1 = (vs->tremelo * vs->velocity * vs->envGain) >> 6; t2 = (vs->sound->sampleVolume * seqp->vol * seqp->chanState[vs->channel].vol) >> 14; return (s16)((t1 * t2 << 1) >> 16);"]}

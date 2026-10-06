@@ -231,7 +231,8 @@ __CSPHandleMIDIMsg 0xB4FB0 547 libultra
 __CSPHandleMetaMsg 0xB583C 101 libultra
 __CSPPostNextSeqEvent 0xB59D0 27 libultra
 __CSPRepostEvent 0xB5A3C 36 libultra
-__setUsptFromTempo_2 0xB5ACC 13 libultra
+__setUsptFromTempo_2 0xB5ACC 12 libultra
+pad_0B5AFC 0xB5AFC 1 libultra
 alCents2Ratio 0xB5B00 20 libultra
 alCSPPlay 0xB5B50 11 libultra
 pad_0B5B7C 0xB5B7C 1 libultra
@@ -331,8 +332,8 @@ __freeParam 0xB98F4 6 libultra
 _freePVoice 0xB990C 16 libultra
 _collectPVoices 0xB994C 21 libultra
 _timeToSamplesNoRound 0xB99A0 16 libultra ro=0xCD3D8:8
-__nextSampleTime 0xB99E0 42 libultra
-_timeToSamplesNoRound_2 0xB9A88 15 libultra
+__nextSampleTime 0xB99E0 42 libultra ro=0xCD3C0:24
+_timeToSamplesNoRound_2 0xB9A88 15 libultra ro=0xCD3E0:8
 alMainBusPull 0xB9AC4 58 libultra
 alMainBusParam 0xB9BAC 13 libultra
 alFxNew 0xB9BE0 293 libultra

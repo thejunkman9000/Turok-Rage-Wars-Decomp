@@ -11,7 +11,7 @@ void alSynSetVol(ALSynth *drvr, ALVoice *voice, s16 vol, s32 time) {
             update->delta = drvr->paramSamples + voice->pvoice->offset;
             update->type = 0xB;
             update->data.i = vol;
-            update->data2 = _timeToSamplesNoRound(drvr, time);
+            update->d2.i = _timeToSamplesNoRound(drvr, time);
             update->next = 0;
             voice->pvoice->channelKnob->setParam(voice->pvoice->channelKnob, 3, update);
         }

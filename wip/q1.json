@@ -1,0 +1,5 @@
+{"name":"__vsDelta","rom":"0xB7558","sig":"s32 __vsDelta(ALVoiceState *vs, s32 t)","bodies":[
+ "s32 delta = vs->envEndTime - t; if (delta < 0) { return 1000; } return delta;",
+ "s32 delta = vs->envEndTime - t; return (delta >= 0) ? delta : 1000;",
+ "s32 delta; delta = vs->envEndTime - t; if (delta >= 0) { return delta; } return 1000;",
+ "s32 delta = vs->envEndTime - t; return delta < 0 ? 1000 : delta;"]}

@@ -1,0 +1,6 @@
+{"name":"__vsPan","rom":"0xB7574","sig":"u8 __vsPan(ALVoiceState *vs, ALSeqPlayer *seqp)","bodies":[
+ "s32 tmp = seqp->chanState[vs->channel].pan + vs->sound->samplePan - 64; if (tmp < 0) { tmp = 0; } if (tmp > 127) { tmp = 127; } return tmp;",
+ "s32 tmp = seqp->chanState[vs->channel].pan + (vs->sound->samplePan - 64); if (tmp < 0) { tmp = 0; } if (tmp > 127) { tmp = 127; } return tmp;",
+ "s32 tmp; tmp = seqp->chanState[vs->channel].pan; tmp += vs->sound->samplePan - 64; if (tmp < 0) tmp = 0; else if (tmp > 127) tmp = 127; return tmp;",
+ "s32 tmp = vs->sound->samplePan - 64 + seqp->chanState[vs->channel].pan; if (tmp < 0) tmp = 0; if (tmp > 127) tmp = 127; return tmp;",
+ "ALChanState *cs = seqp->chanState; s32 tmp = vs->sound->samplePan - 64 + cs[vs->channel].pan; if (tmp < 0) { tmp = 0; } if (tmp > 127) { tmp = 127; } return tmp;"]}
