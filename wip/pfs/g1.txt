@@ -1,0 +1,5 @@
+wip/g/t1.c f_0029AA48 0x9B648 -O2 -mcpu=r4300
+wip/g/t1.c f_00245840 0x46440 -O2 -mcpu=r4300
+wip/g/t1.c f_00259B10 0x5A710 -O2 -mcpu=r4300
+wip/g/t1.c f_0029FBC8 0xA07C8 -O2 -mcpu=r4300
+wip/g/t1.c f_00243840 0x44440 -O2 -mcpu=r4300

@@ -11,6 +11,7 @@ if [ -f mode_map.txt ]; then
   ov=$(awk -v n="$(basename "$in" .c)" '$1==n {print $2}' mode_map.txt)
   [ -n "$ov" ] && mode=$ov
 fi
+[ "$mode" = game ] && mode=lu3   # Acclaim game code: -O2 -mcpu=r4300, same assembler behaviour as libultra
 ver=${GCC_VER:-2.8.1}
 G=$PWD/tools/gcc/$ver
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
