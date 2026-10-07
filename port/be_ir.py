@@ -88,6 +88,10 @@ def native_pointer(ptr, tainted, defined):
     return any(g in ptr for g in defined)
 
 def rewrite(text):
+    # MSVC-compatible clang turns volatile accesses into atomic acquire/release ones: plain volatile accesses are what the swapping below understands
+    text = re.sub(r'(load|store) atomic volatile', r'\1 volatile', text)
+    text = re.sub(r' (?:acquire|release|seq_cst|monotonic|unordered|acq_rel)(?=, align)', '', text)
+    text = re.sub(r'(load|store) atomic ', r'\1 ', text)
     out = []
     used = set()
     lines = text.split('\n')

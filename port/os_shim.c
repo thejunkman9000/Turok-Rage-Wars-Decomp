@@ -43,6 +43,7 @@ static HThread *g_current;
 static unsigned g_seq;
 static volatile LONG g_preempt;
 static __declspec(thread) HThread *tls_self;
+static volatile int g_boot_seen;                 /* the game's boot thread has made its first OS call (oracle barrier needs it) */
 
 extern void port_unimpl(const char *name);
 extern unsigned char *port_rom(unsigned *size);
@@ -59,7 +60,7 @@ static HThread *self_thread(void) {
     for (int i = 0; i < MAXT; i++) if (!g_th[i].state) {
         HThread *h = &g_th[i]; memset(h, 0, sizeof *h);
         h->evt = CreateEventA(NULL, FALSE, FALSE, NULL); h->prio = 10; h->state = 3; h->seq = ++g_seq;
-        tls_self = h; h->tid = GetCurrentThreadId(); if (!g_current) g_current = h;
+        tls_self = h; h->tid = GetCurrentThreadId(); if (!g_current) g_current = h; g_boot_seen = 1;
         LeaveCriticalSection(&g_lock); return h;
     }
     LeaveCriticalSection(&g_lock); return NULL;
@@ -225,7 +226,9 @@ void osSetThreadPri(OSThread *t, OSPri pri) {
 OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? (OSId)LD32(((OSThread *)XL(h->t))->id) : 0; }
 
 /* ---- time and timers ---- */
+extern int oracle_enabled(void); extern unsigned long long oracle_counter(void); extern void oracle_filter_pad(unsigned char *pad);
 static unsigned long long counter_now(void) {
+    if (oracle_enabled()) return oracle_counter();
     LARGE_INTEGER f, c; QueryPerformanceFrequency(&f); QueryPerformanceCounter(&c);
     return (unsigned long long)((double)c.QuadPart * 46875000.0 / (double)f.QuadPart);
 }
@@ -276,12 +279,13 @@ static void *g_fb;
 void osViSwapBuffer(void *fb) { g_fb = fb; }
 void *osViGetCurrentFramebuffer(void) { return g_fb; }
 
-void port_dump_threads(void);
+void port_dump_threads(void); void port_wait_idle(void);
 static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
-    if (!g_inited) return;
-    { static int ticks; if (++ticks == 900 || ticks == 2700) port_dump_threads(); }
+    if (!g_inited) { if (oracle_enabled()) port_wait_idle(); return; }
+    { extern void port_watch_tick(void); port_watch_tick(); }
+    { static int ticks, dump = -1; if (dump < 0) { char e[4]; dump = GetEnvironmentVariableA("TUROK_DUMPTICK", e, sizeof e) ? 1 : 0; } if (dump && (++ticks == 900 || ticks == 2700)) port_dump_threads(); }
     run_timers();
     {   /* watchdog: if the baton holder never makes progress (lost wake-up), nudge it */
         static HThread *last; static unsigned lastseq; static int stuck;
@@ -303,6 +307,22 @@ void port_vi_tick(void) {
     }
     if (g_ev_mq[OS_EVENT_VI]) post_from_host(g_ev_mq[OS_EVENT_VI], g_ev_msg[OS_EVENT_VI]);
     if (g_vi_mq && ++g_vi_phase >= g_vi_count) { g_vi_phase = 0; post_from_host(g_vi_mq, g_vi_msg); }
+    if (oracle_enabled()) port_wait_idle();
+}
+
+/* oracle mode: the game threads run in real time between ticks, so a frame would cover a host-speed dependent amount of game progress.
+   Wait until every game thread is blocked (nothing ready or running) so each frame ends in a reproducible state. */
+void port_wait_idle(void) {
+    DWORD t0 = GetTickCount();
+    for (;;) {
+        int busy = !g_boot_seen;                           /* the boot thread has not even started talking to the OS yet */
+        if (g_inited) EnterCriticalSection(&g_lock);
+        for (int i = 0; i < MAXT; i++) if (g_th[i].state == 2 || g_th[i].state == 3) busy = 1;
+        if (g_inited) LeaveCriticalSection(&g_lock);
+        if (!busy) return;
+        if (GetTickCount() - t0 > 30000) { fprintf(stderr, "oracle: game threads did not go idle within 30 s, continuing\n"); fflush(stderr); return; }
+        Sleep(0);
+    }
 }
 
 /* ---- RSP/RDP tasks: the display list is captured for the renderer; completion is signalled immediately ---- */
@@ -379,6 +399,7 @@ void osContGetReadData(OSContPad *pad) {
     ST16(pad[0].button, b);
     pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0));
     pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0) + autoy);
+    oracle_filter_pad((unsigned char *)pad);
 }
 s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } post_from_host(mq, (OSMesg)0); return 0; }
 void osContGetQuery(OSContStatus *status) { { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); } memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }

@@ -28,6 +28,28 @@ The ROM is read from `baserom.us.v11.z64` in the working directory (never commit
 - **Debugging.** `-finstrument-functions` feeds a ring buffer of function entries; a crash prints the last calls
   (`python port\where.py` turns RVAs into names).
 
-## Status
-Boot thread runs: heap, allocator, overlay load, sound manager setup, resource loading with demand paging.
-Nothing is drawn yet (the renderer hook `port_present_hook` is empty; the game's display list is captured in `g_gfx_task`).
+## Status (latest)
+The port boots, runs the game's own boot sequence and renders it: the Acclaim Studios logo and the legal/copyright screens appear
+correctly through the D3D11 F3DEX2 renderer (`port/renderer.cpp`).  The state machine advances through the splash states into the
+main-menu state; the menu's 3D background still crashes on half-initialised objects.
+
+How the missing code is covered
+- **Exact static recompilation** (`port/mips2c.py`, `gen_recomp.py`): every function without matching C is recompiled from the ROM's
+  MIPS code (integer + FPU subset, jump tables, o32 float ABI via `fpsig.py`, 64-bit helper adapters, odd-register 64-bit FPU
+  saves).  ~800 functions; validated against the matching C by differential tests (`gen_difftest.py`, 1221/1226 agree).
+  Drafts in `port/nonmatching` are only the fallback when recompilation fails.
+- **Entry points inside functions** (`port/forced_entries.txt`, `port/game_glue.c` aliases): some code pointers land a few bytes
+  into a function or on a bare `jr $ra`; those are handled by alias stubs / an exec-fault redirect.
+
+Debug switches (environment variables): `TUROK_SKIPMENU=1` (leave the controller-pak screen), `TUROK_AUTOPRESS=1`,
+`TUROK_TRACE=func_x,bt,dump`, `TUROK_WATCH=<guest word>`, `TUROK_SAMPLE=1`, `TUROK_DLFRAME=n` (dump display lists),
+`TUROK_VTXLOG=1`, `TUROK_NOTRI`, `TUROK_NORECT`, `TUROK_DUMPTICK=1`.
+
+Known problems
+- Menu background objects: slots in the object array are visited before they are initialised (null `def`), guarded in
+  `port/overrides/func_0024795C.c` / `func_0024B2C0.c` for now.
+- The controller-pak screen (screen 19) is not completed by the port's pak stubs; `TUROK_SKIPMENU` is a workaround.
+- Audio (alAudio*, alSndp*, alCSP*) is stubbed; no sound.
+- libm: the game's `sinf/cosf` double tables are word-swapped on the little-endian host (`DU()` macro in `src/libultra/cosf.c`).
+- The rewriter pitfalls found so far: volatile accesses (atomic in clang's MSVC mode), align-1 loads, `memcpy` pointer attributes,
+  byte loads/stores, stack objects.

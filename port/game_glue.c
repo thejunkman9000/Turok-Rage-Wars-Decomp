@@ -391,6 +391,14 @@ int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnv
 
 void port_bt(void) { unsigned *sp = (unsigned *)&sp; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 14; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
 
+/* TUROK_WATCH=80153C18: log changes of a guest word (polled every tick) with the recent call trace */
+void port_watch_tick(void) {
+    static unsigned addr, last; static int init;
+    if (!init) { char e[16]; init = 1; if (GetEnvironmentVariableA("TUROK_WATCH", e, sizeof e)) addr = (unsigned)strtoul(e, NULL, 16); }
+    if (!addr) return;
+    { unsigned v = *(volatile unsigned *)(size_t)addr; if (v != last) { fprintf(stderr, "WATCH %08X: %08X -> %08X (raw bytes %02X %02X %02X %02X)\n", addr, last, v, ((unsigned char *)(size_t)addr)[0], ((unsigned char *)(size_t)addr)[1], ((unsigned char *)(size_t)addr)[2], ((unsigned char *)(size_t)addr)[3]); last = v; dump_trace(14); fflush(stderr); } }
+}
+
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;
 void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsigned a3) {
