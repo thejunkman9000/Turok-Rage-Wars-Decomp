@@ -154,6 +154,14 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];
         if (a >= GUEST_DELTA + PAGED_LO && a < GUEST_DELTA + PAGED_HI && page_in(a - GUEST_DELTA)) return EXCEPTION_CONTINUE_EXECUTION;
     }
+    if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2 && ep->ExceptionRecord->ExceptionInformation[0] == 8) {
+        unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];     /* a code pointer a few bytes into a function (the leading instructions are dead): enter the function */
+        if (a >= 0x200400u && a < 0x450000u) {
+            int lo = 0, hi = port_fn_count - 1, best = -1;
+            while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= a) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+            if (best >= 0 && a - port_fn_table[best].guest <= 8) { fprintf(stderr, "code pointer %08X -> function %08X\n", a, port_fn_table[best].guest); ep->ContextRecord->Eip = (DWORD)(size_t)port_fn_table[best].host; return EXCEPTION_CONTINUE_EXECUTION; }
+        }
+    }
     return crash_filter2(ep);
 }
 static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep) {
@@ -312,7 +320,14 @@ void port_rnc_log(const char *what, const void *src, void *dst, int packed, int 
 void *port_resolve(unsigned guest) {
     struct port_fn key; struct port_fn *f; key.guest = guest; key.host = 0;
     f = (struct port_fn *)bsearch(&key, port_fn_table, port_fn_count, sizeof key, cmp_fn);
-    return f ? f->host : (void *)(size_t)guest;
+    if (f) return f->host;
+    if (guest >= 0x200400u && guest < 0x450000u) {        /* a code address that is no function entry: log it, enter the function that contains it when it is only a few bytes in */
+        int lo = 0, hi = port_fn_count - 1, best = -1;
+        while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= guest) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+        fprintf(stderr, "port_resolve: %08X is not a function entry (previous entry %08X)\n", guest, best >= 0 ? port_fn_table[best].guest : 0); fflush(stderr);
+        if (best >= 0 && guest - port_fn_table[best].guest <= 8) return port_fn_table[best].host;
+    }
+    return (void *)(size_t)guest;
 }
 
 /* host stub address of a relocated code pointer -> guest code address (jump tables hold guest label addresses) */

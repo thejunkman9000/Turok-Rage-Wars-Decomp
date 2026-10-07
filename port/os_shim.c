@@ -400,3 +400,8 @@ void port_dump_threads(void) {
     }
     LeaveCriticalSection(&g_lock); fflush(stderr);
 }
+
+/* ---- serial interface (PIF): no controller pak / EEPROM on the host; the transfer "completes" with the buffer untouched ---- */
+s32 __osSiRawStartDma(s32 dir, void *pif_ram) { (void)dir; (void)pif_ram; post_from_host(g_ev_mq[5], g_ev_msg[5]); return 0; }
+u32 __osGetFpcCsr(void) { return 0; }
+u32 __osSetFpcCsr(u32 v) { (void)v; return 0; }
