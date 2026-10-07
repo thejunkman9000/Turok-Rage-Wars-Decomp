@@ -269,11 +269,17 @@ typedef struct O3Plr {
 
 
 /* row of 0x70 bytes at D_800E3A50 */
+typedef struct O3V3i { s32 x, y, z; } O3V3i;
+
 typedef struct O3Row {
-    s32 f0;
-    s32 f4;
-    s32 f8;
-    u8 pad[0x64];
+    /* 0x00 */ s32 f0;
+    /* 0x04 */ s32 f4;
+    /* 0x08 */ s32 f8;
+    /* 0x0C */ f32 fC[4];
+    /* 0x1C */ f32 f1C[4];
+    /* 0x2C */ O3V3i v2C[4];
+    /* 0x5C */ s32 f5C[4];
+    /* 0x6C */ s32 pad6C;
 } O3Row;
 
 /* generic gfx item (alpha / two words) */
@@ -395,6 +401,7 @@ typedef struct O3Rec {
 
 
 typedef struct O3Blk6 { s32 w[6]; } O3Blk6;
+typedef struct O3Blk98 { s32 w[0x62]; } O3Blk98;
 
 /* embedded body of the actor-like object (at actor + 0x190) */
 typedef struct O3Body {
@@ -421,7 +428,8 @@ typedef struct O3Act {
     /* 0x354 */ O3Vec3 pos354;
     /* 0x360 */ u8 pad360[0x478 - 0x360];
     /* 0x478 */ s32 f478;
-    /* 0x47C */ u8 pad47C[0x48C - 0x47C];
+    /* 0x47C */ u8 pad47C[4];
+    /* 0x480 */ O3Vec3 v480;
     /* 0x48C */ O3Vec3 v48C;
     /* 0x498 */ f32 f498;
     /* 0x49C */ s32 f49C;
@@ -481,5 +489,79 @@ typedef struct O3Strs {
     char *s1C;  /* 74B8 */
     char *s20;  /* 74BC */
 } O3Strs;
+
+
+/* render-state helpers: in the original these are `inline` functions (the standalone copies are func_00419074/144/224);
+   an inlined copy compiles to non-base D_80110634 accesses, the out-of-line body to base-register ones. */
+extern s32 D_800E32C4;
+extern s32 D_800E32D0;
+extern s32 D_800E32E4;
+extern s32 D_80153F68;
+extern O3Dl *D_80110634;
+
+static inline void O3_Sync(void) {
+    if (D_800E32E4 == 0) {
+        D_800E32E4 = 1;
+        O3_PUSH(0xE7000000, 0);
+    }
+}
+
+static inline void O3_SetModeA(s32 mode) {
+    if (mode != D_800E32C4) {
+        D_800E32C4 = mode;
+        O3_Sync();
+        if (mode == 6) {
+            O3_PUSH(0xE3000C00, 0x80000);
+        } else if (mode == 7) {
+            O3_PUSH(0xE3000C00, 0);
+        }
+    }
+}
+
+static inline void O3_SetModeB(s32 mode) {
+    if (D_80153F68 == 0) {
+        mode = 0xE;
+    }
+    if (mode != D_800E32D0) {
+        D_800E32D0 = mode;
+        O3_Sync();
+        if (mode == 0xD) {
+            O3_PUSH(0xD7000002, 0x80008000);
+        } else if (mode == 0xE) {
+            O3_PUSH(0xD7000000, 0x80008000);
+        }
+    }
+}
+
+
+
+
+/* sprite-ish item with u16 scroll offsets (join page) */
+typedef struct O3Sp2 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 alpha;
+    /* 0x11 */ u8 pad11[3];
+    /* 0x14 */ u16 f14;
+    /* 0x16 */ u16 f16;
+    /* 0x18 */ s16 f18;
+} O3Sp2;
+
+/* view of the last record of the join page (D_800E42D0[4]) */
+typedef struct O3PjT {
+    /* 0x00 */ s32 f0;
+    /* 0x04 */ s32 f4;
+    /* 0x08 */ O3Sp2 *f8;
+    /* 0x0C */ s32 fC;
+    /* 0x10 */ O3Sp2 *f10;
+    /* 0x14 */ s32 f14;
+    /* 0x18 */ s32 f18;
+    /* 0x1C */ s32 f1C;
+    /* 0x20 */ s32 f20;
+    /* 0x24 */ O3Hdr *f24;
+    /* 0x28 */ O3Hdr *f28;
+    /* 0x2C */ s32 f2C;
+    /* 0x30 */ s32 f30;
+    /* 0x34 */ s32 f34;
+} O3PjT;
 
 #endif

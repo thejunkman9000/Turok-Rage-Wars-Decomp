@@ -93,6 +93,15 @@ func_0024BECC lu3+nb
 func_00262D00 lu3+ntj
 func_00276BB4 lu3+nf
 func_00294428 lu3+o2
+func_00206DD4 lu3+nb
+func_00202CA0 lu3+nb
+func_002390C0 lu3+nf
+func_0024E854 lu3+nf
+func_00241830 lu3+nb
+func_00260EEC lu3+nf
+func_0028C810 lu3+nb
+func_002AB8DC lu3+nb
+func_002AB940 lu3+nb
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
@@ -123,3 +132,5 @@ func_00439E10 lu3+nf
 func_00439E3C lu3+nf
 func_00439EBC lu3+nf
 func_00439EE0 lu3+nf
+func_004002D8 lu3+nb
+func_004042F0 lu3+nb

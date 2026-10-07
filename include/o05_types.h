@@ -35,7 +35,9 @@ typedef struct O05R150 {
     /* 0x00 */ u8 b0;
     /* 0x01 */ u8 pad1[6];
     /* 0x07 */ u8 b7;
-    /* 0x08 */ u8 pad8[142];
+    /* 0x08 */ u8 pad8[0x19 - 8];
+    /* 0x19 */ u8 b19;
+    /* 0x1A */ u8 pad1A[0x96 - 0x1A];
 } O05R150;
 
 /* 70-byte list entries inside a player record (at +0x658) */
@@ -67,7 +69,9 @@ typedef struct O05Plr {
     /* 0xAEC */ s32 fAEC;
     /* 0xAF0 */ s32 tabAF0[4];
     /* 0xB00 */ O05ItemWd *wdB00[4];
-    /* 0xB10 */ u8 padB10[0xB30 - 0xB10];
+    /* 0xB10 */ u8 padB10[0xB28 - 0xB10];
+    /* 0xB28 */ s32 fB28;
+    /* 0xB2C */ u8 padB2C[4];
     /* 0xB30 */ s32 fB30;
     /* 0xB34 */ u8 name[0xB44 - 0xB34];
     /* 0xB44 */ s32 fB44;
@@ -124,8 +128,8 @@ typedef struct O05Row2 {
     /* 0x000 */ u8 pad0[0x4A8];
     /* 0x4A8 */ s32 f4A8;
     /* 0x4AC */ s32 f4AC;
-    /* 0x4B0 */ s32 f4B0;
-    /* 0x4B4 */ u8 pad4B4[0x4CC - 0x4B4];
+    /* 0x4B0 */ s32 tab4B0[6];
+    /* 0x4C8 */ void *f4C8;
     /* 0x4CC */ s32 f4CC;
     /* 0x4D0 */
 } O05Row2;
@@ -133,11 +137,30 @@ typedef struct O05L2 {
     /* 0x0000 */ void *f0;
     /* 0x0004 */ void *f4;
     /* 0x0008 */ O05Row2 row[4];
-    /* 0x1348 */ u8 pad1348[0x1358 - 0x1348];
+    /* 0x1348 */ void *f1348;
+    /* 0x134C */ u8 pad134C[2];
+    /* 0x134E */ u16 h134E;
+    /* 0x1350 */ void *f1350;
+    /* 0x1354 */ u8 pad1354[2];
+    /* 0x1356 */ u16 h1356;
     /* 0x1358 */ s32 f1358;
     /* 0x135C */ s32 f135C;
-    /* 0x1360 */ u8 pad1360[8];
+    /* 0x1360 */ void *f1360;
+    /* 0x1364 */ void *f1364;
     /* 0x1368 */ s32 f1368;
 } O05L2;
+
+
+/* D_801462C8: global game state block; the 150-byte records D_80146410[] live at +0x148, the mode byte D_801462D5 at +0xD,
+ * D_801462E0/E1 at +0x18/+0x19, two flag bytes at +0x24/+0x25, D_80146398 is +0xD0 */
+typedef struct O05GameState {
+    /* 0x000 */ u8 pad0[0xD];
+    /* 0x00D */ u8 mode;
+    /* 0x00E */ u8 pad0E[0x24 - 0xE];
+    /* 0x024 */ u8 f24;
+    /* 0x025 */ u8 f25;
+    /* 0x026 */ u8 pad26[0x148 - 0x26];
+    /* 0x148 */ O05R150 rec[8];
+} O05GameState;
 
 #endif

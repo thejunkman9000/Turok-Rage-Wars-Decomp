@@ -25,7 +25,8 @@ case "$toks" in *+ntj*) xflags="$xflags -fno-thread-jumps";; esac
 case "$toks" in *+luret*) gasmode=game;; esac
 export GAS_NOFILL=0; case "$toks" in *+nf*) export GAS_NOFILL=1;; esac
 "$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic $xflags ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) case "$toks" in *+o2*) echo "-O2";; *) echo "-O2 -mcpu=r4300";; esac;; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
-    -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in"
+    -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in" \
+    || { [ -s "$tmp/o.s" ] || exit 1; echo "cc.sh: gcc reported errors for $in, using its output anyway (as tools/chk.py does)" >&2; }
 
 # reproduce the original assembler's output (move -> addu, div/rem expansion, return delay slot)
 base=$(basename "$in" .c)

@@ -34,7 +34,7 @@ typedef struct O04ModeF60 {
     /* 0x45C */ s32 unk45C;
     /* 0x460 */ u8 pad460[0x464 - 0x460];
     /* 0x464 */ s32 unk464;
-    /* 0x468 */ u8 pad468[0x46C - 0x468];
+    /* 0x468 */ s32 unk468;
     /* 0x46C */ s32 unk46C;
 } O04ModeF60;
 
@@ -46,11 +46,11 @@ typedef struct O04ModeS4514 {
 
 /* D_801468A0 (global game flags block in main image) */
 typedef struct O04GFlags {
-    /* 0x00 */ u8 pad0[0x14];
+    /* 0x0 */ u8 pad0[0x14 - 0x0];
     /* 0x14 */ f32 unk14;
     /* 0x18 */ s32 unk18;
     /* 0x1C */ s32 unk1C;
-    /* 0x20 */ u8 pad20[4];
+    /* 0x20 */ u8 pad20[0x24 - 0x20];
     /* 0x24 */ s32 unk24;
     /* 0x28 */ s32 unk28;
     /* 0x2C */ s32 unk2C[5];
@@ -63,32 +63,40 @@ typedef struct O04GFlags {
     /* 0x78 */ s32 unk78;
     /* 0x7C */ s32 unk7C;
     /* 0x80 */ s32 unk80;
-    /* 0x84 */ u8 pad84[0xA8 - 0x84];
+    /* 0x84 */ u8 pad84[0x90 - 0x84];
+    /* 0x90 */ s32 unk90;
+    /* 0x94 */ u8 pad94[0x98 - 0x94];
+    /* 0x98 */ s32 unk98;
+    /* 0x9C */ s32 unk9C;
+    /* 0xA0 */ s32 unkA0;
+    /* 0xA4 */ s32 unkA4;
     /* 0xA8 */ s32 unkA8;
 } O04GFlags;
 
 /* D_800E4690 (mode state of ovl A "menu" mode) */
 typedef struct O04ModeS4690 {
-    /* 0x000 */ u8 pad0[0x20];
-    /* 0x020 */ u8 unk20[0x970 - 0x20];
+    /* 0x0 */ u8 pad0[0x20 - 0x0];
+    /* 0x20 */ u8 unk20[0x970 - 0x20];
     /* 0x970 */ s32 unk970;
     /* 0x974 */ u8 pad974[0x988 - 0x974];
     /* 0x988 */ s32 unk988;
     /* 0x98C */ u8 pad98C[0x998 - 0x98C];
-    /* 0x998 */ O04Sub38 *unk998;
-    /* 0x99C */ u8 pad99C[0xA04 - 0x99C];
+    /* 0x998 */ O04Sub38 * unk998;
+    /* 0x99C */ u8 pad99C[0x9A0 - 0x99C];
+    /* 0x9A0 */ char unk9A0[0x32];
+    /* 0x9D2 */ char unk9D2[0x32];
     /* 0xA04 */ char unkA04[0x40];
     /* 0xA44 */ s32 unkA44;
-    /* 0xA48 */ O04Sub10 *unkA48;
+    /* 0xA48 */ O04Sub10 * unkA48;
     /* 0xA4C */ u8 padA4C[0xA50 - 0xA4C];
-    /* 0xA50 */ O04Sub10 *unkA50;
+    /* 0xA50 */ O04Sub10 * unkA50;
     /* 0xA54 */ u8 padA54[0xA5C - 0xA54];
     /* 0xA5C */ s32 unkA5C;
-    /* 0xA60 */ O04Sub10 *unkA60;
-    /* 0xA64 */ O04Sub10 *unkA64;
+    /* 0xA60 */ O04Sub10 * unkA60;
+    /* 0xA64 */ O04Sub10 * unkA64;
     /* 0xA68 */ s32 unkA68;
     /* 0xA6C */ s32 unkA6C;
-    /* 0xA70 */ u8 padA70[4];
+    /* 0xA70 */ s32 unkA70;
     /* 0xA74 */ u8 unkA74[5];
     /* 0xA79 */ u8 unkA79[5];
 } O04ModeS4690;
@@ -178,6 +186,8 @@ typedef struct O04Cfg {
     /* 0x11C */ u8 unk11C[8][0x96];
     /* 0x5CC */ u8 pad5CC[0x5EC - 0x5CC];
     /* 0x5EC */ f32 unk5EC;
+    /* 0x5F0 */ u8 pad5F0[0x680 - 0x5F0];
+    /* 0x680 */ s32 unk680;
 } O04Cfg;
 
 /* D_800E4680 */

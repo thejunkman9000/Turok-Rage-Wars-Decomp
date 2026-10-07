@@ -24,7 +24,7 @@ if game:
         f = l.split(); gf[f[1]] = (int(f[0], 16), int(f[2]))
 os.makedirs(f'src/{sub}', exist_ok=True)
 for h in os.listdir(f'{ws}/include'):
-    if h.endswith('_types.h'):
+    if h.endswith('.h') and h not in ('common.h', 'libaudio.h', 'macro.inc'):
         a, b = f'{ws}/include/{h}', f'include/{h}'
         if not os.path.exists(b) or (os.path.getmtime(a) > os.path.getmtime(b) and open(a, 'rb').read() != open(b, 'rb').read()):
             shutil.copy(a, b); print('header updated:', h)
@@ -38,7 +38,7 @@ def r_special(l):
     """extra build flags a result line asks for, as a '+tok' suffix for the manifest mode"""
     t = ''
     body = l.split('#', 1)[1] if '#' in l else ''
-    if '-fno-builtin' in l and 'does not need' not in body: t += '+nb'
+    if '-fno-builtin' in l and 'does not need' not in body and 'not -fno-builtin' not in l and 'without -fno-builtin' not in l: t += '+nb'
     if '-fno-thread-jumps' in l: t += '+ntj'
     if 'NOFILL' in l: t += '+nf'
     if 'luret' in l or 'bare `j $31` keeps nop' in l: t += '+luret'
@@ -55,7 +55,7 @@ for l in open(f'{ws}/wip/out/results.txt'):
     fn, r, n = f[0], int(f[1], 16), int(f[2])
     if fn in start_over: r = int(start_over[fn], 16)
     ro = [t for t in f[4:] if t.startswith('ro=')]
-    if fn in ro_over: ro = [ro_over[fn]]
+    if fn in ro_over: ro = [] if ro_over[fn] == 'none' else [ro_over[fn]]
     fl = ' '.join(f[4:])
     if '-msplit-addresses' in fl: mode = 'lu4'
     elif '-fforce-addr' in fl and '-O2' in fl: mode = 'lu2'
@@ -106,7 +106,7 @@ for fn, r, n, ro, mode in todo:
             new.append(f'pad_{r0:06X} 0x{r0:X} {k} {sub}'); padfile(r0, k)
             r0, total = r, total - k
         if fn in n_over: n = n_over[fn]
-        if fn != 'func_0024E2B4': n = min(n, total)           # chk may count the next object's first words (infinite-loop tails)
+        if fn != 'func_0024E2B4' and fn not in n_over: n = min(n, total)           # chk may count the next object's first words (infinite-loop tails)
         opts = ' '.join(ro)
         entry = f'{fn} 0x{r0:X} {n} {sub}' + (' ' + opts if opts else '') + (f' mode={mode}' if mode else '')
         if fn in have: lines[have[fn]] = entry

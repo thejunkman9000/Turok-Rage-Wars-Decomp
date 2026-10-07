@@ -1,3 +1,1 @@
-src/game/func_00203908.c func_00203908 0x4508 -O2 -mcpu=r4300
-src/game/func_00207738.c func_00207738 0x8338 -O2 -mcpu=r4300
-src/game/func_00209E80.c func_00209E80 0xAA80 -O2 -mcpu=r4300
+src/game/func_00261110.c func_00261110 0x61D10 -O2 -mcpu=r4300

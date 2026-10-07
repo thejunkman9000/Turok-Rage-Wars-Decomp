@@ -9,3 +9,4 @@ sed -i 's/1\.5707963f/1.5707964f/g' src/game/*.c
 sed -i 's/func_00255C58(&D_80103F70, n);/func_00255C58((u8 *)\&D_80103F70 + 0x600, n);/' src/game/func_002549C8.c
 sed -i 's/-1\.5707964f/-1.57079649f/' src/game/func_00203908.c
 sed -i 's/\r$//' src/ovl_a/*.c 2>/dev/null
+sed -i 's/1\.5707964f/1.57079649f/' src/game/func_0020388C.c
