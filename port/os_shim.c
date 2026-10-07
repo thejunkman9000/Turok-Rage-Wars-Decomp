@@ -115,6 +115,7 @@ void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count) {
 static int send_common(OSMesgQueue *mq, OSMesg m, s32 flags, int jam) {
     mq = (OSMesgQueue *)XL(mq);
     HThread *self = self_thread(); os_init();
+    maybe_yield(self);
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) >= (s32)LD32(mq->msgCount)) {
         if (flags == OS_MESG_NOBLOCK) { LeaveCriticalSection(&g_lock); return -1; }
@@ -137,6 +138,7 @@ s32 osJamMesg(OSMesgQueue *mq, OSMesg m, s32 flags) { return send_common(mq, m, 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
     mq = (OSMesgQueue *)XL(mq); m = (OSMesg *)XL(m);
     HThread *self = self_thread(); os_init();
+    maybe_yield(self);                                    /* a polling thread must not starve a higher-priority thread that became ready */
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) == 0) {
         if (flags == OS_MESG_NOBLOCK) { LeaveCriticalSection(&g_lock); return -1; }
@@ -223,7 +225,7 @@ static unsigned long long counter_now(void) {
     LARGE_INTEGER f, c; QueryPerformanceFrequency(&f); QueryPerformanceCounter(&c);
     return (unsigned long long)((double)c.QuadPart * 46875000.0 / (double)f.QuadPart);
 }
-u64 osGetTime(void) { return counter_now(); }
+u64 osGetTime(void) { maybe_yield(self_thread()); return counter_now(); }
 
 typedef struct { OSTimer *t; unsigned long long due, interval; int live; } HTimer;
 static HTimer g_timers[64];
@@ -270,6 +272,7 @@ static void *g_fb;
 void osViSwapBuffer(void *fb) { g_fb = fb; }
 void *osViGetCurrentFramebuffer(void) { return g_fb; }
 
+void port_dump_threads(void);
 static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
@@ -278,7 +281,7 @@ void port_vi_tick(void) {
     {   /* watchdog: if the baton holder never makes progress (lost wake-up), nudge it */
         static HThread *last; static unsigned lastseq; static int stuck;
         EnterCriticalSection(&g_lock);
-        if (g_current && g_current == last && g_seq == lastseq) { if (++stuck == 30) { fprintf(stderr, "baton watchdog: nudging thread %d (state %d)\n", (int)(g_current - g_th), g_current->state); fflush(stderr); SetEvent(g_current->evt); stuck = 0; } }
+        if (g_current && g_current == last && g_seq == lastseq) { if (++stuck == 30) { { extern void port_dump_trace_pub(int); static int dumped; if (!dumped++) { port_dump_threads(); port_dump_trace_pub(300); } } fprintf(stderr, "baton watchdog: nudging thread %d (state %d)\n", (int)(g_current - g_th), g_current->state); fflush(stderr); SetEvent(g_current->evt); stuck = 0; } }
         else stuck = 0;
         last = g_current; lastseq = g_seq;
         LeaveCriticalSection(&g_lock);
@@ -389,7 +392,7 @@ void port_dump_threads(void) {
     fprintf(stderr, "threads (current=%p):\n", (void *)g_current);
     for (i = 0; i < MAXT; i++) if (g_th[i].state) {
         HANDLE th = h_open(g_th[i].tid); CONTEXT c; unsigned *sp; int k; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL);
-        fprintf(stderr, "  [%d] state=%d prio=%d entry=%X waitq=%p kind=%d\n", i, g_th[i].state, g_th[i].prio, (unsigned)((size_t)g_th[i].entry - base), (void *)g_th[i].waitq, g_th[i].waitkind);
+        fprintf(stderr, "  [%d] tid=%lX state=%d prio=%d entry=%X waitq=%p kind=%d\n", i, (unsigned long)(g_th[i].tid & 0xFFFF), g_th[i].state, g_th[i].prio, (unsigned)((size_t)g_th[i].entry - base), (void *)g_th[i].waitq, g_th[i].waitkind);
         if (th && g_th[i].tid != GetCurrentThreadId()) {
             SuspendThread(th); c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; GetThreadContext(th, &c);
             fprintf(stderr, "      eip rva %X stack:", (unsigned)c.Eip - base); sp = (unsigned *)c.Esp;
@@ -405,3 +408,13 @@ void port_dump_threads(void) {
 s32 __osSiRawStartDma(s32 dir, void *pif_ram) { (void)dir; (void)pif_ram; post_from_host(g_ev_mq[5], g_ev_msg[5]); return 0; }
 u32 __osGetFpcCsr(void) { return 0; }
 u32 __osSetFpcCsr(u32 v) { (void)v; return 0; }
+
+/* a game thread that ended (returned or crashed) must give the baton back, otherwise every other thread waits for it forever */
+void port_thread_died(void) {
+    HThread *h = tls_self;
+    if (!h || !g_inited) return;
+    EnterCriticalSection(&g_lock);
+    h->state = 1; if (g_current == h) g_current = NULL;
+    { HThread *b = pick(); if (b) { g_current = b; b->state = 3; SetEvent(b->evt); } }
+    LeaveCriticalSection(&g_lock);
+}

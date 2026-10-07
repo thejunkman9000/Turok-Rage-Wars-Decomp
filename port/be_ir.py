@@ -30,8 +30,8 @@ def split_top(s, start=0):
         i += 1
     return -1
 
-LOAD = re.compile(r'^(\s*)(%[\w.\-$]+) = load (volatile )?(i16|i32|i64|float|double|ptr), ptr (.*?), align (\d+)(.*)$')
-STORE = re.compile(r'^(\s*)store (volatile )?(i16|i32|i64|float|double|ptr) (.*)$')
+LOAD = re.compile(r'^(\s*)(%[\w.\-$]+) = load (volatile )?(i8|i16|i32|i64|float|double|ptr), ptr (.*?), align (\d+)(.*)$')
+STORE = re.compile(r'^(\s*)store (volatile )?(i8|i16|i32|i64|float|double|ptr) (.*)$')
 GCONST = re.compile(r'^(@[\w.\-$"]+) = ((?:internal|private|linkonce_odr|dso_local|unnamed_addr|local_unnamed_addr|hidden|constant|\s)+) \[(\d+) x (i16|i32|i64|float|double)\] \[(.*)\](.*)$')
 
 def bswap_const(ty, tok):
@@ -121,7 +121,7 @@ def rewrite(text):
             if callee.startswith('llvm.mem') or callee in LIBC_PTR_CALLS:
                 args = split_args(argtxt); newargs = []
                 for a in args:
-                    ma = re.match(r'^(\s*ptr(?:\s+[a-z_]+(?:\(\d+\))?)*\s+)(%[\w.\-$]+|@[\w.\-$"]+|null)\s*$', a)
+                    ma = re.match(r'^(\s*ptr(?:\s+[a-z_]+(?:\s+\d+|\([a-z0-9]+\))?)*\s+)(%[\w.\-$]+|@[\w.\-$"]+|null)\s*$', a)
                     if ma and ma.group(2) not in stack and ma.group(2) != 'null' and not native_pointer(ma.group(2), tainted, defined):
                         np_ = xlat(ma.group(2), ind0, out); a = ma.group(1) + np_
                     newargs.append(a)
@@ -135,6 +135,8 @@ def rewrite(text):
                 out.append(line); continue
             rest = re.sub(r',\s*!(nonnull|align|dereferenceable|dereferenceable_or_null|noundef|range)\s+!\d+', '', rest)
             if ptr not in stack: ptr = xlat(ptr, ind, out)
+            if ty == 'i8':                           # bytes need no swapping, only the pointer translation
+                out.append(f'{ind}{dst} = load {vol}{ty}, ptr {ptr}, align {al}{rest}'); continue
             if ty in INT_BITS and al == '1':          # a load LLVM synthesised from byte loads (host little-endian idiom): its bytes already mean what the code wants
                 out.append(f'{ind}{dst} = load {vol}{ty}, ptr {ptr}, align {al}{rest}'); continue
             if ty in INT_BITS:
@@ -161,7 +163,9 @@ def rewrite(text):
                 pend = after.index(', align') if ', align' in after else len(after)
                 if after[:pend] not in stack:
                     after = xlat(after[:pend], ind, out) + after[pend:]
-                if ty in INT_BITS and ', align 1' in after.split(',')[-1] + ', ' + after and re.search(r'align 1', after):
+                if ty == 'i8':
+                    out.append(f'{ind}store {vol}{ty} {val}, ptr {after}')
+                elif ty in INT_BITS and ', align 1' in after.split(',')[-1] + ', ' + after and re.search(r'align 1', after):
                     out.append(f'{ind}store {vol}{ty} {val}, ptr {after}')
                 elif ty in INT_BITS:
                     t = tmp(); used.add(ty)

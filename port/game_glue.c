@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <intrin.h>
+#include <tlhelp32.h>
 
 struct ID3D11DeviceContext;
 
@@ -82,6 +83,24 @@ static void load_guest_data(int have_overlay) {
 extern void func_00293518(void);                            /* game boot thread entry: sprintf, FPU setup, then func_00291404(&D_8011FAC0) */
 
 static void dump_trace(int n);
+
+/* TUROK_SAMPLE=1: every 3 s print where every thread of the process currently executes (rva; symbolize with port/where.py style tools) */
+static DWORD WINAPI sampler_thread(LPVOID p) {
+    size_t base = (size_t)GetModuleHandleA(NULL); (void)p;
+    for (;;) {
+        HANDLE snap; THREADENTRY32 te; Sleep(3000);
+        snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0); te.dwSize = sizeof te;
+        if (snap == INVALID_HANDLE_VALUE) continue;
+        fprintf(stderr, "sample:");
+        if (Thread32First(snap, &te)) do {
+            if (te.th32OwnerProcessID == GetCurrentProcessId() && te.th32ThreadID != GetCurrentThreadId()) {
+                HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE, te.th32ThreadID);
+                if (h) { CONTEXT c; c.ContextFlags = CONTEXT_CONTROL; if (SuspendThread(h) != (DWORD)-1) { c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; if (GetThreadContext(h, &c)) { unsigned long *sp = (unsigned long *)c.Esp; int i, k = 0; fprintf(stderr, " [%lX", te.th32ThreadID & 0xFFFF); __try { for (i = 0; i < 600 && k < 12; i++) if (sp[i] > base && sp[i] < base + 0x400000 && *(unsigned char *)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %lX", sp[i] - (unsigned long)base); k++; } } __except (EXCEPTION_EXECUTE_HANDLER) { } fprintf(stderr, "]"); } ResumeThread(h); } CloseHandle(h); }
+            }
+        } while (Thread32Next(snap, &te));
+        fprintf(stderr, "\n"); fflush(stderr); CloseHandle(snap);
+    }
+}
 static void dump_trace(int n);
 static DWORD WINAPI game_thread(LPVOID p) {
     (void)p;
@@ -90,6 +109,7 @@ static DWORD WINAPI game_thread(LPVOID p) {
     __except (fprintf(stderr, "game thread exception 0x%08lX at %p\n", GetExceptionCode(),
                       GetExceptionInformation()->ExceptionRecord->ExceptionAddress), dump_trace(60), EXCEPTION_EXECUTE_HANDLER) { }
     fprintf(stderr, "game thread ended\n"); fflush(stderr);
+    { extern void port_thread_died(void); port_thread_died(); }
     return 0;
 }
 
@@ -220,6 +240,15 @@ void port_early_init(void) {
             unsigned g = port_fn_table[i].guest; unsigned char *p = (unsigned char *)(size_t)g;
             if (g >= 0x200000u && g < 0x450000u && !IsBadWritePtr(p, 8)) { p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++; }
         }
+        {   /* code pointers a few bytes into a function (its first instructions are dead): {alias, function}; the function's own stub shrinks to a short jump onto the alias stub */
+            static const unsigned alias[][2] = { { 0x42F130u, 0x42F12Cu }, { 0x419B90u, 0x419B8Cu } };
+            for (i = 0; i < (int)(sizeof alias / sizeof alias[0]); i++) {
+                unsigned char *pa = (unsigned char *)(size_t)alias[i][0], *pb = (unsigned char *)(size_t)alias[i][1]; int k;
+                for (k = 0; k < port_fn_count; k++) if (port_fn_table[k].guest == alias[i][1]) {
+                    pa[0] = 0xE9; *(int *)(pa + 1) = (int)((size_t)port_fn_table[k].host - (size_t)(alias[i][0] + 5));
+                    pb[0] = 0xEB; pb[1] = (unsigned char)(alias[i][0] - alias[i][1] - 2); break; }
+            }
+        }
         { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code stubs installed: %d of %d" "\n", n, port_fn_count); fclose(f); } }
     }
     {   /* the guest's low space [0x200000,0x2000000) is accessed at +GUEST_DELTA; keep host allocations (thread stacks, heap) out of
@@ -270,6 +299,7 @@ void port_game_init(void) {
     *(volatile unsigned *)0x80000300 = _byteswap_ulong(1);                           /* osTvType = NTSC */
     *(volatile unsigned *)0x80000318 = _byteswap_ulong(0x800000);                    /* osMemSize */
     CreateThread(NULL, 4 * 1024 * 1024, game_thread, NULL, 0, NULL);
+    { char e[8]; if (GetEnvironmentVariableA("TUROK_SAMPLE", e, sizeof e)) CreateThread(NULL, 0, sampler_thread, NULL, 0, NULL); }
 }
 void port_game_frame(void) { InterlockedIncrement(&g_frames); port_vi_tick(); }
 extern volatile long g_gfx_task_ready; extern unsigned char g_gfx_task[];
@@ -279,7 +309,7 @@ void port_present_hook(struct ID3D11DeviceContext *ctx) {
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "gamestate D_80146878=%d D_800D2984=%d D_80146D68=%d D_8014ADA0=%d\n", (int)be32((void *)0x80146878), (int)be32((void *)0x800D2984), (int)be32((void *)0x80146D68), (int)be32((void *)0x8014ADA0));
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "frame %d: D_800D2958=%08X D_800D295C=%08X\n", frames + 1, be32((void *)0x800D2958), be32((void *)0x800D295C));
     if (frames == 3 || frames == 100) fprintf(stderr, "startgo=%d pops=%d\n", g_dbg_startgo, g_dbg_pop);
-    if (++frames == 600) { port_dump_threads(); dump_trace(8000); }
+    if (++frames == 150 || frames == 600) { port_dump_threads(); dump_trace(300); }
 }
 
 /* Custom entry point: install a crash logger before the C runtime starts (crashes during start-up are otherwise silent). */
@@ -324,7 +354,9 @@ void *port_resolve(unsigned guest) {
     if (guest >= 0x200400u && guest < 0x450000u) {        /* a code address that is no function entry: log it, enter the function that contains it when it is only a few bytes in */
         int lo = 0, hi = port_fn_count - 1, best = -1;
         while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= guest) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+        { static unsigned seen[16]; static int ns; int k, dup = 0; for (k = 0; k < ns; k++) if (seen[k] == guest) dup = 1; if (!dup && ns < 16) seen[ns++] = guest; if (dup) goto resolved_quiet; }
         fprintf(stderr, "port_resolve: %08X is not a function entry (previous entry %08X)\n", guest, best >= 0 ? port_fn_table[best].guest : 0); fflush(stderr);
+        resolved_quiet:
         if (best >= 0 && guest - port_fn_table[best].guest <= 8) return port_fn_table[best].host;
     }
     return (void *)(size_t)guest;
@@ -335,6 +367,8 @@ unsigned port_unresolve(unsigned host) {
     int i; for (i = 0; i < port_fn_count; i++) if ((unsigned)(size_t)port_fn_table[i].host == host) return port_fn_table[i].guest;
     return host;
 }
+
+void port_dump_trace_pub(int n) { dump_trace(n); }
 
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;

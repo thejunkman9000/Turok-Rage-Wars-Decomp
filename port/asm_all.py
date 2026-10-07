@@ -173,6 +173,8 @@ def run():
         vaddr = int(name[5:], 16)
         if any(vaddr + 4 * i not in ins for i in range(n)): continue
         pts, blocked = split_points(vaddr, vaddr + 4 * n, ins, cands)
+        jt = {t for run in jump_tables(vaddr, vaddr + 4 * n) for t in run}            # switch labels are not entries
+        pts = [x for x in pts if x not in jt]; blocked = [x for x in blocked if x not in jt]
         bounds = [vaddr] + pts + [vaddr + 4 * n]
         for q in blocked:                                    # overlapping standalone copy of an entry that lies inside another piece
             nxt = [x for x in bounds if x > q][0]
