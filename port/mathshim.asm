@@ -4,6 +4,8 @@
 .model flat
 PUBLIC _sqrtf
 PUBLIC sqrtf
+PUBLIC func_802BC380
+PUBLIC _func_802BC380
 PUBLIC D_80121990
 D_80121990 EQU 80121990h
 .code
@@ -17,4 +19,14 @@ sqrtf PROC
     fsqrt
     ret
 sqrtf ENDP
+func_802BC380 PROC          ; the game's sqrtf under its raw-address name
+    fld dword ptr [esp+4]
+    fsqrt
+    ret
+func_802BC380 ENDP
+_func_802BC380 PROC
+    fld dword ptr [esp+4]
+    fsqrt
+    ret
+_func_802BC380 ENDP
 END

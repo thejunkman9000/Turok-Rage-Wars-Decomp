@@ -232,6 +232,7 @@ static unsigned long long counter_now(void) {
     LARGE_INTEGER f, c; QueryPerformanceFrequency(&f); QueryPerformanceCounter(&c);
     return (unsigned long long)((double)c.QuadPart * 46875000.0 / (double)f.QuadPart);
 }
+u32 osGetCount(void) { return (u32)counter_now(); }                        /* CP0 Count: the same clock as osGetTime */
 u64 osGetTime(void) { maybe_yield(self_thread()); return counter_now(); }
 
 typedef struct { OSTimer *t; unsigned long long due, interval; int live; } HTimer;

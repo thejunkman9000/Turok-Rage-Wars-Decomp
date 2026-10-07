@@ -474,7 +474,7 @@ def recompile_function(text, name, known, max_stack_args=0):
     stk_words = max(frame // 4 + 16 + 8, 64)
     fname_ = name + '_rc' if sg else name
     sig = 'u32 %s(u32 a0, u32 a1, u32 a2, u32 a3%s) {' % (fname_, ''.join(', u32 a%d' % (4 + k) for k in range(inargs)))
-    pre = ['port_rc_enter("%s", a0, a1, a2, a3);' % name, 'u32 r[32]; float *f = g_fpr; u32 lo = 0, hi = 0; int fcc = 0; u32 stk[%d]; int i_;' % (stk_words + 32),
+    pre = ['port_rc_enter("%s", a0, a1, a2, a3);' % name, 'u32 r[32]; float *f = g_fpr; u32 lo = 0, hi = 0; int fcc = 0; u32 stk[%d] = { 0 }; int i_;' % (stk_words + 32),
            'for (i_ = 0; i_ < 32; i_++) r[i_] = 0;',
            'r[4] = a0; r[5] = a1; r[6] = a2; r[7] = a3; r[31] = 0;',
            'r[29] = (u32)&stk[%d];' % (stk_words),

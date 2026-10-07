@@ -11,7 +11,7 @@ def main():
     for m in ('funcs.txt', 'funcs_a.txt'):
         for l in open(m):
             f = l.split('#')[0].split()
-            if len(f) >= 4 and not f[0].startswith('pad_'): man.add(f[0])
+            if len(f) >= 4 and not f[0].startswith('pad_') and os.path.exists('src/%s/%s.c' % (f[3], f[0])): man.add(f[0])      # listed AND has C: a listed function without C is still missing
     absorbed = set(open('wip/absorbed.txt').read().split())
     import glob
     defd = set()                                   # an 'absorbed' function is only really covered when some C file defines it

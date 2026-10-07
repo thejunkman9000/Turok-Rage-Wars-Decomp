@@ -45,6 +45,9 @@ def disassemble():
         for l in p.stdout.split('\n'):
             m = re.match(r'\s*([0-9a-f]+):\s+([0-9a-f]{8})\s+(\S.*)$', l)
             if m: ins[int(m.group(1), 16)] = (int(m.group(2), 16), m.group(3).strip())
+    for lo, hi, vbase in REGIONS:                                  # objdump prints runs of zero words as '...': they are nops
+        for a in range(vbase, vbase + (hi - lo), 4):
+            if a not in ins: ins[a] = (0, 'nop')
     return ins
 
 REGS = re.compile(r'(?<![\w$.])(f\d+|zero|at|v[01]|a[0-3]|t[0-9]|s[0-8]|k[01]|gp|sp|fp|ra)(?![\w])')
@@ -190,6 +193,37 @@ def run():
             txt = function_text(pname, a, (b - a) // 4, ins, romaddr + (a - vaddr))
             open('port/build/asm_func/%s.s' % pname, 'w', encoding='utf-8', newline='\n').write(txt)
             idx.append('%s %08X %d' % (pname, a, (b - a) // 4)); n_ok += 1
+    # code that no list covers (gaps between listed functions) but that is called: every uncovered jal target starts a function
+    covered = []
+    for name, (romaddr, n) in funcs.items():
+        v = int(name[5:], 16); covered.append((v, v + 4 * n))
+    covered.sort()
+    def is_covered(a):
+        import bisect
+        i = bisect.bisect_right([c[0] for c in covered], a) - 1
+        return i >= 0 and covered[i][0] <= a < covered[i][1]
+    def rom_of(a): return a - 0x400000 + 0x16E000 if a >= 0x400000 else a - 0x200000 + 0xC00
+    starts = set()
+    for a, (w, _) in ins.items():
+        if (w >> 26) == 3:
+            t = ((w & 0x3FFFFFF) << 2) & 0x0FFFFFFF
+            if t in ins and not is_covered(t): starts.add(t)
+    for q in FORCED:
+        if q in ins and not is_covered(q): starts.add(q)
+    if starts:
+        import bisect
+        cstarts = [c[0] for c in covered]
+        order = sorted(starts)
+        for k, a in enumerate(order):
+            j = bisect.bisect_right(cstarts, a)
+            end = covered[j][0] if j < len(covered) else a + 4 * 256
+            if k + 1 < len(order): end = min(end, order[k + 1])
+            n = (end - a) // 4
+            if n < 2 or any(a + 4 * i not in ins for i in range(n)): continue
+            nm = 'func_%08X' % a
+            if os.path.exists('port/build/asm_func/%s.s' % nm): continue
+            open('port/build/asm_func/%s.s' % nm, 'w', encoding='utf-8', newline='\n').write(function_text(nm, a, n, ins, rom_of(a)))
+            idx.append('%s %08X %d' % (nm, a, n)); n_ok += 1
     # overlay A tail functions (detected by asm_tail.py) are appended as individual files too
     if os.path.exists('port/build/asm_extra/ovl_tail.s'):
         cur = None; lines = []
