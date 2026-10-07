@@ -222,6 +222,10 @@ def gen_ins(m, ops, known, ctx):
             fr = freg(ops[0])
             if m == 'lwc1': return '{ u32 w_ = *(u32 *)%s; memcpy(&%s, &w_, 4); }' % (addr, F(fr))
             if m == 'swc1': return '{ u32 w_; memcpy(&w_, &%s, 4); *(u32 *)%s = w_; }' % (F(fr), addr)
+            if fr % 2 == 1:     # an odd register holds a single (doubles use even registers): the 64-bit save/restore moves only its own 32 bits (low word),
+                                # otherwise restoring $f21 would also overwrite $f22 with a stale value
+                if m == 'ldc1': return '{ u32 w_ = *(u32 *)(%s + 4); memcpy(&%s, &w_, 4); }' % (addr, F(fr))
+                return '{ u32 w_; memcpy(&w_, &%s, 4); *(u32 *)%s = 0; *(u32 *)(%s + 4) = w_; }' % (F(fr), addr, addr)
             if m == 'ldc1': return '{ u32 hi_ = *(u32 *)%s, lo_ = *(u32 *)(%s + 4); memcpy(&%s, &hi_, 4); memcpy(&%s, &lo_, 4); }' % (addr, addr, F(fr + 1) if False else F(fr), F(fr + 1))
             return '{ u32 hi_, lo_; memcpy(&hi_, &%s, 4); memcpy(&lo_, &%s, 4); *(u32 *)%s = hi_; *(u32 *)(%s + 4) = lo_; }' % (F(fr), F(fr + 1), addr, addr)
         t = R(reg(ops[0]))

@@ -389,6 +389,8 @@ void port_dump_trace_pub(int n) { dump_trace(n); }
 
 int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SKIPMENU", e, sizeof e) ? 1 : 0; } return v; }
 
+void port_bt(void) { unsigned *sp = (unsigned *)&sp; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 14; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
+
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;
 void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsigned a3) {

@@ -530,7 +530,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         ctx->RSSetState(rs); ctx->IASetInputLayout(layout); ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ctx->VSSetShader(vs, nullptr, 0); ctx->PSSetShader(ps, nullptr, 0); ctx->PSSetConstantBuffers(0, 1, &cbuf);
         g_nfpub = nframes;
-        { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 8) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
+        { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 60) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
         runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
