@@ -8,7 +8,8 @@
 #pragma comment(lib, "user32.lib")
 
 extern "C" void port_early_init(void);
-extern "C" void port_game_init(void);          // port/game_glue.c
+extern "C" void port_game_init(void);
+extern "C" void port_difftest(void);          // port/game_glue.c
 extern "C" void port_game_frame(void);
 extern "C" void port_present_hook(ID3D11DeviceContext* ctx);
 extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c);
@@ -68,6 +69,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
     stage("d3d ok");
     make_rtv();
     renderer_init(g_dev, g_ctx);
+    if (getenv("TUROK_DIFFTEST")) { port_difftest(); return 0; }
     if (!getenv("TUROK_SELFTEST")) port_game_init();
     stage("game init done");
     MSG msg = {};

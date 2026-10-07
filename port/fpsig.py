@@ -4,6 +4,7 @@
   fpsig[name] = (ret, [param types])   with types 'i' (integer / pointer), 'f' (float), 'd' (double), '?' (struct by value etc.)"""
 import glob, re, os
 
+_DEF = re.compile(r'^((?:static\s+)?(?:const\s+)?[A-Za-z_]\w*(?:\s*\*+)?)\s+\**\s*([A-Za-z_]\w*)\s*\(([^;{}()]*(?:\([^;{}()]*\)[^;{}()]*)*)\)\s*\{', re.M)
 _PAT = re.compile(r'^[ \t]*((?:extern\s+|static\s+)?(?:const\s+)?[A-Za-z_]\w*(?:\s*\*+)?)\s+\**\s*([A-Za-z_]\w*)\s*\(([^;{}()]*(?:\([^;{}()]*\)[^;{}()]*)*)\)\s*;', re.M)
 
 def ptype(p):
@@ -38,7 +39,7 @@ def load():
     for p in files:
         try: t = open(p, errors='replace').read()
         except OSError: continue
-        for m in _PAT.finditer(t):
+        for m in list(_PAT.finditer(t)) + list(_DEF.finditer(t)):
             rt, name, params = m.group(1), m.group(2), m.group(3)
             if not re.search(r'\b(f32|f64|float|double)\b', rt + params): continue
             if name in sig: continue

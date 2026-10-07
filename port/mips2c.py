@@ -86,6 +86,7 @@ def parse(text, name, extend=0, prepend=0):
                 cur[1].append(('label', lab))
             continue
         if cur is None or s.startswith(('endlabel', 'enddlabel', 'dlabel', 'jlabel', 'endjlabel', 'nonmatching')): continue
+        if s.startswith('.jtbl'): cur[1].append(('jtbl', s.split()[1:])); continue
         if not s or (s.startswith('.') and not s.startswith('.L')): continue
         m = re.match(r'(\.L\w+):$', s)
         if m: cur[1].append(('label', m.group(1))); continue
@@ -99,6 +100,8 @@ def parse(text, name, extend=0, prepend=0):
     return out
 
 FPSIG = None
+ARGC = {}
+ALLARGC = {}        # integer argument registers read by every function (from the ROM code), used to widen prototypes that declare fewer parameters
 def fpsigs():
     global FPSIG
     if FPSIG is None:
@@ -290,6 +293,34 @@ def call_args(pending_stack):
     while k in pending_stack: extra.append('stk[(%d)/4]' % k); k += 4
     return ['r[4]', 'r[5]', 'r[6]', 'r[7]'] + [('*(u32 *)(r[29] + %d)' % (0x10 + 4 * i)) for i in range(len(extra))]
 
+
+_DEST_FIRST = {'addu', 'add', 'addi', 'addiu', 'subu', 'sub', 'and', 'or', 'xor', 'nor', 'slt', 'sltu', 'sllv', 'srlv', 'srav', 'move', 'li', 'negu', 'not',
+               'slti', 'sltiu', 'mul', 'andi', 'ori', 'xori', 'lui', 'sll', 'srl', 'sra', 'lw', 'lh', 'lhu', 'lb', 'lbu', 'mflo', 'mfhi', 'mfc1', 'cfc1', 'mfc0'}
+def int_arg_count(items):
+    """number of integer argument registers (a0-a3) the function reads before writing them"""
+    written = set(); n = 0
+    for it in items:
+        if it[0] != 'ins': continue
+        m, ops = it[1], it[2]
+        regs = [re.findall(r'\$(zero|at|v[01]|a[0-3]|t[0-9]|s[0-8]|k[01]|gp|sp|fp|ra)(?![\w])', o) for o in ops]
+        flat = [r for rs in regs for r in rs]
+        if m in ('jal', 'jalr'):
+            if m == 'jalr' and ops: 
+                for r in regs[0]:
+                    if r in ('a0', 'a1', 'a2', 'a3') and r not in written: n = max(n, int(r[1]) + 1)
+            written.update(('a0', 'a1', 'a2', 'a3'))
+            continue
+        if m in _DEST_FIRST and ops:
+            srcs = [r for rs in regs[1:] for r in rs]; dest = regs[0]
+        elif m in ('mtc1', 'ctc1', 'mtc0'):
+            srcs = regs[0] if regs else []; dest = []
+        else:
+            srcs = flat; dest = []
+        for r in srcs:
+            if r in ('a0', 'a1', 'a2', 'a3') and r not in written: n = max(n, int(r[1]) + 1)
+        for r in dest: written.add(r)
+    return n
+
 def recompile_function(text, name, known, max_stack_args=0):
     sg = fpsigs().get(name)
     entry_goto = False
@@ -304,6 +335,7 @@ def recompile_function(text, name, known, max_stack_args=0):
         raise ValueError('unresolved branch targets: ' + ' '.join(sorted(targets - labels)[:3]))
     if sg and ('?' in sg[1] or sg[0] == 'l'): raise ValueError('unsupported float signature')
     if fa_read_first(items) and (sg is None or not any(t in ('f', 'd') for t in sg[1])): raise ValueError('float parameters of unknown type')
+    ARGC[name] = int_arg_count(items)
     # frame size and incoming stack args
     frame = 0; inargs = 0
     for it in items:
@@ -315,7 +347,8 @@ def recompile_function(text, name, known, max_stack_args=0):
             mm = re.match(r'(.*)\(\$?sp\)$', it[2][1])
             if mm and imm(mm.group(1) or '0') >= frame + 0x10 and frame:
                 inargs = max(inargs, (imm(mm.group(1)) - frame - 0x10) // 4 + 1)
-    inargs = min(inargs, 8)
+    inargs = min(inargs, 20)
+    jtargets = [t for it in items if it[0] == 'jtbl' for t in it[1]]
     body = []
     regconst = {}
     pending = set()
@@ -325,6 +358,8 @@ def recompile_function(text, name, known, max_stack_args=0):
     code_consts = set()
     while i < len(items):
         it = items[i]
+        if it[0] == 'jtbl':
+            i += 1; continue
         if it[0] == 'label':
             body.append('%s:;' % label_name(it[1])); regconst.clear(); i += 1; continue
         _, m, ops = it
@@ -350,8 +385,13 @@ def recompile_function(text, name, known, max_stack_args=0):
                 if ops[0] in labels: body.append('%s goto %s;' % (delay, label_name(ops[0])))
                 else: body.append('%s ' % delay + tail % ops[0])
             elif m == 'jr':
-                if reg(ops[0]) != 31: raise ValueError('jr to non-ra (jump table?)')
-                body.append('%s return r[2];' % delay)
+                if reg(ops[0]) != 31:
+                    if not jtargets: raise ValueError('jr to non-ra (jump table?)')
+                    cases = ' '.join('case %du: goto %s;' % (int(t[2:], 16), label_name(t)) for t in sorted(set(jtargets)))
+                    jn_ = len([b for b in body if 'jr_again' in b]) 
+                    body.append('{ u32 jr_ = %s; %s jr_again%d:; switch (jr_) { %s default: { u32 g_ = port_unresolve(jr_); if (g_ != jr_) { jr_ = g_; goto jr_again%d; } __builtin_trap(); } } }' % (R(reg(ops[0])), delay, jn_, cases, jn_))
+                else:
+                    body.append('%s return r[2];' % delay)
             elif m in ('jal', 'jalr'):
                 if m == 'jal': target = ops[0]
                 else: target = None
@@ -360,17 +400,33 @@ def recompile_function(text, name, known, max_stack_args=0):
                     mm = re.match(r'(.*)\(\$?sp\)$', dops[1])
                     if mm:
                         off = simm(imm(mm.group(1) or '0'))
-                        if 0x10 <= off < 0x30 and off not in saved_slots: pending.add(('sp', off))
+                        if not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31): saved_slots.add(off)
+                        elif 0x10 <= off < 0x70 and off not in saved_slots: pending.add(('sp', off))
                 nargs = 4
                 while ('sp', 0x10 + 4 * (nargs - 4)) in pending: nargs += 1
                 args = ['r[4]', 'r[5]', 'r[6]', 'r[7]'] + ['*(u32 *)(r[29] + %d)' % (0x10 + 4 * k) for k in range(nargs - 4)]
                 sw = lambda k: '*(u32 *)(r[29] + %d)' % (0x10 + 4 * k)
                 if target == 'osGetTime':                        # u64 result comes back in v0 (high) : v1 (low)
                     body.append('%s { u64 v_ = ((u64 (*)())osGetTime)(); r[2] = (u32)(v_ >> 32); r[3] = (u32)v_; }' % delay)
+                elif target in ('__udivdi3', '__umoddi3', '__divdi3', '__moddi3'):        # 64-bit helpers: operands in a0:a1 / a2:a3 (hi:lo), result in v0:v1
+                    op = {'__udivdi3': ('u64', '/'), '__umoddi3': ('u64', '%'), '__divdi3': ('s64', '/'), '__moddi3': ('s64', '%')}[target]
+                    body.append('%s { %s x_ = (%s)(((u64)r[4] << 32) | r[5]), y_ = (%s)(((u64)r[6] << 32) | r[7]); u64 v_ = y_ ? (u64)(x_ %s y_) : 0; r[2] = (u32)(v_ >> 32); r[3] = (u32)v_; }' % (delay, op[0], op[0], op[0], op[1]))
+                elif target in ('__cmpdi2', '__ucmpdi2'):
+                    sg_ = 's64' if target == '__cmpdi2' else 'u64'
+                    body.append('%s { %s x_ = (%s)(((u64)r[4] << 32) | r[5]), y_ = (%s)(((u64)r[6] << 32) | r[7]); r[2] = x_ < y_ ? 0 : (x_ == y_ ? 1 : 2); }' % (delay, sg_, sg_, sg_))
+                elif target in ('__floatdisf', '__floatdidf', '__floatundisf', '__floatundidf'):
+                    cv = 's64' if 'undi' not in target else 'u64'
+                    if target.endswith('f'): body.append('%s f[0] = (float)(%s)(((u64)r[4] << 32) | r[5]);' % (delay, cv))
+                    else: body.append('%s sd(f, 0, (double)(%s)(((u64)r[4] << 32) | r[5]));' % (delay, cv))
+                elif target in ('__fixdfdi', '__fixsfdi', '__fixunsdfdi', '__fixunssfdi'):
+                    src = 'gd(f, 12)' if 'df' in target else 'f[12]'
+                    ty = 's64' if 'uns' not in target else 'u64'
+                    body.append('%s { %s v_ = (%s)%s; r[2] = (u32)((u64)v_ >> 32); r[3] = (u32)v_; }' % (delay, ty, ty, src))
                 elif target == 'osSetTimer':                     # (t, pad, countdown_hi, countdown_lo | interval_hi, interval_lo, mq, msg on the stack)
                     body.append('%s r[2] = (u32)((u32 (*)())osSetTimer)(r[4], ((u64)r[6] << 32) | r[7], ((u64)%s << 32) | %s, %s, %s);' % (delay, sw(0), sw(1), sw(2), sw(3)))
                 elif target is not None and target in fpsigs() and '?' not in fpsigs()[target][1] and fpsigs()[target][0] != 'l':
                     rt, types = fpsigs()[target]
+                    if ALLARGC.get(target, 0) > len(types): types = list(types) + ['i'] * (ALLARGC[target] - len(types))
                     cargs = arg_exprs(types)
                     proto = '%s (*)(%s)' % ({'f': 'float', 'd': 'double', 'v': 'void', 'i': 'u32'}[rt], ', '.join(CT[t] for t in types) or 'void')
                     call = '((%s)%s)(%s)' % (proto, target, ', '.join(cargs))
@@ -391,7 +447,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                 off = simm(imm(mm.group(1) or '0'))
                 if not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31):
                     saved_slots.add(off)                          # callee-saved register spill, not an argument
-                elif 0x10 <= off < 0x30 and off not in saved_slots: pending.add(('sp', off))
+                elif 0x10 <= off < 0x70 and off not in saved_slots: pending.add(('sp', off))
         txt = gen_ins(m, ops, known, None)
         # function addresses materialised as constants (lui + addiu/ori, possibly with other instructions in between):
         # use the real function symbol so that the value is a host pointer
@@ -425,6 +481,7 @@ def recompile_function(text, name, known, max_stack_args=0):
     text = '\n'.join([sig] + ['    ' + l for l in pre + body] + ['    return r[2];', '}'])
     if sg:
         rt, types = sg
+        if ALLARGC.get(name, 0) > len(types): types = list(types) + ['i'] * (ALLARGC[name] - len(types))     # prototype declared fewer parameters than the code reads
         cparams = ', '.join('%s p%d' % (CT[t], i) for i, t in enumerate(types)) or 'void'
         words = [None] * 8; setf = []; word = 0
         for idx, t in enumerate(types):

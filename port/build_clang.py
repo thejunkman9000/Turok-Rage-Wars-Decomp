@@ -30,7 +30,7 @@ def sources():
         if b == 'string': continue                                                                  # memcpy/strlen: host CRT
         if re.match(r'^(__os|os[A-Z]|dbg|__divdi3|__moddi3|__udivdi3|__umoddi3|__floatdi|__cmpdi|__ucmpdi)', b): continue          # hardware layer: port/os_shim.c
         srcs.append(p)
-    srcs += sorted(glob.glob('port/nonmatching/*.c')) + sorted(glob.glob('port/native/*.c')) + sorted(glob.glob('port/native/recomp/*.c'))
+    srcs += sorted(glob.glob('port/nonmatching/*.c')) + sorted(glob.glob('port/native/*.c')) + sorted(glob.glob('port/native/recomp/*.c')) + (sorted(glob.glob('port/native/difftest/*.c')) if os.environ.get('TUROK_BUILD_DIFFTEST') else [])
     return srcs
 
 
@@ -48,6 +48,11 @@ def _params(txt):
     return out
 _ALLDEFS = {}
 def load_defs():
+    try:
+        for l in open('port/build/rc_argc.txt'):
+            f = l.split()
+            if len(f) == 2: _ALLDEFS[f[0]] = int(f[1])         # statically recompiled functions: how many argument registers they read
+    except OSError: pass
     for p in glob.glob('src/game/*.c') + glob.glob('src/ovl_a/*.c') + glob.glob('port/nonmatching/*.c') + glob.glob('port/overrides/*.c'):
         for m in FUNC_DEF.finditer(open(p, errors='replace').read()):
             ps = _params(m.group(2))
@@ -70,6 +75,14 @@ def patch_implicit_args(text):
         args = [cp[i] if i < len(cp) and cp[i] else '0' for i in range(n)]
         return f'{m.group(1)}({", ".join(args)});'
     text = ZERO_CALL.sub(sub, text)
+    # a prototype with (void) would reject the arguments we are about to pass: make it unprototyped (K&R) like the original
+    def relax(m):
+        n = _ALLDEFS.get(m.group(2))
+        if not n: return m.group(0)
+        ps = _params(m.group(3))
+        if len(ps) >= n or any(re.search(r'\b(f32|f64|float|double)\b', a) and '*' not in a for a, _ in ps): return m.group(0)
+        return m.group(1) + m.group(2) + '();'
+    text = re.sub(r'(?m)^([A-Za-z_][\w \t\*]*?\b)(func_[0-9A-Fa-f]{8})\s*\(([^()]*)\)\s*;', relax, text)
 
     # calls that pass fewer arguments than the callee takes: the original code leaves the remaining argument registers as they were
     # on entry to the caller (a1 = the caller's own a1 ...), so pass the caller's parameters at those positions
@@ -91,7 +104,7 @@ def patch_implicit_args(text):
 
 def compile_one(p, force):
     base = os.path.splitext(os.path.basename(p))[0]
-    prefix = 'lu_' if p.startswith('src/libultra') else ('ov_' if p.startswith('src/ovl_a') else ('nm_' if p.startswith('port/nonmatching') else ('ar_' if p.startswith('port/native/recomp') else 'nt_' if p.startswith('port/native') else '')))
+    prefix = 'lu_' if p.startswith('src/libultra') else ('ov_' if p.startswith('src/ovl_a') else ('nm_' if p.startswith('port/nonmatching') else ('ar_' if p.startswith('port/native/recomp') else 'zd_' if p.startswith('port/native/difftest') else 'nt_' if p.startswith('port/native') else '')))
     obj = f'{OUT}/{prefix}{base}.obj'
     if not force and os.path.exists(obj) and os.path.getmtime(obj) >= os.path.getmtime(p): return (p, True, 'cached')
     ll1 = f'{LL}/{prefix}{base}.ll'; ll2 = f'{LL}/{prefix}{base}.be.ll'
@@ -99,6 +112,7 @@ def compile_one(p, force):
     err = ''
     src_text = open(p, errors='replace').read()
     src_text = re.sub(r'\s*(?:__asm__|__asm|asm)\s*\(\s*"\$[0-9a-z]+"\s*\)', '', src_text)     # MIPS register pins from the matching drafts mean nothing to clang/x86
+    src_text = re.sub(r'(?<![\w])func_([0-9A-F]{6})(?![\w])', lambda m: 'func_00' + m.group(1), src_text)                 # short names (func_44AFC0) of the matching tree: the real function, so the implicit-argument patches apply
     variants = [patch_implicit_args(src_text), src_text]
     if base.endswith('__m2c'):
         import m2c_autofix
@@ -137,7 +151,7 @@ if __name__ == '__main__':
     if not only:       # drop objects of sources that no longer exist (renamed drafts, parked groups ...)
         def oname(p):
             b = os.path.splitext(os.path.basename(p))[0]
-            return ('lu_' if p.startswith('src/libultra') else 'ov_' if p.startswith('src/ovl_a') else 'nm_' if p.startswith('port/nonmatching') else 'ar_' if p.startswith('port/native/recomp') else 'nt_' if p.startswith('port/native') else '') + b + '.obj'
+            return ('lu_' if p.startswith('src/libultra') else 'ov_' if p.startswith('src/ovl_a') else 'nm_' if p.startswith('port/nonmatching') else 'ar_' if p.startswith('port/native/recomp') else 'zd_' if p.startswith('port/native/difftest') else 'nt_' if p.startswith('port/native') else '') + b + '.obj'
         keep = {oname(x) for x in srcs}
         for f in os.listdir(OUT):
             if f not in keep: os.remove(os.path.join(OUT, f))

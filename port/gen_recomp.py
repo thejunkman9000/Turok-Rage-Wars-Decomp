@@ -22,6 +22,7 @@ static double u2d(u32 hi, u32 lo) { u64 v = ((u64)hi << 32) | lo; double d; memc
 static u32 d2hi(double d) { u64 v; memcpy(&v, &d, 8); return (u32)(v >> 32); }
 static u32 d2lo(double d) { u64 v; memcpy(&v, &d, 8); return (u32)v; }
 extern void *port_resolve(u32 guest_code_address);
+extern u32 port_unresolve(u32 host_or_guest);
 extern void port_rc_enter(const char *name, u32 a0, u32 a1, u32 a2, u32 a3);
 '''
 
@@ -47,6 +48,10 @@ def gen(names):
     os.makedirs('port/native/recomp', exist_ok=True)
     idx = m2c_fallback.asm_index()
     known = known_functions(idx)
+    for _n, _p in idx.items():
+        if _n.startswith('func_') and _p.startswith('port'):
+            try: mips2c.ALLARGC[_n] = mips2c.int_arg_count(mips2c.parse(open(_p, encoding='utf-8').read(), _n))
+            except Exception: pass
     done = []
     for name in names:
         src = idx.get(name) or idx.get(name.replace('func_00', 'func_'))
@@ -62,6 +67,7 @@ def gen(names):
         data = set(re.findall(r'\b(D_[0-9A-F]{8})\b', c))
         open('port/native/recomp/%s.c' % name, 'w', newline='\n').write(HEADER % name + decls + c + '\n')
         done.append(name)
+    open('port/build/rc_argc.txt', 'w').write('\n'.join('%s %d' % (n, mips2c.ARGC.get(n, 0)) for n in done if mips2c.ARGC.get(n, 0) > 0) + '\n')
     return done
 
 if __name__ == '__main__':

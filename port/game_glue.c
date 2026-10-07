@@ -81,12 +81,14 @@ static void load_guest_data(int have_overlay) {
 
 extern void func_00293518(void);                            /* game boot thread entry: sprintf, FPU setup, then func_00291404(&D_8011FAC0) */
 
+static void dump_trace(int n);
+static void dump_trace(int n);
 static DWORD WINAPI game_thread(LPVOID p) {
     (void)p;
     fprintf(stderr, "game thread: calling func_00293518\n"); fflush(stderr);
     __try { func_00293518(); }
     __except (fprintf(stderr, "game thread exception 0x%08lX at %p\n", GetExceptionCode(),
-                      GetExceptionInformation()->ExceptionRecord->ExceptionAddress), EXCEPTION_EXECUTE_HANDLER) { }
+                      GetExceptionInformation()->ExceptionRecord->ExceptionAddress), dump_trace(60), EXCEPTION_EXECUTE_HANDLER) { }
     fprintf(stderr, "game thread ended\n"); fflush(stderr);
     return 0;
 }
@@ -313,13 +315,22 @@ void *port_resolve(unsigned guest) {
     return f ? f->host : (void *)(size_t)guest;
 }
 
+/* host stub address of a relocated code pointer -> guest code address (jump tables hold guest label addresses) */
+unsigned port_unresolve(unsigned host) {
+    int i; for (i = 0; i < port_fn_count; i++) if ((unsigned)(size_t)port_fn_table[i].host == host) return port_fn_table[i].guest;
+    return host;
+}
+
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;
 void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsigned a3) {
     if (!g_trace_init) { g_trace_init = 1; if (!GetEnvironmentVariableA("TUROK_TRACE", g_trace_names, sizeof g_trace_names)) g_trace_names[0] = 0; }
-    if (g_trace_names[0] && strstr(g_trace_names, name) && !strcmp(name, "func_0044E454")) { unsigned p1 = be32((void *)(size_t)a1), p2 = (p1 >= 0x80000000u && p1 < 0x80800000u) ? be32((void *)(size_t)p1) : 0; fprintf(stderr, "chain: *a1=%08X **a1=%08X\n", p1, p2); if (p2 >= 0x80000000u && p2 < 0x80800000u) { int i; for (i = 0; i < 8; i++) fprintf(stderr, " %08X", be32((unsigned char *)(size_t)p2 + i * 4)); fprintf(stderr, "\n"); } }
+    if (g_trace_names[0] && strstr(g_trace_names, name) && (!strcmp(name, "func_0044E454") || !strcmp(name, "func_0044D408") || !strcmp(name, "func_0044D024") || !strcmp(name, "func_0044CD58"))) { unsigned p1 = be32((void *)(size_t)a1), p2 = (p1 >= 0x80000000u && p1 < 0x80800000u) ? be32((void *)(size_t)p1) : 0; fprintf(stderr, "chain: *a1=%08X **a1=%08X\n", p1, p2); if (p2 >= 0x80000000u && p2 < 0x80800000u) { int i; for (i = 0; i < 24; i++) fprintf(stderr, " %08X", be32((unsigned char *)(size_t)p2 + i * 4)); fprintf(stderr, "\n"); } }
     if (g_trace_names[0] && strstr(g_trace_names, name)) { fprintf(stderr, "call %s(%08X, %08X, %08X, %08X)\n", name, a0, a1, a2, a3); fflush(stderr); }
+    if (g_trace_names[0] && strstr(g_trace_names, name) && strstr(g_trace_names, "bt")) { unsigned *sp = (unsigned *)&name; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 24; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
 }
 
 /* the guest FPU register file shared by all statically recompiled code (saved/restored per thread by the OS shim) */
 float g_fpr[32];
+
+#include "difftest_driver.inc"

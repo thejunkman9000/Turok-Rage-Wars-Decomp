@@ -72,9 +72,30 @@ def conv(txt, lo, hi):
         return '%s %s%s' % (mn, ''.join(r + ', ' for r in regs), name)
     return '%s %s' % (mn, dollar(ops)) if ops else mn
 
+_ROMWORDS = None
+def jump_tables(lo, hi):
+    """runs of >= 3 consecutive ROM words that are word-aligned addresses inside [lo, hi): switch tables of that function"""
+    global _ROMWORDS
+    if _ROMWORDS is None:
+        r = rom(); nw = len(r) // 4
+        _ROMWORDS = struct.unpack('>%dI' % nw, r[:nw * 4])
+    ws = _ROMWORDS; runs = []
+    i = 0x0C0000 // 4
+    while i < len(ws):
+        if lo <= ws[i] < hi and ws[i] % 4 == 0:
+            j = i
+            while j < len(ws) and lo <= ws[j] < hi and ws[j] % 4 == 0: j += 1
+            if j - i >= 3: runs.append(list(ws[i:j]))
+            i = j
+        else: i += 1
+    return runs
+
 def function_text(name, vaddr, n, ins, rom_base):
     lo, hi = vaddr, vaddr + 4 * n
     targets = set()
+    has_jr = any((ins[a][0] & 0xFC1FFFFF) == 0x00000008 and ((ins[a][0] >> 21) & 31) != 31 for a in range(lo, hi, 4) if a in ins)   # jr $reg (not ra)
+    tables = jump_tables(lo, hi) if has_jr else []
+    for run in tables: targets.update(run)
     for a in range(lo, hi, 4):
         if a not in ins: return None
         w = ins[a][0]
@@ -90,6 +111,7 @@ def function_text(name, vaddr, n, ins, rom_base):
         w, txt = ins[a]
         line = '.word 0x%08X' % w if txt.startswith('.word') else conv(txt, lo, hi)
         out.append('    /* %X %08X %08X */  %s' % (rom_base + (a - lo), a, w, line))
+    for run in tables: out.append('.jtbl ' + ' '.join('.L%08X' % t for t in run))
     return '\n'.join(out) + '\n'
 
 def tail_functions():
@@ -123,18 +145,23 @@ def entry_candidates(ins):
     return cands
 
 def split_points(lo, hi, ins, cands):
-    """entries glued into the middle of a project function: a candidate that follows an unconditional jr ra / j (+ delay slot) and that
-    no branch inside the function targets"""
-    local = set()
+    """(splits, blocked): entries glued into the middle of a project function.  A candidate becomes a split when it follows an
+    unconditional jr ra / j (+ delay slot) and no branch located before it reaches it or any address after it (the function really ends
+    there).  Candidates that are reached by earlier branches stay inside the function but are returned in `blocked`: they are real
+    entry points as well and get an overlapping standalone copy."""
+    maxt = lo; pts = []; blocked = []
     for a in range(lo, hi, 4):
         w = ins[a][0]
-        if is_branch(w): local.add(a + 4 + boff(w) * 4)
-    pts = []
-    for a in range(lo + 8, hi, 4):
-        if a in cands and a not in local:
+        if a in cands and a >= lo + 8:
             w1 = ins.get(a - 8, (0,))[0]
-            if w1 == 0x03E00008 or (w1 >> 26) == 2: pts.append(a)
-    return pts
+            if w1 == 0x03E00008 or (w1 >> 26) == 2:
+                if maxt <= a: pts.append(a)
+                else: blocked.append(a)
+        if is_branch(w): maxt = max(maxt, a + 4 + boff(w) * 4)
+        elif (w >> 26) == 2:
+            t = ((w & 0x3FFFFFF) << 2) & 0x0FFFFFFF
+            if lo <= t < hi and t > a: maxt = max(maxt, t)
+    return pts, blocked
 
 def run():
     funcs = function_list()
@@ -145,8 +172,13 @@ def run():
     for name, (romaddr, n) in sorted(funcs.items(), key=lambda kv: kv[1][0]):
         vaddr = int(name[5:], 16)
         if any(vaddr + 4 * i not in ins for i in range(n)): continue
-        pts = split_points(vaddr, vaddr + 4 * n, ins, cands)
+        pts, blocked = split_points(vaddr, vaddr + 4 * n, ins, cands)
         bounds = [vaddr] + pts + [vaddr + 4 * n]
+        for q in blocked:                                    # overlapping standalone copy of an entry that lies inside another piece
+            nxt = [x for x in bounds if x > q][0]
+            qn = 'func_%08X' % q
+            open('port/build/asm_func/%s.s' % qn, 'w', encoding='utf-8', newline='\n').write(function_text(qn, q, (nxt - q) // 4, ins, romaddr + (q - vaddr)))
+            idx.append('%s %08X %d' % (qn, q, (nxt - q) // 4)); n_ok += 1
         for k in range(len(bounds) - 1):
             a, b = bounds[k], bounds[k + 1]
             pname = name if k == 0 else 'func_%08X' % a

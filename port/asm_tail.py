@@ -89,6 +89,9 @@ for s in starts:
     done.update(range(s, e, 4))
     targets = {a + 4 + boff(words[a]) * 4 for a in range(s, e, 4) if is_branch(words[a])}
     targets |= {((words[a] & 0x3FFFFFF) << 2) & 0x0FFFFFFF for a in range(s, e, 4) if (words[a] >> 26) == 2 and s <= (((words[a] & 0x3FFFFFF) << 2) & 0x0FFFFFFF) < e}
+    _has_jr = any((words[a] & 0xFC1FFFFF) == 0x00000008 and ((words[a] >> 21) & 31) != 31 for a in range(s, e, 4))
+    _tables = asm_all.jump_tables(s, e) if _has_jr else []
+    for _run in _tables: targets.update(_run)
     out.append('glabel func_%08X' % s)
     for a in range(s, e, 4):
         if a in targets: out.append('.L%08X:' % a)
@@ -96,6 +99,7 @@ for s in starts:
         line = '.word 0x%08X' % ww if txt.startswith('.word') else conv(txt)
         if (ww >> 26) == 2 and s <= (((ww & 0x3FFFFFF) << 2) & 0x0FFFFFFF) < e: line = 'j .L%08X' % (((ww & 0x3FFFFFF) << 2) & 0x0FFFFFFF)
         out.append('    /* %X %08X %08X */  %s' % (ROM_LO + a - VBASE, a, ww, line))
+    for _run in _tables: out.append('.jtbl ' + ' '.join('.L%08X' % t for t in _run))
     out.append('')
 open('port/build/asm_extra/ovl_tail.s', 'w', encoding='utf-8', newline='\n').write('\n'.join(out))
 print('functions:', sum(1 for l in out if l.startswith('glabel')))
