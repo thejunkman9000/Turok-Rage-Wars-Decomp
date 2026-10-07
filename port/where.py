@@ -21,3 +21,14 @@ for l in open(sys.argv[1] if len(sys.argv) > 1 else 'port_log.txt', errors='repl
         seen.add(('stack', m.group(1)))
         for r in m.group(1).split():
             print('   ', r, where(int(r, 16)))
+# symbolize the call trace
+for l in open(sys.argv[1] if len(sys.argv) > 1 else 'port_log.txt', errors='replace'):
+    if l.strip().startswith('trace (oldest first):'):
+        items = l.split(':', 1)[1].split()
+        out = []
+        for it in items:
+            t, r = it.split(':')
+            nm = where(int(r, 16)).split('+')[0].lstrip('_')
+            if not out or out[-1][1] != nm: out.append((t, nm))
+        print('TRACE:', ' > '.join(f'{nm}' for t, nm in out[-60:]))
+        break

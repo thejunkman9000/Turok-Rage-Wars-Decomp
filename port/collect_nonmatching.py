@@ -18,15 +18,17 @@ order = {'b': 0, 'p': 0, 'm': 1, 'o': 1, 'q': 2, 'r': 3}
 def rank(path):
     ws = re.search(r'/ws/(\w+)/', path.replace(chr(92), '/'))
     w = ws.group(1)[0] if ws else 'x'
-    return (order.get(w, 0), 0 if '.prev' not in path else -1, os.path.getmtime(path))
-files = glob.glob('D:/Projects/ws/*/wip/hard/func_*.c') + glob.glob('wip/groups/func_*.c')
+    return (order.get(w, 0), 1 if '/wip/out/' in path.replace(chr(92), '/') else 0, 0 if '.prev' not in path else -1, os.path.getmtime(path))
+files = glob.glob('D:/Projects/ws/*/wip/hard/func_*.c') + glob.glob('D:/Projects/ws/*/wip/out/func_*.c') + glob.glob('wip/groups/func_*.c')
 defs = {}
 for p in files:
     txt = open(p, errors='replace').read()
     for n in re.findall(r'^[A-Za-z_][^;{}()=]*[ *](func_[0-9A-F]{8})\s*\([^;{}]*\)\s*\{', txt, re.M):
         defs.setdefault(n, []).append(p)
 chosen = {}
+over = {os.path.basename(f)[:-2]: f for f in glob.glob('port/overrides/func_*.c')}   # hand-fixed versions win
 for n in missing:
+    if n in over: chosen[n] = over[n]; continue
     ps = defs.get(n, [])
     if not ps: continue
     # prefer parked group files (EXACT per function), then the newest draft
@@ -40,3 +42,8 @@ for n, p in chosen.items():
 for i, (p, ns) in enumerate(sorted(used.items(), key=lambda kv: kv[1][0])):
     shutil.copy(p, f'port/nonmatching/{ns[0]}__{i}.c')
 print('missing functions:', len(missing), ' with a draft:', len(chosen), ' source files:', len(used))
+# overrides of functions that exist as matching C (debug builds, port-specific fixes) are compiled from port/nonmatching too
+for n, f in over.items():
+    if n not in chosen:
+        shutil.copy(f, f'port/nonmatching/{n}__ovr.c')
+print('extra overrides:', [n for n in over if n not in chosen])

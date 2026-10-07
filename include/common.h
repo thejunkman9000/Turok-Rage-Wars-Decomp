@@ -20,7 +20,9 @@ typedef s32 OSPri;
 typedef s32 OSId;
 typedef char *va_list;
 /* o32 va_arg for types of at most word alignment: the value is read before the pointer is advanced */
+#ifndef va_arg   /* the Windows port defines its own (port/compat_clang.h): host varargs are native-endian, unaligned */
 #define va_arg(ap, type) (*(type *)(((ap) = (va_list)((((u32)(ap) + sizeof(type) - 1) & ~(sizeof(type) - 1)) + sizeof(type))) - sizeof(type)))
+#endif
 
 #define NULL ((void *)0)
 #define TRUE 1

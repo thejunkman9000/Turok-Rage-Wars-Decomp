@@ -4,13 +4,13 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars32.bat" >nul 2>&1 && set' |
   ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($Matches[1])" -Value $Matches[2] } }
 $obj = 'port\build\obj'; New-Item -ItemType Directory -Force $obj | Out-Null
-$files = @(Get-ChildItem src\game\*.c) + @(Get-ChildItem src\ovl_a\*.c) | Where-Object {
+$files = @(Get-ChildItem src\game\*.c) + @(Get-ChildItem src\ovl_a\*.c) | Where-Object { -not (Test-Path (Join-Path 'port\overrides' ($_.BaseName + '.c'))) } | Where-Object {
     $o = Join-Path $obj ($_.BaseName + '.obj'); -not (Test-Path $o) -or (Get-Item $o).LastWriteTime -lt $_.LastWriteTime }
 "compiling $($files.Count) files"
 $log = 'port\build\compile.log'; Remove-Item $log -ErrorAction SilentlyContinue
 for ($i = 0; $i -lt $files.Count; $i += 150) {
     $chunk = $files[$i..([Math]::Min($i + 149, $files.Count - 1))] | ForEach-Object { $_.FullName }
-    cl /nologo /MP /O1 /w /TC /Iinclude /D_LANGUAGE_C /DTARGET_PC "/FI$((Get-Location).Path)\port\compat.h" /c "/Fo$obj\" @chunk 2>&1 | Out-File -Append $log -Encoding ascii
+    cl /nologo /MP /O1 /Gh /w /TC /Iinclude /D_LANGUAGE_C /DTARGET_PC "/FI$((Get-Location).Path)\port\compat.h" /c "/Fo$obj\" @chunk 2>&1 | Out-File -Append $log -Encoding ascii
 }
 $errs = Select-String -Path $log -Pattern 'error C' -ErrorAction SilentlyContinue
 "errors: $(($errs | Measure-Object).Count)"

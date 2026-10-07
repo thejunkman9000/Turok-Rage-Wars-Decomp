@@ -7,7 +7,19 @@
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+#include <intrin.h>
 #include "os_types.h"
+
+/* Guest memory (game structs, message buffers, DMA targets) is big-endian: the game code reads it through byte-swapping
+   loads/stores (port/be_ir.py).  The shim must use the same representation for every guest field it touches. */
+#define LD32(x) ((u32)_byteswap_ulong(*(volatile unsigned long *)&(x)))
+#define ST32(x, v) (*(volatile unsigned long *)&(x) = _byteswap_ulong((unsigned long)(v)))
+#define LD16(x) ((u16)_byteswap_ushort(*(volatile unsigned short *)&(x)))
+#define ST16(x, v) (*(volatile unsigned short *)&(x) = _byteswap_ushort((unsigned short)(v)))
+#define LD64(x) ((u64)_byteswap_uint64(*(volatile unsigned __int64 *)&(x)))
+#define ST64(x, v) (*(volatile unsigned __int64 *)&(x) = _byteswap_uint64((unsigned __int64)(v)))
+#define LDP(x) ((void *)(size_t)LD32(x))                 /* guest pointer fields are 32-bit big-endian */
+#define STP(x, v) ST32(x, (u32)(size_t)(v))
 
 #define MAXT 64
 typedef struct HThread {
@@ -91,19 +103,22 @@ static void wake_one(OSMesgQueue *mq, int kind) {          /* wake the highest-p
 
 /* ---- message queues ---- */
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count) {
-    os_init(); mq->mtqueue = NULL; mq->fullqueue = NULL; mq->validCount = 0; mq->first = 0; mq->msgCount = count; mq->msg = msg;
+    os_init(); STP(mq->mtqueue, 0); STP(mq->fullqueue, 0); ST32(mq->validCount, 0); ST32(mq->first, 0); ST32(mq->msgCount, count); STP(mq->msg, msg);
 }
 
 static int send_common(OSMesgQueue *mq, OSMesg m, s32 flags, int jam) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
-    while (mq->validCount >= mq->msgCount) {
+    while ((s32)LD32(mq->validCount) >= (s32)LD32(mq->msgCount)) {
         if (flags == OS_MESG_NOBLOCK) { LeaveCriticalSection(&g_lock); return -1; }
         self->state = 4; self->waitq = mq; self->waitkind = 2; reschedule(self);
     }
-    if (jam) { mq->first = (mq->first + mq->msgCount - 1) % mq->msgCount; mq->msg[mq->first] = m; }
-    else mq->msg[(mq->first + mq->validCount) % mq->msgCount] = m;
-    mq->validCount++;
+    {
+        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
+        if (jam) { first = (first + cnt - 1) % cnt; ST32(mq->first, first); ST32(buf[first], (u32)(size_t)m); }
+        else ST32(buf[(first + valid) % cnt], (u32)(size_t)m);
+        ST32(mq->validCount, valid + 1);
+    }
     wake_one(mq, 1);
     if (g_preempt) { g_preempt = 0; reschedule(self); }
     LeaveCriticalSection(&g_lock);
@@ -115,13 +130,16 @@ s32 osJamMesg(OSMesgQueue *mq, OSMesg m, s32 flags) { return send_common(mq, m, 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
-    while (mq->validCount == 0) {
+    while ((s32)LD32(mq->validCount) == 0) {
         if (flags == OS_MESG_NOBLOCK) { LeaveCriticalSection(&g_lock); return -1; }
         self->state = 4; self->waitq = mq; self->waitkind = 1;
         reschedule(self);
     }
-    if (m) *m = mq->msg[mq->first];
-    mq->first = (mq->first + 1) % mq->msgCount; mq->validCount--;
+    {
+        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first);
+        if (m) ST32(*m, LD32(buf[first]));
+        ST32(mq->first, (first + 1) % cnt); ST32(mq->validCount, (s32)LD32(mq->validCount) - 1);
+    }
     wake_one(mq, 2);
     if (g_preempt) { g_preempt = 0; reschedule(self); }
     LeaveCriticalSection(&g_lock);
@@ -132,8 +150,9 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
 static void post_from_host(OSMesgQueue *mq, OSMesg m) {
     if (!mq) return; os_init();
     EnterCriticalSection(&g_lock);
-    if (mq->validCount < mq->msgCount) {
-        mq->msg[(mq->first + mq->validCount) % mq->msgCount] = m; mq->validCount++;
+    if ((s32)LD32(mq->validCount) < (s32)LD32(mq->msgCount)) {
+        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
+        ST32(buf[(first + valid) % cnt], (u32)(size_t)m); ST32(mq->validCount, valid + 1);
         wake_one(mq, 1);
         if (!g_current) { HThread *b = pick(); if (b) { g_current = b; b->state = 3; SetEvent(b->evt); } g_preempt = 0; }
     }
@@ -159,7 +178,7 @@ void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void
         HThread *h = &g_th[i]; memset(h, 0, sizeof *h);
         h->t = t; h->prio = pri; h->state = 1; h->entry = entry; h->arg = arg;
         h->evt = CreateEventA(NULL, FALSE, FALSE, NULL);
-        t->priority = pri; t->id = id; t->state = OS_STATE_STOPPED; t->next = NULL; t->queue = NULL;
+        ST32(t->priority, pri); ST32(t->id, id); ST16(t->state, OS_STATE_STOPPED); STP(t->next, 0); STP(t->queue, 0);
         CreateThread(NULL, 1024 * 1024, thread_proc, h, 0, NULL);
         break;
     }
@@ -174,17 +193,17 @@ void osStartThread(OSThread *t) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
     HThread *h = find(t);
-    if (h && h->state == 1) { h->state = 2; h->seq = ++g_seq; t->state = OS_STATE_RUNNABLE; reschedule(self); }
+    if (h && h->state == 1) { h->state = 2; h->seq = ++g_seq; ST16(t->state, OS_STATE_RUNNABLE); reschedule(self); }
     LeaveCriticalSection(&g_lock);
 }
 void osSetThreadPri(OSThread *t, OSPri pri) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
-    HThread *h = find(t); if (h) { h->prio = pri; if (h->t) h->t->priority = pri; }
+    HThread *h = find(t); if (h) { h->prio = pri; if (h->t) ST32(h->t->priority, pri); }
     reschedule(self);
     LeaveCriticalSection(&g_lock);
 }
-OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? h->t->id : 0; }
+OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? (OSId)LD32(h->t->id) : 0; }
 
 /* ---- time and timers ---- */
 static unsigned long long counter_now(void) {
@@ -196,7 +215,7 @@ u64 osGetTime(void) { return counter_now(); }
 typedef struct { OSTimer *t; unsigned long long due, interval; int live; } HTimer;
 static HTimer g_timers[64];
 s32 osSetTimer(OSTimer *t, u64 value, u64 interval, OSMesgQueue *mq, OSMesg msg) {
-    os_init(); t->mq = mq; t->msg = msg; t->interval = interval;
+    os_init(); STP(t->mq, mq); ST32(t->msg, (u32)(size_t)msg); ST64(t->interval, interval);
     EnterCriticalSection(&g_lock);
     for (int i = 0; i < 64; i++) if (!g_timers[i].live || g_timers[i].t == t) {
         g_timers[i].t = t; g_timers[i].due = counter_now() + value; g_timers[i].interval = interval; g_timers[i].live = 1; break;
@@ -220,7 +239,7 @@ static void run_timers(void) {                               /* called from the 
             if (g_timers[i].interval) g_timers[i].due += g_timers[i].interval; else g_timers[i].live = 0;
         }
         LeaveCriticalSection(&g_lock);
-        if (t) post_from_host(t->mq, t->msg);
+        if (t) post_from_host((OSMesgQueue *)LDP(t->mq), (OSMesg)(size_t)LD32(t->msg));
     }
 }
 
@@ -252,7 +271,7 @@ OSTask g_gfx_task; volatile LONG g_gfx_task_ready;
 s32 osSpTaskLoad(OSTask *t) { g_task = *t; return 0; }
 s32 osSpTaskStartGo(OSTask *t) {
     (void)t;
-    if (g_task.t.type == 1) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
+    if (LD32(g_task.t.type) == 1) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
     post_from_host(g_ev_mq[4], g_ev_msg[4]);                 /* SP done */
     post_from_host(g_ev_mq[9], g_ev_msg[9]);                 /* DP done */
     return 0;
@@ -271,7 +290,7 @@ s32 osPiStartDma(OSIoMesg *mb, s32 pri, s32 dir, u32 dev, void *vaddr, u32 n, OS
     (void)pri;
     fprintf(stderr, "osPiStartDma dir=%d dev=%08X dram=%p size=%X\n", dir, dev, vaddr, n);
     if (dir == 0) rom_copy(vaddr, dev, n);                    /* OS_READ */
-    mb->hdr.retQueue = mq;
+    STP(mb->hdr.retQueue, mq);
     post_from_host(mq, (OSMesg)mb);
     return 0;
 }
@@ -302,7 +321,7 @@ void osInitialize(void) { os_init(); }
 static int key(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     (void)mq; *bitpattern = 1;
-    for (int i = 0; i < 4; i++) { status[i].type = i == 0 ? 0x0500 : 0; status[i].status = 0; status[i].errno_ = i == 0 ? 0 : 0x80; }
+    for (int i = 0; i < 4; i++) { ST16(status[i].type, i == 0 ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = i == 0 ? 0 : 0x80; }
     return 0;
 }
 s32 osContStartReadData(OSMesgQueue *mq) { post_from_host(mq, (OSMesg)0); return 0; }
@@ -313,12 +332,12 @@ void osContGetReadData(OSContPad *pad) {
     if (key('Z')) b |= 0x2000;                                /* Z */
     if (key('X')) b |= 0x4000;                                /* B */
     if (key('C')) b |= 0x8000;                                /* A */
-    pad[0].button = b;
+    ST16(pad[0].button, b);
     pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0));
     pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0));
 }
 s32 osContStartQuery(OSMesgQueue *mq) { post_from_host(mq, (OSMesg)0); return 0; }
-void osContGetQuery(OSContStatus *status) { memset(status, 0, 4 * sizeof *status); status[0].type = 0x0500; }
+void osContGetQuery(OSContStatus *status) { memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
 s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void)ch; return 1; }
 s32 osMotorStart(void *pfs) { (void)pfs; return 0; }

@@ -8,7 +8,7 @@ $obj = 'port\build\obj_lu'; Remove-Item -Recurse -Force $obj -ErrorAction Silent
 $ok = 0; $bad = @()
 foreach ($f in Get-ChildItem src\libultra\*.c) {
     if ($f.BaseName -match '^(__os|os[A-Z]|dbg|__osDev)') { continue }       # hardware layer: replaced by os_shim.c
-    $o = cl /nologo /O1 /w /TC /Iinclude /D_LANGUAGE_C /DTARGET_PC "/FI$((Get-Location).Path)\port\compat.h" /c "/Fo$obj\$($f.BaseName).obj" $f.FullName 2>&1
+    $o = cl /nologo /O1 /Gh /w /TC /Iinclude /D_LANGUAGE_C /DTARGET_PC "/FI$((Get-Location).Path)\port\compat.h" /c "/Fo$obj\$($f.BaseName).obj" $f.FullName 2>&1
     if ($LASTEXITCODE -eq 0) { $ok++ } else { $bad += $f.BaseName; Remove-Item "$obj\$($f.BaseName).obj" -ErrorAction SilentlyContinue }
 }
 "libultra objects: $ok ok, $($bad.Count) failed: $($bad -join ' ')"

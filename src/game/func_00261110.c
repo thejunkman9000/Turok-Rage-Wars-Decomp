@@ -1,8 +1,10 @@
 
 
 #include "b14_types.h"
+#ifndef TARGET_PC
 #undef memcpy
 void memcpy();
+#endif
 
 void *func_00261110(s32 *p, void *src, s32 size) {
     s32 n; s32 i; s32 k; u8 *dst; s32 *q; s32 *r;
