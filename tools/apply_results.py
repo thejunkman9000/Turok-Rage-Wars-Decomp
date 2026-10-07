@@ -10,11 +10,12 @@ Compile mode from the `flags:` text: -msplit-addresses -> lu4; `-O2 -mcpu=r4300`
 Run tools/cycle.ps1 afterwards; fix whatever it reports."""
 import re, sys, os, shutil, struct, subprocess
 ws = sys.argv[1]
-game = '--game' in sys.argv
+ovlgame = '--ovlgame' in sys.argv      # game-style results for overlay A functions (func_004xxxxx): manifest funcs_a.txt, src/ovl_a
+game = '--game' in sys.argv or ovlgame
 ovl = '--ovl' in sys.argv
 dry = '--dry' in sys.argv
-sub = 'game' if game else ('ovl_a' if ovl else 'libultra')
-manifest = 'funcs_a.txt' if ovl else 'funcs.txt'
+sub = 'ovl_a' if ovlgame else ('game' if game else ('ovl_a' if ovl else 'libultra'))
+manifest = 'funcs_a.txt' if (ovl or ovlgame) else 'funcs.txt'
 rom = open('baserom.us.v11.z64', 'rb').read()
 gf = {}
 if game:
@@ -49,8 +50,8 @@ todo = []
 for l in open(f'{ws}/wip/out/results.txt'):
     f = l.split('#')[0].split()
     if len(f) < 4 or f[3] != 'EXACT': continue
-    if 'gcc 2.7' in l or '-msplit-addresses' in l or 'low-region' in l or f[0] in excluded:
-        print('skipping (special compiler / excluded):', f[0]); continue
+    if 'gcc 2.7' in l or '-msplit-addresses' in l or 'low-region' in l:
+        print('skipping (special compiler):', f[0]); continue
     fn, r, n = f[0], int(f[1], 16), int(f[2])
     if fn in start_over: r = int(start_over[fn], 16)
     ro = [t for t in f[4:] if t.startswith('ro=')]
@@ -65,6 +66,27 @@ for l in open(f'{ws}/wip/out/results.txt'):
         if r_special(l): mode = 'lu3' + r_special(l)
         if fn in mode_over: mode = mode_over[fn]
     todo.append((fn, r, n, ro, mode))
+absorbed = set(open('wip/absorbed.txt').read().split()) if os.path.exists('wip/absorbed.txt') else set()
+# several results whose source file is one and the same combined file defining all of them = one multi-function object
+# (gcc 'inline' deferral, shared literal pool): the primary (lowest ROM) keeps the file, the others are absorbed; the
+# build then reports the object as longer than the manifest count and tools/fix_short_objs.py extends it.
+def _defines(txt, nm):
+    return re.search(r'^[A-Za-z_][^;{}]*[ *]' + nm + r'\s*\([^;{}]*\)\s*\{', txt, re.M) is not None
+_by = {}
+for t in todo:
+    sp = f'{ws}/wip/out/{t[0]}.c'
+    if os.path.exists(sp): _by.setdefault(open(sp, errors='replace').read(), []).append(t)
+grouped = set()
+for txt, ts in _by.items():
+    mem = [t for t in ts if _defines(txt, t[0])]
+    if len(mem) > 1:
+        mem.sort(key=lambda t: t[1])
+        for t in mem[1:]:
+            grouped.add(t[0]); absorbed.add(t[0])
+        grouped.add(mem[0][0])
+        print('group object:', mem[0][0], '+', [t[0] for t in mem[1:]])
+if not dry and absorbed: open('wip/absorbed.txt', 'w').write(chr(10).join(sorted(absorbed)) + chr(10))
+todo = [t for t in todo if t[0] not in absorbed and (t[0] not in excluded or t[0] in grouped)]
 def padfile(a, n):
     words = [(a + 4 * k, '%08X' % struct.unpack('>I', rom[a + 4 * k:a + 4 * k + 4])[0]) for k in range(n)]
     out = ['.include "macro.inc"', '', '.set noat', '.set noreorder', '', '.section .text, "ax"', '',
@@ -81,17 +103,17 @@ for fn, r, n, ro, mode in todo:
         r0, total = gf[fn]
         if r > r0 and (r - r0) % 4 == 0 and (r - r0) // 4 < total:
             k = (r - r0) // 4              # leading stray words before the real function start
-            new.append(f'pad_{r0:06X} 0x{r0:X} {k} game'); padfile(r0, k)
+            new.append(f'pad_{r0:06X} 0x{r0:X} {k} {sub}'); padfile(r0, k)
             r0, total = r, total - k
         if fn in n_over: n = n_over[fn]
         if fn != 'func_0024E2B4': n = min(n, total)           # chk may count the next object's first words (infinite-loop tails)
         opts = ' '.join(ro)
-        entry = f'{fn} 0x{r0:X} {n} game' + (' ' + opts if opts else '') + (f' mode={mode}' if mode else '')
+        entry = f'{fn} 0x{r0:X} {n} {sub}' + (' ' + opts if opts else '') + (f' mode={mode}' if mode else '')
         if fn in have: lines[have[fn]] = entry
         else: new.append(entry)
         if n < total:
             a = r0 + 4 * n
-            new.append(f'pad_{a:06X} 0x{a:X} {total - n} game'); padfile(a, total - n)
+            new.append(f'pad_{a:06X} 0x{a:X} {total - n} {sub}'); padfile(a, total - n)
     else:
         if fn not in have: print('not in manifest:', fn); continue
         f = lines[have[fn]].split()
@@ -114,16 +136,24 @@ for e in new:
     have_names.add(nm); uniq.append(e)
 new = uniq
 lines += new
-# overlapping ro= pieces (a worker's piece may run into the next function's literals): truncate at the next piece
+# overlapping ro= pieces (a worker's piece may run into the next function's literals): truncate at the next piece.
+# Pieces of funcs.txt and funcs_a.txt share the main image's data area, so look at both manifests.
+other = 'funcs_a.txt' if manifest == 'funcs.txt' else 'funcs.txt'
+olines = open(other).read().split(chr(10)) if os.path.exists(other) else []
 ros = []
-for i, l in enumerate(lines):
-    for t in l.split('#')[0].split()[4:]:
-        m = re.fullmatch(r'ro=0x([0-9A-Fa-f]+):(\d+)', t)
-        if m: ros.append((int(m.group(1), 16), int(m.group(2)), i, t))
+for tag, ls in ((0, lines), (1, olines)):
+    for i, l in enumerate(ls):
+        for t in l.split('#')[0].split()[4:]:
+            m = re.fullmatch(r'ro=0x([0-9A-Fa-f]+):(\d+)', t)
+            if m: ros.append((int(m.group(1), 16), int(m.group(2)), tag, i, t))
 ros.sort()
+changed_other = False
 for a, b in zip(ros, ros[1:]):
     if a[0] + a[1] > b[0]:
-        lines[a[2]] = lines[a[2]].replace(a[3], f'ro=0x{a[0]:X}:{b[0] - a[0]}')
+        tgt = lines if a[2] == 0 else olines
+        tgt[a[3]] = tgt[a[3]].replace(a[4], f'ro=0x{a[0]:X}:{b[0] - a[0]}')
+        if a[2] == 1: changed_other = True
+if changed_other and not dry: open(other, 'w', newline=chr(10)).write(chr(10).join(olines).rstrip(chr(10)) + chr(10))
 # a function whose chk count runs into the next function (e.g. ends in an infinite loop): shrink it
 ents = []
 for i, l in enumerate(lines):

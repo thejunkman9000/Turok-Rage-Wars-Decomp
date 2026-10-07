@@ -1,0 +1,1366 @@
+=================== FINDINGS from workspace p1
+FINDINGS - pilot batch 1 (40 functions from the low main image)
+Result: 37 targets EXACT, 3 PARTIAL (return slot / one mov), 0 NONE (see results.txt).
+  35 EXACT with the default chk setup (gcc 2.8.1 -O2 -mcpu=r4300); 2 more (func_00200568, func_00200880) only with gcc 2.7.2.
+  Most functions matched on the first or second draft written from the m2c skeleton (about 25 min of wall time in total
+  once the fast loop below was in place; the 40 s per chk call of the stock scripts is the real time sink).
+
+0. TOOLING (saves most wall time)
+ - tools/chk.ps1 / try.ps1 run wsl_sync.sh first (rsync of the whole tree, ~40 s per call).  Copy only what changed and run
+   chk.py directly: wip/k.sh <listfile> (0.3 s per call).  wip/vv.py <spec.json> = vq.py without the sync, ONE chk call
+   for all variants, keeps wip/c/_best_<fn>.c; spec may use "bodies":[...] or full-file "files":[...] and "flags".
+   wip/side.sh <file> <fn> <rom> = side-by-side asm diff (-O2 -mcpu=r4300).  Env GCCV=2.7.2 and CHK=wip/chkvg.py select the
+   compiler and the "game" assembler mode (wip/gamefix.py); wip/side3.sh / wip/lj.py give side-by-side for those modes.
+ - Do NOT write `extern ... PI_STATUS_REG`: common.h #defines it (phys addr).  Use IO_READ(PI_STATUS_REG) (gives lui 0xA460/ori).
+ - Shell note: very long bash commands with several heredocs containing apostrophes break the tool; write files in small chunks.
+
+1. COMPILER / ASSEMBLER BOUNDARY (important for the next batches)
+ - Everything from func_002039F8 (ROM 0x45F8) upwards matched gcc 2.8.1 -O2 -mcpu=r4300 with the normal 'lu' assembler
+   (gcc fills `jr ra` with the sp adjust itself).
+ - The lowest part (ROM 0x1168..0x2D98: func_00200568, 00200880, 00201A74, 00202198) is different (probably its own
+   compile unit(s)):
+   * the return epilogue is NOT slot filled: ROM has `addiu sp,sp,N ; jr ra ; nop` (unfilled), gcc 2.8.1 emits `jr ra ; addiu`.
+   * func_00202198 starts with `lui v0 ; lw v1,lo(v0)` BEFORE `addiu sp,sp,-0x48` (scheduled prologue, RTL-style) and
+     func_00201A74 stores a global via `lui a0 ; sw v1,lo(a0)` (explicit temp register instead of $at).  That is what
+     gcc 2.8.1 -msplit-addresses produces: with `-O2 -msplit-addresses` (no -mcpu=r4300; -mcpu=r4000 also works, -mips2/3
+     too) the bodies of 201A74 / 202198 / 200880 are identical to the ROM, only the return slot differs (2 words).
+     I could not find the option/assembler setting that leaves that slot empty (tried -mips1/2/3, -mcpu=*, -fno-delayed-branch,
+     2.7.2.3, 2.91.66, 2.95.2, bare-j-nop 'game' assembler).
+   * func_00200568 and func_00200880 are EXACT with gcc 2.7.2 -O2 (200880 needs the 'game' assembler: bare `j $31` keeps a nop).
+     For func_00200568 gcc 2.7.2 does not fill the beq slot but fills `j $31 ; sw`; gcc 2.8.1 fills both -> mismatch there.
+     func_00201A74 / 00202198 are 8 / 2 words off with 2.7.2 (store order / lui temp register; 2.7.2 has no -msplit-addresses).
+   Suggest a per-function mode in chk list lines (compiler version, return-slot behaviour); wip/chkvg.py is a hack for that.
+ - func_002016DC (strlen incl NUL) matches both.
+
+2. SOURCE-STYLE LESSONS (gcc 2.8.1 -O2 -mcpu=r4300)
+ - Structs with big padding arrays and offset-named fields (unk5D8 ...) are fine: all field accesses are plain lw/sw at the
+   m2c offsets.  Object graph seen: Actor.def (0x18) -> ActorDef.info (embedded block at +0x14: flags, flags24, unk50 ...),
+   Actor.stats (0x5D8), Actor.owner (0x1D8) -> Actor.brain (0x1454), singly linked lists through Actor.next (0x16E0) starting at
+   ActorGroup.head (0x20).  A second argument "state / handler block" (0x108/0x10C/0x110 handler pointers, 0x124/0x128/0x12C
+   values that are s32 for some callers and f32 for others -> union) is shared by the func_002xxxxx handlers; the common
+   dispatcher is func_00214178(actor, state, eventId).  m2c DROPS pass-through arguments: look for an untouched a0/a1 before
+   a jal (it hid actor/state in 5 of my functions, e.g. func_002065C0 calls func_0024B690(actor, arg2, 1)).
+ - m2c's literal shape is often exactly right, even for odd code: `u16 v = x + n; field = v; if (v > 100) v = 100; field = v;`
+   (func_0022B10C) matched.  Start from the m2c text, convert the gotos into if/while/for, keep the evaluation order.
+ - Return types: m2c prints s16 for an lh-loaded value that is returned; the ROM returns it without sign-extension, so the C
+   return type is s32 (func_0020459C).  For a boolean result `if (D == 0 || x != y) return 1; return 0;` the matching form was
+   `if (D && x == y) return 0; return 1;` (gives beql ... addiu v0,1 in the slot) (func_00203EB0).
+ - Globals: `extern GameFlags D_x;` accessed as D_x.f makes gcc fold sym+off into the address (lui + %lo(sym+off)); when the
+   ROM keeps a register with &sym (lui;addiu sym ; lw 0x54(v1) ; lw 0x68(v1)) declare the global as an ARRAY
+   (`extern GameFlags D_801468A0[];` and use D_801468A0->field).  This fixed func_0022A410 and func_0022A67C.
+   Separate scalar float globals: `extern f32 D_800C7DE0;`; arrays `extern f32 D_800C7DD8[]` indexed [1] both give lui $at/lwc1.
+   Opaque struct globals passed as &D_xxx: `extern u8 D_8011FE88[];` works (lui/addiu).
+ - Row arrays with a 400 byte stride: `D_80102B10[idx].unk0` with a 0x190 byte struct gives the sll/addu chain (x*25*16) exactly.
+ - Switch statements: `switch (t) { case 1: case 4: case 7: return 1; default: return 0; }` gives the compare tree of the ROM
+   (func_0020C9CC).  Case ORDER in the source matters: func_002172D0 only matched with
+   `case 1: case 2: s0 = src; break; case 0: s0 = src->unkD0; break;` (case 0 first gave another tree).
+   func_00209B64: `case 1: break; default: reset; /*fallthrough*/ case 0: ...; break; case 2: ...` (default in the middle).
+   Dead-looking `lbu + bltz + slti 3` range checks in the ROM = a switch on a u8.
+ - `if (a == 11 || a == 12)` is merged by fold into a single range test (addiu/sltiu); the ROM (func_0022ABF0) has separate
+   compares in the order 11,12,14,13 and matched only with gotos into shared arms
+   (`if (t==11) goto A; if (t==12) { A: r=0x19000; } else if (t==14) goto B; else if (t==13) { B: r=0x12C00; } else goto C;`).
+   Look for this whenever the ROM shows sequential beq/bne chains on adjacent constants (original was probably a macro).
+ - Floating point: operand evaluation order follows the C text: `(f32)cfg->x < call() + k` keeps the left operand live in a
+   callee-saved FP register across the call (sdc1 spill); the ROM computed the call first -> `call() + k > (f32)cfg->x`
+   (func_0020A884).  Re-comparing against the same global inside a loop (`min == D_800C6E90`) is what produces the hoisted
+   `mov.s fv1,fv0` copy of the constant in func_0020D28C.
+ - A struct copy of 12 bytes (`Vec3f a = src->v;`) gives lw,lw,lw / sw,sw,sw (func_002174E4); `b.y = 0` stores `$zero`.
+ - Display-list pushes: `dl = D_80110634++; dl->w0 = 0xE3001201; dl->w1 = 0x2000;` with `extern DlCmd *D_80110634` matched twice
+   (func_002183E8 / func_00218F08: same body, different tail callee, probably the same macro).
+ - Flag updates written as two statements `actor->flags &= ~0x2000; actor->flags &= ~0x100;` fold into one and/and pair like
+   the ROM; in func_0020459C the plain `actor->flags |= / &= ` in an if/else matched while a local copy of the word did not.
+ - A test used as a value, `ok = (state->flags & 0x20000) != 0;`, folds into srl/andi; the ROM has lui/and/sltu: write
+   `u32 f = state->flags & 0x20000; ok = f != 0;` (func_00207C94).  `if (ok) {...} else { state->unk40 = 0; }` (instead of an
+   early return) produced the ROM's beql with the store in the delay slot; `a >= b` float compares: write `x >= y` as in C text.
+ - Open issue: func_0022AA34 (ROM has an extra `mov.s f1,f0` after `mul.s f0,f1,f0` before the compare; ~25 variants incl.
+   inline helpers, temps, ternaries did not reproduce it).  Everything else of that function matches.
+
+3. PROTOTYPE HINTS
+ - Handlers: (Actor *actor, ActorState *state[, extra]).  func_00200500 / func_00200538 look like an interrupt mask
+   disable/restore pair (return old mask / take mask).  func_00200800 = read u8 from a PI/ROM address, func_002005A0 = read
+   u32; func_00200880 = ROM-to-RAM byte copy with alignment fixup (lead-in byte loop, word loop, tail loop).
+ - func_00201A74 / func_00202198 build a request and either send it to an I/O thread (osSendMesg to D_800F6F40 / osRecvMesg
+   on D_800F7110 when D_800CD394 == 2) or call func_002017E8 directly under the interrupt mask.
+ - Names in results.txt are guesses.
+=================== FINDINGS from workspace p2
+FINDINGS from pilot batch 2 (40 functions, main image 0x2C050-0x57A8C): 36 EXACT, 4 PARTIAL (1-6 words off), 0 NONE.
+Workflow speed: ~28 of 36 matched on the first or second compile of a straightforward C transcription.
+Flags -O2 -mcpu=r4300 are right (same compiler behaviour as libultra, all codegen idioms below reproduced).
+
+== Workflow tips ==
+- Write C directly from the asm + m2c (m2c is good for field offsets and call signatures, bad for control flow).
+- wip/ck.ps1 (fn:rom list -> chk with game flags), wip/V.ps1 (variant search wrapper around vq.py; quote the rom as '0x..'
+  or PowerShell turns it into an int and vq crashes), wip/side.ps1 (side-by-side with -O2 -mcpu=r4300; try.ps1 uses lu flags!),
+  wip/types.py + wip/types_spec.py (sparse struct spec -> include/p2_types.h with explicit padding, avoids offset typos).
+- chk masks relocs, so symbol identity is invisible, but the *shape* of address code (lui/addiu base register reuse, `lui $at` +
+  lwc1) tells you how globals are declared (see Globals).
+
+== Globals / addressing ==
+- Scalar float global used once or twice: `lui $at,%hi(sym); lwc1 $f,%lo(sym)($at)`.  If we declare `extern f32 D[]` and index
+  D[1] twice GCC builds `addiu $v0,&D` and uses 0($v0)/4($v0): MISMATCH.  Where the asm says `%hi(D_800CE3E0 + 0x4)`
+  the original had a separate scalar (declare `extern f32 D_800CE3E4;` -> matched; same for D_800E28D0/D_800E28D4 as two s32 scalars).
+- If the asm builds ONE base register with lui/addiu and then uses it for accesses at 0, +0x44, -0xBCC (func_002549C8), the
+  original is a single big extern struct: PoolMgr at D_80103F70 (cnt at +0xBCC, field at +0xC10; D_80104564, D_80104584,
+  D_8010510C, D_8010513C, D_80105180 are all inside it).  Declaring `extern PoolMgr D_80103F70;` (struct with padding) and using
+  fields reproduced the base-register CSE exactly.  Generalisation: negative/odd offsets from a reg that holds a symbol address
+  == members of one big struct/array, not separate globals.
+- `lui $v0,%hi(g); lw $v0,%lo(g)($v0)` is the normal scalar integer/pointer global access.
+- Arrays of structs: `D[i].field` with stride 16 (func_0023C6AC) compiles to pointer-increment loops; `for (i=0;i<24;i++)` matched at once.
+- `if (&sym == 0)` style loop `for (n = &D_80103F88; n != NULL; n = n->next)` compiles with the `beqz` on the constant address (kept by GCC!).
+
+== Structs ==
+- Player-like object: huge struct (size >= 0x16E4) linked through `next` at +0x16E0; Game(+0x20) holds the head; global list head
+  D_80145060.  Many fields at 0x5xx-0x12xx (state s16 at +0x650, pawn ptr +0x5DC, weapon idx s16 +0x62E, f32 fields 0x658,0x720,...).
+- Actor-like object: pos at +8/+0xC/+0x10, info ptr +0x18, f32 at 0x194/0x198, s32 0x174; 24-byte `seg[]` array at +0x140 and
+  64-byte matrices at +0x68 indexed by the global side index D_800D297C (<<6 and *24 address arithmetic).
+- PNode/List (func_00255xxx list package): node key at +0, flags +0xC, prev +0x20, next +0x24; List = {head, tail} 0x14 bytes.
+  A second plain doubly linked list (next +0, prev +4) exists (func_0023CB80).
+- float args in o32: when the first arg is an integer, f32 args come in $a1.. (mtc1 $a1,$fv).  Prototype them as f32, GCC then
+  emits lw/mfc1 exactly as the ROM (e.g. `void f(Player*, f32 d, s32)`); f32 fields passed on as args are loaded with `lw`.
+- 12-byte struct passed by value in $a1..$a3 gives the "sw a1/a2/a3 to 0x1C.. then &arg" idiom (func_0023939C, printf-like wrapper);
+  real varargs (`...`) additionally spills $a0 and uses different offsets, so it is NOT that.
+
+== Idioms: source shape -> codegen ==
+- `if (p) return x != 0; return 0;` (positive test, early-return of the false case last) matched where `if (!p) return 0;` did not
+  (func_0022BA90).  Similarly `u32 v = flags & 2; return v != 0;` gives `andi; sltu v0,zero,v0` whereas `(flags & 2) != 0` inline
+  gives the srl/andi 1 form (func_002458F8).
+- A static inline helper returning 1/0 (with `if (c1||c2||c3) return 1; return 0;`) inlined into `if (helper(p)) return 0;` gives the
+  `v0 = 0/1; bnez v0` value-materialised pattern with the result in $v0 and forces a reload of p->state afterwards (func_0022C6D4).
+  Plain `||` chain in the `if` or a local `s32 r` put the temp in another register.
+- Float clamp `t = lim; if (!(x <= t)) t = x;` produced `c.le.s x,lim; bc1t` + `mov.s` (func_0022B68C).  `if (x > t)` produced
+  `c.lt.s` (different).  Negating the comparison in source is the way to flip c.lt/c.le + bc1t/bc1f.
+- Two branches that both assign 0.0f and share one block (c.lt.s / bc1f / j): write them with a goto into the shared `d = 0` block
+  (func_0022DD84).  The natural nested-if form lets GCC CSE the 0.0 into a spare FP register (mismatch).
+- switch with a sparse jump table: put the generic `default`-like cases first in source order, and cases that share a tail block
+  can have their labels *inside* the earlier `if` body (func_0022EAFC: `case 12: if (x) { case 0: case 18..21: return 1; } return call();`).
+  Out-of-range goes to the real `default: return 0`.  Jump table words are plain 0x0022EBxx addresses at ROM = VA - 0x80000000 + 0xC00.
+- 3-way if/else-if/else on ints that call the same function with different (ptr,const) pairs: use `switch` (func_0022F504) - the
+  if-chain emitted different branch order.
+- Independent stores: GCC's scheduler emits them in a different order than source; to get ROM order 0x14,0xC,0x10,0x18,0x8 the
+  source order was 0x8,0x14,0xC,0x10,0x18 (i.e. reversed-ish; just try permutations with vq).
+- Callee list order does not matter in these small files (no static callee), but declaration style does: K&R `void f();`
+  (no prototype) is needed when the ROM does not set up argument registers for a call (func_0024AA08()).
+- `return a >= 3 && a < 7;` folds to `(u32)(a-3) < 4`; the ROM keeps two compares, so write nested ifs (func_00232770).
+- Loops over `p = p->next` lists with count/sum: for-loop transcriptions matched immediately (6 functions).
+- Struct copy `a->seg[i] = *src;` for a 24-byte struct emits the lw t0-t3 / sw / lw t0,t1 / sw sequence: matched.
+- memset call args: `memset(o->f1C = blk->data, 0, n << 6)` (assignment inside the call) reproduced the store-in-delay-slot order.
+
+== Unmatched residue (for the next batches) ==
+- func_0024B8DC / func_0024B980 (1 word each): ROM has `sllv $a3,$v0,$a2` (shift amount = the register that holds the constant arg 1)
+  inside the `idx*24` address computation, we emit `sll $a3,$v0,1`.  Something makes cse reuse the pseudo holding constant 1 as
+  shift count; local `one` variables, explicit shifts, casts did not reproduce it.  Probably the same trick as any other `x*3` next to
+  a literal-1 argument; worth testing in other functions to learn the trigger.
+- func_0022C1D8: pure FP register numbering (two live f32 pseudos swapped); func_0023C77C: pure callee-saved swap (s0/s1).
+  Both are allocation-priority/pseudo-order effects; permuting local declaration order and expression grouping did not flip them.
+=================== FINDINGS from workspace p3
+FINDINGS from pilot batch 3 (40 functions, 5-60 insns, main image 0x59360-0x83C38): 37 EXACT, 2 PARTIAL, 1 NONE.
+Flags used everywhere: -O2 -mcpu=r4300.  Most functions matched on the 1st-3rd try.
+
+TOOLING
+- tools/try.ps1 / lu_ud.sh use the libultra default flags (-O3 -fforce-addr) unless env FLAGS is set: for game code its
+  side-by-side output is MISLEADING.  I use wip/side.sh <fn> [file] which runs lu_ud.sh with FLAGS='-O2 -mcpu=r4300'
+  (then tools/lu_side.py).  wip/mk.sh <fn...> builds the chk list (wip/out/<fn>.c or wip/hard) and runs chk.
+- vtry.py ranks by "first differing word"; a result "1000000 words" is either EXACT or a COMPILE FAIL (C89: no declarations
+  after statements!).  Check the final line ("best file ... EXACT") or run chk.
+- vq/vtry write wip_list.txt in the project root and keep stale wip/_v_*.c files: rm wip/_v_*.c between searches.
+
+ARGUMENT PASSING (biggest win of the batch: unlocks many "weird" prologues)
+- A `sw $aN, home($sp)` of an incoming arg register in the prologue + a `lw $aN, home($sp)` right before a call means a
+  STRUCT passed by value that begins in a register (usually a Vec3 {f32 x,y,z} starting at a1/a2/a3: remaining words are on
+  the stack).  Declare the parameter as a struct (P3Vec3) in both function and callee prototype; gcc copies the stack part
+  of the struct to the outgoing area with lw/sw (this explains "stack args reloaded and re-stored in pairs").
+  Float values passed as plain f32 after an int arg are in INT regs (mtc1 a1,...) - declare f32 params, no casts.
+- Plain stack int args are loaded at function ENTRY only when the pseudo is multiply set/used; if the ROM loads a stack arg
+  early but the C loads it late, add a local copy and a dead later assignment (func_00268864: `k = e; ... k = 0;`).
+- `sw v0,16($sp); lwc1 f0,16($sp)` after a call returning s32 = bit-pun of an int return into a float:
+  `s32 tmp = f(); x = *(f32*)&tmp;` (a union gets optimised into a direct mtc1/no stack trip and does NOT match).
+- (s16)param passed on to a callee taking s16: `sll 16; sra 16` appears at the call, the raw register is stored elsewhere:
+  make the parameter s32 in your function and s16 in the callee prototype.
+
+GLOBALS
+- A global array/struct accessed several times (`extern s32 D_x[]; D_x[0]` twice) keeps its address (lui+addiu) in one reg,
+  while a scalar `extern s32 D_x` is lui/lw, lui/sw each time.  func_0025E2F4: use the array form to get `addiu $v1,$v1,%lo`.
+- A symbol referenced as `D_800C9490` and `D_800C9490 + 4` in two separate lui/lwc1 pairs (each with its own lui $at) =
+  two separate scalar globals D_800C9490 / D_800C9494 (an array would CSE the base).  Declare them as two scalars.
+- Float/double literal pools: u32->f32 conversion goes u32->f64 (cvt.d.w + add 2^32 literal if negative) -> cvt.s.d; the
+  literal (ro=0x...:8) is reported by chk.  Casting a u32 to f32 reproduces this.
+- Tables of 4 pads etc. (D_8010F310[4], D_8010FC28[4], D_8010FBF0[4]) are separate s32 arrays; loops indexed `D[i]` compile
+  to walking pointers anyway (3 ptr + counter), so write array indexing, not pointer walking.
+
+CODEGEN <-> SOURCE PATTERNS
+- Local `k = i*2` reused later gave a different register assignment than writing `i*2` and `i*2+1` inline (CSE does the
+  rest): prefer repeating the expression (func_0025D370).
+- Float min/max: `box[0] = pt[0] <= box[0] ? pt[0] : box[0]` generated the INVERTED compare (c.le swapped, bc1tl);
+  the ROM form came from `!(p[0] <= box[0]) ? box[0] : p[0]`.  For a loop over 12-byte points use `p = pt + i*3`
+  inside a `for (i...)` (the `pt++` form let gcc strength-reduce the z access differently).
+- A short if-chain returning 1 at the start and in several places with a trailing `x==1||x==4||x==7||x==0xB` test is a
+  `switch(kind){case 1: case 4: case 7: case 0xB: return 1;} return 0;` (gcc emits a compare chain for sparse cases, so
+  the S flag in targets.txt is not reliable either way).
+- Delay-slot filling: if our version has `bnezl` + hoisted store where the ROM has `bnez; nop` and the real first insn of the
+  else block is a `lw`, swap the order of the first two statements of that block (func_00279530: `n->prev = l->head;` first).
+- if/else shape: when the ROM lays out the "zero everything" case LAST (after the nested ifs), write
+  `if (cond) {nested...} else {zero...}` (func_00263C44); writing `if (!cond) {zero} else ...` gives different jumps.
+- Struct-local copies: `P3QArr loc; loc.q = a->q;` (copy only the sub-struct, local keeps the unused first word slot so the
+  copy lands at sp+4) matched the frame layout of func_00260CBC; `P3QInfo q = a->q` gives sp+0.
+- Hoisting of `w[1]` above `if (sh)` needs a named temp `hi = w[1]` before the branch (func_00260CBC).
+- Leaf mutex-like code: `u32 mask = __osDisableInt(); if (++l->count != 1) {__osRestoreInt(mask); osRecvMesg(...);} else __osRestoreInt(mask);`
+  matched directly (the duplicate __osRestoreInt in both arms is real, not a join).
+
+CODE-BASE STYLE
+- Game objects are big structs accessed with raw offsets: pad arrays + named fields are enough; there is no sign of
+  bitfields.  Helper wrappers on one global object (D_8010C080: a sound/audio lock object) are 9-insn thunks
+  `f(&D_8010C080[, arg])`: declare the global as `extern u8 D_8010C080[]` (array decay gives the lui/addiu pair).
+- Vector/matrix code: 4x4 f32 row-major, rows 0x10 apart; vec math is spelled out per component, left-to-right sums
+  `a*x + b*y + c*z`; mult operand order is (matrix elem * vector elem).  Matches first try with plain expressions.
+- libultra-style doubly linked lists with embedded sentinels at +4/+0xD8 of the owner (func_00259938) and counted singly
+  linked lists with head/tail/count (func_00279530) are common; sound code uses alSndp* with an ALSndPlayer embedded at +0x84
+  of a bank struct.
+- Unresolved ordering problems (scheduling / register naming only, instruction mix identical):
+  func_00273860 (2 sinf/cosf rotation of matrix rows: ROM loads row-2 elements first, y1/y2 later),
+  func_00259938 (t0/t1 swap for hoisted &sentinel2 vs copy of &sentinel1), func_00260CBC (bits/hi temp regs a0/a2).
+  These smell like source shape differences in how temps are declared; maybe the real code used macros or helper
+  functions that got inlined.
+=================== FINDINGS from workspace p4
+FINDINGS (pilot batch 4: 40 functions, 5-60 insns, ROM 0x8490C-0xAA3F0; 37 EXACT, 3 PARTIAL (0028B250, 0029A778, 002A13F4); 0028B250 far, other two 2-7 words)
+Total effort: roughly 90 compile variants for 40 functions; 24 functions matched on the 1st or 2nd source, 13 needed 3-6 variants.
+
+TOOLING (important, affects every function with a struct field offset > 0x7FFF)
+- The ROM assembler expands `op reg, BIG(base)` (|BIG| > 0x7FFF) as  lui $at,hi ; addu $at,BASE,$at ; op reg,lo($at)  (base FIRST, always $at,
+  also for loads).  tools/gas_compat.py did not model this (modern gas uses the dest reg for loads and addu at,at,base for stores).
+  Patched in my workspace: new `bigoff_re` rule in fix() (copy at wip/out/gas_compat.py; diff is ~15 lines).  With it 00294AC4 and 00292FA4 match.
+  Please merge it into the lead's tools/gas_compat.py (and the real build path which uses the same script).
+  Source code for such fields is just `*(s32*)((u8*)p + 0x26DC8)` or a struct with a pad[] array; no special trick needed.
+- tools/try.ps1 -Side hides relocation differences (it shows `<reloc>` for ours and real insns for ROM, and marks only non-reloc lines).
+  chk / vq's "best file ... EXACT" are authoritative.  A function that ends in an infinite loop (`j self; nop`) shows 3 trailing
+  "differing" words in chk (object padding to 16 bytes vs the next function's code): treat first N real insns as the match.
+- vq.py bodies: use one string per variant, separated e.g. by a `====` line in a text file (wip/mk.py in my workspace builds spec.json from header/body files).
+  vq reports the best file as wip/_v_<k>.c (index = body order); files get overwritten by the next vq run, copy winners immediately.
+- Do NOT leave failed attempts under wip/out (my batch listing picked up a stale file first); keep them in wip/hard.
+
+COMPILER / STYLE OBSERVATIONS
+- Unused incoming a0: many small wrappers (func_00293E60, 0029414C, 002943B8, 00294A10) call a callee with the first arg register never set:
+  the real function takes an (unused here) first parameter and passes it through, so declare `void f(s32 a)` and call `g(a, ...)`.
+  General rule: if a callee gets $a0 without an `addu $a0,...` / lui before the jal, add a pass-through parameter.
+- Unused local arrays are NOT optimized away by this gcc: func_002AC398 has a 0x120 frame (0x118 ra slot) = `u8 buf[0x100];` unused.
+- `extern const f32 X; *a = X; *b = X;` loads once (const => no reload after the first store); non-const reloads (alias with the stores).
+- f32 arg after an int arg travels in the int regs (mfc1 $a3 / mtc1 $a1): just give prototypes with f32 params, gcc does the rest.
+- double constants: asm `lui $at; ldc1 $fN,%lo($at)` = literal pool use; `extern f64 D_XXXX; x - D_XXXX` compiles to the same code (relocs are masked).
+- Self-recursive tail call (strcasecmp 002A13F4) becomes `beq ..., func_self` (jump to the top, delay slot nop): write it recursively, not as a loop.
+- Two calls in the arms of an if/else followed by common code: gcc cross-jumps the identical tails, producing `j .Lcommon` with the delay slot
+  filled by an arg setup (func_0028414C).  Write the call twice (once per arm); a single call after an if/else with temps does NOT give that layout.
+- Taking `s32 *p = D_XXXX;` once and using p[0], p[-4] is needed when the asm computes the symbol address once (addiu) and uses negative offsets
+  (func_0028414C); using the global name directly gives lui+lw separately.
+- Large-literal display list code (func_002A9700/97F0) is plain F3D macros: `P4Gfx *g = D_80110634++; g->words.w0=..; g->words.w1=..;` repeated; the compiler
+  keeps glistp in a register and stores it back after each increment (no strict aliasing), exactly like the ROM.  7 commands: SETTIMG(FD900000,tex),
+  SETTILE(F5900100,0700C040), RDPLOADSYNC(E6000000), LOADBLOCK(F3000000,0701F800), RDPPIPESYNC(E7000000), SETTILE(F5800300,0000C040), SETTILESIZE(F2000000,0003C01C).
+- Register-allocation sensitive spots (hard cases): which of two loop variables gets the lower register depends on pseudo priorities; things that changed it:
+  * `for (i = 0, found = NULL; ...)` (init inside the for header) vs separate statements (func_0028CC10: `x = y = 0` copy direction follows source order of the inits);
+  * making the pointer a separate initialised local vs a for-header init;
+  * reordering the operands of a && condition (`c1 == c2 && c2` vs `c2 && c1 == c2`) flips the register of the two loop-carried temps (func_002A13F4).
+- Duplicate local copies matter: func_0028B874 needs `u8 *p2 = bits;` used in the else arm (asm has two registers holding the same pointer: addu a1,v0; addu a2,a1);
+  func_0028C5E8 needs `obj = n->obj` cached in a local and a `done = expired` flag copy (asm: v1 = s1 ... s1 = v1).
+- Bit tests: `(bits[bit/8] & m) != 0` with `s32 m = 1 << (bit & 7);` as a separate local produces and/sltu; inline shift expression turns into srav/andi 1.
+  Use `bit / 8` (signed, with the bgez/addiu 7 fixup) when the asm has `bgez ...; addiu $x,$x,7; sra 3`; `bit & 7` for the mask.
+- Comparison direction decides load order: `o->f58 > o->f50` (not `o->f50 < o->f58`) gave the ROM's load order (func_002A2D14).
+- Loop `for (i=0;i<n;...)` with i known 0 compiles to `blez n` entry test only if the `i = 0` is directly before the loop (loop.c init detection);
+  a `goto found` out of the loop with i = -1 after it reproduces `v1=-1,v0=-1; beq v1,v0` (func_0028B250 structure) but not its register numbers.
+- Tables of records: indexing (`T->ent[i].id`) vs pointer walking give different strength-reduction; func_002992C4 needed indexing and func_0029A778 pointer-walk init
+  (the ROM address arithmetic `D + (idx*20 + 0x1C)` comes from `&D->ent[idx]` with ent at +0x1C).
+
+DATA STRUCTURE / GAME CODE HINTS
+- D_8014D080 is a pointer to a table struct (header 0x1C bytes, then 64 x 0x14-byte slots: {id (-1 = free), f4, f8, fC, f10}); funcs 002992C4 (alloc/free slot),
+  0029A778 (set value by id).  Looks like a sound-effect/voice slot table (id, kind, value).
+- Game objects embed a doubly linked list node at +0x1D0..+0x1DC (flags, counter ptr, prev, next) and the owner keeps head/cursors at +0x3C00/04/08 (00290930, 0028CC10).
+- Several objects carry a "tree/bitmap" accessed through func_0028FD94(node, idx)/func_0028FDD8(node, flag) returning child nodes (a small property/bitset container):
+  0028DD80 tests a bit, 0028B874 sets/clears one.  Index of the bitmap node is at owner+0x1B40C, owner->f80 is the root.
+- func_002A1238/12E8/13F4 are strlen / strcat / strcasecmp; 0029FBE4/FCBC/FFE4/A0118 are 4x4 f32 matrix helpers (scale by vec3, uniform scale, get translation row 3,
+  extract the three basis rows); 002A9700/97F0 build a 16-bit texture-image load block in the global display list pointer D_80110634.
+- Libultra calls are ordinary: osCreateThread/osStartThread/osSetThreadPri/osSetIntMask prototypes from common.h work unchanged.
+=================== FINDINGS from workspace b01
+FINDINGS - batch 01 (main image ROM 0x1000-0x875C, 143 targets; see results.txt)
+
+0. TOOLING I ADDED (in wip/, not in tools/): chkx.py = tools/chk.py with per-line mode tokens, fchkx.sh/ck.ps1 (fast loop, ~3 s),
+   vv.py (variant search over bodies or whole files, ONE chk call), try.py (tries every mode x -mcpu for a file), pub.py (rebuilds
+   results.txt + wip/out/*.c), gen.py (types_spec.txt -> include/b01_gen.h with explicit padding), side-by-side asm diff via SIDE=1
+   (mips-linux-gnu-objdump of ours vs ROM, marks differing words).  Tokens in a chk line (after the flags):
+     @C  = gcc 2.8.1 + -msplit-addresses + "unfilled epilogue" fixup          (canonical LOW-REGION mode, with -mcpu=r4000)
+     @D  = gcc 2.8.1 + unfilled epilogue fixup only
+     @H  = gcc 2.7.2 (-mcpu=r4000) + lu assembler where `addu sp ; j $31` is NOT slot-filled
+     @B/@E/@F/@G/@A variants with -fno-delayed-branch / game assembler (rarely needed), @gcc=<ver>, @isa=-mips1,...
+   "unfilled epilogue" fixup = rewrite gcc's  `.set noreorder; j $31; addu $sp,$sp,N`  into  `addu $sp,$sp,N; j $31; nop`.
+   (rule of thumb in wip/epifix.py).  The shell tool needs MSYS_NO_PATHCONV=1 for `wsl -- bash /mnt/d/...` calls.
+
+1. THE LOW PART OF THE MAIN IMAGE IS A DIFFERENT COMPILE SETUP (ROM 0x1000 .. ~0x3900; first normal function seen: func_00203848 at 0x4448)
+   Functions of that part (the os/pi/io/tlb layer: func_00200500 .. func_00203908) show:
+   * epilogue NOT slot-filled: `lw ra; lw s0; addiu sp,sp,N; jr ra; nop`   (gcc 2.8.1 emits `jr ra ; addiu sp` -> never matches as is).
+     Leaf functions are filled normally (`jr ra ; andi v0,v0,0x200`), calls are filled by gcc (`jal f ; sw s0,0x10(sp)`).
+   * -msplit-addresses style globals: `lui v1,%hi(D) ; lw v0,%lo(D)(v1) ; ... sw v0,%lo(D)(v1)` (hi part shared / explicit temp reg),
+     e.g. func_002005DC (volatile counter loop), func_00201ACC, func_00201DB0 (`lui v0,hi; lw v1,lo(v0)` placed BEFORE `addiu sp,sp,-N`).
+   * -mcpu=r4000 scheduling (NOT r4300): with r4000 func_00201B50/00201C80 match (global load hoisted above the `move s0,v0` that
+     follows the first call); with -mcpu=r4300 they are 2-3 words off.
+   * $fp (s8) is used as an allocatable callee-saved register (func_00201E94, 00202018, 0020095C use s0-s8)  -> gcc 2.8.x register set,
+     but gcc 2.7.2 style slot filling in some spots (beqzl that copies the target insn into the slot appears with 2.7.2 only;
+     func_00201E94/00202018 miss exactly that one word with 2.8.1; func_002018A0 ends in an endless loop and the ROM still has its
+     8-word epilogue after it: gcc 2.8.1 deletes it, gcc 2.7.2 keeps it).
+   Best explanation: an unknown gcc (between 2.7.2 and 2.8.0, with -msplit-addresses) for this part; exact config used here is
+   `-O2 -mcpu=r4000 -msplit-addresses` + unfilled-epilogue assembler behaviour (token @C), or gcc 2.7.2 (@H) for functions without
+   globals (func_002005A0, 00200800, 00200840, 00200AD8 only matched there).  Per-function mode is in results.txt notes ("needs ...").
+   Functions above ~0x4400 (func_00203848 .. func_00207B5C) all match the normal setup (gcc 2.8.1 -O2 -mcpu=r4300), as in p1-p4.
+
+2. HAND-WRITTEN ASM IN THE LOW PART (no C possible, listed NONE): func_00200400 (boot/TLB init), 002023C4/002023D0 (mfc0/mtc0 $12),
+   0020238C/002023A8 (cache loops), 002023DC (TLB dump), 00202268/002022E0/002028D0/00202994 (exception vector stubs, installer and
+   context save), 00202C98 (2 stray words).  They use `addi` (trapping) and `break`, mark the exception layer.
+
+3. CODEGEN LESSONS (all verified EXACT unless noted)
+   * Stack-passed struct arguments: a Vec3f parameter that starts in a2 is spilled `sw a2,0x50(sp); sw a3,0x54(sp)` and copied with lw/sw
+     to the callee frame; declare `Vec3f` params in both function and callee prototypes (func_002063EC, 002064A0, 002062E0, 002054E0:
+     `func_00216288(actor, id, actor->pos, 0)` gives lw a2,8 / lw a3,0xC / lw+sw for z, while f32 params give lwc1/swc1 for the stack word).
+   * 16-byte struct (x,y,z,w) copied with 4 lw/sw: `typedef struct {f32 x,y,z,w;} Vec4` (func_002064A0).
+   * `x*3` next to a literal-1 argument: `sllv a3,v0,a2` with a2==1 is produced by `&obj->seg[idx]` (24 byte elems) in func_0020694C and
+     func_00205628 (this resolves the open "sllv" issue of p2 for this pattern: it appears when the constant 1 is a call argument).
+   * `if ((x ^ 1) == 0) A else B` (func_00204BD0, 00206018) is the only form that gives `xori v0,v0,1 ; bnez`; `x == 1` gives li/bne.
+   * `u32 f = flags & 0x10000; ok = f != 0;` (lw ; lui ; and ; sltu) (func_00207ABC, as in p1) and `state->unk40 >= info->unk4C` to get the
+     ROM's load order (field first, constant second); `if (ok == 0) {x = 0.0f;} else if (...)`.
+   * jump table switch with shared return blocks (func_00207738): list the cases in the order of the code blocks in the ROM
+     (3 ; 1,2 ; 0 {inner switch: 0,2 ; 1,3 ; default -> break} ; 4), inner default = `r = 0x526C; break;` and `return r;` after the switch.
+   * Float literal pool: when asm shows `lui at,%hi(D_800C6B60) ; lwc1` and the word is 4.0/30.0/8.5... in rodata, write the literal
+     (30.0f) instead of an extern: chk prints ro=0xC7760:4 and everything else is identical (pool order = first use per object).
+     func_00206080: u32->f32 `(f32)(u32)(100 - (n-2)*25)` needs the 2^32 double literal (ro=...:16 = 0.01f + 2^32 double).
+   * Struct base kept in a register with negative offset (`lbu 0x1D(v1)` / `lw -0x1258(v1)` after addiu v1,&D_801462C8): write
+     `u8 *g = D_801462C8; g[0x1D]; *(u32*)(g - 0x1258)` (a local copy of the base; using the array name twice folds the offsets).
+   * Same address, two symbols: when the ROM recomputes `lui/addiu` for the same address twice (func_002016FC: D_800F6CB0 as msg buffer
+     and as thread stack end) the original used two different objects: use `D_800F6CAC + 4` for one of them to stop CSE.
+   * `while (n != 0 && (dst & 3) != 0)` produces the ROM's `beqz s0; andi v0,s1,3; L: beqz v0 ...; bnez s0,L; andi` double test (func_00200F98,
+     00200D18, 00200B14).  `if (n >= 16 && ((((u32)dst & 0xF) == 0) & (dmaOk != -1)))` (bitwise & of two boolean compares) reproduces
+     `nor ; sltu ; and` (func_0020095C/00200E04; `~dmaOk != 0` gave different register numbering).
+   * `for (i = 0; i < (len >> 2); i++)` with the bound written inline gives `srl v1,s1,2` in a delay slot + `move s3,v1` (func_002012D8);
+     a separate `n = len >> 2` local gives different registers.
+   * Inline asm `__asm__ volatile("break 1")` compiles to the ROM's `break 1` (func_002017E8).
+   * Unused/dead locals are kept: func_00203F04 first copies state->vec130 into a local that is overwritten by the next statement.
+
+4. OPEN PROBLEMS (kept in wip/hard, all structurally identical to the ROM):
+   * func_00200C28/00200CA0 (identical duplicates), func_00201064: register numbering of two callee-saved temporaries (sh vs val).
+   * func_00203F04: struct-copy temporaries t0,t1,t2 in the ROM versus v1,t0,t1 here (ROM looks as if v1 were reserved).
+   * func_002043E0, func_00204FC4, func_00204A68, func_00205F18: callee-saved register numbering / early-return layout (the inlined copy in
+     func_00204A68 shows the original used a single result variable `var_v0` with `goto` into a shared `r = 0` block).
+   * func_00201E94/00202018 (beqzl), func_002018A0 (epilogue after endless loop): see section 1.
+=================== FINDINGS from workspace b02
+FINDINGS - batch 02 (100 targets, main image ROM 0x87B8-0x10000: AI/steering controller + waypoint-graph manager)
+Result: 82 EXACT, 13 PARTIAL, 5 NONE (2 stray padding fragments, 1 probable hand-written stub, 2 giants not attempted). See results.txt.
+Header: include/b02_types.h (generated from wip/types_spec.txt by wip/gen_types.py; includes p1_types.h but defines its own B2* superset structs
+because p1's Actor/ActorState are too sparse; type names are provisional).
+
+TOOLING
+- tools/fchk.ps1 is ~1 s per call.  Wrappers in wip/: vv.py (N full-file variants in one chk call), side.py (side-by-side; marks register-level
+  differences with <<<<; lu_side.py's != only compares mnemonics and hides register diffs), done.py (check + copy to out/ + results line).
+- tools/asmfn.py only scans asm/entry.s and asm/16E000.s; most main-image functions live in other asm/*.s files: scan all asm/*.s.
+- Stray junk words: some functions are preceded by 3 junk words (tail of the previous object's alignment padding), e.g. func_0020D364
+  (0xDF64..0xDF6F), func_0020EF54 (0xFB54..0xFB5F), func_0020DDD4 (0xE9D4..0xE9DF); some "functions" are just a stray word
+  (func_00207FFC = 0x4500000C, func_0020DC04 = lw/lw/jr fragment).  Use the real start (rom+0xC) in the chk line (results.txt has the real rom).
+- Game code that calls sqrtf via 'jal sqrtf' (func_002095F8, 00208AAC, 00208EB0, 00208410) only matches with -fno-builtin added to the flags (gcc otherwise
+  expands sqrt.s inline).  There is no inline sqrt.s anywhere in the ROM, so the whole game was probably built with -fno-builtin; the lead should
+  check whether the global game flags need it (struct copies / memset were unaffected in my tests).
+- Jump tables sit at ROM = VA - 0x80000000 + 0xC00 (read them with python to map switch cases).
+
+CODEGEN LESSONS (gcc 2.8.1 -O2 -mcpu=r4300)
+- The original code uses many STATIC INLINE helpers that were also emitted standalone: getRec0 (=func_0020C994: pool0->data[idx*elemSize]), getEdge (=C9B0),
+  isBi (=C9CC style switch 1,4,7), find node by key (=CFE0), adjacency collection (=CCE8), min-distance loops.  An inlined result pointer is copied to a
+  second pseudo ('addu t1,v1,zero' right after the pointer is computed): reproduce it by calling a static inline that returns the pointer instead of
+  writing the address expression inline - this fixed register naming in six functions.
+- Early-return form beats nested ifs when the ROM puts 'return 1' blocks in branch delay slots: 'if (m == NULL) return 1; ...' (func_0020D364, 0020EAE0),
+  'if (call()) return cmp; return 1;' (002099B4), 'if (goal == -1) return cnt;' (0020B95C).
+- Collecting into an output array: write 'out[cnt] = x; cnt++;' (array index + separate counter).  gcc strength-reduces it into the walking pointer plus
+  counter exactly like the ROM (pointer init lands in the loop preheader); an explicit 'po++' pointer variable gives different allocation.  Conversely,
+  storing through an explicit pointer variable (*lp++ = a) is what makes gcc reload globals inside the loop (func_0020ABF0), while an array-index store
+  lets gcc hoist global loads.
+- 'extern const f32 D_x;' makes gcc hoist a float constant load out of a loop that contains calls (callee-saved FP reg + sdc1 in the prologue);
+  a non-const global is reloaded each iteration (func_0020EDCC, 0020EEA4, 0020AA40, 0020C2E8, 0020C5A0).
+- f32 zero trick: 'f32 zero = 0.0f; v.z = zero; v.y = zero; v.x = zero;' gives mtc1 + swc1 x3 (plain 'v.x = 0.0f' gives 'sw $zero'); see func_0020D9C0.
+- One variable used for two different loops (first loop counter in a callee-saved reg because the same variable is reused in a later loop with calls)
+  vs two variables (temp reg): the ROM tells (func_0020BE7C, 0020B95C).  A count returned from an inline fn and copied ('n = adj(...)') puts the count in a
+  temp and the loop bound in an s-reg.
+- Parameter 'u8 kind' used in compares and passed on: 'andi 0xFF' at each use and the register stays callee-saved; '(u8)kind' casts on an s32 param spilled
+  it to the stack instead (func_0020BE7C, 0020C078, 0020CC0C, 0020B95C).
+- 'vel.x += acc.x*tt; vel.y += acc.x*tt; vel.z += acc.x*tt;' (product CSE'd) matches; a named temp changed FP allocation (func_0020E674).
+- Evaluation order: if the ROM computes the call first write 'call() + k > (f32)x' (func_0020A458); a value held in a callee-saved int reg across a call
+  means a named local assigned before it (func_0020A458: t = cfg[1].unk8 before func_002745D4).
+- 'nv = a; nv += rand*b' must use ONE local (func_0020A028), not two.
+- Sequential beq chains on adjacent constants (11,12 ; 13,14) need the goto form 'if (t==11) goto A; if (t==12) { A: ... }' (func_00208158); unmerged
+  duplicate arms (li v0,0x12C twice) could not be reproduced because gcc cross-jumps them (4 words left).
+- switch with default in the middle: 'default: reset; case 0: ...; case 1: ...; case 2: ...' gives the ROM layout (func_00209DAC); a final
+  'default: return;' sends out-of-range values straight to the epilogue (func_00209E80).
+- A global used as base for fields at several offsets, or whose address-minus-constant is passed on (D_801468A0->unk78 and D_801468A0-0x1860), must be
+  declared as an array 'extern T D_x[]' so gcc keeps one base register (func_0020EA10).
+- Vec3f by value args reproduce the a1-a3 + stack words; 0x1C-byte option blocks and the 0x50-byte block save/restore are plain struct assignments.
+- Unresolved: func_0020BC50 (ROM keeps 'mult' before a loop-top beq with a nop slot, gcc puts it in the slot); func_0020D6E4 (first loop compares with
+  (f32)<copy of 0> via mtc1/cvt.s.w); func_00209CD8 and func_0020AA40 (pure register-number rotations of 2-3 callee-saved variables, many variants).
+
+DATA STRUCTURE HINTS (names are guesses; see include/b02_types.h)
+- B2Ctl (size >= 0x330): AI/steering controller: owner Actor at +0, target Actor at +0x64, 4-entry node queue q[] at +0x14, candidate array ent[10]
+  {a,b,w} at +0xC0, Vec3f array at +0x138, anim entry cur +0x218 / id +0x21C, aim timers +0x2E4/2E8/2EC, state +0x314.
+- B2Mgr = D_8013B364 (waypoint graph): pool0 (node records, elem size at pool+0, data at +8) at +0, pool8 (edge records {u16 a,u16 b,u8 kind}) at +8, edge
+  count +0xC, 64 open slots at +0x38, node list head +0x24 (B2Node: id, f32 costs 0x18-0x24, state +0x28, parent +0x30, next +0x10).
+- B2Obj (stride 0x2E8) arrays D_8011FFC0 and D_8011FE88->actors (+0x138, count +0x140): type u16 at +0xE4, pos at +8, def at +0x18.
+=================== FINDINGS from workspace b03
+FINDINGS batch 03 (append-style)
+- Stray words: many "functions" in targets are 1-3 words of stale ROM padding in front of the next 16-byte aligned entry
+  (func_002106DC, 00211014, 00212664, 0021333C, 002138E8: not functions).  Several others START with 2-3 stray words
+  (func_00212D58, 002131D8, 00212E04, 0020F6B8, 00210178, 00210228...): the real entry is at the first `addiu $sp,$sp,-N`, so chk with
+  rom = real entry (list line uses that offset) is EXACT; asm shows `sw $t2,..; jal ...` junk before the prologue.
+- Counting/zero loops `for (i=0;i<30;i++) a[i]=0;` compile to the `li v1,29 ... bgez v1; addiu v0,-4` countdown form; `= {0}` calls bzero.
+- Loop `while(i<10){...; if (c) break;}` -> top-test + `j top` shape needs `for(;;){ if (i>=10) break; ...; i++; if (id != x) break; continue; }`
+  (trailing `continue;` or goto-to-exit gives bne-exit + j; plain while gives rotated loop with beq top).
+- `if (a == -1) { if (c) {..} else {..} x = -1; }` : put the common store after the if/else, or -1 is hoisted into a callee-saved reg.
+- A value tested then reused as call arg (`sel = L->sel; if (sel == -1) ... use sel`) vs reloading from memory changes the delay-slot filling.
+- `if (p != -1) {A} else {B} return 1` (positive test first) matched where early-return versions did not (func_0020F2A8);
+  while for two tail-merged calls, write the call twice (once per arm) instead of goto (func_00212828).
+- Return-value `return 1` in early-return arms: ROM has `beqz x,end ; addiu v0,zero,1` (v0 set in the slot): write explicit early `return 1;` statements.
+- rand() % K + C: write literally, gcc generates the exact mult/mfhi magic (K=4,2,100,32400,250000 seen).
+- Callee returning s16 used only for a compare: declare s32 (else sll/sra appears).
+- Hoisted invariant: `for (...) if (x == s->target ...)` re-reading the field in the loop gave the ROM's hoisted `move a1,v0` copy; a local copy did not.
+- Single global used as several blocks: EntList D_8013B364 (head +0x24, count +4, sel +0x18) is ONE struct: access as array `extern T D[]; L = D;`
+  and keep `L` in a local gives the saved-register base (s2/s3).
+- BIG ONE: `while (1) { if (i >= 10) break; ...; if (x) break; continue; }` and `for (;;) { same }` compile DIFFERENTLY in gcc 2.8.1:
+  the while(1) form keeps the unrotated top-test loop (compare result in a reg, `beql`, `j top; slti` in the slot) and does NOT
+  constant-fold the entry test even when i = 0 was just assigned; the for(;;) form gets rotated/folded.  The ROM's 10-try random
+  picker loops (func_00213810/002136EC/00213500/00213340) all need while(1).
+- Stack-passed pointer to a local (5th+ arg) in a loop gets hoisted into a callee-saved reg (verified on a tiny testcase); if the ROM
+  recomputes `addiu v0,sp,N` inside the loop the real code did something else (open: func_00210964).
+- Calls with a 5th int arg of 0 (`sw zero,0x10($sp)` before jal, m2c drops it) change the frame (arr at 0x18) - check frame offsets.
+- `x = D[idx]` with 12-byte struct from a symbol array compiles to three `lui $at / addu $at,$at,idx / lw` triples (assembler macro): normal.
+- Tree-switch (sparse cases): block order in the ROM = source order of the case bodies; matched func_00216108 by keeping bodies in
+  numeric case order and writing the complex case as nested positive ifs ending in a single `return 4;`.
+=================== FINDINGS from workspace b05
+FINDINGS batch 05 (24 targets, 11 EXACT, 11 PARTIAL, 2 NONE; all -O2 -mcpu=r4300)
+
+TOOLING
+- tools/asmfn.py only read asm/entry.s and asm/16E000.s; patched to glob asm/*.s.
+- wip/vv.py: full-file variants separated by "//====" lines, one fchk call (files wip/vx_N.c; fchk rsyncs wip but excludes _v_*).
+- Statement-order permutation search (6 statements -> 120 orders in ONE chk call) solved func_002227D0 (7 words off).
+- A side-by-side diff with structural normalisation (ignore regs/relocs/branch offsets) shows the true diffs when a register
+  assignment mismatch cascades over the whole function.
+- Prefix-only compiles (early return) do NOT work for matching: prologue/saved regs depend on the whole function.
+
+SOURCE SHAPE -> CODEGEN
+- m2c prints `x * K` operand order unreliably; trust the ROM load order. Write `p->f * K` when f is loaded first, `p->f > K`
+  instead of `K < p->f` when the variable is loaded before the constant.
+- extern const f32 K: gcc CSEs it across calls into a callee-saved fp reg (needed whenever the ROM holds a constant in $fsN).
+- Separate fp variables per m2c temp (var_fv0, var_fv0_2 ...) matter for register numbers; a shared temp changed fp regs.
+- Cross-jumping explains many "weird" layouts: write the call twice (once per arm), or a direct store `p->st = K` in every arm of
+  an if/else chain (no temp variable); gcc merges the identical tails (shared sw / jal) and fills delay slots with the li.
+  A temp variable instead gave li; ...; sw in one place and a different register (a0 vs v0).
+- bool result of an inlined predicate: `if (a && b && ...) { call(); ok = 1; } else { ok = 0; }` keeps ok in $v0 (nested ifs with
+  repeated ok=0 put it in a0 and leave nop delay slots).
+- switch statements: cases emitted in SOURCE order; the compare tree (pivot, <, ==) is generated by gcc. For ROM layouts with
+  case blocks in odd order (7,2,1/0x12,default) just write the cases in that order (func_0021D750).
+- Calls without argument setup in ROM (arg regs still hold the value) = K&R declaration `s32 f();` and a call with no args.
+- sqrtf: gcc expands the builtin inline (sqrt.s + c.eq.s + call fallback). ROM calls sqrtf: declare it through an asm label
+  (`f32 b05_sqrtf(f32) __asm__("sqrtf");`) to suppress the builtin.
+- struct of 0x38 bytes copied with lw/sw loop: struct of s32 w[14] (u8[] struct gives lwl/lwr).
+- Vec3f locals are 16 bytes apart (8 byte alignment); first declared = lowest address; address-taken scalars are placed after
+  arrays; spilled pseudos (no free callee-saved reg) become stack slots after them (func_00220EB0 spC0..spCC).
+- Struct passed by value (Vec3f / 4-word Quat) in the arg list reproduces the lw/sw copies; f32 args after int args travel in int regs.
+- Ternary with two separate fp arms: `(t < 0 ? -t : t) * lim` with `m = t * K0` hoisted into a local BEFORE the if gave the ROM order
+  (func_002233CC, func_00224078); `dst = expr` directly in each arm instead of via a temp changed fp reg allocation (func_002233CC).
+- `while (0.0f < step) { step = 0.0f; ... }` is the source of the "do {...} while (0.0f<0.0f)" m2c output (func_00220EB0).
+- A u16 loaded then sign-extended (lhu+sll+sra) vs lh: keep a local as s32, or s16 temp t = (u16)x + n; v = t.
+- value = D[idx] style globals: `gm = D_801462D5` (local) keeps the global in a register across later compares.
+- `s32 *tb = D_X; tb[0], tb[-2]` gives one base register for sym and sym-8 accesses.
+
+OPEN
+- func_00220EB0: p lands in s1 and the loop temporaries in s2, ROM has the reverse; everything else is structurally close.
+- func_00222D40 (inline limit helper result copy lw a1 -> addu v1,a1), func_00222FBC (bnel vs bne, 1 word),
+  func_002246E8 (re-materialised li 0x7DA in a cross-jumped arm, 1 word), func_002238BC (6 words, zero-const register).
+=================== FINDINGS from workspace b08
+FINDINGS batch 08 (main image 0x34028-0x3B3E0, func_00233428..func_0023A4D0; 74 targets, see results.txt)
+Flags everywhere: -O2 -mcpu=r4300.  Workflow: wip/ck.sh (fchk wrapper), wip/vv.py (variant checker on fchk, no 40 s sync),
+wip/side.sh (side-by-side with game flags), wip/perm.py (statement permutations), wip/a.py (asm of any function, all asm/*.s).
+
+0. TOOLING / ASSEMBLER (needs lead action)
+ - tools/gas_compat.py patch (copy: wip/out/gas_compat.py, 3 added lines): the nop that old gas inserts between an FP compare
+   (c.lt.s etc.) and bc1t/bc1f must also be inserted when a LABEL sits between them (gcc cross-jumping makes `c.lt; j L; ...; L: bc1tl`
+   and the ROM has `L: nop; bc1tl`, i.e. the nop goes AFTER the label).  Add a `lastcmp` flag that survives labels (like `lastmul`) and
+   emit the nop when `prev is None and lastcmp`.  Needed for func_0023A284 (EXACT only with the patch); harmless otherwise.
+ - GCC 2.8 -O2 expands a plain sqrtf() call inline (sqrt.s + NaN check + call).  The ROM always CALLS sqrtf.  Declaring the callee under
+   another C name with the same asm symbol reproduces the call:  extern f32 b08_sqrtf(f32) __asm__("sqrtf");  (include/b08_types.h).
+   (sinf/cosf are not expanded inline.)
+ - Hex printing of a function's m2c `D_800Cxxxx` float globals: most of them are literal-pool floats of the original object, not real
+   globals (chk prints `ro=0x...` when we compile with literals; the ROM pool address is listed).  tools: wip/f32lit.py D_800C82F0 prints
+   the shortest literal (e.g. 0.008726647f).  Using literals is needed when the original used them in loops/inlines (see 3).
+ - Unused/aliasing: all shell quoting of \n inside C char constants is lost through some heredocs: write C files with the Write tool.
+
+1. SOURCE SHAPES THAT PRODUCED THE ROM CODE
+ - struct passed BY VALUE as stack args (Vec3f at the end of the arg list): func_00239DD8 / 00239314 / 002394AC: `o->v = v;` is lw,lw,lw/sw,sw,sw;
+   components copied one by one does not match.  Also `f32 a,b,c,d` before it come in a1..a3 + stack.
+ - A struct param copied into the callee frame twice (sw home slot ... lw ... sw dest) = the same function INLINED (`static inline void set(Obj *o, ..., Vec3f v)`)
+   with a nested struct member access `o->co.ch[0].v = v` (declare the base object with pad[0xA0] + ChanObj member).
+ - gcc inlines `inline`/`static inline` functions at -O2 only if defined BEFORE use; non-static `inline void f()` ALSO emits the out-of-line
+   body at that place (func_00239AE4 + its user func_00239B54, EXACT in one file).  Several ROM function pairs are "helper + function that
+   inlines it" (233920 inlines the wave function 00239D0C three times via a statement macro, 0238D20 inlines 00239234 (world->screen),
+   002394AC / 00239314 / 00239DD8 share one chan-setter, 00239760 / 0023A334 / 00237E70 / 002398F8 share a text-spawn helper, 002365FC inlines
+   func_0023A284's "approach" 4 times).
+ - Float literals in ROM pools are NOT merged per function in these inlined bodies: the ROM has one pool entry per use
+   (e.g. 16.0f, 30.0f, 30.0f, 16.0f ...).  `ro=0xC8FE0:48` in func_002365FC is 12 floats.  Writing the inline helper with literals reproduces it.
+ - Scalar global loads are hoisted above stores to struct members of another pointer (no alias between a struct member and a scalar global);
+   the ROM kept `o->unk40 = D_800D2B40` last, i.e. the global was an ARRAY/aggregate: `extern s32 D_800D2B40[]; ... D_800D2B40[0]` (func_00238EA8).
+ - Display-list pushes `dl = D_80110634++; dl->w0 = ..; dl->w1 = ..;`: when 5+ pushes are written with ONE reused `dl` variable gcc
+   chains `move`s and batches the stores to D_80110634; the ROM (base-relative offsets from one register, D stored after each push) needs a
+   SEPARATE local pointer variable for every push (or at least for the last one, after the call): func_002362D8.  The gbi macro order
+   `0xF6000000 | (x << 14) | (y << 2)` (constant first) is needed for FILLRECT words.  float->u32 casts use the generated 2^31 literal pool.
+ - Loops that scan strings (func_00239760 family): the ROM shape is `do { p++; if (*p != '\n' && *p != 0) continue; if (start != p) {..} } while (*p != 0);`
+   with the early exit written as `n = NULL; if (b == NULL) return n; {...}`; with this the loop-invariant float literals appear at the loop top exactly
+   like the ROM, and the `addu v0,a0,zero` ends up before the epilogue.
+ - switch with sequential compare chain (1,0,2,3) in the ROM = if-chain with gotos (func_00233B04), `case 1: ... case 0: ... default:` as a
+   switch gives a compare tree instead.  switch (c) {case 1: sin..; case 0: rand..; default: 0} gives the block order sin, rand, zero (func_00239D0C).
+ - Two compare variants that gave the ROM's FP register numbering: `p->unk18 = (s32)(sinf(x) * 255.0f);` BEFORE `p->unk28 += step` (func_00238040).
+ - Parameter (f32 returned by int-typed first arg + stack f32) : float param after an int param travels in an int reg (mtc1) as documented earlier.
+ - `s32 id = table[i].s16field;` (not `s16 id`) to get lh instead of lhu + sll/sra at the call (func_00233428).
+ - u32 return of an 'is zero' test: `return c->v.z == 0.0f;` matched (func_002337C0).
+
+2. STRUCTURES (names are guesses)
+ - Chan (0x14 bytes: mode, Vec3f v, f32 d) / ChanObj {s32; Chan ch[4] at +4,+0x18,+0x2C,+0x40}: look like envelope/emitter channels (wave type 0 = random in
+   [-x,x] (func_00274B00), 1 = sin(d*pi/180)*x).  func_00233920 applies such an emitter (radius ch[0].d, strength falloff func_00265734) to a force vector.
+ - TextNode / text system (func_00237E70 spawn, 002398F8, 0023A334, 00239760 = text-line spawners from a free list at +0xF24 into list +0xE40; 00238040 / 00238304 update
+   and draw them; node: next0, next4, state 0x14 (0 dead,1 wait,2 fade in,3 hold,4 fade out), alpha 0x18, timer 0x28...).
+ - Player/pawn objects: pawn+0x29C..0x2A8 = HUD rectangle (x,y,w,h as f32) approached with 4 inlined approach(x,target,step=16) calls (func_002365FC).
+ - func_00233B04 is a colour fade state machine (state 0x544, timer 0x538, levels bytes 0x54A-0x54D, current alpha 0x551).
+=================== FINDINGS from workspace b09
+FINDINGS batch 09 (main image 0x3BBE0-0x4258C, loader/collision code, 85 target symbols)
+(append-style; see results.txt for the per-function status)
+
+TOOLING / ASSEMBLER
+- Added a chk token `GAME` (tools/chk.py + tools/gas_compat.py mode 'luret'): lu behaviour + a bare `j $31` keeps a `nop` delay slot.
+  Needed when gcc ends a function with a struct block-move (movstrsi): ROM has `jr ra ; nop`, modern gas fills the slot with the last sw
+  (func_0023C8C4, func_0023E8A4).  Everything else matched with the normal 'lu' mode.
+- sqrtf: with -O2 (no -fno-builtin) gcc 2.8.1 inlines sqrtf as `sqrt.s; c.eq.s; bc1t; jal sqrtf`.  Every function that calls sqrtf in the ROM
+  (func_002417B4, func_00241830, func_0023E6DC, func_0023E168, ...) is EXACT only with `-fno-builtin` appended to the chk flags.
+  (sinf/cosf are not affected.)  I recorded this as "needs gcc -fno-builtin" in results.txt.
+- Several "targets" are not single functions: func_0023C914 is three functions (loader thread starter, thread entry D_0023CA14 at 0x3D614,
+  list unlink at 0x3D6FC); 7 targets are plain alignment padding words (0023B994, 0023CFB8, 0023CFC8, 0023EDE8, 0024064C, 002406BC,
+  0024193C, 0023F734): garbage tail words of the previous object, not code.
+- tools/asmfn.py only read asm/entry.s + asm/16E000.s; it now globs asm/*.s.
+
+CODEGEN LESSONS
+- In-place accumulate matters for FP register allocation: `up = e->f208; up += x * y;` (one pseudo, add.s f1,f1,f0) matched where
+  `up = e->f208 + x * y` gave a different destination register (func_0023B708, func_0023CFD0 `c = d->f14; c *= K;`).
+  Likewise a clamp written as ternary `dn = (dn < 0.0f) ? 0.0f : dn;` matched where the if-form changed the register of the loaded value.
+- Two arms that end in identical code are cross-jumped by gcc: write the call TWICE (once per arm).  func_0023C074 (osMapTLB / osUnmapTLB
+  in both arms) only matched this way; with a shared `goto unmap` the argument registers differ.  Same for inlined helpers: an inline
+  with a single return-statement tail after the if/else produced a post-join store; early `return` per arm reproduced the ROM.
+- Inlining: Acclaim used `static inline` helpers (func_0023ED54 body is inlined into 0023E8C4/0023EA34/0023DF60/0023E168; the plane-height
+  helper is inlined twice into 00240A88; the ray-vs-plane func_002412C0 into 002413B8).  A static inline in the same .c file reproduces it;
+  the helper's own copy is a separate global function in the ROM.
+- Non-struct stores/loads and CSE: gcc 2.8.1 does NOT invalidate a cached global scalar load after a store through a struct pointer
+  (n->prev = g; if (g) ...) and does not reload node fields after a store to a scalar global.  A BLKmode struct copy (movstrsi) however
+  invalidates all cached memory: after `D->v8 = a->v180;` the global `D` is reloaded (func_0023E44C).  Offset-0 stores through a plain
+  non-struct pointer (`*(int*)n = ..`) also kill cached global loads, offset-4 ones do not (tested with a tiny harness).
+  When the ROM reloads a node field after a store to a global list head, store the global through a struct view
+  `((B09List *)&D_80103E20)->head = x` (func_0023CBF8) - but using the global ONLY through that view in many places makes gcc hoist its address.
+- Loops: `while (n--)` with n a copy of the count gives `addu v0,v1 ; bnez ; addiu v1,-1`; an up-counting `for` over a pointer
+  plus `if (cnt != 0) { i = cnt - 1; do {..} while (i--); }` was needed for func_0023CDC4's count loop.
+  `for (i = n - 1; i != -1; i--)` (explicit -1 test) reproduced a `bne s0, -1` back edge in func_002414E4.
+- Array decl trick again: `extern B09World D_8011FE88[]; D_8011FE88->count` makes gcc keep the base in a register and walk pointers
+  (func_0023F42C, func_00240250); `extern T D[]` plus `D->field` for a flag byte hoisted the base out of the loop (func_00240250).
+- One struct object spanning two symbols: D_80103254 (load queue) and D_80103D08 (+0xAB4) are the same global; gcc derives one from the
+  other (`addiu a0, s1, -0xAB4`) when both are members of ONE extern struct (func_0023CA14).  A thread block + its stack (D_80103950 = base+0x230)
+  likewise.
+- Switch with jump table (func_0023E44C): `case 1: case 2: case 3: case 4:` with separate arms and identical tails was enough;
+  gcc merges the identical `D->unk14 = -1` tails itself.  chk reports ro=0xC9390:40.
+- Float compare operand order controls the load order: `h->t >= m->qcopy.t` loads h first, `m->qcopy.t <= h->t` loads m first.
+- Dead stores into a local struct are kept (B09V3 p; p.z = ...; unused later) and give the 0x10 frame of func_0023DDB4 / DA90.
+- Struct-copy of an f32 triple `B09V3 n = *(B09V3 *)&q->nx;` gives the lw/lw/lw + sw/sw/sw to the stack that the ROM has; later loads are lwc1 from the stack copy.
+
+OPEN (see wip/hard): func_0023CDC4 (loop count hoisting), func_0023CE8C (store/reload scheduling), func_0023E168 (extra callee-saved reg
+for &q->hit), func_00240A88 (clamp constant register), func_00241830/00241940/002414E4 (callee-saved FP/int register permutations),
+func_00240D10..00241170 (extra callee-saved reg for &local2 although func_00240C9C of identical shape matched).
+=================== FINDINGS from workspace b12
+FINDINGS - batch 12 (main image 0x50CA4-0x57E10, 122 targets: list/heap/cache "resource manager" module + a few audio-thread helpers)
+(append-style; see results.txt for per-function status)
+
+TOOLING
+- tools/gas_compat.py fix (copy in wip/out/gas_compat.py): an `$at` macro expansion (`op reg,sym(idx)` or `op reg,BIG(base)`) that is the LAST insn before a
+  `jr $ra` must keep a nop delay slot (old gas never moved the last insn of a macro into the slot; modern gas does).  Without the fix func_00254CE4 shows 2 words off.
+  Patch = set prev='MACRO' after the symidx_re / bigoff_re expansions and add `prev == 'MACRO'` to the "return keeps nop" condition (2 lines).
+- `memcpy(d,s,n)` is turned by gcc 2.8 -O2 into `bcopy(s,d,n)` (swapped args).  The ROM calls memcpy as a plain function; declare/call it via another name
+  (e.g. prototype `void *func_002C2490(void*,void*,u32)`) or pass -fno-builtin.  memset stays memset.
+- helper scripts that were useful: wip/side.sh (side-by-side with game flags), wip/vv.py (variant search: many full-file variants in ONE fchk call, ~3 s),
+  wip/af.py (asm of a function from asm/2BD34.s; NOTE tools/asmfn.py only knows entry.s/16E000.s and prints nothing for this region).
+  When reading asm dumps: a `nop` filtered out by grep hides every delay slot; delay-slot insns of non-likely branches print one space narrower.
+- the m2c skeleton is good for field offsets/call args but turns delay-slot style `bnez a2,L; <nop>; lw s0,x` into fake `if`s, and drops pass-through args.
+
+COMPILE-UNIT FACTS (module at ROM 0x50CA4..0x57E10)
+- Orphan fragments exist between functions: func_00255C3C (addiu a2,0x2800 falling into 255C40), func_002555C8 (jal osWritebackDCache; no epilogue),
+  func_00256214 (lw v0,-0x4960(v0); addiu sp; sw s1..), func_002567E8 (addiu a1,1; jal func_0028FD94 + next fn's first insn as delay slot), and the 2 leading words
+  of func_00256708 / trailing 2 words of func_00255220 (addiu a1,0x18; jal func_00255C40).  They look like pieces of scheduled prologues/stubs; not matchable as functions.
+  func_00257210 and func_00251448 DO start with `lui/lw` before the `addiu sp` (scheduled prologue); func_00256FE0 matched with that default behaviour.
+- Literal pool (ro=): func_002500A4 uses the u32<-f32 constant 2147483648.0 at ROM 0xC9B40, func_0025021C uses 255.0f twice (0xC9B44, 0xC9B48): the original
+  assembler keeps one pool entry per use.  They live in one object (ro=0xC9B40:4 and 0xC9B44:8 are adjacent).
+- Intrusive doubly linked list package (func_00255xxx/func_00256xxx): list header {head,tail,prevOff,nextOff,count}, element links addressed by byte offsets
+  (push_front 255C58, push_back 255CB4, remove 255E78, insert_before 255D10, insert_after 255DC4, move_to_front 255F58 = remove+push_front inline,
+  move_to_back 256044, pop_head 255F10, pop_tail 255F34, init 255C40).  255F58/256044 compile only with the two helpers as `inline` functions in the file.
+- Heap package (0x255854 init, 0x2558C0 alloc-from-front, 0x2559D4 alloc-from-back, 0x255ACC free+coalesce, 0x2555D0 claim range, 0x255720 free-all, 0x2554E0 next pow2).
+- The whole module's globals are ONE struct at D_80103F70 (D_80104560, D_80104570, D_80104598, D_8010513C, D_80105180, ... are members).
+  Declaring it as a struct (include/b12_types.h B12Mgr, generated by wip/mgr.py) reproduces the base-register CSE of functions that touch many members; but several
+  functions (251448, 2512C8, 252F2C ...) only matched with the members declared as separate scalars (`lui/lw` each time): decide per function by looking at
+  whether the ROM keeps one `lui/addiu` base register.
+- Lock = P3Lock at D_80105140 (queue + buf + count at D_8010515C): the lock/unlock halves are always written as
+  `m = __osDisableInt(); if (++cnt != 1) { __osRestoreInt(m); osRecvMesg(&q,0,1); } else __osRestoreInt(m);` and the unlock half with a NEW local (m2) -
+  using the same local for both halves changes where the `addu a0,v0,zero` lands (delay slot of the beqz vs of the jal).
+
+SOURCE-STYLE LESSONS
+- `n->refs--; if (n->refs == 0) ...` (two statements) vs `if (--n->refs == 0)`: only the two-statement form reproduced the jump-threaded refcount drain loop of func_00254930.
+- Return slot shape: `if (x) { return call(...); } return 0;` matched where `if (!x) return 0; return call(...);` put the `return 0` block at the end (func_00250754).
+- Two-reg sort: `for (...; ...) { if (p->key > n->key) ...}` operand order decides which load comes first (func_00251590).
+- Keep an array/pointer scalar and its store through `B12Node **` consistent: `tab = D_80104564; *(B12Node **)((u8*)tab + cnt*4) = n;` gave `addu v0,v0,v1` (index first) and the reload of cnt after the store (func_002512C8);
+  `D_80104564[cnt] = n` gave the operands swapped and no reload.
+- Scheduling of loads before stores: a load of a global scalar cannot move above a store through a struct pointer only if gcc thinks they may alias; making the store
+  `*(u32*)&n->flags = 0` (not a struct member access) restored the ROM order in func_002512C8; `*(&D_80105134 + type) = 0` (scalar + index, not an array member) restored the
+  ROM order of the epilogue loads in func_00254F3C.
+- Struct by value: a 12-byte Vec3 followed by an 8-byte pair as the last stack args gives `lw v1,t0,t1 / sw ... ; lw v1,t0 / sw ...` copies (func_002505CC: P3Vec3 then B12Pair).
+- Hoisted arg `blk + len`: compute `src = (u8*)blk + len` into a local BEFORE the `if (o->unkDA != X)` so the add lands in the beq delay slot (func_00250458/00250C2C); also load both
+  words (off=blk[1], len=blk[2]) before the test.
+- `x = y = z = 0` chains give `addu s6,zero,zero; addu s5,s6,zero; addu s0,s6,zero`; initialise OSTime locals AFTER them (func_00256CB0).
+- A `for (i=0;i<n;i++)` after an `if (n>0)` emits two guards; drop the outer if (func_002505CC).
+- 64-bit OSTime math: `(u32)(((now-last)<<6)/3000)` produces the __udivdi3 call with a2=0,a3=3000 (func_00256CB0).
+- Loop-invariant hoisting: constants passed as u64 args (osSetTimer) are NOT hoisted in the ROM but are in ours (func_0025651C unmatched); local base pointers (`B12Cache *c = &...`)
+  assigned only inside the if body reproduce the ROM's hoisted s2/s3/s4 (func_00251590).
+- Jump-into-loop layout (`j test; body; test: bnez body`) of func_002555D0 could not be produced from while/for/for(;;) (always the peeled form with a top test).
+
+UNMATCHED / PARTIAL (details in results.txt notes and wip/hard/): 0025021C 0025651C 00250E10 00251448 00251754 002508E0 002555D0 00255854 00254E70 00256708 002570E0 00257210 00252FFC
+=================== FINDINGS from workspace b13
+FINDINGS batch 13 (append-style; sound manager / voice pool code ROM 0x57F80-0x5F500)
+- memcpy with a CONSTANT size: gcc expands the builtin inline (struct move loop, or a call to bcopy with swapped args when the
+  alignment is unknown).  The ROM calls memcpy(dst, src, 0xCC) as a plain jal.  Matching trick without -fno-builtin:
+  `void *memcpy_call(void *, const void *, u32) __asm__("memcpy");` then call memcpy_call(...) (asm-label alias, gcc 2.8 supports it).
+  (-fno-builtin also gives the call, but then flags differ from the other game code.)
+- Counting mutex inlined everywhere (OSMesgQueue + counter at +0x1C): lock = {mask = __osDisableInt(); if (++l->count != 1) {__osRestoreInt(mask); osRecvMesg(&l->q, 0, 1);} else __osRestoreInt(mask);}
+  unlock = {mask = __osDisableInt(); if (--l->count != 0) {__osRestoreInt(mask); osSendMesg(&l->q, 0, 1);} else __osRestoreInt(mask);}
+  with a function-level `SndLock *l;` assigned `l = &m->lock;` as a separate statement before EACH macro expansion (the ROM recomputes
+  addiu s0,s1,0x110 in the delay slot of every __osDisableInt).  A macro-local pointer or expressions without a local do not match.
+- Walking a table of 0xCC byte records in a loop: write TWO pointers: `v = p->v` (used for the field accesses, v++ at loop end) and a
+  second `w = p->v` (w++) used for a field at offset 0; array indexing p->v[i].x in the body gives a different induction-variable layout.
+  A single `v++` pointer gives the biased base register (first IV = &v[0].lastfield).
+- `&p->v[idx]` with s16 idx: ROM computes (idx*0xCC + p) FIRST and adds the array offset 4 as a separate `addiu`.  To get it write
+  `v = (SndVoice *)(idx * 0xCC + (u32)p); v = (SndVoice *)((u8 *)v + 4);` (macro SND_VOICE_AT).  `&p->v[idx]` gives (mult+4)+p.
+- Unlinking a node `l` of a doubly linked list and then using it as `n`: write the unlink on `l`, THEN `n = (T *)l;` (otherwise the
+  copy is propagated and the register numbering differs).  Insert-before-head: `n->prev = c->prev; n->next = c; c->prev->next = n; c->prev = n;`
+  (load first) matches; the reverse store order gets delay-slot copies.
+- Struct by value out of a pointer: `Vec3f *p = &o->pos; f(m, id, *p, 0, -1);` (pointer local) matched; `o->pos` directly did not.
+- 12 byte Vec3f cleared as `v.x = v.y = v.z = 0.0f;` gives swc1 z,y,x order like the ROM.
+- KEY (mutex layout): the inline counting mutex must be written as two `static inline void SndMgr_Lock(SndMgr *m)` / `SndMgr_Unlock(m)`
+  functions (local `SndLock *l = &m->lock; u32 mask = __osDisableInt(); if (++l->count != 1) {__osRestoreInt(mask); osRecvMesg(&l->q,0,1);} else {__osRestoreInt(mask);}`;
+  unlock: `if (--l->count != 0) {__osRestoreInt(mask); osSendMesg(&l->q,0,1);} else {...}`).  With CPP macros gcc 2.8 (jump.c) parks the
+  out-of-line mutex arms behind the first unconditional jump (an early `return -1;`, a second return, ...) and flips the branch polarity
+  (bne to an arm placed at the top of the function); with `static inline` functions the arms stay inline exactly like the ROM.
+  Only matters when the function has more than one return; with a single return both forms give the same code.
+=================== FINDINGS from workspace b14
+FINDINGS - batch 14 (ROM 0x5FB54-0x66B20, 142 targets: bit-stream / keyframe-track decoder, controller+rumble slots, small helpers)
+Flags -O2 -mcpu=r4300 everywhere. Status at the time of writing: see results.txt (EXACT/PARTIAL/NONE counts at its end).
+
+TOOLING (affects every worker)
+- tools/gas_compat.py: `op reg, sym(idx)` (symidx macro: lui $at / addu $at,$at,idx / op reg,%lo(sym)($at)) must NEVER be pulled into a
+  return delay slot: the old assembler left `jr ra ; nop` after such a macro (func_00264790/002647A8: `D[i] = 1;` as the last statement).
+  Patch (my workspace tools/gas_compat.py): in the symidx branch set `prev = 'macro'` and add `or prev == 'macro'` to the
+  "keep a nop slot" condition.  Plain `sw $2,sym` (2 insn macro) was already right.  Please merge.
+- tools/chk.py: with a file wip/_full present it prints every word of a non-EXACT function (I use it for side-by-side listings with
+  rabbitizer); stock behaviour (first 4 differing words) otherwise.
+- tools/asmfn.py is stale for this layout (asm is split into asm/<ROM>.s files: this batch lives in asm/2BD34.s).
+- memcpy: gcc 2.8.1 turns `memcpy(d, s, n);` (result unused) into `bcopy(s, d, n)`.  The ROM calls memcpy: add a conflicting K&R
+  redeclaration `void memcpy();` (gcc only warns "conflicting types for built-in function") or use the result.
+
+GENERAL SOURCE-SHAPE LESSONS
+- Struct by value: `f(T *p, s32 a, B14W3 w)` gives `sw a2/a3 home slots, lw back` and a struct copy `p->w = w` is lw,lw,lw / sw,sw,sw
+  (grouped).  A struct param keeps its home slot and fields are read straight from it (func_002609CC reads `lwc1 0xC($sp)`).
+  A struct copy through a block move is opaque to CSE: `B14Tmp l; l.r = r;` (local with an unused first word so the copy lands at sp+4)
+  reproduces `copy home -> sp+4, then lw a2,4(sp)` exactly (func_00260BA0, func_00260F18).  Two such temporaries (sp+0 and sp+0x10) appear
+  when a by-value struct is passed through an inlined helper.
+- Compound assignment keeps ONE pseudo, which decides register reuse: `v >>= sh; hi <<= 32 - sh; v |= hi;` gives `srlv v1,v1,a0 / sllv a1,a1,v0 / or v1,v1,a1`
+  (all six bit-reader helpers func_002606E4/002607D8/0026102C/00260DC8/00260E6C/00260BA0 need exactly this); `v = (v >> sh) | (hi << (32 - sh))`
+  allocates a fresh register.  Statement ORDER inside (`v >>=` before `hi <<=`) fixes the instruction order too.
+- Loop strength reduction decides base registers: indexing (`D->blk[i]`, `p[i + 1]`) lets gcc derive per-array pointer IVs whose initial
+  value is created AFTER hoisted constants (func_00261110: `li 0xDEADBEEF` before `move v1,t1`); an explicit pointer variable creates its
+  init BEFORE them.  For several arrays at fixed offsets from one global use `B14Mgr *m = D_xxxx;` once (or the array form
+  `extern S D_x[]; D_x->field`) so one base register is kept (func_00264D00 / 00264BAC / 00264A40).
+- `for (i = 0, s = D_x; i < 4; i++, s++)` (both inits in the for header) vs separate statements changes register numbering (func_00264874);
+  a second loop in the same function wants its own variable (func_002648E8: first loop temp regs, second loop callee-saved).
+- Two uses of the same `&global` after calls are normally CSE'd into a callee-saved register; the ROM often re-materialises lui/addiu
+  (func_00264268).  Inlined helpers (static inline in the original) keep separate expansions: func_00263B14 only matches with
+  `static inline s32 b14_lock(s32 flag) {...}` called as `if (b14_lock(0) != 0) {...}` (result tested twice, not merged).
+- A `switch` on a u8 gives `lbu; beqz; bltz; slti 4; beqz` (range checks NOT merged into sltiu) -- written as 4 sequential cases
+  `case 0: ... case 1: case 2: case 3: ...` (func_00263B14).  Nested ifs `if (x >= 0) { if (x < 4)` were merged by gcc.
+- `if (...) return 1;` chains over several [lo, lo+size) address ranges match the `&&` form (`a >= lo && a < lo + size`), with the symbols
+  declared as `extern u8 D_xxx[]`; size symbols like D_C5E98 (absolute small numbers) are plain `extern u8 D_C5E98[]` and used as (u32)D.
+- const float globals (`extern const f32 D`) are loaded once for several uses (func_00260570); non-const is reloaded after each store.
+- u32 -> f32 needs the unsigned correction (ldc1 2^32 literal, cvt.d.w): use u32 operands; signed ints give plain mtc1/cvt.s.w (func_0025FD94).
+- Early-return vs else form matters for the beql/delay-slot choice: `if (f(i) == 0) return 0; r = ...; return r;` matched (func_002645A0)
+  while the else form did not; for `return r` of a nested call chain the other way round (func_002612C8).
+- `(1 << n) - 1` after a float branch is reloaded from the struct copy (n not cached in a local): do not add `u32 n = l.r.n`.
+- Global used twice as `D_8014687C[?]` with the ROM base register at the *later* symbol and a negative offset: declare the later symbol as
+  `extern s32 D_80146894[];` and use `g[0]` / `g[-6]`, and assign the base inside the condition: `*(g = D_80146894) != 0` (func_00264124).
+- Struct by value in the o32 ABI: first FP-looking arg after an int arg is in an INT register; `s32 a0, s32 a1, ...` with `*(f32*)&a1`
+  reproduces sw/lwc1 puns; an unused incoming stack arg shifts the real one (func_002615D4 needs a dummy `s32 unused` before `f32 t`).
+- Hidden struct return pointer: `B14Span f(f32 a, f32 b, f32 c)` takes a1.. for the floats (a0 = result pointer).
+- Callee argument inference: if a2/a3 are not set before a jal the callee takes fewer params than m2c shows (func_00274B00 has two f32 params).
+- Bit-address helpers: func_00260684 (x<<3 | keep top nibble), 002606A4 (>>3), 002606C4 (word aligned >>3) and func_0026162C (x & 0x1F) are the
+  building blocks (static inline) of all bit readers/writers; inlining them reproduces register order (func_00260744: `sh = b14_ofs(addr)`
+  makes gcc keep the `andi` result and a copy of it).
+- gcc folds `x >= 0 && x < 4` but not the u8-switch form; `bc1fl`-style likely branches come out of if/else value selects.
+
+STRUCTS / SUBSYSTEMS RECOVERED (include/b14_types.h, provisional names)
+- B14Ctl: 0x224-byte controller/rumble slot, array of 4 at D_8010F328 (+0 active, +4 port, +0x2C ent[32] {a,b,c=0x30,d}, +0xB4 flag word,
+  +0xC8 rumble present, +0xCC enable, +0xD0 f32 strength, +0xD4 f32 accumulator, +0xD8 OSPfs, +0x140/+0x16C decoder blocks).
+  D_8010FBE0[4] = 4-byte port flags (byte 3 bit 3 = no pak), D_8010F308[4] u8 flags, D_8010FBF0[4] s32 values, D_8010FBC0 OSMesgQueue
+  used as a lock (osRecvMesg/osSendMesg around controller polling), D_8010FC00 OSMesgQueue (siMesgQ), D_8010FC40 B14Mgr (demo record/playback).
+- B14Trk: bit-packed keyframe channel (bits, base, range, data bit address, cached cubic c0..c3, span/start/cur).  func_0025FD94 builds the
+  cubic from 5 bit fields, func_00261438/00260158 seek (bit-address records of 4*bits+6 bits), 0025FFD0 / 0025EF54 read the header
+  (two 32-bit floats or two 6-bit scaled floats), 00260BA0/00260F18/002609CC read an n-bit scaled float, 00260744/00260848/0026035C write them.
+
+ADDITIONS (late batch lessons)
+- Bit writers: the `hi` half must be its own variable: `lo = val << sh; hi = val >> (32 - sh);` and `hi = mhi = 0;` in the sh==0 arm
+  (reusing `val` for the high half costs a register swap).  With that func_00260744 / 00260848 are EXACT; func_0026035C / 00260A7C
+  (same tail after a float quantiser) are 3 words off: ROM schedules `andi sh ; move ; (slot) and q,q,mask`, we get `and ; andi ; (slot) move`.
+- In-place parameter updates with s8 params: `void f(S *c, s8 x, s8 y, s32 b) { ... x = x - 3; if (x < 0) x = 0; ...}` reproduces
+  `addiu v0,t0,-3 ; addu t0,v0,zero ; sll/sra` (the u8/s8 narrowing of the pseudo happens at each use, params are NOT sign-extended on entry).
+- `u8 old = e->c; e->c = old - 1; if (e->c < 0) e->c = old + 4;` (not `e->c--; if (<0) e->c += 4`) gives `addiu v0,v1,4` from the OLD value (func_00263E1C).
+- Branch-likely + delay slot: `if (e->b < 0x1E) {b = 0; a++; ...} else {a = 1; b = 0;}` (condition written as `<`, arms duplicated) produced the ROM's
+  `beql ... ; sb t5` layout, `if (>= ) ... ; b = 0;` did not.
+- Box-overlap tests `D[3] > e->minx` (constant on the left) give the ROM load order (const first), `e->minx < D[3]` loads the entity first.
+- Declaring the whole 6-float box as `extern f32 D_801031F0[]` and indexing [0..5] reproduces `lui/addiu (D+0xC)` + negative offsets (func_00262EA8).
+- Struct return `B14Span f(f32,f32,f32)`: hidden pointer in a0, floats in a1..a3; the compiler copies the local result through the stack (lw t1,t2,t3 / sw).
+- Remaining unsolved register-allocation effect (seen in func_00264E10, func_00263E1C, func_002609CC, func_0025F454): the ROM gives the
+  low FP registers (f0,f1) to the long-lived float variables and f2/f3 to the loaded constants; our source gives constants the low registers
+  (constants are allocated first).  Variable declaration order, temporaries and `const` did not flip it.
+- Inlined seek loop (func_00261438 / 00260158 / 0025F0F4 contain the same inlined code, 8 callee-saved registers: frame, t, rec, idx, p, addr, start, end):
+  I could not make gcc keep idx and the tbl pointer as two separate IVs; every variant ended up with 7 saved registers (frame 0x130 instead of 0x138).
+=================== FINDINGS from workspace b15
+FINDINGS - batch 15 (main image 0x2661FC-0x26CE18: 67 functions; sound/effect wrappers, targeting predicates, model/gfx draw code)
+Compiler/flags: gcc 2.8.1 -O2 -mcpu=r4300 everywhere (no -fno-builtin needed, see sqrtf note).
+
+STRUCT-BY-VALUE ARGUMENTS (the key to the 0x267xxx..0x268xxx wrapper family)
+- `sw $a3,0xC($sp)` (a3 spilled to its home slot) in a function that does not otherwise need a3 = a 12-byte struct passed by value
+  that starts in a3: `Vec3f pos` as 4th parameter (x in a3, y/z on the stack).  Empty stubs `jr $ra; sw $a3,0xC($sp)` are
+  `void f(s32 a, s32 b, s32 c, Vec3f pos) {}`.  A Vec3f beginning in a1 or a2 spills a1..a3 (or a2,a3) the same way.
+  The callee call then reloads a3 from the home slot (`lw a3,home($sp)`) and copies the stack part (lw/sw pairs, LAST arg first).
+- Further struct params after the Vec3f are 8-byte structs (2 words) read with plain lw/lh/lb from the stack:
+  {s16 a,b; s32 c} (lh 0x42/lw 0x44 style), {s32 idx; s32 y}, {s32 a; f32 b}, {s32 a; s16 b; u8 c}, 4 x s16 (2-byte aligned: gcc then
+  copies it halfword-wise, so a struct with only s16 members cannot be forwarded by value like the word-aligned ones), 7 x u8 (lbu 0x40..0x46).
+  A scalar stack parameter is loaded once into a pseudo (cached across calls); a member of a struct parameter is a memory read: it is
+  RELOADED after calls/joins (`lw v0,0x30($sp)` before every use in func_00267EE8).  To get the reload use a >= 8-byte struct param.
+- Narrow members read as `lh 0x42($sp)`/`lbu 0x1B($sp)` (halfword/byte of the arg slot, big endian) are struct members, not s16/u8 params
+  (a plain `s16 id` param gives lhu+sll/sra or lw at entry).
+- A 16-byte struct (quaternion) passed by value is copied with 4 lw/sw (func_00267968).
+
+CODEGEN IDIOMS
+- `x = y = 1;` (chain) vs two statements: `s6 = s3 = 1;` made the second variable a COPY (`addu s6,s3,zero`) instead of a second `li` (func_002676FC).
+- `out->x = out->y = out->z = 0.0f;` stores via one FP reg (`mtc1 zero,f1; swc1 f1,8/4/0`) in z,y,x order; separate `= 0.0f` stores use `sw $zero`.
+- Dead local aggregates are real: locals assigned but never read (Vec3f scale = {s,s,s}) keep their stores and their stack slots; unused local
+  arrays/vectors only enlarge the frame (func_002675E0 needed `Vec3f v; u8 unused[0x64];`, locals are allocated FIRST DECLARED = LOWEST address,
+  struct locals >= 8 bytes are 8-aligned).
+- A shared `return vol;` tail with a hoisted `mov.s f0,f21` into the `j` delay slot = if/else with ONE final return (not early `return 0.0f`).
+  `return vol = 0.0f;` or `vol = 0; return vol;` is folded to a constant return by gcc: use the if/else + common return shape.
+- Post-increment RMW of a global (`g = D++;`) gives `la`+lw/sw 0(reg) (explicit address) but `g = D; D++;` gives lui/lw + lui $at/sw.  Plain
+  scalar RMW like `D |= 0x20` stays lui/lw/sw unless the address is also needed (a pointer variable `fp = &D; *fp |= ...; f(fp)` gives the ROM's `la a1`).
+- sqrtf: gcc inlines `sqrtf` as sqrt.s + c.eq.s + fallback jal; the ROM calls it plainly (jal func_002BC380).  Either declare the callee as
+  func_002BC380 (that is how the matches here are written) or compile with -fno-builtin and the name sqrtf (also exact).
+- `jr $ra ; sw` stubs with a K&R-declared callee: if the ROM calls a function without setting a0..a3 (func_00296FF8(), func_0026925C(0x1D)) declare
+  it `void f();` and call it with exactly the args set up.
+- Calls with stale registers (func_00280094 style 12-arg calls etc.) are just long prototypes; Vec3f/Vec4f by value in the middle of them are
+  copied from locals `lw/sw` (Vec3f z = {0,0,0}; func(..., z, ...)).
+
+DISPLAY LIST (F3D) EMITTING CODE  (draw-model functions 0x26925C..0x26CE18) - what finally matched
+- Each command is `P4Gfx *gN = D_80110634++; gN->words.w0 = ..; gN->words.w1 = ..;` with `extern P4Gfx *D_80110634;` (scalar).
+- EVERY command site (including the two arms of `if (flag) {..} else {..}`, every case of a 42-way switch, the lights block, the loop body)
+  needs its OWN pointer variable (g0,g1,g2,...).  Re-using one `g` gives lui/lw+lui $at/sw macro forms and different register choice;
+  distinct variables give the ROM's cross-jumped arms (`la a0,&D; lw v0,0(a0)` in each arm, shared tail `addu v1,v0,zero; addiu v0,v0,8; sw v0,0(a0)`),
+  the copy idiom and the loop copy `addu s6,s0,zero`.
+- if/else arms must be written out twice (two `g` blocks) so gcc cross-jumps the common tail.
+- The 42-case set-combine switch (func_00268CE0) / 31-case set-othermode switch (func_0026925C) match when written as one block per case with
+  distinct variables; case 30 of the combine switch has no `break` (falls into 31, emitted twice - real in the ROM).
+- A u16 value tested after merging several arms (`v = pad->buttons & mask; if (v == 0)`) must be declared u16 (u32/s32 add an extra andi 0xFFFF).
+- `lui a1,..` 12-word `F3D` constants are loaded at the top of a run of consecutive commands; the number/order of the hoisted constants follows
+  the order of the statements, but loads of globals used in a command (`D_800D15D4 | 0x400`) are scheduled where the source puts them relative to the
+  stores through the command pointers (stores through pointers are not reordered with global loads).
+
+TEST/TOOLING NOTES (tools added in this workspace, all under tools/)
+- tools/asmfn.py now scans every asm/*.s (it only knew entry.s/16E000.s).
+- tools/vv.py <variants.txt> <fn> <rom> [flags] [-v]: several full-file variants separated by a line `////`, one fchk call, prints one line per variant.
+  Note: vv writes wip/c/vv_<fn>_<k>.c (the prefix must not start with `_v_`, the fchk rsync excludes those).
+- tools/side.sh <file.c> <fn> <rom> : side by side ours | rom;  tools/al.sh <file.c> <fn> <rom> [ctx] : aligned diff (- ours, + rom);
+  tools/gccs.sh <file.c> : raw gcc -S output (shows `la`/`lw sym` forms before the assembler expands them);  tools/mk.py / tools/res.py : check/record results.
+
+INLINED STATIC WRAPPERS (struct params)
+- Double copies of by-value struct arguments (param -> local temp at sp+0x3C/0x48 -> outgoing arg area) with locals that are only 4-byte aligned
+  (p at 0x3C below an 8-byte struct at 0x48) are the signature of an INLINED `static inline void w(.., Vec3f pos, Blk blk)` whose parameters become
+  local copies.  func_002683F0 = `if (dy < 0 ? -dy <= lim1 : dy <= lim2) w(a,b,c,pos,blk);` with `static inline w()` calling func_00266830(.., 1, 0, 0x200).
+  A plain call with the params passed on (func_00267BD8) has no copies; writing explicit local struct copies gives 8-aligned locals and a different frame.
+=================== FINDINGS from workspace b16
+FINDINGS batch 16 (main image 0x6DE7C-0x75144: display-list helpers, vec/matrix math, small tree/list code)
+Flags -O2 -mcpu=r4300 everywhere. Tooling I used: wip/ck.py (check list), wip/vv.py (variants file separated by ==== lines,
+one fchk call), wip/side.py (side-by-side), wip/fin.py (check + copy to wip/out + results.txt). rabbitizer must be pip-installed for lu_side.py.
+
+1. Matrix / vector idioms
+ - Matrix initialisers (identity/translation/scale/rotation) are written with CHAINED assignments: the 0.0f zero lives in an FP register
+   ("mtc1 $zero,$f0; swc1 $f0,..." x N) only if the zeros come from `a = b = c = 0.0f` chains; plain `m[0][1] = 0.0f; ...` stores $zero (sw $zero).
+   Store order in the ROM is descending (right-most target first): write the chain in ASCENDING address order:
+   `m->m[0][1] = m->m[0][2] = ... = m->m[3][2] = 0.0f;` stores 0x38,0x34,... ; the diagonal `m00 = m11 = m22 = m33 = 1.0f` stores 0x3C,0x28,0x14,0x0.
+   Each function gets its own 4-byte literal (1.0f) in .rodata (ro=...:4): literal pools are per function, not shared.
+ - Parameters declared as `typedef f32 Mtx[4][4]` ("Mtx m" decays to f32 (*)[4]) give the ROM's row-pointer strength reduction for loops over m[i][j];
+   a `Mtx4f *`/struct pointer with ->m[i][j] gave different loop code (func_00272898 clamp loop, func_002730B0 copy+transpose).
+   For straight-line code the struct form `struct {f32 m[4][4];} *` is fine.
+ - Order of the three last items (m[3][2] copy / zero chain / m[3][3]=1.0f) changes the scheduling; permuting the 3 statements found the ROM order (func_00273E10).
+ - sqrtf: with -O2 -mcpu=r4300 gcc inlines `sqrtf(x)` as sqrt.s + NaN check + call. The ROM has a plain `jal sqrtf`, so the game never saw a builtin
+   sqrtf: declare it under another name (`f32 func_802BC380(f32)`; sqrtf is at 0x802BC380) and it matches. sinf/cosf (no builtin) are fine by name.
+ - Vec3f returned by value (`Vec3f f(Vec3f*, Vec3f*)`): hidden a0 pointer, local Vec3f built on the stack, then lw/sw copy to *a0 and `move v0,a0` (func_00272284).
+ - A 12-byte local Vec3f filled field-wise and then only read through f32 fields keeps its stores on the stack but loads get forwarded:
+   `r.x = m[0][0]; ... sqrt(r.x*r.x...)` reproduces the "swc1 x,0x10($sp)" noise of func_0027335C (no inline helper needed).
+ - Comparison written `a > b` instead of `b < a` changes which operand is loaded first (func_00274004), and `if (t < -1.0f || 1.0f < t) return 0.0f;`
+   (single || condition) gave the ROM's bc1t/non-likely delay slot where two separate ifs gave bc1tl (func_0027266C).
+ - angle wrap helper: `while (*p < -PI) *p += 2PI; while (*p >= PI) *p -= 2PI;` with literal float constants.
+
+2. Control flow / misc
+ - Loop `for (i = n - 1; i != -1; i--)` gives `beqz n; addiu v0,n,-1; ... bne v0,-1` (func_002729B4); `while (n--)` and `for (i=0;i<n;i++)` do not.
+ - `do { } while (--i >= 0);` with `i = 3` = the `v0=3; addiu v0,-1; bgez` busy loop of func_00273014.
+ - Display list pushes: `DlCmd *p = D_80110634++;` declared INSIDE each if/else arm gave the ROM's copy (move) of the loaded pointer (func_0026D914);
+   a declaration at function scope or array form did not. Sequences of 5 pushes with one function-scope `g = D_80110634++;` reproduced the register-held &D_80110634 (func_0026E390).
+   ROM addresses used as display-list data (gSPLoadUcode) are plain `extern u8 D_E0470[]` cast to u32.
+ - Insert into a tree + threaded list: the "empty tree" case must be the `else` of `if (parent != NULL)` (stores to the root/first pointers after the nested ifs).
+ - Rotation of two matrix rows (func_00273C08/00273A34): the ROM re-loads the second row element (lwc1 twice) and loads the first only once. Source:
+   `x = m[0][k]; m[0][k] = c*x + s*m[1][k]; m[1][k] = -s*x + c*m[1][k];` (statements in this order, x a local): the m[1][k] read after the store to
+   m[0][k] is NOT merged by cse here, and the scheduler hoists all loads above the stores. Use separate temps for BOTH and gcc merges the loads (mismatch).
+ - `2.0f * x * y` compiles to add.s x,x ; mul.s : the ROM's (x+x)*y in the quaternion->matrix function (func_002742B4) is exactly that source; hand-named temps (x2 = x + x; xy = x2 * y) gave
+   the same instruction mix but different register numbers. Quaternion product (func_00274108) matched from the plain component formulas.
+ - Inline helpers: the vector TU contains `inline` helpers (cross product writing through a Vec3f* parameter, normalize(Vec3f*), scale returning Vec3f by value).
+   func_0027230C (plane-normal projection) is only reproduced with `static inline void vcross(Vec3f*,Vec3f*,Vec3f*)`, `static inline void vnorm(Vec3f*)`,
+   `static inline Vec3f vscale(Vec3f*, f32)` called with &local: the inlined pointer parameter shows up as the `addiu s0,sp,0x10` base register used for
+   y/z accesses of a local that is also accessed via sp. Tell-tale: an inlined body that mixes `0x10($sp)` and `0x4($s0)` accesses to the same local.
+   (A non-static `inline` also emits an out-of-line copy with its own literal pool: ro= doubles; use `static inline`.)
+ - Clamp macros (func_00271B18, atan2-like): `func(MAX(-1.0f, MIN(1.0f, x)))` with `#define MIN(a,b) ((a)<(b)?(a):(b))`, `#define MAX(a,b) ((a)>(b)?(a):(b))`
+   expanded INSIDE the call argument reproduced the ROM's odd clamp (first test `1.0 < x`, redundant second `1.0 < fa0` test with bc1tl).
+   Negated clamp argument: `t = MAX(..); func(-t)` (a `-MAX(...)` expansion pushes the negation into the ternary arms and adds a 6th literal).
+   `ABS(x) < ABS(z)` with `#define ABS(a) ((a) < 0.0f ? -(a) : (a))` gives the threaded abs compares. `res = -r; if (z < 0.0f) res = r;` gives bc1f + neg in the delay slot.
+   Register trick: reusing ONE variable for the sum of squares and then `len = sqrtf(len)` puts len in $f12 (like the ROM); a separate `len` variable lands in $f2.
+ - Struct result via hidden pointer vs explicit out-pointer: both pass the destination in $a0 (shifting float args to $a1..). Tell: with a real struct return the ROM does
+   `addu $v0,$s_dst,$zero` before the final word copy; with `void f(T *dst, ...)` it does not, and results are written straight into *dst (func_00270B1C slerp:
+   `*dst = *q1; return;` and `dst->x = ...`). A by-value struct return copies a local (`r`) to the hidden slot (extra lw/sw), so mismatching frame sizes
+   (0x70 vs 0x60) are the hint to switch to the out-pointer form.
+ - Stack-allocated 16 byte `B16Vec4 neg = *q2; neg.x = -neg.x; ...` compiles to lw/sw copy + lwc1/neg.s/swc1 exactly like the ROM; redundant duplicated `if (d1 < d2)` tests
+   in the ROM (bc1tl re-test after the sinf calls) are source-level duplicates: write the condition twice.
+ - libultra guMtxL2F (func_00270770): fully unrolled in the ROM; `u32 a, b;` reused for all 8 pairs gives the ROM's a3/t0 register choice.
+ - Reusing ONE variable for len and then `len = 1.0f / len; v.x *= len; ...` (func_0026F3D8, 3 normalizations) puts the reciprocal in len's register ("div.s f3,f0,f3");
+   a separate `inv` variable lands in the next free register (mismatch). Same for the first fallback `else { f.y = 0; f.z = 0; f.x = 1.0f; }` (stores y, z, then x).
+ - func_00271CC4 (|angle difference|): macros WRAP(x) {while (x < -PI) x += 2PI; while (x > PI) x -= 2PI;} expanded 3 times (each with its own 4 literals = 96 bytes of ro):
+   first copy works on a temp (`t = b`), the two branch copies work in place on b: `if (d > 0.0f) {WRAP(b) d = a - b; WRAP(d) return d;} else {WRAP(b) d = a - b; WRAP(d) return -d;}`.
+ - Literals vs externs: float constants that live in the rodata pool of the function (ro=...) must be written as literals (1.0f, 0.5f, 80.0f ...) not `extern f32 D_xxx`;
+   with the literal chk reports the ro= piece at exactly the ROM address of the D_ symbol the asm uses (e.g. func_0026D844: 2.0f -> ro=0xCA39C:4, D_800C979C).
+ - Variables shared between two branches become callee-saved when one branch has calls (inv in nlerp/slerp branch of func_00270D40 landed in $f20): declare per-branch
+   block-local variables (`{ f32 len; f32 inv; ... } else { f32 th, s, inv, w1, w2; ... }`) to get the ROM's caller-saved temporaries.
+ - Sparse flag switch (func_0026E5E0, 29 visible cases, binary compare tree, no jump table): gcc balances the tree over ALL case labels, including labels that jump to the
+   default label (their compares are omitted). The ROM root pivot 0x8000 (13th visible case) only reproduced after adding `case 0x1: case 0x4: case 0x10: default: break;`
+   (the 3 missing power-of-two flags) next to a separate `case 0x20: break;`. Look at the pivot constants of the compare tree: if they are not the median of the visible cases,
+   hidden default-labelled cases exist (gcc 2.8 balance_case_nodes: root index = (count+ranges+1)/2).
+ - A call `f(obj, id, Vec3f pos, flag)` where pos is a local Vec3f: pos is passed by value in $a2,$a3,0x10($sp) and `flag` goes to 0x14($sp); declare callee K&R `void f();` when
+   some call sites omit trailing args. The `beql ... ; sw s0,0x14($sp)` delay-slot copies in the compare tree mean those case bodies also store the flag argument.
+ - Struct with u8[4]/s16 members copied by value (8 bytes) uses lwl/lwr unless the type is 4-aligned: `__attribute__((aligned(4)))` gives the ROM's lw/sw.
+ - Loop with two induction pointers (flags at ents+0xC and ents): keep a single walking pointer `ents` and increment it at the end of the loop body (`ents++` after the if), loop var
+   `for (i = n - 1; i != -1; i--)`; the `s2 = 0` initialiser must be placed right before the `switch` (scheduler hoists it) to get the ROM's delay slot filling.
+=================== FINDINGS from workspace b17
+FINDINGS batch 17 (main image 0x7518C-0x7C390; append-style)
+[tools] tools/gas_compat.py patched in this workspace (copy: wip/out/gas_compat.py), 2 changes, both needed to match real FP code:
+  1. An FP compare stays "pending" across a label: old gas puts the compare->bc1x `nop` AFTER the label ($L: nop; bc1tl). Seen in
+     func_00274810/74878/748E0 (shared `if (x<0) x=0` tail after two c.lt arms: natural nested-if source matches once the tool is fixed).
+  2. `mtc1 $int,$fp` counts as a writer of the FP reg for the return-slot rule: `mtc1; cvt.s.w; jr ra; nop` keeps the nop
+     (func_00278900), the assembler does not fill the delay slot with the cvt.
+[builtin] `f32 sqrtf(f32)` declared in game code is expanded inline by gcc -mcpu=r4300 (sqrt.s + NaN check + call). The ROM calls the libm
+  function (jal 0x802BC380): declare it under another name (`f32 func_002BC380(f32);`) -> real jal. (func_00274C64, 00274CEC)
+[idiom] normalise vector: reuse the length variable for the scale: `len2 = K / sqrt(len2); z = v.z*len2; x = ..; y = ..` (ROM scale lives in
+  the reg of the call argument), `z = 0; if (len2 != 0) {...} else {x=0; y=0} dir.z = z;` matches the shared z store.
+[idiom] adjacent byte fields: `r->b11 == 10 && r->b12 == 1` is merged by gcc fold into ONE word compare (lw + and + compare) when both fields sit in
+  the same struct. The ROM has two lbu: write nested ifs (`if (a == 10) { if (b == 1) ... }`) (func_00279490).
+[idiom] null-safe field read `r = f(); return r ? r->b : 0;` -> ROM wants `if (r == 0) return 0; return r->b;` (beql/move in slot) (func_002760C4).
+[idiom] clamp macro MX(MN(x,hi),lo) with MN(a,b)=((a)<(b)?(a):(b)), MX(a,b)=((a)>(b)?(a):(b)), x a u8: gives the ROM's odd
+  `sltiu v1,x,hi+? ; beqz ; andi ; slti ; bnez; beqz(second test of v1)` decision tree (func_00278A78) - plain if-chains do not.
+[idiom] struct copy of a 0x14 byte record then patching two bytes of the copy (`tmp = *r; tmp.b12 = 2; tmp.b10 = 0; f(&tmp)`) -> lw x4 / sw x4 /lw/sw
+  (struct must have a word member else gcc copies byte-wise) (func_00278F70).
+[idiom] stores `a->x0 = a->x1 = v`: x1 is stored FIRST (assignment chain right-to-left) (func_00276544).
+[idiom] float values accumulating `D[idx % 90]` etc: `n = frame + (...)*16; return tbl[n % 90]` keeps the sum in the register that later holds the remainder
+  (func_00278900); the two-statement form `n = ...; n %= 90;` equals it.
+[globals] `extern SessMgr D_8011FE88;` (struct) used as &D_8011FE88 several times plus field reads: struct-by-value access gives lui/lw each time,
+  array form `extern SessMgr D_8011FE88[]; D_8011FE88->count` keeps the base in an s-reg across the loop/calls (func_00278B2C).
+[idiom] pointer-walking loops over arrays of records (`pts++` in a for-header) make gcc keep two pointers; the ROM's single walking pointer came from
+  `for (i = 0; i < n; i++) { p = pts + i; ... }` (func_0027647C bounding box min/max; matches p3's `p = pt + i*3` finding).
+[idiom] param vs walking pointer: when the ROM copies an incoming pointer arg into an s-reg before the loop (prologue order `move s7,a1; move s6,a2; move s5,a3; move s2,a0`)
+  declare the parameter as `base` and a local `r = base` (func_00279274); with the parameter itself as walker the prologue copies come in a0..a3 order.
+[idiom] one counter reused for two loops: `total = 0; ...; r = rand() % total; total = 0; while (...) { total += w; if (total >= r) break; }`
+  (weighted pick, func_00279808/00279918): a second `sum` variable changes the register allocation.
+[idiom] unsigned loop count `u32 n; while (n--)` / `for (i<n)` with u32 n gives `beqz n` + count-down loop with `bne t0,-1` (func_00279620).
+[idiom] list unlink/append inlined as macros; with a local `DLList *u = &p->usedl` the second list is addressed via a pointer reg (func_002796AC/00279764 EXACT only with the local pointer).
+[call] unprototyped callee `s32 f();` (K&R) lets leftover a0/a1 flow through without being set (func_00279808 calls the rng this way); 
+  mixed proto: `ActorX *func_002833A4();` called once with and once without an arg in func_00279A70.
+[inline] func_00275D04 / 00275E44 contain the body of func_00275C38 (cached triangle normal) inlined: write a `static inline` helper with the same body in the
+  same file (gcc 2.8 -O2 honours `inline`); the out-of-line copy still exists in the ROM as its own function (func_00275C38). The inline copy
+  stored the cache pointer BEFORE the struct copy in 00275D04, after it in 00275E44/00275C38 (scheduler order only; try both).
+[idiom] `if (c) { r = A; } else { r = B; } return r;` (single result variable) reproduced the ROM block order (A first, `bc1t` over it) where two `return`s
+  put the else block first (func_00275E44).
+[idiom] `for (i = 0; i < m; i++)` right after `m = n - 1; ...stores...`: loop.c only knows i==0 (-> `blez m` test) when `i = 0` is in the for-header and
+  no branch/label is between; do not hoist `i = 0` above the enclosing `if` (func_002759C4).
+[tools/ASSEMBLER] The ROM assembler NEVER fills a `jr $ra` delay slot itself (gcc's own reorg fills it when it can, otherwise the ROM has `jr ra; nop`).
+  Seen in func_00276BB4 (`sb;sb;sb;jr ra;nop`; gcc leaves `j $31` unfilled there, modern-gas emulation of tools/gas_compat.py fills it with the last sb -> 2 words
+  differ). The ROM has ~190 `store; jr ra; nop` sites. Fix: tools/gas_compat.py patched in my workspace (wip/out/gas_compat.py): env GAS_NOFILL=1 keeps the nop
+  for returns in lu/lu3 mode; all my 89 other EXACT functions are identical under both settings, so it can be the default for game code (my fchk.sh exports
+  GAS_NOFILL=1). tools/lu_match.py also got `GAS_MODE` env (not needed). Real build path (cc.sh game -> lu3) should apply the same no-fill rule.
+[LOOP SHAPE - big lesson] Loops over vertex/record arrays: the ROM keeps ONE walking base `b+8` (offsets 6/0xC/0xD/0xE added to it) and a separate counter.
+  Pointer-walk source (`for (p = b->v; ...; p++)`) makes gcc 2.8 combine the address givs into a shifted base `p+0xE` (offsets -8,-2,-1,0): never matches.
+  What matches: hoist `vp = b->v;` (loop invariant pointer), keep counter `i` and use `p = vp + i;` (or `vp[i].field`) inside the loop
+  (func_00278A78, func_002782E4 base, func_0027647C). The remaining detail for macros: apply them to the memory operand `p->col[0]`
+  (re-evaluated in the macro) not to a cached local (ROM shows one load because gcc CSEs them; a local gives store-per-arm code).
+[inline] func_00275480: a `static inline Vec3f *tri_unit(Vec3f *out, Tri3 *t)` helper did NOT match when called as tri_unit(&n, t) (gcc keeps `out`=&n in an s-reg across the calls).
+  A `static inline void tri_unit_upd(Tri3 *t)` that only updates the cache globals (+ `D_800D263C = t` in the caller), then `n = D_80115E20;` in the caller,
+  matched exactly. Same shape for the nested tri_normal_upd (stores D_800D2638 = t at its end, copy D_80115E20 = D_80115E10 in the unit helper).
+=================== FINDINGS from workspace b18
+FINDINGS batch 18 (append-style)
+- tools/asmfn.py only read asm/entry.s + asm/16E000.s; now globs asm/*.s (this batch lives in asm/2BD34.s). tools/asma.py prints asm with VRAM addresses (needed to map jump-table targets). tools/jt.py <va> <n> dumps jump table words (ROM = VA-0x80000000+0xC00).
+- wip/side.ps1 <file> <fn> <rom> (side-by-side with -O2 -mcpu=r4300), wip/vv.py (variant search without full sync; placeholders @@x@@), wip/gs.sh (raw gcc asm; run via wsl with MSYS_NO_PATHCONV=1).
+- Block-scope locals per loop: `B18Ent *e = tbl[i];` declared INSIDE each loop body (separate pseudos) lets e live in a call-clobbered reg ($a1); one function-wide `e` reused by 3 loops is live across calls and wastes a callee-saved reg (func_00281A70 needed this to match).
+- `extern const f32 K;` makes gcc hoist the lwc1 of K out of a loop containing calls into a callee-saved fp reg (ROM idiom: lwc1 $fs0 in loop preheader). Non-const extern is reloaded each iteration.
+- Local copy of a struct count (`cnt = D->count; for (i<cnt)`) reproduces the once-loaded count in a callee-saved reg when the loop contains calls.
+- Jump-table switch after `lbu; addiu 8; sll 24; sra 24; sltiu 0xB` = `switch ((s8)type)` with negative case labels; a shared block (`case -5: return D;`) placed right after the preceding case (fallthrough from its else branch) gives the ROM block order (func_0027D950).
+- Local array placement: `u8 buf10[0x40]; u8 buf50[0x10];` (bigger first) gave buf50 at sp+0x50, buf10 at sp+0x10. A local address needed across calls (`p = buf50` assigned in each arm, used after a call) is kept in $s0 only if you route it through a pointer local.
+- Pointer + offset expression: parenthesise the whole offset (`(u8*)o + ((idx<<6)+0x60)`) to get the ROM's addiu-then-addu order; `(idx*0x18+0xE0)` likewise. A local `zero = 0` used in `zero % *p` stays in a callee-saved register (mips div has no immediate), matching the ROM's early 'move s5,zero'.
+- u16 table entries compared against 0xFFFF: keep the values in s32 locals (lhu zero-extends, compare directly); u16 locals add andi 0xFFFF. Struct-by-value args (Vec3f/8-byte/16-byte structs, passed from globals) reproduce the lw t0-t3 / sw to outgoing-arg area idioms with plain prototypes taking the struct types. Fields of tables via c->tab->a70[idx] (c cached in a local) reload tab each time like the ROM.
+- Sparse switch (10 case values, no jump table) compiles to the same balanced compare tree as the ROM when written as a plain switch with all labels stacked on one body. Branch-likely delay-slot layout: for 'if (p) {x=p+K} else {call...}' the ROM has the nonzero test first (beql/bnel + j join): write the positive condition first (func_0027DAA4: 'if (ow->unk5DC != 0) mm = ow->unk5DC+0x160; else {call}'), likewise 'if (flags & M) {...} else mm=p+0x74'.
+- Block-scoped duplicates again (func_0027D47C): when the same table-fetch code (idx/s2/s3/v1 locals) appears in two separate blocks, declaring the locals INSIDE each block (`{ s32 idx, s2, s3, v1; ... }`) instead of function-wide changed the callee-saved assignment (c=s0 vs s2) and turned 39 differing words into 0. Always try per-block locals when two blocks reuse the same temp names and the ROM shows different regs for them.
+- f32 literal passed as an argument in an int register: declare the callee parameter as f32 and pass `1.024f` (gcc emits lui/ori itself, scheduled with the jal delay slot as in the ROM); passing the same bits as an s32 (0x3F83126F) gives a different slot order (a1 move before the lui/ori).
+- Separate sibling globals that the ROM addresses via different lui/addiu pairs (D_801041F8 pos vector, D_801042C8 vector) must be declared as SEPARATE externs, whereas a symbol and its +0xE8 member (D_801041F8 / D_801042E0 reached as -0xE8($s4)) must be ONE struct (`B18GPos { Vec3f pos; u8 pad[0xDC]; Vec3f vF0; }`): decide by whether the ROM shares the base register between the two uses (cse shares bases only within one symbol).
+- Literal pools: float constants used in a function appear in .rodata in order of use (D_800C9E00..9E24 = 10.24f, 102400.0f, 0.785398f, 0.30517578f, 200.0f, 255.0f, 7.68f, 8.0f, 0.1f, 2147483648.0f(u32 cast)); write them as float literals in C (not externs): chk then reports ro=. `(u32)alpha & 0xFF` produces the 2^31 compare + sub + or sequence from the pool.
+- Clamp macros: MAXC(MINB(255.0f, a), 0.0f) with MINB(x,y)=((x)<(y)?(x):(y)), MAXC(x,y)=((x)<(y)?(y):(x)) reproduced a double-evaluated clamp exactly (func_0027E758 alpha); macro-style double evaluation is the original idiom (ROM recomputes `s-t` in the else arm).
+- Vec3f struct pairs: `struct { Vec3f min, max; } bb;` is one 24-byte local; two separate Vec3f locals are padded to 16 bytes each (frame 8 bytes bigger).
+- Per-iteration reset in a loop (`vis = 0;` as first statement of the body rather than in the for-increment) reproduces the `addu s0,zero,zero` before the loop test and in the loop-back delay slot.
+- Block-scoped `DlCmd *dl = D_80110634++;` inside a macro matched the ROM's interleaving of D_80110634 stores with the data stores (function-wide `dl` did not).
+- LOOP INVARIANT HOISTING (loop.c) of constants: gcc -dL dumps (`gcc ... -dL`, wip/dl.sh) show per movable `regno N (life L), savings S moved|not desirable`; a constant is hoisted into a callee-saved reg only if savings*life >= threshold, i.e. when its uses (all merged into ONE pseudo by cse) span a long distance. If the ROM hoists a constant (lui/ori or addiu into an s-reg before the loop, used in several far-apart branches in the loop) but your build re-materialises it at each use, give it ONE local: `s32 one = 1;` (placed immediately before the loop, e.g. inside `if (n > 0) {`) and use `one` at every site (func_00281C74: 1 -> fp, matched the loop; func_00282304: `u32 m10000 = 0x10000;`). Put the assignment AFTER the n>0 test (else the lui lands before the branch).
+- Same idea explains 'n2'/consts reg order: ROM hoists in order of first appearance in the loop body.
+- A pointer/handle cached in a local (`B18Hnd *h = o->handle; h->a=..; h->b=..`) avoids the reload gcc does after each short store through the pointer (aliasing); the ROM shows no reload -> original code used a local.
+- Membership tests like `type == 0x57 || type == 0xC || type == 0x22` followed by a `switch` with the same case values: write BOTH as switch statements (`switch(type){case 0x57: case 0xC: case 0x22: list[n++]=o; break;}`); the ROM's `beq 0x57; slti 0x58; beql; 0xC; 0x22` compare tree comes from the switch, not from an || chain.
+- `for (i=0;..)` loops over a list built in an earlier loop: reuse the SAME function-level counter `i` for consecutive loops but give each loop its own block-scoped element pointer `B18Ob *o` (ROM: counter in s3 for both loops, element in call-clobbered reg in the simple first loop, callee-saved in the later loop with calls).
+- Struct-by-value Vec3f args from a global are loaded through a t3 base via lui/addiu each time (separate statement per argument); passing `o->pos` (field) gives lw t0..t2 from the object base.
+=================== FINDINGS from workspace b19
+FINDINGS batch 19 (game code ROM 0x83618-0x8B...; written incrementally)
+1. gas_compat fixes needed (patched in this workspace's tools/gas_compat.py, please merge):
+   a) return slot after a block-move / struct copy (lw,lw,lw,sw,sw,sw): the original assembler did NOT move the last sw into the jr slot
+      (ROM: `sw ; jr ra ; nop`); chk flag -DNOFILL (tools/lu_match.py sets gas_compat.NOFILL) reproduces it; used for func_00283BA0.
+      Also seen in ROM at func_002390C0, func_0023E8A4, func_00260EEC (not mine).
+   b) a macro-expanded big-offset store/load (`sw $t0, 0x1B660($a0)` -> lui/addu/sw via $at) as the last insn before `jr ra` is never
+      moved into the slot by the original assembler: ROM `... sw ; jr ; nop`.  Fixed by recording the expansion in `ih` (dep rule) for
+      bigoff_re and symidx_re (func_00286920).
+   c) FP compare followed by a LABEL and then bc1t/bc1f: the old assembler still inserted the nop between the c.xx and the branch
+      (ROM: `c.lt.s ; L: nop ; bc1f`).  gas_compat reset `prev` at labels; now kept for 'c.*' (func_00283A54).
+2. sqrtf calls: functions calling sqrtf need -fno-builtin (else gcc inlines sqrt.s with a NaN check). Used in func_00283A54, 002849C4, 002859A0.
+   d) gas_compat bigoff_re also has to match gcc's `l.s/s.s/l.d/s.d` mnemonics (float fields at offsets > 0x7FFF, func_00286050).
+3. Inline functions: GCC 2.8 emits a non-static `inline` function out of line as well, AFTER the first caller (deferred); several ROM groups are
+   "inline helper + callers that inlined it": func_00284544 (callers func_002830A0, func_0028324C inline it, while func_00282E6C/0028444C/00284640
+   only call it => those probably use the inline function before its definition or it is a macro), func_002859A0 (inlined into func_002856B0),
+   func_00285880 (inlined into func_00285B34). In those groups write `inline T fn(...) {...}` BEFORE the user in the same .c; check ALL functions with
+   one chk list (same path, different function names).  Compare with a by-value struct param: when inlined the param is copied to a new stack local.
+4. Float literals vs extern floats: a float referenced as a ROM literal pool entry (1.0f etc.) is hoisted out of loops (preheader) only when
+   it is a real literal or `extern const f32`; plain `extern f32` is re-loaded inside the loop.  func_002856B0 needed LITERALS 1.0f
+   (chk then prints ro=0xCABB0:20 for the 5 pool entries); func_00284D98/00284E70/00284AF4: `extern const f32 D_xxx` hoisted into $fs0.
+5. Struct param by value in a1..a3 (Vec3 after an int arg) shows as sw a1..a3 to home slots + lwc1 from them (func_002859A0, func_002856B0):
+   declare `B19Vec3 p` by value, NOT three f32 params (those get mtc1 a1,...).
+6. Loops/CSE tips seen:
+   - `owner->slot[i].tail` with big struct offset: write `(B19List *)((u8 *)owner + i * 0x14 + 0xFC28)` so strength reduction keeps `owner` as base and the
+     constant 0xFC28 in a register (func_00284640, func_0028444C).
+   - local pointer `row = D_800D052C[i]` made gcc strength-reduce differently; using D_800D052C[i]->a[j] directly matched (func_00282C60 family).
+   - `(owner->slot + idx)->head` instead of `owner->slot[idx].head` flips the addu operand order (func_0028469C).
+   - `if (!(p->flags&1))...` merged mask tests: nested ifs `if (f & 0x100) { if (!(f & 0x800)) {` keep two andi (func_00284544).
+   - `u16 x = tbl[k]` kept in an `s32` local avoids the andi 0xFFFF after lhu (func_00283D24).
+   - Return slot `jr ra; nop` after a block-move / bigoff store: see 1a/1b.
+   - while(o){next=o->next;...;o=next;} gave the ROM's delay-slot choices where for(;;o=next) did not (func_002830A0).
+   - an unused local u8 pad[16] gives `addiu sp,-0x10` frames on tiny leaf functions (func_0028403C, func_00284054).
+7. decomp-permuter WORKS for game code (huge win): wip/perm_setup.sh <fn> <wip/c/x.c> sets up ~/perm/b19_<fn> (base.c = cpp -P of the file stripped to the
+   function by tools/perm_strip.py, target.s = the glabel..endlabel of the function from asm/*.s with macro.inc header, compile.sh = tools/permcc.sh with
+   PERM_FLAGS "-O2 -mcpu=r4300", gas_compat 'lu' mode), wip/perm_run.sh runs `permuter.py -j 14 --stop-on-zero` with a timeout.
+   Register-allocation-only mismatches that I could not fix by hand in 8+ variants were solved in 1-4 minutes each, e.g.
+   func_00285D80 (temp `tmp = (B19Obj*)(base+idx*0x2E8)` used for ->info), func_00286254 (copy `o2 = o` used for calls and flag tests).
+   Typical fixes the permuter finds: extra temp copies of a pointer/value, reordered declarations, `x = (tmp = expr)->f` forms.
+   Do this EARLY for any function with a pure reg-allocation/scheduling diff (score < ~100) instead of hand variants.
+8. struct-by-value / local copy tell: ROM `mtc1 a1,f5 ; mov.s f4,f5` in a delay slot = inlined function parameter copy (or `t = x` copy that is modified later).
+- gcc builtin memcpy changes argument register order; game code is -fno-builtin (func_00285150, 00283A54...).
+9. Display-list pointer pushes: declare the DL pointer as a SCALAR `extern B19Dl *D_80110634;` and write `d = D_80110634++; d->w0=..; d->w1=..;`
+   repeatedly: gcc then loads D once and forwards the stored value to the next pushes (like the ROM: one lw, then v1+8, v1+0x10 ...).
+   Declaring it as an array (`D_80110634[0]`) makes every push reload it (in-struct/array MEM aliasing in cse).  (func_00286424 base)
+10. Same-value scalar floats in the literal-pool region (e.g. D_800C9F5C == D_800C9F64 == 1/2032) are separate extern floats, not literals
+    (gcc would merge equal literals); isolated 1.0f entries used once or twice per function may be real literals (func_002856B0).
+11. Totals: 88 targets: 71 EXACT (incl. the inline-helper groups), 7 PARTIAL (drafts in wip/hard), 4 stray-padding fragments (not functions), 6 big
+    functions not attempted (func_00286A78 885 insns, 0028795C, 00287EE8, 00288908, 00289054, 0028994C) -> NONE.
+12. alndiff helper (wip/alndiff.py <file.c> <fn> [flags]) aligns our words against the ROM with difflib: shows which regions are structurally equal
+    (use it to judge whether a permuter run is promising; bases with < ~70% equal words did not converge in 10-20 min).
+=================== FINDINGS from workspace b19a
+FINDINGS b19a
+- Delay-slot-copy tell: `blezl vX, L ; <insn>` where <insn> is the first insn of the loop top (ROM jumps past it) = do { x += n; } while (cond1 && cmp(x) <= 0) loop (the increment sits at the loop top; the branch-likely copies it into the slot). Plain while loops give a different layout. Same for `bgezl ... subu` = do { j -= size; } while (...).
+- Outer driver loop with a stack index (stk[sp] = ..., sp++): write it as goto (label top) not for(;;)/continue: otherwise loop strength reduction turns stk[sp] into walking pointers (extra regs, spills).
+- `j - (lo + 1)` on u8* compiled to (j-1)-lo; a separate temp `lo1 = lo + 1;` assigned right after the preceding statement forced addiu+subu as in the ROM.
+- Tooling: wip/s.ps1 <file> <fn> <rom> [flags] (side-by-side, ours | ROM, works from windows python+WSL) and wip/run.py <fn> <rom> "<flags>" files... (one chk call for many variant files).
+- Display list push with ROM idiom (lui/addiu &D_80110634 in a reg, ONE lw for several consecutive pushes, ptr stored back after each, copy only on the first): declare `extern B19Dl *D_80110634;` (scalar, NOT array: array/struct accesses alias the DL stores and force reloads) and write each push as a block `{ B19Dl **pp = &D_80110634; B19Dl *q = (*pp)++; q->w0 = ..; q->w1 = ..; }` with a fresh block-local q per push (a shared `d` var adds `addu` copies).
+- A compare tree `beq t,1,B; slti t,2; beqz ->B; bnez t ->B` with everything going to ONE shared block B cannot be had from switch (gcc merges the identical default/case arms); write it with gotos: `if (t==1) goto bb; if (t>1) goto bb; if (t!=0) goto bb; A; goto jn; bb: B; jn:` (t as s32 local).
+- Switch code layout follows source case order of the bodies (cases 0,3,1 in source gave body order 0,3,1 while the compare tree is the same).
+- Loop over an array of structs where ROM has ONE giv reg (cells+8, += 0x14), plus separate counter i with `slt i,n` at bottom and `blez n` guard: `cb = cells->c; if (n > 0) { do { c = &cb[i]; ...; i++; } while (i < n); }`. Walking `c++` or `c = &cells->c[i]` made extra givs (&c->n biv, spilled regs) because the base was recomputed.
+- Initialisations that the ROM schedules AFTER the early-return branch must be assigned after the early return (not in declarations), and their exact position relative to the following calls (before/between/after two jals) changes the scheduled order: brute-force the 3^k placements (81 files in one chk call took seconds).
+- `p->x >= c->x0` (rather than c->x0 <= p->x) loads p->x first; `c.le.s f0,f1` result identical.
+- addu operand order (`addu s0,v0,fp` vs `fp,v0`) for `tri + idx` on pointers: use `(B19Tri *)(idx * 32 + (u32)tri)` (or tri as s32 and idx*32 + tri).
+- REGISTER ALLOCATION RECIPE (worked for func_00288440, 63 -> 0 differing words): (1) dump allocation: wip/dump.sh <file> -dg -dl; in <dmp>/in.c.greg "N regs to allocate: ..." is the priority order (priority = floor_log2(refs)*refs/live_length), "Register dispositions" gives pseudo->hard reg (16..23=s0..s7, 30=fp). Callee-saved regs are handed out in ascending order by priority; pseudos that do not conflict share a reg, so the ROM's register PAIRS (e.g. s0 = {B, cell}, s1 = {D, i}) tell you the priority order of the long-lived pseudos. (2) Spill slots (stack, highest address first) follow DECLARATION order of the locals reversed: ROM order high->low cam,E,count,i0,cols = declare cols first ... cam last (locals declared at the top without initialisers; assignments later). (3) A variable the original reused for two purposes (camera cell i,j and loop i,j) must be split into separate locals: merged live ranges gave i/j the wrong priority.
+- `x = 0` placed textually AFTER the call statement but emitted BEFORE the jal as `addu s2,a1,zero` (copy of the arg zero): put j0 = 0 after `r = f(a, 0);`. Likewise `fp = rows-1` after the next-but-one call statement fixed the `addiu a1,4` vs `addiu fp` scheduling order. When the ROM shows a reg-copy FROM an argument register, move the initialiser textually after the call that sets that arg.
+- `while (i < n && B[i] < K) i++;` (&& with the count test first) yields blez-guard + test-at-top loop with the other test at the bottom (loop inversion only duplicates the first condition).
+- Count-down clear loops in the ROM (`li v1,15 ... addiu v0,v0,-4 ; bgez`) come from ASCENDING source loops `for (i = 0; i < 16; i++) a[i] = 0;` (gcc reverses them and strength-reduces the index to a decrementing giv); writing the loop descending gave `sll` indexing and no giv.
+- Each loop of a long function should have its OWN counter/pointer locals (declared separately): in func_00286A78 sharing `i` between loops changed which loops get strength-reduced and moved the whole register assignment (w got s4 instead of s3). Reg priority = floor_log2(refs)*refs/live_len; params that are copied (w, lvl, flag) compete with 15-ref temporaries (tmp) and a +11 weighted-ref nudge flips them. wip/prio.py + wip/dump.sh print the table.
+- 24-byte struct copy (`dst->box = *(Box6 *)p`) reproduces lw x4/sw x4 + lw x2/sw x2 sequences that a field-by-field copy does not.
+- A global read once in a loop but with `lui fp,%hi(sym); addiu fp,..; lw 0x98(fp)` hoisted: declare `extern Struct sym[]` and use `sym->field` (array-of-struct, deref), not an s32 array with a constant index.
+- Pointers to arrays of 12-byte entries where the ROM shows ONE walking reg initialised by `addu s4,v0,zero` (v0 = base computed before the blez guard) = `pe = ow->ent;` as a pseudo and `pe[i].field` (or `e = pe + i;` at the top of the body); never `e = &ow->ent[i]` (const-folded base) and never e++ plus field accesses (that creates an extra +0xA giv).
+- When the body of an inner loop uses `pe[i].x` as an expression, loop.c hoists invariant copies (extra pseudos 223/307 in func_00289054); assigning `e = pe + i;` once at the top of the outer body avoids those copies.
+- Switch on u16 id with 4 consecutive cases + preceding hoisted constants (0x653..0x656 in s4..s7): gcc hoists them into regs when 5+ constants appear in one compare tree inside a loop.
+- Unresolved (func_00289054): ROM allocates s1=ow, s2=k, s3=v although v has more weighted refs (65 vs ~60: floor_log2 jumps at 64); both our weights and ROM-asm weights agree, so something else (live length? a hidden second pseudo?) differs. Same family of problem in func_00286A78 (w vs tmp).
+- Tools added in wip/: s.ps1 (side by side), sdiff.py (opcode-only structural diff), rdiff.py/regmap.py (register renaming votes ours->ROM), prio.py/dump.sh/pseudo.sh/pdef.py (gcc -dg/-dl allocation tables), depth2.py (loop-depth weighted register mention counts for ours vs ROM), run.py/best.py (many variants in one chk call), cc1.sh (compile snippet and show asm; copy the .c to /tmp first, cpp fails on /mnt/d).
+- LOOP NOTES MATTER FOR REGISTER PRIORITY: REG_N_REFS is weighted by loop depth taken from NOTE_INSN_LOOP_BEG/END. A loop written with goto/labels has no notes (no strength reduction, no invariant hoisting, depth stays 1), a for/while/do loop has. Switching one loop between the two styles changes the weighted ref counts of every long-lived pseudo (e.g. ow/v in func_00289054 went 60/65 -> 43/43 with a goto entity loop) and therefore the s-register order. Use wip/depth2.py (loop-depth weighted register mention counts, ours vs ROM) to compare against the ROM before guessing. Try all 2^k note/no-note combinations of the nested loops as a first experiment (wip/gen9054.py does this for the three nested loops of func_00289054).
+- Struct copy of the camera box, per-loop distinct counters, ascending clear loops, array-of-struct globals: see above; with them func_00286A78 reaches the ROM instruction count (885) and a matching skeleton, leaving only the s-register permutation (w/tmp/a/k/const1 ordering).
+=================== FINDINGS from workspace b19b
+FINDINGS batch 19b (hard leftovers) -- append-style
+1. m2c ADDS bogus third arguments: when a callee leaves a2 untouched, m2c shows `f(a,b,x)` because a2 happened to be live
+   (func_0022A1D0 and func_00262EA8 take 2 args only).  Check the callee's asm for the arg regs it reads.  Those bogus args
+   also changed reload register choice: gcc picks the reload (spill) register AFTER registers "explicitly used in the rtl"
+   (a0..a3 arg moves), so a stray arg shifts every `lw $7`/`lw $6` reload temp.
+2. Spilled pseudos reloaded as `lw $6,0x14($sp)` everywhere: reload picks the first reg not mentioned in the function's RTL.
+3. Hard-reg allocation: pseudos are allocated in order of priority = floor_log2(n_refs)*n_refs/live_length (dump with -dg: the
+   ";; N regs to allocate: ..." list is the allocation order, .lreg has "Register N used X times across Y insns").  A hoisted
+   constant (e.g. 0xE compared 4 times in a loop) is moved out by loop.c and then competes for a callee-saved reg.
+   Use wip/lr.sh / wip/prio.py style tooling: compute priorities, find which pseudo loses, and change the source so the
+   number of live pseudos matches (e.g. one section counter var instead of constants; separate temp var PER SITE: a single
+   `t` reused at 8 sites became one global-alloc pseudo in $4, separate t0..t7 are local-alloc'd to $3/$4 like the ROM).
+4. Struct field vs scalar matters for sched1: `D_801462D0.mask` (struct member => MEM_IN_STRUCT_P) keeps its order against
+   stores through `w->n2`, a `*(s32*)u8array` access does not (the scheduler moved the load below the stores).
+   For globals the ROM reaches with negative offsets from a symbol (`lw -0x1228($s0)`) declare a small struct for the fields
+   at/after the symbol and use `(u8*)&sym - 0x1228` for the reach-back accesses.
+5. Store->load not forwarded in the ROM (`sw v0,0x100(s0)` then `lw v0,0x100(s0)`): the field is accessed through a
+   volatile lvalue at those sites: `(*(volatile s32 *)&o->flags) |= 0x80000000;` and `s32 u = *(volatile s32*)&o->flags;`.
+   A volatile access disables cse forwarding AND the unfolded `(x & 0x7FFFFFFF) & ~0x200` (two ands) appears.  A volatile
+   store may not be put in a branch delay slot, the plain store may: keep the volatile only on the reads.
+6. Loop with pointer `o++` plus index `i++`: gcc picked o+0x100 as the giv base (negative offsets -232(reg)).  Writing the
+   body as `o = &objs[i];` (array indexing, i is the only biv) gives the ROM's `lw 0x100(s0)` and `addiu s0,s0,0x2E8`.
+   Same trick for all array-walk loops with strided structs: `&items[k]`, `&src[k]` (struct typed by stride), not byte math.
+7. Two identical tails `if (cmp) s2 = 1;` reached from different float compares are cross-jumped between the c.lt.s and the
+   `nop; bc1f` (FP cc is a hard reg): write plain `if (a < b) s2 = 1;` in both places, not `cond = a<b; goto join`.
+8. Float box tests: `lwc1` order follows the C operand order: the ROM's `lwc1 f1,0(s7); lwc1 f0,0xE8(s0); c.lt.s f0,f1`
+   is `box[0] > o->fE8`.
+9. Hill-climbing declaration order of locals (wip/hc2.py) improves register assignment a bit but cannot fix a pseudo that
+   loses the priority race; use priorities (3.) to reason instead.
+10. Tooling used: wip/fv.py (variant runner via fchk), wip/ev.py+evw.sh (parallel WSL evaluator, normalized mismatch count),
+   wip/sd.sh (side-by-side, --norm hides register-only differences), wip/dump_in.sh/lr.sh/prio.py (rtl/alloc dumps).
+11. When the only difference is which of two hoisted/long-lived pseudos gets s5 vs s6 (a priority tie such as 0.0864 vs 0.0862
+   from floor_log2(n)*n/live_length) and no source shape changes the RTL lengths, `register T *a asm("$22") = arg;` pins the
+   register and gives an EXACT match (func_00288E78).  Flagged as HACK in results.txt.
+12. m2c passes hard-reg leftovers as arguments (func_0026D980(&D, ...) is really func_0026D980(void)); check the callee.
+13. Switch case ORDER changes the loop RTL length and therefore priorities (cases swapped: arg/const pseudo order flips) but
+   also changes the branch layout; use pv.py (lengths+priorities per variant, 13 s for 3888 variants) to filter variants before chk.
+14. Local register pins `register T v asm("$N")` (gcc 2.8.1, GPR $16-$23,$30 and FP $f4.. both work) are a usable last resort for
+   allocation-only mismatches.  Cautions: (a) a pinned loop counter/pointer is no longer strength-reduced (the ROM's `addiu s1,s1,0xE8`
+   walk turned into a multiply chain) -> pin only non-induction variables; (b) pinning a variable that is a copy of a call result
+   changes cse (`lw s0,0(s3)` became `lw s0,0(v0)`); (c) two pins to the same reg with overlapping lifetimes silently break code;
+   (d) FP: to get ROM's `mtc1 a1,f5 ; mov.s f4,f5` (param pseudo and a separate copy used afterwards) use
+   `register f32 xx asm("$f5"); register f32 t asm("$f4"); xx = x; __asm__("" : "+f"(xx)); t = xx;` (the empty asm stops cse
+   from propagating x into later uses).
+15. wip/hc3.py = hill climber over pins (one var at a time) with the difflib mismatch objective; wip/hc2.py = declaration-order
+   climber; wip/ev.py/evw.sh evaluate 250 variants in ~10 s (16 cores) via WSL; EVFLAGS env selects flags.  Raw difflib mismatch
+   (ours vs ROM, relocs masked) and the register-normalized count are better guides than chk's "words differ" for 300+ insn functions.
+16. A hoisted-compare quirk: `for (j = 0; lastA >= j; j++)` nested in an outer for gives in the ROM an UNFOLDED `slt v0,lastA,j`
+   (j = 0 in a reg) while ours folds to `bltz lastA`; micro tests show gcc hoists `(set tmp (lt lastA 0))` out of the outer loop
+   when lastA is loop-invariant (then the slt+bnez stay split).  The ROM keeps it inside the loop, so lastA is NOT invariant there:
+   probably re-read from a struct/stack each time.  Unresolved (func_00288908).
+17. Array-of-struct indexing vs pointer walking decides which loop variables become givs: `ent = &ents[k]` with k the only counter
+   gives the ROM's single pointer increment; `ent++` plus k++ gave an extra `ent+48` giv and a different register set.
+18. Level-builder pattern: two spilled counters/sizes allocated as stack slots in pseudo order; declaring locals in the order of
+   their ROM stack slots (ascending address) reproduced the spill slot layout (func_00287EE8 lim/mask/sflag at 0x10/0x14/0x18,
+   func_00288908 tmp,cntA,ci,lastA,lastC,e4,cnt,pbp,start,row at 0x3768..0x378C).
+=================== FINDINGS from workspace b20
+FINDINGS - batch b20 (game code 0x8AE58-0x91DE8, -O2 -mcpu=r4300, main image)
+
+TOOLING / CHK
+- tools/gas_compat.py (lu mode) lacked two old-gas behaviours; patched in my workspace (lead: please merge into the real build path):
+  1. BIG offset expansion (|off|>0x7FFF): `op reg,BIG(base)` -> lui $at,hi ; addu $at,BASE,$at ; op reg,lo($at) (base FIRST; this rule existed as bigoff_re) but it did
+     not cover the pseudo ops `l.s`/`s.s` that gcc emits for float fields (`l.s $f0,111388($18)`): now mapped to lwc1/swc1 (func_0028D658).
+  2. The assembler never filled a RETURN delay slot with a multi-insn macro expansion (lui/addu/sw of a big-offset or sym+idx store): ROM has
+     `lui;addu;sw ...(at); jr ra; nop`, modern gas moved the sw into the slot (func_0028E044).  Fixed with a `lastmacro` flag in the `dep` test.
+- fchk needs MSYS_NO_PATHCONV=1 when started from Git-Bash (`wsl -d Ubuntu-24.04 -- bash /mnt/d/...`).  fchk.sh syncs only include/ src/ wip/.
+- tools/asmfn.py only read asm/entry.s and asm/16E000.s; the main-image range 0x2BD34.. lives in asm/2BD34.s (patched).
+- Functions that call memcpy/sqrtf need -fno-builtin in the chk line (inline lwl/lwr copy otherwise): list in results.txt (flags=[...]).
+- ro= pieces: a float constant that sits in the object's literal pool (hoisted out of loops, or just loaded via lui/lwc1) must be written as a LITERAL
+  (e.g. 7.5f, 34.0f, 3.4028235e+38f (FLT_MAX), -1.0f) - chk then prints ro=0xCB098:8 and the pool addresses of neighbouring functions line up
+  (func_0028C544 ro=0xCAFD8, CABC 0xCAFDC, CB8C 0xCAFE0, D0E4 0xCAFE4:8, D268 0xCAFF0 ...).  Hoisting out of a loop into a callee-saved f-reg only
+  happens for literals, never for `extern f32 D_xxx` (calls in the loop may clobber it).  Shared named floats like D_800D2988 (1.0f) are real .data globals.
+  Helper wip/f32.py <hex word> prints the shortest literal that round-trips.
+
+SOURCE-SHAPE LESSONS (gcc 2.8.1 -O2 -mcpu=r4300)
+- LOOPS: the same loop compiles differently as do-while-with-guard, while, and for.
+  * `for (i = 0; i < N; i++) {...}` (test at the bottom, LOOP_CONT note) made delay-slot filling choose `beql ...; i++` exits exactly like the ROM
+    (func_0028E36C/E480/E5AC nested pixel-remap loops; a do-while with `if (n > 0)` guard gave the same instructions but one `beqz` + fill difference).
+  * `while (--n != -1)` (pre-decrement compared with -1) reproduces `addiu n,n,-1; beq n,-1` loop heads (func_0028C400, E36C).
+  * `if (n > 0) do { ... } while (++i < n);` with `i = 0; n = lv->cnt; ... p = lv->arr` gave pointer-walking loops (func_0028CC80).
+  * An ARRAY BASE held in a local pointer plus index, `Entity **arr = lv->list; for (; i < n; i++) { e = arr[i]; ...}`, makes gcc compute the strength-
+    reduced base once (`addiu v0,s2,0xC50 ; addu s0,v0,zero` inside the guard) like the ROM; indexing `lv->list[i]` directly folds the displacement
+    (`lw a0,0xC50(s0)`) and mismatches (func_0028B004, CB8C, CCB8).  Declare i=0 and n=count first, then arr = ..., loop `for (; i < n; i++)`.
+  * `e = &lv->entities[i]` (array-of-struct indexing, i*0x2E8) gives the ROM's single giv pointer (func_0028CABC, B64C), pointer++ forms do not.
+- Struct assign `*out = D_800D0EE0;` (24 bytes) vs two Vec3f member assigns changes pseudo priorities (func_0028C6B0: only the struct assign matched).
+- A load that is conditionally re-read after a store gets a `move` copy only if the source reads the field twice in separate statements
+  (`o->cur = o->head; c = o->head;` -> lw v0 ; addu v1,v0 ; sw v0 ...) (func_0028EAAC).
+- `x = f(); if (x != 0) { A } else { B }` (positive test first) and early `return` forms matter for the delay slot: `if (idx == 0) return 0; base = f(..)+8; return ...`
+  (local `base` pointer) matched func_0028B2D4/B32C, the one-expression forms did not.
+- Return shape: `if (a) { if (b) { ... return call(); } } return 0;` with a temp (`q = o->p; if (q == 0) { zero: return 0; } return *q;`) and a goto into the
+  `return 0` label reproduced shared-return blocks (func_0028D450).
+- Range tests: `key >= 0x64 && key < 0x69` is folded to one sltiu; ROM keeps `slti 0x69 ; slti 0x64` -> write gotos into a shared arm (func_0028BE88).
+  Multi-term `||` chains of equality tests on a u32 temp (t == 0x44E || t == 0x453 ...) compile to separate beq's like the ROM (func_0028E768/E83C) while a
+  `switch` with those labels turned into a jump table.  Conversely a `switch` whose cases cover a dense range 1..7 (with empty cases for the unused values)
+  gives the ROM's jump table (func_0028F524: list `case 1: case 4: case 5: break;` explicitly).
+- Switch blocks are laid out in SOURCE order of the cases (func_0028E910: case 0x29A first although the compare tree is balanced on 0x29B).
+- Two bit-set helpers share the pattern `s32 m = 1 << (bit & 7); if (set) bits[bit/8] |= m; else b2[bit/8] &= ~m;` with `b2 = bits` (a second local copy
+  of the pointer, ROM has two registers) (func_0028B3C0 family).  `bit / 8` (signed) for the bgez/addiu 7 fixup, `s32 bit = s->unk19E` (u16 field copied to s32).
+- Unsigned division by constant (744) comes from `(u32)((u8*)e - (u8*)base) / 0x2E8` NOT from pointer subtraction (func_0028D728).
+- 3-argument calls where the ROM leaves a1 untouched are K&R-declared (`void *func_0028FD94();`) in the caller (func_0028AFC8, 0028D1F4, 0028D220, 0028CF48).
+- Nested `if (a != 0) { if (a >= 0) { if (a < 3) {` keeps the three separate compares (an && chain was merged into a range test) (func_0028D0E4).
+- Struct params by value: `Vec3f v` in (a2,a3,stack) with callee `Vec3f` params reproduces the sw/lw pairs (func_0028BFB4, 0028CE70).
+- Large frames: a dead `volatile` read statement is NOT hoisted above `subu sp` by the scheduler; ROM func_00290A68 starts with a global load before the sp adjust
+  (plain loads ARE hoisted that way, e.g. func_0028EAAC) - the original probably used a non-volatile construct that I could not find.
+
+OPEN ISSUES (see results.txt PARTIAL lines)
+- Register-allocation order of equal-priority callee-saved pseudos (best/bestd, outRecs/outCount) in func_0028C810 / 0028C248; giv combination of o+0x130
+  in a stride-0x140 slot loop (func_002911E8); strength reduction of `for (i=9;i>=0;i--) D_global[i]=0` (ROM v0=0x24;v0-=4; we keep sll) in func_0028E260/E0E4;
+  3-way ramp layout in func_00290E4C; `mult` placement before an unfilled beqz in func_0028FEEC.
+
+ADDITIONAL LESSONS (second half of the batch)
+- u64 time math: `D_800D29A4 = (f32)(((osGetTime() - D_8011F2A8) * 64) / 3) * 0.000001f;` with `extern u64 D_8011F2A8;` reproduces the whole
+  sltu/subu/sll/srl + __udivdi3 + __cmpdi2 + __floatdisf (unsigned DI->float with the halving branch) sequence (func_0028F258, 0028ED80).  Do NOT keep the
+  u64 in a local (`u64 d = ...; (f32)d`): gcc then copies the pair into 4 callee-saved regs.  A u64 global store `D = osGetTime();` emits two
+  `lui;sw` pairs (separate lui for D and D+4) (func_0028FA40).
+- A switch with a hole range (cases 0,1,2 where case 0 is empty) gives the balanced compare tree `beq 1; slti 2; bnez end; beq 2` - add the explicit empty
+  `case 0: break;` (func_0028A674).  Cases laid out in source order; a dense 1..7 range needs the empty cases to get the jump table.
+- struct-typed global whose field is read first through `&G` pointer local: `G462 *g = &D_801462C8; ... g->unk4` keeps the base register = &G
+  (accessing `D_801462C8.unk4` directly makes gcc use base = &G+4 and derive -0x1244) (func_0028A674).
+- s16/u16 field passed to a callee: use an s32 local (`s32 a1 = lv->unk1B430;` from an s16 field gives `lh`, and the else arm `a1 = lv->unk1B438` stays a plain
+  `lw` with no sll/sra) instead of an s16 local (func_0028A674).
+- `lv->f = lv->f + C; if (p->div < lv->f)` (no local temp) matched where `t = lv->f + C; lv->f = t; if (p->div < t)` swapped f0/f1 (func_0028A674).
+- Early-return (`if (idx == -1) { *outCount = 0; return; }`) + if/else for the rest fixed the callee-saved assignment of the two output pointers (func_0028C248).
+- Two loads of the same field in separate statements give a register copy (see above); loading into a struct-by-value Vec3f param copy needs 12-byte struct assign.
+- When a function takes the big Level object and reads `*(s16*)(def+0x28)` etc., local `typedef struct {...} DefQ;` views are fine; helper structs were kept local
+  to the .c files, the shared recovered layout is include/b20_types.h (Level: arrays of Entity* at 0x144/0x948/0xC50/0xE54/0xF5C/0xFE0/0x1024/0x10A8,
+  Entity stride 0x2E8 at lv->entities (0x138) with count 0x140, Rec14 records at 0x11D0/0x11D4, Vid/Job video-thread objects, Node list owner at +0x3C00).
+- Per-object literal pools: every float constant in a function is its own pool entry (never shared), so two functions using 1e-6f have separate entries
+  (ED80 has four 0.000001f entries CA444..CA450).  `D_800D2988` (1.0f) is a shared data global, not a literal.
+- The inline helper `static inline Job *frameOk(Job*)` (copy of func_0028F98C) inlines into func_0028F524 exactly like the ROM; static inline helpers are
+  fine when the ROM clearly contains an inlined copy of another game function.
+- Stray words: func_0028FD68 (2), func_002909C4 (3) and func_002909D8 (2) are linker padding words (leftover lui/sw/addiu) between functions, not code.
+
+SUMMARY: 136 targets: 118 EXACT, 15 PARTIAL (best attempts in wip/hard), 3 NONE (padding words).  Many PARTIALs differ by 1-4 words of scheduling /
+register naming (see notes in results.txt).
+=================== FINDINGS from workspace b21
+FINDINGS - batch 21 (game code ROM 0x92004-0x99xxx, 138 targets)  [interim, appended as work progresses]
+
+TOOLING FIXES (apply to tools/ in the lead's tree)
+- tools/gas_compat.py: (1) `bigoff_re` now also matches the gcc pseudo-ops l.s / s.s / l.d / s.d (a `swc1 f0,0x26DC4($a0)` store with a
+  >0x7FFF offset was expanded with the wrong base order: ROM is `lui $at; addu $at,BASE,$at; swc1 ..($at)`).
+  (2) a macro-expanded big-offset load/store is never moved into a `jr $ra` delay slot by the original assembler (no ROM instance of
+  `jr ra ; sw lo($at)` exists): after the expansion set prev = 'lw' so the return keeps its nop (fixes `lui,addu,sb / lui,addu,sw / jr / nop`).
+- tools/chk.py: an optional first flag `GCCV=<ver>` (e.g. `GCCV=2.7.2 -O2`) selects tools/gcc/<ver> per list line (cache key includes it).
+- tools/asmfn.py only read asm/entry.s and asm/16E000.s; it now scans every asm/*.s (functions of this range are in asm/2BD34.s).
+
+COMPILER FLAGS
+- Almost everything matches `-O2 -mcpu=r4300`.  A few functions (func_00294428, func_00293EAC) matched only with plain `-O2` (= -mcpu=r4000
+  scheduling model, also gives `lw` hoisted before `addiu sp`); per function the first flag set that gives EXACT is recorded in results.txt.
+  -mcpu=r4300 vs r4000 changes more than scheduling: with r4000 gcc turns `if (!f()) a = 0;` into the branch-less sltu/negu/and form,
+  r4300 keeps the beql (func_00293268).
+- Function layout facts: stray words in the ROM that are not code: func_00294C98, func_00297018, func_00297CC8 (2 words each) are padding;
+  func_00295B84 starts with 3 padding words (beqz/lui/lui), the real function starts at VRAM 0x295B90 (label D_00295B90, used as a callback
+  pointer by func_00294CA0/func_00296E04/func_00296EC4 -> write `func_00295B90`).
+
+SOURCE-SHAPE LESSONS (gcc 2.8.1)
+- Objects around D_80145040 (D_80145088, D_801462C8, D_801468A0, ...) are members of ONE struct (B21World in include/b21_world.h):
+  addresses derived with `addiu v0,s0,-0x5D8` from a base register come from cse "related values" of the same symbol.  Take sub-struct
+  pointers explicitly (`B21GameBlk *b = &W.blk; B21Sub1288 *s = &W.sub1288; b->unkAC = 0; s->unk1D = 0;`), assign them where the ROM computes
+  them (after a branch if the lui/addiu sits after it), and make sure sizeof(substruct) is a multiple of 4 (a 0xB3-byte struct shifted the next member).
+- But the SAME memory is sometimes accessed in one function through separate scalar externs (lui $at / sw %lo) in one part and through a base
+  register in another (func_002954E0, func_00294CA0): declare separate `extern` names for the pieces that the ROM accesses stand-alone and the
+  struct/array for the rest; chk only compares resolved addresses so any mix is fine.
+- Static-looking tiny functions with no callers (func_00295AE0/AF0/B00/B18/B30) are plain `inline` functions (emitted out of line AND inlined)
+  defined in the same file as their user func_002953FC (jump tables of both in one rodata piece).  Verify them with the same .c.
+- `if (!(a <= b)) a = b;`-style float min/max and `x = (f32)i < 0 ? -i : i` (int abs via float compare) occur; the second needs the exact
+  `(f32)v < 0.0f ? -v : v` text.
+- Calls whose pass-through argument registers are untouched (func_002518DC(..), func_0029A1D4(id, l, dir)): keep the pass-through param.
+- Two-statement tail `d = D_80110634++; d->w0 = ..; d->w1 = ..;` (display list push) matched in every function that had it; only the first two
+  pushes of func_00293100 differ in register choice.
+- A local initialised from a stack-passed argument (`x1 = lrx; if (x1 < 0) x1 = 0;`) makes gcc keep the stack arg in memory (loaded where used)
+  instead of in a callee-saved register (func_00293100).
+- Jump over `if (D) {..} ` blocks: to make the ROM's `beq v1,1 -> far block` layout use `if (s != 1) { if (s == 2) {..} } else { ..state 1.. }`.
+- Reassociation: `w | (y | C)` is folded to `(w|C)|y`; the ROM's `(y|C)|w` needs a temp (`t = y | C; w0 = w | t`).
+- `p = &pl[i]` (explicit pointer after an early `continue`) stops gcc from strength-reducing pl[i] into a walking pointer (func_00297AD4).
+- switch with default placed after case 0x106 etc.: an early `if (flag == 0) return 0;` before the switch gave the ROM's two distinct `return 0` blocks.
+
+BRUTE-FORCE OF SOURCE SHAPES WORKS (batch 21 closed 6 near-misses this way; tool: wip/mv.py <fn> variants.txt "<flags>" --promote, one fchk call for all variants)
+ Generate the Cartesian product of a few independent syntactic knobs with a small python script and let chk pick the EXACT one:
+  - operand order of commutative expressions and association: `8 + dx + dy * 17` (func_00297390/474) vs `dx + dy*17 + 8` etc.
+  - one temp per use instead of reusing one variable (func_00297C30: nx/ny/nz instead of one `n`; func_00297B74 needs a separate temp for the
+    first axis only; func_00293100: separate pointer/`w` variables `d1,d2`, `w2` for the second half of a function).
+  - ternary assignment `s->f = c ? A : B;` instead of if/else with two stores (func_00293038: identical code but different register allocation).
+  - accumulate into a separate variable (`d = x; d += y; d += z;`) instead of `x + y + z` when the ROM shows an extra `mov.s` copy (func_00297C30).
+  - ROM register numbering differences (v0/v1/a0 or s3/s4 swaps) are decided by pseudo priority = number of references / live length and,
+    on ties, by pseudo creation order: they are cured by changing how often/where a value is mentioned, not by declaration order
+    (declaration order of locals never mattered).
+ Things that did NOT help: -mcpu changes, -fno-schedule-insns*, -fno-cse-skip-blocks (func_002935A4 reloads a state byte after a join
+ that our gcc CSEs through the join), volatile.
+ Unsolved shapes: func_00294CA0 (n2/hi swapped s4/s5; ROM has a surviving copy of hi at the start of the strlen branch), func_00297020
+ (callee-saved numbering g/seeds/p), func_0029193C (ROM materialises each constant right before its store, all via $v0),
+ func_00291404 (dead `addiu s0,s0,-0x5D8` kept before an infinite loop), func_002975B0 (ROM does not CSE &t2 over five plane blocks),
+ func_00298310 family (zero constant kept in s0 and re-zeroed in arms; a2 spilled).
+=================== FINDINGS from workspace b22
+FINDINGS batch 22 (sound manager / math helpers, ROM 0x99634-0xA0724) -- append-style
+- Tooling: wip/ck.py (check wip/c/<fn>.c), wip/vv.py (variants separated by '//----' lines, one fchk call), wip/side.py (side-by-side; NOTE
+  lu_side marks only non-register diffs with '!=' -- register-only differences are invisible there; trust chk), wip/ro.py (dump literals from ROM:
+  rom = (va & 0x7FFFFFFF) + 0xC00), wip/fin.py (builds wip/out + results.txt).  Variant file names must not start with '_v_' (fchk rsync excludes them).
+- tools/asmfn.py only read asm/entry.s + asm/16E000.s: patched to glob asm/*.s (functions of later batches live in asm/2BD34.s etc).
+- Chained assignment `v->x = v->y = v->z = 0.0f;` makes gcc keep 0.0 in an FP reg (mtc1 $zero + 3 swc1, stores in z,y,x order); separate stores use `sw $zero`.
+- A guarded sqrt `if (x <= 0) return 0; return sqrtf(x);` inlined from a `static inline float B22Sqrt(float)` matches the vector length helpers
+  (the arg gets copied `mov.s $f12,$f1` in the jal delay slot); writing the test directly in the function gives different FP register numbers.
+  A top-level `if (x <= 0.0f) return 0.0f; return sqrtf(x);` also matches func_0029E8BC.  (-fno-builtin needed whenever sqrtf is called.)
+- Function with 16 f32 params after a pointer = matrix setter (a1..a3 + 13 stack words), plain f32 params, NOT a by-value struct (that spills a1..a3).
+- `ok = 1; if (a) ok = 0; else if (b) ok = 0; if (ok)...` : the else-if keeps the beql shape; two plain ifs get folded into sltu (store-flag).
+- `s32 i = top - 1 - n` is folded to top - (n+1); ROM has (top-1)-n: use `t = top - 1; i = t - n` with a temp, and the positive test `if (i >= 0) return x; return -1;`.
+- Struct-pointer loops over 0x14 byte slots: ROM with two induction pointers (id at +0x1C, fields at +0x20/+0x24) = pointer-increment loop `s++`, not s[i].
+- Order of two field loads feeding one address (data + off) follows a temp: `o = b->wrpos;` first and then `b->data + o` gave wrpos-first loads (func_0029AB74).
+- (later additions) The slot-table helpers are `static inline` in the original: func_0029AA80 = inline SlotC(id) (loop `s++` over D_8014D080->slot, returns s->unkC or 0)
+  + `fn = (VpFn)SlotC(c->unkE); if (fn) { fn(c, vp); return 1; } return 0;`; the callback arg is a 40-byte struct passed BY VALUE (B22Viewport).
+- Callback/notify pattern (func_0029A5D4, 00298EA4, 0029A1D4 (A5D4 inlined twice, so A5D4 is declared `inline`)): the saved word must be written as
+  `saved = D->unk520; D->unk520 = 0; r = D->fn0(...); if (D_8014D080->unk520 == 1) { D_8014D080->unk520 = saved; return r; } D_8014D080->unk520 = saved;`
+  (compare against the global directly, no local `f`).  An extra local `f = -1; ... top == f` (a variable that is reused later in the original) moved
+  the constant -1 into a1 instead of v0 (local-alloc vs global-alloc): when the ROM compares against -1 in a high reg while v0/v1/a0 are busy, the constant
+  is a GLOBAL pseudo (defined earlier / variable).  Parameter copy `b = a;` before a call kept the copy that the ROM has (func_00298EA4).
+- -dg/-dl dumps are available: wip/dump.sh <file.c> (WSL) writes /tmp/dump/t.c.{greg,lreg,sched,rtl}; the .greg `Register dispositions` shows hard regs of pseudos.
+- Math library (libm, double): floor/ceil are `inline` functions with `x + 2^52 - 2^52`; floor body in the out-of-line copy needs `if (!(x < t)) return t; return t - 1.0;`
+  while the copies inlined into ceil/modf/fmod need `if (x < t) return t - 1.0; return t;` (use a differently named static inline for those).
+  fmod (func_0029C278) = q = x/y; q = q < 0 ? Ceil_(q) : Floor_(q); x - q*y.  Angle wrap helper `static inline float Wrap(float)` (if |a|>8pi: a = (float)fmod(a, 2pi);
+  else while (a > 2pi) a -= 2pi; while (a < 0) a += 2pi) is inlined in sinf (result unused!), sincos, wrapAngle (F04C/F104/F1D4: `a = a + pi; a = Wrap(a); return a - pi;`).
+  asin = Cephes polynomial (func_0029EE48), acos = pi/2 - inline asin; the pool constants appear once per function (separate literal loads per use, no sharing across functions).
+- FP register numbering follows the creation order of pseudos: user temporaries that are modified in place (`w = w * cz;`) reproduce the ROM's in-place `mul.s fs0,fs0,..`;
+  introducing a temp for the product that appears first in the RTL (`w = cx * p;` before `x1 = sx*cz - w`) flipped which of two same-priority values got the lower register.
+  func_0029C6E0/C54C/C868/C3C0 (euler angles from a matrix) matched this way (C3C0 and C868 still a few words off).
+- A function with `if (x <= 0.0) return -inf;` followed by a frexp inline whose zero test is `x == 0.0` loses the (redundant) zero test in our gcc; writing the inline as
+  `if (x != 0.0) {...} else {e = 0; r = 0.0;}` keeps it (func_0029BD38 log).  Identical code tails in both arms of an if (`y = y + 0.5;`) are cross-jumped, write them twice.
+- `(E < c) || (c < E)` (same positive literal twice) appears in func_0029DAB4: the original had a sign typo, use the literal as in the ROM pool (only one pool word).
+- 4x4 matrix multiply/inverse: pointer-based loops (`ap = &a->m[0][0]; dp += 4; bp += 4`) reproduce the ROM's 4 induction pointers (func_0029DE3C); index form m[i][j] does not.
+  `det = 1.0f / det; inv = det;` (in-place reuse of the variable) fixed FP numbering in func_0029E248; unnamed cofactor expressions (CSE'd) instead of named c0/c1/c2.
+- Chains of `if (press) A; else if (release) B; else ...` written with a macro and loads of the state words BEFORE the first call matched func_0029B650 first try (245 insns).
+- Euler/matrix helpers (sinf, sincosf, atan2f, asinf...) all use the same literal-per-use pool; atan2f = if/else tree + inline atanf (ED78 body, `static inline`) + D_800D2B60[q] table (func_0029D044).
+- Out-of-line copies of functions that are also inlined elsewhere (floor, ceil, F93C poly intersection, A5D4 notify, D984 euler matrix) often need a *different* source shape than the inlined copies.
+  Both copies must be tested: write the inline caller first (func_0029A1D4 / func_0029D4A0 / func_0029E9DC / func_0029C278 show whether the body is right).
+- Inline params: passing `out++` as the argument produces the `v0 = a0; a0 = v0 + 12` pattern (func_0029D4A0); a user variable passed to an inline function keeps a register copy only if the original has an
+  explicit extra variable (func_00298EA4 needed `b = a;`).
+- GCC 2.8 cse removes redundant clamps/tests when two inline expansions use identical literals in the same EBB, the ROM often does not (func_0029D288, BD38 zero test): the ROM compiler
+  apparently had different const-pool sharing; keeping a comparison needs a different formulation (`!=` arm order) rather than a copy.
+=================== FINDINGS from workspace b23
+FINDINGS - batch 23 (main image 0x2A0000-0x2A7B8C, 167 targets): 133 EXACT (func_002A1AC4 only at ROM+0xC), 16 PARTIAL, 18 NONE
+(the 18 NONE: 8 are stray words / fragments between functions, 10 are big functions not attempted)
+Flags -O2 -mcpu=r4300 everywhere (plus -fno-builtin for functions that call sqrtf: func_002A6010, and in the PARTIALs that use it).
+Address range: libc-like chunk (strcpy/strcmp/atoi/qsort/memset/memmove/printf wrappers/_splitpath) in 0x2A0xxx-0x2A2xxx,
+then an effects/"trail" slot system + animation/state objects + matrix helpers.
+
+0. TOOLING (new, workspace tools/):
+ - tools/fchk.ps1 + tools/mk.sh <fn...> (checks wip/out or wip/hard file with the right rom), tools/v.py (variant file, bodies separated by '#### BODY'),
+   tools/gen.py <template> <fn> <json> (cartesian placeholder search through ONE chk call), tools/side.sh <file> <fn> [flags] (side-by-side asm with
+   -O2 -mcpu=r4300; NB lu_side only flags mnemonic/instruction-count differences, register-only differences are invisible: use tools/rdiff.py,
+   which prints every line whose registers differ), tools/res.py (regenerates wip/out/results.txt from wip/out + wip/notes.txt + wip/flags.txt).
+ - tools/asmfn.py only read asm/entry.s and 16E000.s; the main-image game code is in asm/2BD34.s (patched in this workspace).
+ - Under Git-Bash set MSYS_NO_PATHCONV=1 before calling wsl with /mnt paths; the 2.8.1 cc1 cannot read from /mnt/d (stat overflow) -> work in ~/trw_b23.
+ - tools/gas_compat.py (patched, copy + diff in wip/out): a store/load through `op reg, sym(idx)` (expanded to lui $at; addu $at,$at,idx; op) that
+   directly precedes `jr $ra` must NOT be moved into the return delay slot (old gas never did; modern gas did).  Fixes func_002A27F8 (and every
+   `D[i] = x; return;` shape).  Regression-checked: 35 game + 240 libultra chk results unchanged.
+
+1. GOTO TRANSCRIPTION IS THE BEST TOOL FOR STRUCTURE: m2c (and the asm) already give the exact CFG.  Writing the C with the same labels/gotos
+   (and `if (x) goto L;` for every conditional branch, in ROM block order) produced EXACT code for functions where 10+ structured variants failed:
+   strncpy func_002A1294 (the zero-fill test is shared by loop exit and NUL break), func_002A438C, func_002A3090, and got the exact block layout /
+   instruction count of func_002A0888 (_splitpath), func_002A0E38 (qsort), func_002A453C, func_002A1444, func_002A152C.  Do it first, structure later.
+   A goto loop is NOT a loop for loop.c: no invariant hoisting / strength reduction (so `&local` stays an `addiu a0,sp,N` before each call).
+2. SINGLE RETURN: a function that ROM shows as `... jr ra; addu v0,a0,zero` inline in the middle and one shared `jr ra; nop` at the end is
+   `if (x) {...} else {...} return dst;` (one return at the end; gcc duplicates the epilogue into fall-through paths).  memmove func_002A0470.
+   Conversely `if (total == 0) return 0; return call()/size;` (early return first) matched fread where `if (total) return ..; return 0;` did not.
+3. VARIABLE REUSE explains "extra copy" registers: memmove keeps `addu v1,a1,zero` because ONE temp k is initialised with (u32)src and later
+   reused as alignment count and loop counter.  Delay-slot copies like `addu a2,a3,zero` before a `beqz` come from assigning the copy BEFORE the
+   test in source (`c = *name; p = name; if (c == 0) goto ..;`) - func_002A1960 (makepath).
+4. STRUCT COPIES: assignment of a struct needs word alignment info to get the unrolled lw/sw block move: use `typedef struct {s32 w[N];}`
+   (u8 b[N] gives a call/loop).  Vec3f copies that ROM does as lwc1/swc1 must be written per float field (`v.x = e->pos.x; ...`), a struct copy gives lw/sw.
+   By-value struct args: a 12-byte struct in a1..a3 is stored to its home slot and `&arg` points at it (func_002A2BE0); a 28-byte struct on the stack is copied
+   with lw/sw groups of 4+3 (declare both as s32 w[N] structs, pass them straight through).  Vec3f in a1..a3 + Vec3f on the stack: func_002A6BD4, 6010.
+5. VARARGS: `void f(char *buf, char *fmt, ...) { va_list ap = (char *)__builtin_next_arg(fmt); ...vsprintf(buf, fmt, ap) }` gives exactly
+   `sw a1..a3` (a0 not stored: it is only the last NAMED arg that is stored) and ap = &fmt+4 as a constant; `f(char *fmt, ...)` stores a0..a3.
+   (stdarg.h of the SDK is not needed; __builtin_next_arg works in 2.8.1.  The K&R __builtin_va_alist form takes &arg and adds a stray store.)
+6. FUNCTION POINTER TABLES / STATE: `s32 *p = &pos;` (address-taken int) gives a memory-resident local with lw/sw 0x10(sp) everywhere (func_002A5124);
+   a local pointer to a global (`s32 *p = &D_800D2BB8; *p = ..; D_800D2BB0 = f(D_800D2BB8)`) stops store->load forwarding and keeps the
+   lui/addiu base register (func_002A1D38).  A global used by several loads/stores with a call in between: struct/array with fields (base reg kept) vs
+   plain scalars (lui each time) - the choice is visible in the asm, copy it per function (the same symbol is a struct in one function, scalars in the next).
+7. Two nested identical float ifs (`if (zero < x) { if (zero < x) {..} }`) are the way to get the duplicated `c.lt.s; bc1f; bc1f` of ROM (&& folds them).
+   Hoisting 0.0f and a global float into locals before a do-while (`zero = 0.0f; k = D;`) is what puts them in callee-saved FP regs (func_002A67D0).
+   `(x_f32)n` conversions + (s32) round trips: compute all four results into locals before the sh stores (func_002A3478).
+8. Float literals passed as args: `func_xxx(m, 1.0f)` loads via lui ... 0x3F80 into a GPR; unused-arg pass-through: call a K&R-declared function with
+   fewer args and gcc leaves $a1.. untouched (func_002A3090 passes a0 only; func_002A5588 calls func_002796AC with a0 only).
+9. A switch with sparse range test + jump table (func_002A5124): table lives at ro=0xCBBA0:24 (VA 0x800CAFA0), chk reports it.
+10. printf-family: the inline function `static __inline__ void cpyn(u8*,u8*,s32)` containing gotos is accepted by 2.8.1 and expands 4 times
+    (labels are made unique) - _splitpath's four strncpy+terminator sequences are inlined copies of strncpy.
+11. REGISTER-ALLOCATION RESIDUE (not solved, 12 PARTIALs differ only by register names, see results.txt notes): FP pairs (v in f0 / 0.0 in f1 reversed),
+    s-reg role permutations (qsort, printf, _splitpath), loop invariants landing in v1/a1/a0 vs a1/a0/v1.  Declaration order, init order, goto vs
+    structured, gcc 2.7.2/2.91/2.95 all made no difference; likely the original source had different temporaries/macros.
+12. Stray words: func_002A286C, func_002A308C, func_002A35BC (1 word each) and func_002A0468 (2 words) are leftover words between objects
+    (func_002A0468 even branches into the next function's body); func_002A2264 is the 3-instruction head `jal func_0040FC14` whose delay slot is the
+    first instruction of func_002A2270 - treat as padding / part of 2270.  func_002A1AC4 (printf wrapper) starts with 3 stray words: C is EXACT at ROM+0xC.
+13. Library identification (names in results.txt): 0x2A0470 memmove, 0x2A1748/memset (2 copies), 0x2A125C strcpy, 0x2A137C strcmp-like, 0x2A13AC strncmp,
+    0x2A1494/14E0 strupr/strlwr, 0x2A15D0 atoi, 0x2A1814 memcmp, 0x2A18B8 crc32, 0x2A166C itoa, 0x2A1960 makepath, 0x2A0888 _splitpath,
+    0x2A0E38/0B74 qsort, 0x2A10B0 bsearch, 0x2A11E8 rand (LCG 0x343FD/0x269EC3), 0x2A1ED4 fread, 0x2A1FCC fgetc, 0x2A05E0 atof(strtod).
+=================== FINDINGS from workspace b24
+FINDINGS batch b24 (ROM 0xA7BE0-0xAEE5C, func_002A6FE0..func_002AE25C)
+
+TOOLING
+- tools/asmfn.py only read asm/entry.s and asm/16E000.s; the main image is split over asm/*.s now.  Patched to glob asm/*.s.
+- tools/gas_compat.py: VR4300 FP-multiply erratum nop also applies between `mul.s/mul.d` and a following integer `mult/multu`
+  (ROM func_002AC1A0 has `mul.s ; nop ; mult`).  One-line change (added 'mult','multu' to the existing mul.s/mul.d rule) in
+  my tools/gas_compat.py; please merge.  With it func_002AC1A0 is EXACT.
+- Side-by-side in the fast loop: wip/side.sh (lu_ud.sh with FLAGS='-O2 -mcpu=r4300') + tools/lu_side.py; variant search: wip/vv.py
+  (full-file variants separated by //====, one fchk call).  rsync of fchk.sh excludes `_v_*` files, so do not name variants _v_*.
+
+SOURCE-SHAPE LESSONS
+- Loop bounds: `for (i = N; i != -1; i--)` gives the ROM's `bne i, $reg(-1)` loop (const -1 in a register), `i >= 0` gives bgez.
+  Table-lookup functions "walk a pointer over N rows of stride S comparing an s16 at +4" are exactly:
+  `Row *p = T; for (i = N-1; i != -1; i--) { if (p->id == id) return p; p++; } return NULL;`
+- `r = hdr[1] - 1; for (; r != -1; r--)` is folded (beqz on hdr[1]); the ROM keeps the compare against -1: write
+  `r = hdr[1]; r--; for (; r != -1; r--)` (separate statements).  Same for `c = hdr[0]; c--;`.
+- A pointer advance written `p = p + a + 8` folds the +8 into the add; the ROM's `addu; (delay) addiu 8` came from two statements
+  `p += a; p += 8;` (func_002AC0A0, func_002ABDBC).
+- A constant that is stored in a loop (`tab[i] = 0xFF`) and also used as a loop counter init: the ROM has two separate `li`;
+  introducing a `u8 c = 0xFF;` local that is stored (`*p-- = c`) reproduces the two li (func_002AC34C).
+- s16 parameters passed through to an s16 callee parameter: declaring the params s16 in our function changed register
+  allocation (priority) to the ROM's and the call-site sll/sra is still emitted (func_002ABC18) - try both s32 and s16.
+- `c->cur++` (u16 field) etc: gcc folds the u16 truncation; the ROM keeps `sh; andi 0xFFFF; andi 3; sh`.  Not reproduced (func_002A80C4).
+- F32 loop counters: `f32 rows = hdr[1]; while (rows-- != 0.0f)` gives the guard + decrement-before-test form seen in the ROM
+  (func_002ABED4/002AC1A0); u32 operands `(f32)w` give cvt.d.w + 2^32 literal; every `1.0f` literal gets its own pool entry.
+- Inlined helpers with by-address out parameters keep their out locals on the stack (func_002ABD04 frame 0x30).
+- Struct return pointer `TabInfo *info` passed by address then read twice: gcc reloads it after a store through another pointer; the ROM
+  does not (func_002AB940, not reproduced).
+- DISPLAY-LIST FUNCTIONS (func_002AACC0, 002ABA44, 002A94E8, 002AA224, 002AB9E4...): the original uses libultra gbi macros with a
+  BLOCK-LOCAL `Gfx *_g = (Gfx*)(glistp++);` per command.  Write
+    #define GFX(a, b) { DlCmd *_g = D_80110634++; _g->w0 = (a); _g->w1 = (b); }
+    #define SHIFTL(v,s,w) (((u32)(v) & ((0x01 << (w)) - 1)) << (s))
+    #define MAX(a,b) ((a) > (b) ? (a) : (b))
+  and pass the whole expression of each word as macro args (e.g. gDPScisFillRectangle = SHIFTL(MAX(x,0),14,10)...,
+  gDPLoadTextureBlock_4b: lrs = (((w*h)+3)>>2)-1 clamped `< 0x800 ? v : 0x7FF`, dxt = ((1<<11)+TXL2WORDS_4b(w)-1)/TXL2WORDS_4b(w),
+  TXL2WORDS_4b(w) = (1 > (w)/16 ? 1 : (w)/16)).  Statement-level `g = D_80110634++; g->w0=..` variants (what the older batches used)
+  gave different register allocation for the hoisted constants; the block-local macro form matched 5 of 5 functions at once.
+  A call between commands (`func_0026925C(0x19)`) is just a call; callees taking only a0 get a1..a3 clobbered/hoisted constants.
+- Pass-through arguments again: a callee prototype with an extra leading arg (func_00222BC4(e, a, b)) fixed a whole function; check
+  `addu sN,$a0` (copy) without an `addu $a0,...` before the jal.
+
+== late additions (batch 24) ==
+- switch: write "default: case 0:" (not "case 0: default:") to keep a jump-table entry for case 0; gcc prunes it otherwise.
+- u8 locals used as table indices produce the andi 0xFF masks seen in ROM; use u8, not s32.
+- gcc 2.8.1 emits bzero (not memset) for array-initializer zero-fill; a struct copy plus explicit memset(&buf[n],0,k) with -fno-builtin matched func_002A81B0 prologue shape.
+- Cross-jump merging of single identical tail insns (two sb stores) blocked func_002AD65C; ROM did not merge them.
+- func_002ACBCC: globals at negative offsets from D_801468A0 (e.g. -0x1840) are best written as *(T*)((u8*)D_801468A0 - 0x1840). Moving "ok = 1" after the inner if (instead of before it) removed ~490 differing words; statement order around calls matters for delay-slot filling.
+- Declaration order and the 'register' keyword do not influence gcc 2.8.1 saved-register assignment here (o/i/off priority); 40 shuffled declaration orders all gave identical output.

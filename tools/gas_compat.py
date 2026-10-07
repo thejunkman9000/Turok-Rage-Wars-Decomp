@@ -340,7 +340,7 @@ if __name__ == '__main__':
         # neighbouring pool covered by chk's piece): fill the rest of the piece with the ROM's own bytes
         have = rodata_size(out)
         if have < ro_size:
-            off = ro_va - 0x80000000 + 0xC00
+            off = (ro_va - 0x400000 + 0x16E000) if ro_va < 0x80000000 else (ro_va - 0x80000000 + 0xC00)
             rom = open('baserom.us.v11.z64', 'rb').read()
             out += '\n\t.section\t.rodata\n' + '\n'.join(f'\t.byte\t{b}' for b in rom[off + have:off + ro_size]) + '\n\t.text\n'
     open(path, 'w', newline='\n').write(out)

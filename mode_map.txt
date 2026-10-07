@@ -114,3 +114,12 @@ __osCheckId lu
 __osPfsSelectBank lu
 corrupted lu
 osPfsIsPlug lu
+func_0040458C lu3+nb
+func_00404F58 lu3+nb
+func_00425E50 lu3+nb
+func_00439DC0 lu3+nf
+func_00439DEC lu3+nf
+func_00439E10 lu3+nf
+func_00439E3C lu3+nf
+func_00439EBC lu3+nf
+func_00439EE0 lu3+nf

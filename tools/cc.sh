@@ -33,10 +33,13 @@ ro_va=""
 if [ -f rodata_map.txt ]; then
   off=$(awk -v n="$base" '$1==n {print $2}' rodata_map.txt)
   # the main image's data is addressed through KSEG0: VA = 0x80000000 + (ROM - 0xC00)
-  [ -n "$off" ] && ro_va=$(printf '0x%X' $(( 0x80000000 + off - 0xC00 )))
+  if [ -n "$off" ]; then
+    if [ $(( off )) -ge $(( 0x16E000 )) ]; then ro_va=$(printf '0x%X' $(( 0x400000 + off - 0x16E000 )))   # overlay A (VRAM 0x400000 = ROM 0x16E000)
+    else ro_va=$(printf '0x%X' $(( 0x80000000 + off - 0xC00 ))); fi
+  fi
   ro_size=$(awk -v n="$base" '$1==n {print $3}' rodata_map.txt)
 fi
-case "$in" in src/game/*) export GAS_RO4=1;; esac
+case "$in" in src/game/*|src/ovl_a/*) export GAS_RO4=1;; esac
 python3 tools/gas_compat.py "$gasmode" "$tmp/o.s" $ro_va ${ro_size:-}
 
 bash tools/as.sh "$tmp/o.s" "$out"
