@@ -13,7 +13,11 @@ void func_0023CB50(B09List *l, B09LNode *n);
 void func_0023C914(void *);
 void func_0025631C(u8 *, u8 *, u8 *, u32);
 
+#ifdef _MSC_VER
+static inline u32 K0(void) { return 0x80000000u; }
+#else
 static inline u32 K0(void) { u32 k; __asm__("" : "=r"(k) : "0"(0x80000000)); return k; }
+#endif
 void func_0023B9A0(void) {
     u32 s4;
     u8 *p;
