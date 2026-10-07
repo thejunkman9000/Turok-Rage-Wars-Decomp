@@ -155,7 +155,7 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static int g_rects; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256];
+static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256];
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
 static void matMul(const float* a, const float* b, float* o) {    // row-vector convention: o = a * b
@@ -353,7 +353,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
             o.r = r > 1 ? 1 : r; o.g = g > 1 ? 1 : g; o.b = b > 1 ? 1 : b;
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
-        { static int nl; if (nl < 14 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx @%p raw %08X %08X %08X %08X; %d: pos %d %d %d st %d %d rgba %02X%02X%02X%02X -> clip %.2f %.2f %.2f %.2f col %.2f %.2f %.2f light=%d nl=%d\n", (const void*)p, rd32(p), rd32(p + 4), rd32(p + 8), rd32(p + 12), v0 + i, (int)x, (int)y, (int)z, o.s, o.t, p[12], p[13], p[14], p[15], o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, (S.geom >> 17) & 1, S.numLights); } }
+        { static int nl; if (nl < 14 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx @%p raw %08X %08X %08X %08X; %d: pos %d %d %d st %d %d rgba %02X%02X%02X%02X -> clip %.2f %.2f %.2f %.2f col %.2f %.2f %.2f light=%d nl=%d\n", (const void*)p, rd32(p), rd32(p + 4), rd32(p + 8), rd32(p + 12), v0 + i, (int)x, (int)y, (int)z, o.s, o.t, p[12], p[13], p[14], p[15], o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, (S.geom >> 17) & 1, S.numLights); } }
     }
 }
 
@@ -447,7 +447,7 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2);
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
-            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); { static int nl; if (nl < 6 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
+            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); { static int nl; if (nl < 6 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
             if (f & 4) { if (f & 2) memcpy(S.proj, m, 64); else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
@@ -523,6 +523,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);
         ctx->RSSetState(rs); ctx->IASetInputLayout(layout); ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ctx->VSSetShader(vs, nullptr, 0); ctx->PSSetShader(ps, nullptr, 0); ctx->PSSetConstantBuffers(0, 1, &cbuf);
+        g_nfpub = nframes;
         { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 8) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
         runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }

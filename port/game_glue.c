@@ -104,6 +104,7 @@ static DWORD WINAPI sampler_thread(LPVOID p) {
 static void dump_trace(int n);
 static DWORD WINAPI game_thread(LPVOID p) {
     (void)p;
+    { extern float sinf(float), cosf(float); volatile float a = 1.309f; fprintf(stderr, "libm test: sinf=%g cosf=%g\n", (double)sinf(a), (double)cosf(a)); }
     fprintf(stderr, "game thread: calling func_00293518\n"); fflush(stderr);
     __try { func_00293518(); }
     __except (fprintf(stderr, "game thread exception 0x%08lX at %p\n", GetExceptionCode(),
@@ -394,6 +395,7 @@ void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsi
     if (!g_trace_init) { g_trace_init = 1; if (!GetEnvironmentVariableA("TUROK_TRACE", g_trace_names, sizeof g_trace_names)) g_trace_names[0] = 0; }
     if (g_trace_names[0] && strstr(g_trace_names, name) && (!strcmp(name, "func_0044E454") || !strcmp(name, "func_0044D408") || !strcmp(name, "func_0044D024") || !strcmp(name, "func_0044CD58"))) { unsigned p1 = be32((void *)(size_t)a1), p2 = (p1 >= 0x80000000u && p1 < 0x80800000u) ? be32((void *)(size_t)p1) : 0; fprintf(stderr, "chain: *a1=%08X **a1=%08X\n", p1, p2); if (p2 >= 0x80000000u && p2 < 0x80800000u) { int i; for (i = 0; i < 24; i++) fprintf(stderr, " %08X", be32((unsigned char *)(size_t)p2 + i * 4)); fprintf(stderr, "\n"); } }
     if (g_trace_names[0] && strstr(g_trace_names, name)) { fprintf(stderr, "call %s(%08X, %08X, %08X, %08X)\n", name, a0, a1, a2, a3); fflush(stderr); }
+    if (g_trace_names[0] && strstr(g_trace_names, name) && strstr(g_trace_names, "dump") && a0 >= 0x80000000u && a0 < 0x80800000u) { static int nd; int k; if (nd++ < 3) { fprintf(stderr, "  obj %08X:", a0); for (k = 0; k < 40; k++) fprintf(stderr, " %08X", be32((void *)(size_t)(a0 + k * 4))); fprintf(stderr, "\n"); } }
     if (g_trace_names[0] && strstr(g_trace_names, name) && strstr(g_trace_names, "bt")) { unsigned *sp = (unsigned *)&name; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 24; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
 }
 

@@ -41,6 +41,7 @@ def load():
         except OSError: continue
         for m in list(_PAT.finditer(t)) + list(_DEF.finditer(t)):
             rt, name, params = m.group(1), m.group(2), m.group(3)
+            if '*' in m.group(0)[:m.start(2) - m.start(0)]: rt = 'void *'          # the pointer star can sit between the type and the name: pointer return
             if not re.search(r'\b(f32|f64|float|double)\b', rt + ' ' + params): continue
             if name in sig: continue
             ps = []
