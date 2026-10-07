@@ -12,7 +12,8 @@ absorbed = set(open('wip/absorbed.txt').read().split())
 fs = [l.split() for l in open('docs/game_funcs.txt') if not l.startswith('#')]
 missing = [f[1] for f in fs if f[1] not in man and f[1] not in absorbed]
 # parked group objects count as "missing" too (their per-function entries were removed from the manifest)
-missing = sorted(set(missing))
+import sys; sys.path.insert(0, 'port'); import m2c_fallback
+missing = sorted(set(missing) | {n for n in m2c_fallback.asm_index() if re.match(r'func_[0-9A-F]{8}$', n) and n not in man and n not in absorbed})
 cands = {}
 order = {'b': 0, 'p': 0, 'm': 1, 'o': 1, 'q': 2, 'r': 3}
 def rank(path):
@@ -47,3 +48,7 @@ for n, f in over.items():
     if n not in chosen:
         shutil.copy(f, f'port/nonmatching/{n}__ovr.c')
 print('extra overrides:', [n for n in over if n not in chosen])
+
+import sys; sys.path.insert(0, 'port')
+import m2c_fallback
+m2c_fallback.run([n for n in missing if n not in chosen and n not in over])

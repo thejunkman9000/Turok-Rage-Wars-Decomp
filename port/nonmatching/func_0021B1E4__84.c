@@ -21,9 +21,11 @@ void func_0021B1E4(B04Act *a, s32 a1, s32 a2, s32 a3) {
     f32 bestd, cur, d;
     B04Act *l;
     u8 *t;
+    u8 *nv;
     func_44ACCC();
     func_00264808(a->wpn, 0);
     t = D_8011FE88;
+    nv = D_8011FE88;
     if (a3 != 0) {
         a->unk864 = 0;
         a->unk868 = 0;
@@ -40,37 +42,36 @@ void func_0021B1E4(B04Act *a, s32 a1, s32 a2, s32 a3) {
                     cur = d;
             }
             if (bestd <= cur) {
-                bestd = cur;
                 best = i;
+                bestd = cur;
             }
         }
         if (best != -1) {
             a->v2F0 = arr[best].pos;
             a->pos = a->v2F0;
-            a->unk354 = arr[best].w;
-            a->unk6C = arr[best].w;
-            r = func_002866F8(t, &a->pos);
+            a->unk6C = a->unk354 = arr[best].w;
+            r = func_002866F8(nv, &a->pos);
             goto blk18;
         }
-        goto blk19;
+        func_44E178(nv, a1, a2);
+        goto tail;
     }
     if (func_44DE70(t, -1, a1, &one, 1) != 0) {
         if (one.kind == D_8013B294) {
             a->v2F0 = one.pos;
             a->pos = a->v2F0;
-            a->unk354 = one.w;
-            a->unk6C = one.w;
+            a->unk6C = a->unk354 = one.w;
             r = func_0028B370(t, one.idx);
 blk18:
             a->unk2FC = r;
             a->unk14 = r;
             func_449E38(a);
         } else {
-            goto blk19;
+            func_44E178(t, a1, a2);
         }
     } else {
-blk19:
-        func_44E178(t, a1, a2);
+        func_44E178(nv, a1, a2);
     }
+tail:
     a->brain->unk4 = func_0020CB3C(D_8013B364, &a->pos);
 }

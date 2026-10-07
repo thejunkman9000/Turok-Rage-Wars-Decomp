@@ -8,7 +8,7 @@ s32 func_00218988(B04Pl3 *p) {
     s32 y = (s8)s->y;
     u8 ux = s->x;
     u8 uy = s->y;
-    s32 d, ax, v;
+    s32 d, ax, v, w, r;
     if (x * x + y * y < 0xE10)
         return -1;
     ax = ABSF(x);
@@ -23,28 +23,33 @@ s32 func_00218988(B04Pl3 *p) {
 vert:
     v = (s8)ux;
     v = ABSF(v);
-    if ((f32)(s8)uy < 0.0f) d = -(s8)uy - v;
-    else d = (s8)uy - v;
-    goto chk;
+    w = (s8)uy;
+    if (w < 0.0f) d = -w - v;
+    else d = w - v;
+    goto T;
 horiz:
     v = (s8)ux;
     v = ABSF(v);
-    if ((f32)(s8)uy < 0.0f) d = v + (s8)uy;
-    else d = v - (s8)uy;
-chk:
+    w = (s8)uy;
+    if (w < 0.0f) {
+        d = v - -w;
+T:
+        if (d < 0x2E) goto small;
+        goto dirv;
+    }
+    d = v - w;
     if (d >= 0x2E) goto dirv;
+small:
     if (ux == 0 || uy == 0) {
 dirv:
         v = (s8)ux;
         v = ABSF(v);
-        if ((f32)(s8)uy < 0.0f) {
-            if (!(-(s8)uy < v)) goto ydir;
-        } else {
-            if (!((s8)uy < v)) goto ydir;
+        w = (s8)uy;
+        if (ABSF(w) < v) {
+            r = 3;
+            if ((s8)ux > 0) r = 1;
+            return r;
         }
-        if ((s8)ux > 0) return 1;
-        return 3;
-ydir:
         return ((s8)uy < 1) * 2;
     }
     return -1;

@@ -15,11 +15,12 @@ static volatile LONG g_frames;
 unsigned char *port_rom(unsigned *size) { if (size) *size = g_rom_size; return g_rom; }
 extern void port_vi_tick(void);
 
+static void dump_trace(int n);
 void port_unimpl(const char *name) {
     static char seen[8192][48]; static int n;
     for (int i = 0; i < n; i++) if (!strcmp(seen[i], name)) return;     /* log each missing function once */
     if (n < 8192) { strncpy(seen[n], name, 47); n++; }
-    fprintf(stderr, "UNIMPLEMENTED: %s\n", name); fflush(stderr);
+    fprintf(stderr, "UNIMPLEMENTED: %s\n", name); dump_trace(14); fflush(stderr);
 }
 
 static int load_rom(const char *path) {
@@ -42,6 +43,10 @@ static void *reserve(unsigned addr, unsigned size, const char *what) {
 
 /* Guest memory keeps the ROM's big-endian byte order: the game C is compiled so that all its loads and stores are
    byte-swapped (port/be_ir.py), so data is copied unchanged. */
+#define GUEST_DELTA 0x30000000u
+#define PAGED_LO 0x00800000u      /* guest: virtual address = page << 12 (assets contain absolute pointers into it) */
+#define PAGED_HI 0x02000000u
+#define H(guest) ((unsigned char *)(size_t)((unsigned)(guest) + GUEST_DELTA))
 static void raw_copy(unsigned char *dst, unsigned rom0, unsigned rom1) { memcpy(dst, g_rom + rom0, rom1 - rom0); }
 
 /* Guest code addresses stored in data tables (callbacks, dispatch tables) -> addresses of the host functions. */
@@ -69,7 +74,7 @@ static void load_guest_data(int have_overlay) {
     unsigned char *d = (unsigned char *)(size_t)(0x80000000u + 0xC7010u - 0xC00u);
     raw_copy(d, 0xC7010u, 0xE8C00u); relocate_fnptrs(d, 0xE8C00u - 0xC7010u);
     if (have_overlay) {
-        unsigned char *o = (unsigned char *)(size_t)(0x400000u + 0x1BCDA0u - 0x16E000u);
+        unsigned char *o = H(0x400000u + 0x1BCDA0u - 0x16E000u);
         raw_copy(o, 0x1BCDA0u, 0x1EE000u); relocate_fnptrs(o, 0x1EE000u - 0x1BCDA0u);
     }
 }
@@ -111,20 +116,21 @@ static void dump_trace(int n) {
    when it is first touched (TLB-miss exception -> loader thread -> DMA).  Here the whole range is reserved but not committed;
    touching an uncommitted page raises an access violation, which is resolved by looking the page up in the game's own region
    list (D_80103F88: next@0, base@4 (page), size@6 (pages), romAddr@8, all big-endian) and copying it from the ROM. */
-#define PAGED_LO 0x30000000u      /* guest asset space: the game's page number << 12, moved to a range the host leaves free */
-#define PAGED_HI 0x40000000u
+/* Guest low space [0x200000,0x2000000) (asset pages, overlay data) is accessed by the game code through an address translation
+   (port/be_ir.py: guest + GUEST_DELTA), because a 32-bit process on 64-bit Windows already has system allocations scattered
+   over those addresses.  The paged asset space starts at guest 0x800000. */
 static unsigned be32(const void *p) { return _byteswap_ulong(*(const unsigned long *)p); }
 static unsigned be16(const void *p) { return _byteswap_ushort(*(const unsigned short *)p); }
 static int g_paged_faults;
 
 static int page_in(unsigned addr) {
-    unsigned page = (addr - PAGED_LO) >> 12;
+    unsigned page = addr >> 12;                                          /* guest virtual page */
     unsigned char *r = (unsigned char *)(size_t)0x80103F88u;           /* region list head (the overlay region comes first) */
     for (int guard = 0; r && guard < 4096; guard++) {
         unsigned base = be16(r + 4), size = be16(r + 6);
         if (page >= base && page < base + size) {
             unsigned rom = (be32(r + 8) & 0x0FFFFFFFu) + ((page - base) << 12);
-            void *p = VirtualAlloc((void *)(size_t)(PAGED_LO + (page << 12)), 0x1000, MEM_COMMIT, PAGE_READWRITE);
+            void *p = VirtualAlloc((void *)(size_t)(GUEST_DELTA + (page << 12)), 0x1000, MEM_COMMIT, PAGE_READWRITE);
             if (!p) { fprintf(stderr, "page_in: commit of va=%08X failed (error %lu)\n", page << 12, GetLastError()); return 0; }
             memset(p, 0, 0x1000);
             if (rom < g_rom_size) memcpy(p, g_rom + rom, (g_rom_size - rom < 0x1000) ? g_rom_size - rom : 0x1000);
@@ -144,7 +150,7 @@ static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep);
 static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];
-        if (a >= PAGED_LO && a < PAGED_HI && page_in(a)) return EXCEPTION_CONTINUE_EXECUTION;
+        if (a >= GUEST_DELTA + PAGED_LO && a < GUEST_DELTA + PAGED_HI && page_in(a - GUEST_DELTA)) return EXCEPTION_CONTINUE_EXECUTION;
     }
     return crash_filter2(ep);
 }
@@ -176,41 +182,144 @@ static LONG WINAPI crash_final(EXCEPTION_POINTERS *ep) {      /* nothing handled
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+static int g_ranges_ok;
+/* Called first thing in WinMain: claim the fixed host ranges (KSEG0 RAM, and the translated low guest space) before anything else
+   allocates; when one is busy start again (a new process gets a new layout). */
+void port_early_init(void) {
+    int ok = 1; DWORD e1 = 0, e2 = 0, e3 = 0;
+    if (!VirtualAlloc((void *)(size_t)0x80000000u, 0x00800000u, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE)) { ok = 0; e1 = GetLastError(); }
+    if (!VirtualAlloc((void *)(size_t)(GUEST_DELTA + 0x00400000u), 0x00080000u, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE)) { ok = 0; e2 = GetLastError(); }
+    if (!VirtualAlloc((void *)(size_t)(GUEST_DELTA + PAGED_LO), PAGED_HI - PAGED_LO, MEM_RESERVE, PAGE_READWRITE)) { ok = 0; e3 = GetLastError(); }
+    if (!ok) { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "reserve errors: ram=%lu overlay=%lu paged=%lu\n", e1, e2, e3); fclose(f); } }
+    g_ranges_ok = ok;
+    {   /* guest code addresses (0x200400-0x44F000) get executable jump stubs to the host functions: code pointers that are created
+           or loaded at run time (object tables inside RNC packs, constants in drafts) can then be called as they are */
+        MEMORY_BASIC_INFORMATION mi; unsigned a = 0x200000u; int n = 0, i;
+        while (a < 0x450000u && VirtualQuery((void *)(size_t)a, &mi, sizeof mi)) {
+            unsigned base = (unsigned)(size_t)mi.BaseAddress, end = base + (unsigned)mi.RegionSize;
+            if (mi.State == MEM_FREE) {
+                unsigned lo = a > base ? a : base, hi = end < 0x450000u ? end : 0x450000u;
+                lo = (lo + 0xFFFFu) & ~0xFFFFu;
+                if (hi > lo && !VirtualAlloc((void *)(size_t)lo, hi - lo, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code range alloc failed [%08X+%X] err=%lu" "\n", lo, hi - lo, GetLastError()); fclose(f); } }
+            } else { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code range busy [%08X+%X] st=%lX ty=%lX" "\n", base, (unsigned)mi.RegionSize, mi.State, mi.Type); fclose(f); }
+            }
+            if (end <= a) break;
+            a = end;
+        }
+        for (i = 0; i < port_fn_count; i++) {
+            unsigned g = port_fn_table[i].guest; unsigned char *p = (unsigned char *)(size_t)g;
+            if (g >= 0x200000u && g < 0x450000u && !IsBadWritePtr(p, 8)) { p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++; }
+        }
+        { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code stubs installed: %d of %d" "\n", n, port_fn_count); fclose(f); } }
+    }
+    {   /* the guest's low space [0x200000,0x2000000) is accessed at +GUEST_DELTA; keep host allocations (thread stacks, heap) out of
+           the original range, otherwise a host pointer there would be translated by mistake */
+        MEMORY_BASIC_INFORMATION mi; unsigned a = 0x200000u;
+        while (a < 0x2000000u && VirtualQuery((void *)(size_t)a, &mi, sizeof mi)) {
+            unsigned base = (unsigned)(size_t)mi.BaseAddress, end = base + (unsigned)mi.RegionSize;
+            if (mi.State == MEM_FREE) {
+                unsigned lo = a > base ? a : base, hi = end < 0x2000000u ? end : 0x2000000u;
+                if (hi > lo) VirtualAlloc((void *)(size_t)lo, hi - lo, MEM_RESERVE, PAGE_NOACCESS);
+            }
+            if (end <= a) break;
+            a = end;
+        }
+    }
+    if (!ok) {
+        static const struct { unsigned lo, size; } rr[] = { { 0x80000000u, 0x800000u }, { GUEST_DELTA + 0x400000u, 0x80000u }, { GUEST_DELTA + PAGED_LO, PAGED_HI - PAGED_LO } };
+        FILE *f = fopen("port_early.txt", "a"); MEMORY_BASIC_INFORMATION mi;
+        if (f) {
+            for (int i = 0; i < 3; i++) {
+                for (unsigned a = rr[i].lo; a < rr[i].lo + rr[i].size; ) {
+                    if (!VirtualQuery((void *)(size_t)a, &mi, sizeof mi)) break;
+                    if (mi.State != MEM_FREE) fprintf(f, "range %d busy: [%08X+%X st=%lX ty=%lX]\n", i, (unsigned)(size_t)mi.BaseAddress, (unsigned)mi.RegionSize, mi.State, mi.Type);
+                    a = (unsigned)(size_t)mi.BaseAddress + (unsigned)mi.RegionSize; if (!a) break;
+                }
+            }
+            fclose(f);
+        }
+    }
+    if (!ok) {
+        char n[16]; DWORD k = GetEnvironmentVariableA("PORT_RETRY", n, sizeof n) ? (DWORD)atoi(n) : 0;
+        if (k < 100) {
+            char cmd[MAX_PATH + 8], num[16]; STARTUPINFOA si; PROCESS_INFORMATION pi; memset(&si, 0, sizeof si); si.cb = sizeof si;
+            sprintf(num, "%lu", k + 1); SetEnvironmentVariableA("PORT_RETRY", num);
+            GetModuleFileNameA(NULL, cmd, MAX_PATH);
+            if (CreateProcessA(cmd, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) ExitProcess(0);
+        }
+    }
+}
+
 void port_game_init(void) {
     freopen("port_log.txt", "w", stderr); setvbuf(stderr, NULL, _IONBF, 0);
     SetUnhandledExceptionFilter(crash_final); AddVectoredExceptionHandler(1, crash_filter);
+    if (!g_ranges_ok) { fprintf(stderr, "could not reserve the game's address ranges (after retries)\n"); return; }
+    fprintf(stderr, "guest address ranges reserved (attempt %s)\n", getenv("PORT_RETRY") ? getenv("PORT_RETRY") : "0");
     if (!load_rom("baserom.us.v11.z64")) { fprintf(stderr, "baserom.us.v11.z64 not found in the working directory\n"); return; }
-    /* The game's addresses are fixed (absolute symbols), so the address ranges it needs must be free in this process.  The
-       system places the main thread's stack and heaps at random low addresses; when one of them is in the way, simply start
-       again (a new process gets a new layout). */
-    int ov = 1;
-    if (!reserve(0x80000000u, 0x00800000u, "RAM(KSEG0)")) ov = 0;      /* 8 MB: data, bss, heap, stack */
-    if (!reserve(0x00400000u, 0x00080000u, "overlay A")) ov = 0;
-    if (!VirtualAlloc((void *)(size_t)PAGED_LO, PAGED_HI - PAGED_LO, MEM_RESERVE, PAGE_READWRITE)) {
-        MEMORY_BASIC_INFORMATION mi; int shown = 0;
-        fprintf(stderr, "paged asset space reservation FAILED; occupied:");
-        for (unsigned a = PAGED_LO; a < PAGED_HI && shown < 8; ) {
-            if (!VirtualQuery((void *)(size_t)a, &mi, sizeof mi)) break;
-            if (mi.State != MEM_FREE) { fprintf(stderr, " [%08X+%X st=%lX ty=%lX]", (unsigned)(size_t)mi.BaseAddress, (unsigned)mi.RegionSize, mi.State, mi.Type); shown++; }
-            a = (unsigned)(size_t)mi.BaseAddress + (unsigned)mi.RegionSize; if (!a) break;
-        }
-        fprintf(stderr, "\n"); ov = 0;
-    }
-    if (!reserve(0x00200000u, 0x00200000u, "main/TLB")) ov = 0;
-    if (!ov) {
-        char n[16]; DWORD k = GetEnvironmentVariableA("PORT_RETRY", n, sizeof n) ? (DWORD)atoi(n) : 0;
-        if (k < 40) {
-            char cmd[MAX_PATH + 8], num[16]; STARTUPINFOA si = { sizeof si }; PROCESS_INFORMATION pi;
-            sprintf(num, "%lu", k + 1); SetEnvironmentVariableA("PORT_RETRY", num);
-            GetModuleFileNameA(NULL, cmd, MAX_PATH);
-            if (CreateProcessA(cmd, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) { fprintf(stderr, "address range busy, relaunching (%lu)\n", k + 1); fflush(stderr); ExitProcess(0); }
-        }
-        fprintf(stderr, "could not reserve the game's address ranges\n"); return;
-    }
-    load_guest_data(ov);
+    load_guest_data(1);
     *(volatile unsigned *)0x80000300 = _byteswap_ulong(1);                           /* osTvType = NTSC */
     *(volatile unsigned *)0x80000318 = _byteswap_ulong(0x800000);                    /* osMemSize */
     CreateThread(NULL, 4 * 1024 * 1024, game_thread, NULL, 0, NULL);
 }
 void port_game_frame(void) { InterlockedIncrement(&g_frames); port_vi_tick(); }
-void port_present_hook(struct ID3D11DeviceContext *ctx) { (void)ctx; }
+extern volatile long g_gfx_task_ready; extern unsigned char g_gfx_task[];
+extern void port_dump_threads(void); extern int g_dbg_startgo, g_dbg_pop;
+void port_present_hook(struct ID3D11DeviceContext *ctx) {
+    static int frames; (void)ctx;
+    if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "gamestate D_80146878=%d D_800D2984=%d D_80146D68=%d D_8014ADA0=%d\n", (int)be32((void *)0x80146878), (int)be32((void *)0x800D2984), (int)be32((void *)0x80146D68), (int)be32((void *)0x8014ADA0));
+    if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "frame %d: D_800D2958=%08X D_800D295C=%08X\n", frames + 1, be32((void *)0x800D2958), be32((void *)0x800D295C));
+    if (frames == 3 || frames == 100) fprintf(stderr, "startgo=%d pops=%d\n", g_dbg_startgo, g_dbg_pop);
+    if (++frames == 600) { port_dump_threads(); dump_trace(8000); }
+}
+
+/* Custom entry point: install a crash logger before the C runtime starts (crashes during start-up are otherwise silent). */
+extern void __cdecl WinMainCRTStartup(void);
+static LONG WINAPI early_crash(EXCEPTION_POINTERS *ep) {
+    HANDLE h = CreateFileA("port_early.txt", FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
+    if (h != INVALID_HANDLE_VALUE) {
+        char b[256]; DWORD n; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
+        unsigned long *sp = (unsigned long *)ep->ContextRecord->Esp; int i;
+        int l = wsprintfA(b, "EARLY CRASH %08lX rva=%lX acc=%lu addr=%08lX\r\nstack rvas:", ep->ExceptionRecord->ExceptionCode,
+            (unsigned long)ep->ExceptionRecord->ExceptionAddress - base, (unsigned long)ep->ExceptionRecord->ExceptionInformation[0], (unsigned long)ep->ExceptionRecord->ExceptionInformation[1]);
+        WriteFile(h, b, l, &n, NULL);
+        for (i = 0; i < 64; i++) { unsigned long v = sp[i]; if (v > base && v < base + 0x1C2000) { l = wsprintfA(b, " %lX", v - base); WriteFile(h, b, l, &n, NULL); } }
+        WriteFile(h, "\r\n", 2, &n, NULL); CloseHandle(h);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+void __cdecl port_entry(void) { AddVectoredExceptionHandler(1, early_crash); WinMainCRTStartup(); }
+
+void port_dump_state_tables(void);
+void port_log_state(void *gp, int st, void *fn) {
+    static int n, last = -1;
+    if (st != last || (++n % 300) == 0) { fprintf(stderr, "game state: g=%p st=%d fn_rva=%X\n", gp, st, (unsigned)((size_t)fn - (size_t)GetModuleHandleA(NULL))); fflush(stderr); }
+    if (st != last) { static int once; if (!once) { once = 1; port_dump_state_tables(); } }
+    last = st;
+}
+
+void port_bad_memmove(void *d, void *s, int n) { fprintf(stderr, "BAD memmove dst=%p src=%p n=%d\n", d, s, n); dump_trace(30); fflush(stderr); }
+
+void port_dbg_words(const char *what, void *p, int n, int h) { int i; fprintf(stderr, "%s (handle %08X):", what, h); for (i = 0; i < n; i++) fprintf(stderr, " %08X", be32((unsigned char *)p + i * 4)); fprintf(stderr, "\n"); fflush(stderr); }
+
+void port_dump_state_tables(void) { int i; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL); fprintf(stderr, "state tables (init / update):\n");
+    for (i = 0; i < 26; i++) { unsigned a = be32((void *)(0x800D29D8 + i * 12)), b = be32((void *)(0x800D29DC + i * 12)); fprintf(stderr, "  st %d: init=%X update=%X\n", i, a ? a - base : 0, b ? b - base : 0); } fflush(stderr); }
+
+void port_rnc_log(const char *what, const void *src, void *dst, int packed, int unpacked, int produced) { static int n; if (n++ < 40 || what[4] != 0x20) { const unsigned char *s = (const unsigned char *)src; fprintf(stderr, "%s: src=%p [%02X %02X %02X %02X %02X %02X] dst=%p packed=%d unpacked=%d produced=%d\n", what, src, s[0], s[1], s[2], s[3], s[4], s[5], dst, packed, unpacked, produced); fflush(stderr); } }
+
+/* guest code address -> host function (for jalr in statically recompiled code); host pointers pass through */
+void *port_resolve(unsigned guest) {
+    struct port_fn key; struct port_fn *f; key.guest = guest; key.host = 0;
+    f = (struct port_fn *)bsearch(&key, port_fn_table, port_fn_count, sizeof key, cmp_fn);
+    return f ? f->host : (void *)(size_t)guest;
+}
+
+/* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
+static char g_trace_names[512]; static int g_trace_init;
+void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsigned a3) {
+    if (!g_trace_init) { g_trace_init = 1; if (!GetEnvironmentVariableA("TUROK_TRACE", g_trace_names, sizeof g_trace_names)) g_trace_names[0] = 0; }
+    if (g_trace_names[0] && strstr(g_trace_names, name) && !strcmp(name, "func_0044E454")) { unsigned p1 = be32((void *)(size_t)a1), p2 = (p1 >= 0x80000000u && p1 < 0x80800000u) ? be32((void *)(size_t)p1) : 0; fprintf(stderr, "chain: *a1=%08X **a1=%08X\n", p1, p2); if (p2 >= 0x80000000u && p2 < 0x80800000u) { int i; for (i = 0; i < 8; i++) fprintf(stderr, " %08X", be32((unsigned char *)(size_t)p2 + i * 4)); fprintf(stderr, "\n"); } }
+    if (g_trace_names[0] && strstr(g_trace_names, name)) { fprintf(stderr, "call %s(%08X, %08X, %08X, %08X)\n", name, a0, a1, a2, a3); fflush(stderr); }
+}
+
+/* the guest FPU register file shared by all statically recompiled code (saved/restored per thread by the OS shim) */
+float g_fpr[32];

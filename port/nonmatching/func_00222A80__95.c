@@ -8,43 +8,35 @@ extern B05Tab *D_800D052C[];
 
 s32 func_00222A80(B05Plr *p, s32 idx) {
     B05Ent *e;
-    s16 v;
-
+    B05Tab *tab;
+    s32 v;
+    tab = D_800D052C[idx];
+    if (p->mode == 1) e = tab->e20; else e = tab->e24;
     v = -1;
-    if (p->mode == 1) {
-        e = D_800D052C[idx]->e20;
-    } else {
-        e = D_800D052C[idx]->e24;
-    }
-    if (e != NULL) {
-        v = e->id;
-    }
-    if (v != -1) {
-        if (p->mode == 2) {
-            if (idx == 3) {
-                return p->cnt[v] >= 0x19;
-            }
-            if (idx == 4) {
-                return p->cnt[v] >= 0x30;
-            }
+    if (e != NULL) v = e->id;
+    if (v == -1) return -1;
+    if (p->mode == 2) {
+        switch (idx) {
+        default:
             e = D_800D052C[idx]->e24;
-            if (e != NULL) {
-                return p->cnt[v] >= e->unk6;
-            }
-            return -1;
-        }
-        if (p->mode == 1) {
-            if (idx == 3) {
-                return p->cnt[v] >= 3;
-            }
-            if (idx == 4) {
-                return p->cnt[v] >= 5;
-            }
-            e = D_800D052C[idx]->e20;
-            if (e == NULL) {
-                return -1;
-            }
+            if (e == NULL) return -1;
             return p->cnt[v] >= e->unk6;
+        case 4:
+            return p->cnt[v] >= 0x30;
+        case 3:
+            return p->cnt[v] >= 0x19;
+        }
+    }
+    if (p->mode == 1) {
+        switch (idx) {
+        default:
+            e = D_800D052C[idx]->e20;
+            if (e == NULL) return -1;
+            return p->cnt[v] >= e->unk6;
+        case 4:
+            return p->cnt[v] >= 5;
+        case 3:
+            return p->cnt[v] >= 3;
         }
     }
     return -1;

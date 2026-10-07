@@ -24,11 +24,12 @@ s32 func_0025E4F4(s16);
 void func_0025DE74(s16, s32, s32, s32, void *, s32);
 void func_00237E70(u8 *, s32, s32);
 void func_00239184(s32, s32, s32);
-void func_0028CE70(u8 *, s32, s32, s32, s32, s32, f32, f32);
+typedef struct { f32 x, y, z; } B04V3;
+void func_0028CE70(u8 *, s32, s32, B04V3, f32, f32);
 void func_0021BFBC(void *p, s32 a1, s32 dmg, s32 a3, s32 a4) {
     s32 v, cur, s0, s2, a2, a0, s3, s0b, t, s4, s5, v5;
-    s32 sp20, sp24, sp28;
     f32 fv, fv2;
+    B04V3 zv;
     s16 snd;
     s2 = dmg;
     cur = W(p, 0x5E4);
@@ -121,10 +122,10 @@ void func_0021BFBC(void *p, s32 a1, s32 dmg, s32 a3, s32 a4) {
                     fv2 = fv;
                     if (D_800C746C < fv)
                         fv2 = D_800C746C;
-                    sp20 = 0;
-                    sp24 = 0;
-                    sp28 = 0;
-                    func_0028CE70(D_8011FE88, W(p, 0x698) + 0x140, 0x11, sp20, sp24, sp28, D_800C7470, fv2);
+                    zv.x = 0;
+                    zv.y = 0;
+                    zv.z = 0;
+                    func_0028CE70(D_8011FE88, W(p, 0x698) + 0x140, 0x11, zv, D_800C7470, fv2);
                 }
             }
             if (s4 == 0 && S16(p, 0x650) != 0x12) {

@@ -13,14 +13,11 @@ typedef struct B05P8 {
     /* 0x34C */ f32 f34C;
 } B05P8;
 
-extern f32 D_800C74C4;
-extern f32 D_800C74C8;
-extern f32 D_800C74CC;
 extern s32 D_800E28D0;
 extern s32 D_800E28D4;
 extern u8 D_801462E5;
 
-void func_00239234(B05P8 *, f32 *, f32 *);
+void func_00239234(B05P8 *, Vec3f *, f32 *, f32 *);
 void func_002ABC18(s32, s32, s16, s16, f32, f32, s32);
 
 void func_0021E068(B05P8 *p, Vec3f *v, s32 id, f32 a3, f32 a4, f32 a5) {
@@ -39,15 +36,15 @@ void func_0021E068(B05P8 *p, Vec3f *v, s32 id, f32 a3, f32 a4, f32 a5) {
     if (id == 0x2F1) goto spec;
     if (id == 0x2F2) {
 spec:
-        t0 = p->f29C * D_800C74C4;
+        k = 0.5f;
+        t0 = p->f29C * k;
         t1 = p->f2A0;
-        k = D_800C74C4;
         goto join;
     }
     if (p->f340 * v->x + p->f344 * v->y + p->f348 * v->z <= p->f34C) {
-        func_00239234(p, &sx, &sy);
-        if (!(sx < D_800C74C8) && !((f32)(D_800E28D0 + 0x40) < sx) &&
-            !(sy < D_800C74C8) && !((f32)(D_800E28D4 + 0x40) < sy)) {
+        func_00239234(p, v, &sx, &sy);
+        if (!(sx < -64.0f) && !((f32)(D_800E28D0 + 0x40) < sx) &&
+            !(sy < -64.0f) && !((f32)(D_800E28D4 + 0x40) < sy)) {
             if (D_801462E5 != 0) {
                 t0 = sx / (f32)D_800E28D0 * p->f29C;
                 t1 = sy / (f32)D_800E28D4;
@@ -56,7 +53,7 @@ join:
                 sx = p->f2A4 + t0;
                 sy = p->f2A8 + t1 * k;
             }
-            d = a4 * a5 - D_800C74CC;
+            d = a4 * a5 - 1.0f;
             func_002ABC18(id, (s32)a3, (s16)(s32)(sx - d), (s16)(s32)(sy - d), a5, a5, 1);
         }
     }

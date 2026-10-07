@@ -2,15 +2,15 @@
 extern f32 D_800C7338;
 extern f32 D_800CE38C;
 extern s32 D_800D052C[];
-typedef struct { s8 a; s8 b; } B04Pr;
-typedef struct { u8 pad0[0x602]; B04Pr pr[22]; s16 unk62E; } B04Pl2;
+typedef struct { s8 a; s8 b; } B04PrX;
+typedef struct { u8 pad0[0x602]; B04PrX pr[22]; s16 unk62E; } B04Pl2;
 s32 func_0022EAFC(B04Pl2 *, s32);
 void func_002181FC(B04Roster *o, s32 a1, B04Pl2 *p) {
     s32 i, j, a0, k;
     
-    o->w37C = -1;
     o->w38C = 0;
     o->w384 = a1;
+    o->w37C = -1;
     for (i = 0; i < 8; i++) {
         for (j = 0; j < 22; j++) {
             if (i == p->pr[j].b) break;

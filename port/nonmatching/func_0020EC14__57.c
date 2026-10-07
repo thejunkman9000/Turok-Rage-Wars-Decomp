@@ -7,15 +7,18 @@ extern B2Row D_80121990[];
 extern const f32 D_800C6F50;
 
 void func_0020EC14(B2Ctl *ctl) {
-    B2Mgr *m = &D_8013B364;
+    register B2Mgr *m asm("$17") = &D_8013B364;
     B2Actor *n;
     B2Actor *p;
-    s32 i;
-    u8 *row = (u8 *)D_80121990;
+    register s32 i asm("$19");
+    u8 *row;
+    s32 off;
 
     if (m != NULL) {
+        row = (u8 *)D_80121990;
+        off = 0xFC28;
         for (i = 0; i < 3; i++, row += 0x14) {
-            for (n = *(B2Actor **)(row + 0xFC28); n != NULL; n = n->next1EC) {
+            for (n = *(B2Actor **)(row + off); n != NULL; n = n->next1EC) {
                 switch (n->type) {
                 case 0x41E:
                     p = n->unk12C;

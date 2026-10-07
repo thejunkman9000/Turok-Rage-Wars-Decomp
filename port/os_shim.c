@@ -18,6 +18,8 @@
 #define ST16(x, v) (*(volatile unsigned short *)&(x) = _byteswap_ushort((unsigned short)(v)))
 #define LD64(x) ((u64)_byteswap_uint64(*(volatile unsigned __int64 *)&(x)))
 #define ST64(x, v) (*(volatile unsigned __int64 *)&(x) = _byteswap_uint64((unsigned __int64)(v)))
+/* guest pointers into the low guest space (overlay data, assets) are accessed at +0x30000000 on the host */
+#define XL(p) ((void *)(size_t)((((u32)(size_t)(p)) - 0x200000u) < 0x1E00000u ? (u32)(size_t)(p) + 0x30000000u : (u32)(size_t)(p)))
 #define LDP(x) ((void *)(size_t)LD32(x))                 /* guest pointer fields are 32-bit big-endian */
 #define STP(x, v) ST32(x, (u32)(size_t)(v))
 
@@ -30,6 +32,8 @@ typedef struct HThread {
     void *arg;
     OSMesgQueue *waitq; int waitkind;   /* waiting on queue: 1 = receive (empty), 2 = send (full) */
     unsigned seq;                /* FIFO order among equal priorities */
+    DWORD tid;
+    float fpr[32];               /* the guest FPU registers of this thread (statically recompiled code keeps them in g_fpr) */
 } HThread;
 
 static CRITICAL_SECTION g_lock;
@@ -55,7 +59,7 @@ static HThread *self_thread(void) {
     for (int i = 0; i < MAXT; i++) if (!g_th[i].state) {
         HThread *h = &g_th[i]; memset(h, 0, sizeof *h);
         h->evt = CreateEventA(NULL, FALSE, FALSE, NULL); h->prio = 10; h->state = 3; h->seq = ++g_seq;
-        tls_self = h; if (!g_current) g_current = h;
+        tls_self = h; h->tid = GetCurrentThreadId(); if (!g_current) g_current = h;
         LeaveCriticalSection(&g_lock); return h;
     }
     LeaveCriticalSection(&g_lock); return NULL;
@@ -73,6 +77,7 @@ static HThread *pick(void) {
 }
 
 /* give the baton away if someone better is runnable (or self blocked); wait until self is current again.  Holds g_lock on entry/exit. */
+extern float g_fpr[32];
 static void reschedule(HThread *self) {
     for (;;) {
         HThread *best = pick();
@@ -80,10 +85,11 @@ static void reschedule(HThread *self) {
         if (self->state == 3) { self->state = 2; self->seq = ++g_seq; best = pick(); if (best == self) { self->state = 3; g_current = self; return; } }
         g_current = best;
         if (best) { best->state = 3; SetEvent(best->evt); }
+        memcpy(self->fpr, g_fpr, sizeof g_fpr);
         LeaveCriticalSection(&g_lock);
         WaitForSingleObject(self->evt, INFINITE);
         EnterCriticalSection(&g_lock);
-        if (g_current == self) { self->state = 3; return; }
+        if (g_current == self) { self->state = 3; memcpy(g_fpr, self->fpr, sizeof g_fpr); return; }
     }
 }
 
@@ -103,10 +109,11 @@ static void wake_one(OSMesgQueue *mq, int kind) {          /* wake the highest-p
 
 /* ---- message queues ---- */
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count) {
-    os_init(); STP(mq->mtqueue, 0); STP(mq->fullqueue, 0); ST32(mq->validCount, 0); ST32(mq->first, 0); ST32(mq->msgCount, count); STP(mq->msg, msg);
+    os_init(); mq = (OSMesgQueue *)XL(mq); STP(mq->mtqueue, 0); STP(mq->fullqueue, 0); ST32(mq->validCount, 0); ST32(mq->first, 0); ST32(mq->msgCount, count); STP(mq->msg, msg);
 }
 
 static int send_common(OSMesgQueue *mq, OSMesg m, s32 flags, int jam) {
+    mq = (OSMesgQueue *)XL(mq);
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) >= (s32)LD32(mq->msgCount)) {
@@ -114,7 +121,7 @@ static int send_common(OSMesgQueue *mq, OSMesg m, s32 flags, int jam) {
         self->state = 4; self->waitq = mq; self->waitkind = 2; reschedule(self);
     }
     {
-        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
+        OSMesg *buf = (OSMesg *)XL(LDP(mq->msg)); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
         if (jam) { first = (first + cnt - 1) % cnt; ST32(mq->first, first); ST32(buf[first], (u32)(size_t)m); }
         else ST32(buf[(first + valid) % cnt], (u32)(size_t)m);
         ST32(mq->validCount, valid + 1);
@@ -128,6 +135,7 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg m, s32 flags) { return send_common(mq, m,
 s32 osJamMesg(OSMesgQueue *mq, OSMesg m, s32 flags) { return send_common(mq, m, flags, 1); }
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
+    mq = (OSMesgQueue *)XL(mq); m = (OSMesg *)XL(m);
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) == 0) {
@@ -136,7 +144,7 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
         reschedule(self);
     }
     {
-        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first);
+        OSMesg *buf = (OSMesg *)XL(LDP(mq->msg)); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first);
         if (m) ST32(*m, LD32(buf[first]));
         ST32(mq->first, (first + 1) % cnt); ST32(mq->validCount, (s32)LD32(mq->validCount) - 1);
     }
@@ -148,10 +156,13 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
 
 /* messages posted from host threads (VI tick, timers, DMA completion): never block */
 static void post_from_host(OSMesgQueue *mq, OSMesg m) {
+    mq = (OSMesgQueue *)XL(mq);
     if (!mq) return; os_init();
+    if (IsBadReadPtr(mq, 24)) { fprintf(stderr, "post_from_host: unreadable queue %p\n", (void *)mq); fflush(stderr); return; }
     EnterCriticalSection(&g_lock);
     if ((s32)LD32(mq->validCount) < (s32)LD32(mq->msgCount)) {
-        OSMesg *buf = (OSMesg *)LDP(mq->msg); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
+        OSMesg *buf = (OSMesg *)XL(LDP(mq->msg)); s32 cnt = (s32)LD32(mq->msgCount), first = (s32)LD32(mq->first), valid = (s32)LD32(mq->validCount);
+        if (IsBadWritePtr(buf, 4) || cnt <= 0) { fprintf(stderr, "post_from_host: bad queue %p msg=%08X count=%d valid=%d first=%d\n", (void *)mq, LD32(mq->msg), cnt, valid, first); fflush(stderr); LeaveCriticalSection(&g_lock); return; }
         ST32(buf[(first + valid) % cnt], (u32)(size_t)m); ST32(mq->validCount, valid + 1);
         wake_one(mq, 1);
         if (!g_current) { HThread *b = pick(); if (b) { g_current = b; b->state = 3; SetEvent(b->evt); } g_preempt = 0; }
@@ -161,7 +172,7 @@ static void post_from_host(OSMesgQueue *mq, OSMesg m) {
 
 /* ---- threads ---- */
 static DWORD WINAPI thread_proc(LPVOID p) {
-    HThread *h = (HThread *)p; tls_self = h;
+    HThread *h = (HThread *)p; tls_self = h; h->tid = GetCurrentThreadId();
     WaitForSingleObject(h->evt, INFINITE);                /* wait for our first turn */
     h->entry(h->arg);
     EnterCriticalSection(&g_lock);                        /* entry returned: the thread is finished */
@@ -171,14 +182,16 @@ static DWORD WINAPI thread_proc(LPVOID p) {
     return 0;
 }
 
+extern void *port_resolve(unsigned guest);
 void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri) {
-    os_init(); (void)sp;
+    OSThread *tx = (OSThread *)XL(t);
+    os_init(); (void)sp; entry = (void (*)(void *))port_resolve((unsigned)(size_t)entry);
     EnterCriticalSection(&g_lock);
     for (int i = 0; i < MAXT; i++) if (!g_th[i].state) {
         HThread *h = &g_th[i]; memset(h, 0, sizeof *h);
         h->t = t; h->prio = pri; h->state = 1; h->entry = entry; h->arg = arg;
         h->evt = CreateEventA(NULL, FALSE, FALSE, NULL);
-        ST32(t->priority, pri); ST32(t->id, id); ST16(t->state, OS_STATE_STOPPED); STP(t->next, 0); STP(t->queue, 0);
+        ST32(tx->priority, pri); ST32(tx->id, id); ST16(tx->state, OS_STATE_STOPPED); STP(tx->next, 0); STP(tx->queue, 0);
         CreateThread(NULL, 1024 * 1024, thread_proc, h, 0, NULL);
         break;
     }
@@ -193,17 +206,17 @@ void osStartThread(OSThread *t) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
     HThread *h = find(t);
-    if (h && h->state == 1) { h->state = 2; h->seq = ++g_seq; ST16(t->state, OS_STATE_RUNNABLE); reschedule(self); }
+    if (h && h->state == 1) { h->state = 2; h->seq = ++g_seq; ST16(((OSThread *)XL(t))->state, OS_STATE_RUNNABLE); reschedule(self); }
     LeaveCriticalSection(&g_lock);
 }
 void osSetThreadPri(OSThread *t, OSPri pri) {
     HThread *self = self_thread(); os_init();
     EnterCriticalSection(&g_lock);
-    HThread *h = find(t); if (h) { h->prio = pri; if (h->t) ST32(h->t->priority, pri); }
+    HThread *h = find(t); if (h) { h->prio = pri; if (h->t) ST32(((OSThread *)XL(h->t))->priority, pri); }
     reschedule(self);
     LeaveCriticalSection(&g_lock);
 }
-OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? (OSId)LD32(h->t->id) : 0; }
+OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? (OSId)LD32(((OSThread *)XL(h->t))->id) : 0; }
 
 /* ---- time and timers ---- */
 static unsigned long long counter_now(void) {
@@ -215,7 +228,7 @@ u64 osGetTime(void) { return counter_now(); }
 typedef struct { OSTimer *t; unsigned long long due, interval; int live; } HTimer;
 static HTimer g_timers[64];
 s32 osSetTimer(OSTimer *t, u64 value, u64 interval, OSMesgQueue *mq, OSMesg msg) {
-    os_init(); STP(t->mq, mq); ST32(t->msg, (u32)(size_t)msg); ST64(t->interval, interval);
+    os_init(); { static int nt; if (nt++ < 30) { fprintf(stderr, "osSetTimer(%p, %llu, %llu, %p, %p)\n", (void *)t, (unsigned long long)value, (unsigned long long)interval, (void *)mq, (void *)msg); } } { OSTimer *tx = (OSTimer *)XL(t); STP(tx->mq, mq); ST32(tx->msg, (u32)(size_t)msg); ST64(tx->interval, interval); }
     EnterCriticalSection(&g_lock);
     for (int i = 0; i < 64; i++) if (!g_timers[i].live || g_timers[i].t == t) {
         g_timers[i].t = t; g_timers[i].due = counter_now() + value; g_timers[i].interval = interval; g_timers[i].live = 1; break;
@@ -239,15 +252,15 @@ static void run_timers(void) {                               /* called from the 
             if (g_timers[i].interval) g_timers[i].due += g_timers[i].interval; else g_timers[i].live = 0;
         }
         LeaveCriticalSection(&g_lock);
-        if (t) post_from_host((OSMesgQueue *)LDP(t->mq), (OSMesg)(size_t)LD32(t->msg));
+        if (t) { OSTimer *tx = (OSTimer *)XL(t); post_from_host((OSMesgQueue *)LDP(tx->mq), (OSMesg)(size_t)LD32(tx->msg)); }
     }
 }
 
 /* ---- events / VI ---- */
 static OSMesgQueue *g_ev_mq[16]; static OSMesg g_ev_msg[16];
-void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg m) { if (e < 16) { g_ev_mq[e] = mq; g_ev_msg[e] = m; } }
+void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg m) { fprintf(stderr, "osSetEventMesg(%d, %p, %p)\n", (int)e, (void *)mq, (void *)m); if (e < 16) { g_ev_mq[e] = mq; g_ev_msg[e] = m; } }
 static OSMesgQueue *g_vi_mq; static OSMesg g_vi_msg; static int g_vi_count = 1, g_vi_phase;
-void osViSetEvent(OSMesgQueue *mq, OSMesg m, u32 retraceCount) { g_vi_mq = mq; g_vi_msg = m; g_vi_count = retraceCount ? retraceCount : 1; }
+void osViSetEvent(OSMesgQueue *mq, OSMesg m, u32 retraceCount) { fprintf(stderr, "osViSetEvent(%p, %p, %u)\n", (void *)mq, (void *)m, retraceCount); g_vi_mq = mq; g_vi_msg = m; g_vi_count = retraceCount ? retraceCount : 1; }
 void osCreateViManager(OSPri pri) { (void)pri; os_init(); }
 void osViBlack(u8 active) { (void)active; }
 void osViSetMode(OSViMode *m) { (void)m; }
@@ -257,10 +270,29 @@ static void *g_fb;
 void osViSwapBuffer(void *fb) { g_fb = fb; }
 void *osViGetCurrentFramebuffer(void) { return g_fb; }
 
+static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
     if (!g_inited) return;
     run_timers();
+    {   /* watchdog: if the baton holder never makes progress (lost wake-up), nudge it */
+        static HThread *last; static unsigned lastseq; static int stuck;
+        EnterCriticalSection(&g_lock);
+        if (g_current && g_current == last && g_seq == lastseq) { if (++stuck == 30) { fprintf(stderr, "baton watchdog: nudging thread %d (state %d)\n", (int)(g_current - g_th), g_current->state); fflush(stderr); SetEvent(g_current->evt); stuck = 0; } }
+        else stuck = 0;
+        last = g_current; lastseq = g_seq;
+        LeaveCriticalSection(&g_lock);
+    }
+    for (;;) {                       /* one queued RSP task completion per tick: SP done, then DP done for graphics tasks */
+        int isgfx = -1;
+        EnterCriticalSection(&g_lock);
+        if (g_tq_n) { g_dbg_pop++; isgfx = g_tq[g_tq_r]; g_tq_r = (g_tq_r + 1) & 15; g_tq_n--; }
+        LeaveCriticalSection(&g_lock);
+        if (isgfx < 0) break;
+        if (g_ev_mq[4]) post_from_host(g_ev_mq[4], g_ev_msg[4]);                 /* SP done */
+        if (isgfx && g_ev_mq[9]) post_from_host(g_ev_mq[9], g_ev_msg[9]);        /* DP done */
+        break;
+    }
     if (g_ev_mq[OS_EVENT_VI]) post_from_host(g_ev_mq[OS_EVENT_VI], g_ev_msg[OS_EVENT_VI]);
     if (g_vi_mq && ++g_vi_phase >= g_vi_count) { g_vi_phase = 0; post_from_host(g_vi_mq, g_vi_msg); }
 }
@@ -268,12 +300,12 @@ void port_vi_tick(void) {
 /* ---- RSP/RDP tasks: the display list is captured for the renderer; completion is signalled immediately ---- */
 static OSTask g_task; static int g_task_pending;
 OSTask g_gfx_task; volatile LONG g_gfx_task_ready;
-s32 osSpTaskLoad(OSTask *t) { g_task = *t; return 0; }
+s32 osSpTaskLoad(OSTask *t) { g_task = *(OSTask *)XL(t); return 0; }
 s32 osSpTaskStartGo(OSTask *t) {
-    (void)t;
-    if (LD32(g_task.t.type) == 1) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
-    post_from_host(g_ev_mq[4], g_ev_msg[4]);                 /* SP done */
-    post_from_host(g_ev_mq[9], g_ev_msg[9]);                 /* DP done */
+    (void)t; g_dbg_startgo++;
+    { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12) { fprintf(stderr, "StartGo #%d type=%u flags=%08X\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags)); }
+      if (gfx) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
+      os_init(); EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* completion is delivered from the frame tick: the caller still has bookkeeping to do */
     return 0;
 }
 void osSpTaskYield(void) {}
@@ -289,15 +321,15 @@ static void rom_copy(void *dst, u32 dev, u32 n) {
 s32 osPiStartDma(OSIoMesg *mb, s32 pri, s32 dir, u32 dev, void *vaddr, u32 n, OSMesgQueue *mq) {
     (void)pri;
     fprintf(stderr, "osPiStartDma dir=%d dev=%08X dram=%p size=%X\n", dir, dev, vaddr, n);
-    if (dir == 0) rom_copy(vaddr, dev, n);                    /* OS_READ */
-    STP(mb->hdr.retQueue, mq);
+    if (dir == 0) rom_copy(XL(vaddr), dev, n);                    /* OS_READ */
+    STP(((OSIoMesg *)XL(mb))->hdr.retQueue, mq);
     post_from_host(mq, (OSMesg)mb);
     return 0;
 }
 s32 osPiRawStartDma(s32 dir, u32 dev, void *vaddr, u32 n) {
     fprintf(stderr, "osPiRawStartDma dir=%d dev=%08X dram=%p size=%X\n", dir, dev, vaddr, n);
     if (!vaddr) return -1;
-    if (dir == 0) rom_copy(vaddr, dev, n);
+    if (dir == 0) rom_copy(XL(vaddr), dev, n);
     post_from_host(g_ev_mq[8], g_ev_msg[8]);                  /* PI interrupt: DMA finished */
     return 0;
 }
@@ -320,12 +352,13 @@ void osInitialize(void) { os_init(); }
 /* ---- controllers: keyboard for now ---- */
 static int key(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
-    (void)mq; *bitpattern = 1;
+    (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status); *bitpattern = 1;
     for (int i = 0; i < 4; i++) { ST16(status[i].type, i == 0 ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = i == 0 ? 0 : 0x80; }
     return 0;
 }
 s32 osContStartReadData(OSMesgQueue *mq) { post_from_host(mq, (OSMesg)0); return 0; }
 void osContGetReadData(OSContPad *pad) {
+    pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
     u16 b = 0;
     if (key(VK_RETURN)) b |= 0x1000;                          /* Start */
@@ -347,3 +380,23 @@ s32 osMotorStop(void *pfs) { (void)pfs; return 0; }
 s32 osAiSetFrequency(u32 f) { return (s32)f; }
 s32 osAiSetNextBuffer(void *b, u32 n) { (void)b; (void)n; return 0; }
 u32 osAiGetStatus(void) { return 0; }
+
+static HANDLE h_open(DWORD tid) { return tid ? OpenThread(THREAD_ALL_ACCESS, FALSE, tid) : NULL; }
+/* debugging aid: what is every game thread doing? */
+void port_dump_threads(void) {
+    int i;
+    EnterCriticalSection(&g_lock);
+    fprintf(stderr, "threads (current=%p):\n", (void *)g_current);
+    for (i = 0; i < MAXT; i++) if (g_th[i].state) {
+        HANDLE th = h_open(g_th[i].tid); CONTEXT c; unsigned *sp; int k; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL);
+        fprintf(stderr, "  [%d] state=%d prio=%d entry=%X waitq=%p kind=%d\n", i, g_th[i].state, g_th[i].prio, (unsigned)((size_t)g_th[i].entry - base), (void *)g_th[i].waitq, g_th[i].waitkind);
+        if (th && g_th[i].tid != GetCurrentThreadId()) {
+            SuspendThread(th); c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; GetThreadContext(th, &c);
+            fprintf(stderr, "      eip rva %X stack:", (unsigned)c.Eip - base); sp = (unsigned *)c.Esp;
+            for (k = 0; k < 96; k++) if (sp[k] > base && sp[k] < base + 0x1C2000) fprintf(stderr, " %X", sp[k] - base);
+            fprintf(stderr, "\n"); ResumeThread(th);
+        }
+        if (th) CloseHandle(th);
+    }
+    LeaveCriticalSection(&g_lock); fflush(stderr);
+}

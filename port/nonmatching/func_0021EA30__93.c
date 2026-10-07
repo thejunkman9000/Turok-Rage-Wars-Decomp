@@ -36,20 +36,6 @@ typedef struct B05A18 {
 
 extern s32 D_800E28D0;
 extern s32 D_800E28D4;
-extern f32 D_800C76B4;
-extern f32 D_800C76B8;
-extern f32 D_800C76BC;
-extern f32 D_800C76C0;
-extern f32 D_800C76C4;
-extern f32 D_800C76C8;
-extern f32 D_800C76CC;
-extern f32 D_800C76D0;
-extern f32 D_800C76D4;
-extern f32 D_800C76D8;
-extern f32 D_800C76DC;
-extern f32 D_800C76E0;
-extern f32 D_800C76E4;
-extern f32 D_800C76E8;
 extern u8 D_800CE4CC[];
 extern u8 D_800CE4FC[];
 extern u8 D_800CE53C[];
@@ -75,13 +61,13 @@ void func_0021EA30(B05P18 *p, B05A18 *a) {
     s1f = a->f29C / (f32)D_800E28D0;
     s1 = a->f2A0 / (f32)D_800E28D4;
     if (func_40C4F4() == 0) {
-        s2f = D_800C76B4;
-        s2 = D_800C76B8;
+        s2f = 0.9f;
+        s2 = -9.0f;
     } else {
-        s2f = D_800C76BC;
-        s2 = D_800C76C0;
+        s2f = 1.0f;
+        s2 = 1e+01f;
     }
-    s3 = s1f * D_800C76C4;
+    s3 = s1f * 32.0f;
     if (p->s5F4 != p->slot[0].last || p->u13B8 != 0) {
         if (func_40C4F4() == 0) {
             func_002AB6FC(&p->slot[0], D_800CE4CC);
@@ -113,20 +99,20 @@ void func_0021EA30(B05P18 *p, B05A18 *a) {
         if (p->slot[0].unk0 != 0 && p->slot[0].unk8 != 0 && p->s62E < 0x12) {
             s0f = p->slot[0].f14 * s1 + a->f2A8 + a->f2A0;
             s0 = p->slot[0].f10 * s1f + a->f2A4 + s2;
-            func_002ABC18(0xBEA, 0, (s32)(s0 - s3), (s32)(s0f - s1 * D_800C76C8), s1f, s1, 1);
-            func_002A921C(p->s5F4, s0 - s1f * D_800C76CC, s0f - s1 * D_800C76D0, s1f * s2f, s1, 1, 0, 0);
+            func_002ABC18(0xBEA, 0, (s32)(s0 - s3), (s32)(s0f - s1 * 8.0f), s1f, s1, 1);
+            func_002A921C(p->s5F4, s0 - s1f * 6.0f, s0f - s1 * 4.0f, s1f * s2f, s1, 1, 0, 0);
         }
         if (p->slot[1].unk0 != 0 && p->slot[1].unk8 != 0 && p->s62E < 0x12) {
             s0 = p->slot[1].f10 * s1f + a->f2A4 + s2;
             s0f = p->slot[1].f14 * s1 + a->f2A8 + a->f2A0;
-            func_002ABC18(0xBEB, 0, (s32)(s0 - s3), (s32)(s0f - s1 * D_800C76D4), s1f, s1, 1);
-            func_002A921C(p->s5F6, s0 - s1f * D_800C76D8, s0f - s1 * D_800C76DC, s1f * s2f, s1, 1, 0, 0);
+            func_002ABC18(0xBEB, 0, (s32)(s0 - s3), (s32)(s0f - s1 * 8.0f), s1f, s1, 1);
+            func_002A921C(p->s5F6, s0 - s1f * 6.0f, s0f - s1 * 4.0f, s1f * s2f, s1, 1, 0, 0);
         }
         if (p->slot[2].unk0 != 0 && p->slot[2].unk8 != 0 && p->s62E < 0x12) {
             s0 = p->slot[2].f10 * s1f + a->f2A4 + s2;
             s0f = p->slot[2].f14 * s1 + a->f2A8 + a->f2A0;
-            func_002ABC18(0xBEC, 0, (s32)(s0 - s3), (s32)(s0f - s1 * D_800C76E0), s1f, s1, 1);
-            func_002A921C(p->s5F8, s0 - s1f * D_800C76E4, s0f - s1 * D_800C76E8, s1f * s2f, s1, 1, 0, 0);
+            func_002ABC18(0xBEC, 0, (s32)(s0 - s3), (s32)(s0f - s1 * 8.0f), s1f, s1, 1);
+            func_002A921C(p->s5F8, s0 - s1f * 6.0f, s0f - s1 * 4.0f, s1f * s2f, s1, 1, 0, 0);
         }
     }
 }

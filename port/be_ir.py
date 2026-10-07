@@ -53,6 +53,33 @@ DEF_GLOBAL = re.compile(r'^(@[\w.\-$"]+) = (?!external)')
 DEF_RE = re.compile(r'^\s*(%[\w.\-$]+) = (.*)$')
 ADDR_OPS = re.compile(r'(getelementptr|bitcast|addrspacecast|inttoptr|ptrtoint|phi|select)\b')
 
+GUEST_LO, GUEST_SIZE, GUEST_DELTA = 0x200000, 0x1E00000, 0x30000000   # low guest space [0x200000,0x2000000) lives at +0x30000000 on the host
+ALLOCA = re.compile(r'^\s*(%[\w.\-$]+) = alloca')
+LIBC_PTR_CALLS = {'memcpy', 'memmove', 'memset', 'memcmp', 'memchr', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'strncmp', 'strchr', 'strrchr',
+                  'strcat', 'strncat', 'strstr', 'bcopy', 'bzero'}
+CALL = re.compile(r'^(\s*)((?:%[\w.\-$]+ = )?(?:tail |musttail |notail )?call [^@]*@([\w.]+)\()(.*)\)((?:\s*#\d+)?(?:,.*)?)$')
+
+def xlat(ptr, ind, out):
+    """emit instructions translating a guest pointer into the host address (only the low guest space moves)"""
+    a, d, c, o, h, p = (tmp() for _ in range(6))
+    out.append(f'{ind}{a} = ptrtoint ptr {ptr} to i32')
+    out.append(f'{ind}{d} = sub i32 {a}, {GUEST_LO}')
+    out.append(f'{ind}{c} = icmp ult i32 {d}, {GUEST_SIZE}')
+    out.append(f'{ind}{o} = select i1 {c}, i32 {GUEST_DELTA}, i32 0')
+    out.append(f'{ind}{h} = add i32 {a}, {o}')
+    out.append(f'{ind}{p} = inttoptr i32 {h} to ptr')
+    return p
+
+def split_args(s):
+    parts = []; depth = 0; cur = ''
+    for ch in s:
+        if ch in '([{': depth += 1
+        elif ch in ')]}': depth -= 1
+        if ch == ',' and depth == 0: parts.append(cur); cur = ''
+        else: cur += ch
+    if cur.strip(): parts.append(cur)
+    return parts
+
 def native_pointer(ptr, tainted, defined):
     """True if the pointer operand is (derived from) the address of a global defined in this module: such objects (private
     switch/lookup tables, static data) are only touched by this module's own code and stay in native byte order."""
@@ -75,7 +102,31 @@ def rewrite(text):
             if not ADDR_OPS.match(rhs): continue
             if any(g in rhs for g in defined) or any(re.search(re.escape(t) + r'(?![\w.\-$])', rhs) for t in tainted):
                 tainted.add(m.group(1)); changed = True
+    stack = set()
+    changed = True
+    while changed:                      # addresses of stack objects never need translating
+        changed = False
+        for l in lines:
+            ma = ALLOCA.match(l)
+            if ma and ma.group(1) not in stack: stack.add(ma.group(1)); changed = True; continue
+            m = DEF_RE.match(l)
+            if not m or m.group(1) in stack: continue
+            rhs = m.group(2)
+            if re.match(r'(getelementptr|bitcast)', rhs) and any(re.search(re.escape(t) + r'(?![\w.\-$])', rhs) for t in stack):
+                stack.add(m.group(1)); changed = True
     for line in lines:
+        mc = CALL.match(line)
+        if mc:
+            ind0, head, callee, argtxt, tail0 = mc.groups()
+            if callee.startswith('llvm.mem') or callee in LIBC_PTR_CALLS:
+                args = split_args(argtxt); newargs = []
+                for a in args:
+                    ma = re.match(r'^(\s*ptr(?:\s+[a-z_]+(?:\(\d+\))?)*\s+)(%[\w.\-$]+|@[\w.\-$"]+|null)\s*$', a)
+                    if ma and ma.group(2) not in stack and ma.group(2) != 'null' and not native_pointer(ma.group(2), tainted, defined):
+                        np_ = xlat(ma.group(2), ind0, out); a = ma.group(1) + np_
+                    newargs.append(a)
+                out.append(f'{ind0}{head}{",".join(newargs)}){tail0}')
+                continue
         m = LOAD.match(line)
         if m:
             ind, dst, vol, ty, ptr, al, rest = m.groups()
@@ -83,6 +134,9 @@ def rewrite(text):
             if native_pointer(ptr, tainted, defined):
                 out.append(line); continue
             rest = re.sub(r',\s*!(nonnull|align|dereferenceable|dereferenceable_or_null|noundef|range)\s+!\d+', '', rest)
+            if ptr not in stack: ptr = xlat(ptr, ind, out)
+            if ty in INT_BITS and al == '1':          # a load LLVM synthesised from byte loads (host little-endian idiom): its bytes already mean what the code wants
+                out.append(f'{ind}{dst} = load {vol}{ty}, ptr {ptr}, align {al}{rest}'); continue
             if ty in INT_BITS:
                 t = tmp(); used.add(ty)
                 out.append(f'{ind}{t} = load {vol}{ty}, ptr {ptr}, align {al}{rest}')
@@ -104,7 +158,12 @@ def rewrite(text):
                 val = tail[:k]; after = tail[k + len(', ptr '):]       # "PTR, align N..."
                 if native_pointer(after.split(', align')[0], tainted, defined):
                     out.append(line); continue
-                if ty in INT_BITS:
+                pend = after.index(', align') if ', align' in after else len(after)
+                if after[:pend] not in stack:
+                    after = xlat(after[:pend], ind, out) + after[pend:]
+                if ty in INT_BITS and ', align 1' in after.split(',')[-1] + ', ' + after and re.search(r'align 1', after):
+                    out.append(f'{ind}store {vol}{ty} {val}, ptr {after}')
+                elif ty in INT_BITS:
                     t = tmp(); used.add(ty)
                     out.append(f'{ind}{t} = call {ty} @llvm.bswap.{ty}({ty} {val})')
                     out.append(f'{ind}store {vol}{ty} {t}, ptr {after}')

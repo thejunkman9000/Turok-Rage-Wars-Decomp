@@ -25,20 +25,6 @@ typedef struct B05Sta10 { u8 pad0[0x79]; u8 b79; u8 b7A; s8 b7B; u8 pad7C; u8 b7
 typedef struct B05In10 { f32 f0, f4, f8, fC, f10, f14; } B05In10;
 typedef struct B05Hit10 { u8 pad0[0x50]; u32 flags; } B05Hit10;
 
-extern f32 D_800C796C;
-extern f32 D_800C7970;
-extern f32 D_800C7974;
-extern f32 D_800C7978;
-extern f32 D_800C797C;
-extern f32 D_800C7980;
-extern f32 D_800C7984;
-extern f32 D_800C7988;
-extern f32 D_800C798C;
-extern f32 D_800C7990;
-extern f32 D_800C7994;
-extern f32 D_800C7998;
-extern f32 D_800C799C;
-extern f32 D_800C79A0;
 
 B05Hit10 *func_0024E7CC(B05A10 *);
 void func_002748E0(void *, f32, f32);
@@ -54,16 +40,16 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
 
     if (p->unk11B4 == 0 && !(p->f11D8 > 0.0f)) {
         st = p->stats;
-        t = D_800C7974 - p->f7EC * D_800C796C;
-        turn = (((f32)st->b79 * D_800C7970 - D_800C7974) * D_800C7978 + D_800C797C) * (t * in->f4);
-        spd = (((f32)st->b7A * D_800C7970 - D_800C7974) * D_800C7980 + D_800C7984) * (t * in->f8 * in->fC);
+        t = 1.0f - p->f7EC * 0.99f;
+        turn = (((f32)st->b79 * 0.0078125f - 1.0f) * 0.5f + 0.875f) * (t * in->f4);
+        spd = (((f32)st->b7A * 0.0078125f - 1.0f) * 0.4f + 0.6f) * (t * in->f8 * in->fC);
         switch (st->b7B) {
         case 1:
-            spd = D_800C7978;
+            spd = 0.5f;
             break;
         case 0:
             if (st->b7D == 0) {
-                spd = D_800C7988;
+                spd = 0.8f;
             }
             break;
         }
@@ -71,15 +57,15 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
         if (h == NULL || (h->flags & 0x6000) != 0x2000) {
             x = in->f0;
             if (x != 0.0f) {
-                func_002748E0(&a->ang, a->ang + p->f69C * D_800C798C * x * D_800C7990, turn);
+                func_002748E0(&a->ang, a->ang + p->f69C * 8e+01f * x * 0.017453294f, turn);
             }
         }
-        w = -p->f6A0 * D_800C7994;
+        w = -p->f6A0 * 8e+01f;
         if (w < 0.0f) {
-            x = w * D_800C7998 * in->f10;
+            x = w * -0.71619713f * in->f10;
         } else {
-            x = w * D_800C799C * in->f14;
+            x = w * 0.71619713f * in->f14;
         }
-        func_002748E0(&p->f724, x * D_800C79A0, spd);
+        func_002748E0(&p->f724, x * 0.017453294f, spd);
     }
 }

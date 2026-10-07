@@ -39,13 +39,6 @@ typedef struct B05Src4 {
 } B05Src4;
 
 extern B05Obj4 *D_801041F0;
-extern const f32 D_800C7950;
-extern const f32 D_800C7954;
-extern f32 D_800C7958;
-extern f32 D_800C795C;
-extern f32 D_800C7960;
-extern f32 D_800C7964;
-extern f32 D_800C7968;
 
 f32 sinf(f32);
 f32 cosf(f32);
@@ -77,11 +70,11 @@ s32 func_00222FBC(B05Ply4 *p, B05Src4 *src) {
                 return 0;
             }
             if (o->unk174 != 0) {
-                o->unk1C = p->unk6C0 * sinf(src->unk6C + D_800C7950) * D_800C7954;
-                o->unk20 = p->unk6C0 * D_800C7958;
-                o->unk24 = p->unk6C0 * cosf(src->unk6C + D_800C7950) * D_800C7954;
+                o->unk1C = p->unk6C0 * sinf(src->unk6C + 3.1415927f) * 2e+01f;
+                o->unk20 = p->unk6C0 * 3e+01f;
+                o->unk24 = p->unk6C0 * cosf(src->unk6C + 3.1415927f) * 2e+01f;
                 if (p->pawn != NULL) {
-                    func_00239314(p->pawn, D_800C7960, 100.0f, D_800C7960, D_800C795C, s2, src->pos);
+                    func_00239314(p->pawn, 5e+01f, 100.0f, 5e+01f, 1.0f, s2, src->pos);
                 }
                 if (o2->unk1A4 == 0x2E) {
                     o->unk170 |= 0x200;
@@ -91,7 +84,7 @@ s32 func_00222FBC(B05Ply4 *p, B05Src4 *src) {
                 return 1;
             }
             if (p->pawn != NULL) {
-                func_00239314(p->pawn, D_800C7968, 60.0f, D_800C7968, D_800C7964, s2, src->pos);
+                func_00239314(p->pawn, 3e+01f, 60.0f, 3e+01f, 1.0f, s2, src->pos);
             }
             return 1;
         }

@@ -7,15 +7,19 @@
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "user32.lib")
 
+extern "C" void port_early_init(void);
 extern "C" void port_game_init(void);          // port/game_glue.c
 extern "C" void port_game_frame(void);
 extern "C" void port_present_hook(ID3D11DeviceContext* ctx);
+extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c);
+extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h);
 
 static ID3D11Device*           g_dev;
 static ID3D11DeviceContext*    g_ctx;
 static IDXGISwapChain*         g_sc;
 static ID3D11RenderTargetView* g_rtv;
 static int g_w = 1280, g_h = 720;
+static void stage(const char* m) { FILE* f = fopen("port_stage.txt", "a"); if (f) { fprintf(f, "%s\n", m); fclose(f); } }
 
 static void make_rtv() {
     ID3D11Texture2D* bb = nullptr;
@@ -41,10 +45,14 @@ static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l) {
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
+    { HANDLE h = CreateFileA("port_early.txt", GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, 0, nullptr);
+      if (h != INVALID_HANDLE_VALUE) { char b[128]; DWORD n; void* hp = malloc(64); int l = wsprintfA(b, "WinMain start base=%p malloc=%p\r\n", GetModuleHandleA(nullptr), hp); WriteFile(h, b, l, &n, nullptr); CloseHandle(h); } }
+    port_early_init();                                  // claim the guest address ranges before anything else allocates
     WNDCLASSA wc = {}; wc.lpfnWndProc = wndproc; wc.hInstance = inst; wc.lpszClassName = "TurokRW";
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     RegisterClassA(&wc);
     RECT r = {0, 0, g_w, g_h}; AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+    stage("early init done");
     HWND hwnd = CreateWindowA("TurokRW", "Turok: Rage Wars (port)", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                               CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, inst, nullptr);
     DXGI_SWAP_CHAIN_DESC sd = {};
@@ -57,8 +65,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
         MessageBoxA(hwnd, "Direct3D 11 device creation failed", "Turok port", MB_OK);
         return 1;
     }
+    stage("d3d ok");
     make_rtv();
-    port_game_init();
+    renderer_init(g_dev, g_ctx);
+    if (!getenv("TUROK_SELFTEST")) port_game_init();
+    stage("game init done");
     MSG msg = {};
     for (;;) {
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -66,11 +77,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
             TranslateMessage(&msg); DispatchMessageA(&msg);
         }
         port_game_frame();                                   // run one game frame (fills the display list)
-        const float clear[4] = {0.05f, 0.05f, 0.12f, 1.0f};
-        g_ctx->OMSetRenderTargets(1, &g_rtv, nullptr);
-        D3D11_VIEWPORT vp = {0, 0, (float)g_w, (float)g_h, 0, 1}; g_ctx->RSSetViewports(1, &vp);
-        g_ctx->ClearRenderTargetView(g_rtv, clear);
-        port_present_hook(g_ctx);                            // renderer draws the captured display list here
+        port_present_hook(g_ctx);
+        renderer_frame(g_rtv, g_w, g_h);                     // draws the captured display list, blits it letterboxed
         g_sc->Present(1, 0);
     }
 }
