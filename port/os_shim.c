@@ -359,8 +359,9 @@ s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     for (int i = 0; i < 4; i++) { ST16(status[i].type, i == 0 ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = i == 0 ? 0 : 0x80; }
     return 0;
 }
-s32 osContStartReadData(OSMesgQueue *mq) { post_from_host(mq, (OSMesg)0); return 0; }
+s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartReadData\n"); } post_from_host(mq, (OSMesg)0); return 0; }
 void osContGetReadData(OSContPad *pad) {
+    { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
     u16 b = 0;
@@ -368,12 +369,14 @@ void osContGetReadData(OSContPad *pad) {
     if (key('Z')) b |= 0x2000;                                /* Z */
     if (key('X')) b |= 0x4000;                                /* B */
     if (key('C')) b |= 0x8000;                                /* A */
+    { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap && (++n / 8) % 12 == 0) b |= 0x1000 | 0x8000; }   /* TUROK_AUTOPRESS=1: tap Start+A now and then to walk through menus unattended */
+    { static int nl; if (b && nl++ < 6) { fprintf(stderr, "pad: buttons %04X\n", b); fflush(stderr); } }
     ST16(pad[0].button, b);
     pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0));
     pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0));
 }
-s32 osContStartQuery(OSMesgQueue *mq) { post_from_host(mq, (OSMesg)0); return 0; }
-void osContGetQuery(OSContStatus *status) { memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }
+s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } post_from_host(mq, (OSMesg)0); return 0; }
+void osContGetQuery(OSContStatus *status) { { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); } memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
 s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void)ch; return 1; }
 s32 osMotorStart(void *pfs) { (void)pfs; return 0; }

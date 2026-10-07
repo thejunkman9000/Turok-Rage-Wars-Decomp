@@ -309,7 +309,7 @@ void port_present_hook(struct ID3D11DeviceContext *ctx) {
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "gamestate D_80146878=%d D_800D2984=%d D_80146D68=%d D_8014ADA0=%d\n", (int)be32((void *)0x80146878), (int)be32((void *)0x800D2984), (int)be32((void *)0x80146D68), (int)be32((void *)0x8014ADA0));
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "frame %d: D_800D2958=%08X D_800D295C=%08X\n", frames + 1, be32((void *)0x800D2958), be32((void *)0x800D295C));
     if (frames == 3 || frames == 100) fprintf(stderr, "startgo=%d pops=%d\n", g_dbg_startgo, g_dbg_pop);
-    if (++frames == 150 || frames == 600) { port_dump_threads(); dump_trace(300); }
+    if (++frames == 150 || frames == 600) { port_dump_threads(); dump_trace(8000); }
 }
 
 /* Custom entry point: install a crash logger before the C runtime starts (crashes during start-up are otherwise silent). */
