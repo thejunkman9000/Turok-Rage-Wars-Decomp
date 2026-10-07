@@ -11,6 +11,7 @@ Initialised constant arrays defined in the module are byte-swapped at rewrite ti
 usage: python be_ir.py in.ll out.ll"""
 import re, sys, struct
 
+ALIGN1_RAW = False      # native helper modules (RNC decoder ...) compose little-endian words from bytes: unaligned loads stay raw
 INT_BITS = {'i16': 16, 'i32': 32, 'i64': 64}
 CTYPES = {'float': ('i32', 32), 'double': ('i64', 64), 'ptr': ('i32', 32)}
 n_tmp = [0]
@@ -54,7 +55,7 @@ DEF_RE = re.compile(r'^\s*(%[\w.\-$]+) = (.*)$')
 ADDR_OPS = re.compile(r'(getelementptr|bitcast|addrspacecast|inttoptr|ptrtoint|phi|select)\b')
 
 GUEST_LO, GUEST_SIZE, GUEST_DELTA = 0x200000, 0x1E00000, 0x30000000   # low guest space [0x200000,0x2000000) lives at +0x30000000 on the host
-ALLOCA = re.compile(r'^\s*(%[\w.\-$]+) = alloca')
+ALLOCA = re.compile(r'^\s*(%[\w.\-$]+) = alloca\b')
 LIBC_PTR_CALLS = {'memcpy', 'memmove', 'memset', 'memcmp', 'memchr', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'strncmp', 'strchr', 'strrchr',
                   'strcat', 'strncat', 'strstr', 'bcopy', 'bzero'}
 CALL = re.compile(r'^(\s*)((?:%[\w.\-$]+ = )?(?:tail |musttail |notail )?call [^@]*@([\w.]+)\()(.*)\)((?:\s*#\d+)?(?:,.*)?)$')
@@ -91,6 +92,14 @@ def rewrite(text):
     used = set()
     lines = text.split('\n')
     defined = {m.group(1) for m in (DEF_GLOBAL.match(l) for l in lines) if m}
+    BSW = re.compile(r'(%[\w.\-$]+) = (?:tail )?call i(?:16|32|64) @llvm\.bswap\.i(?:16|32|64)\(i(?:16|32|64) (%[\w.\-$]+)\)')
+    bswap_res, bswap_arg = set(), set()
+    for l in lines:
+        mb = BSW.search(l)
+        if mb: bswap_res.add(mb.group(1)); bswap_arg.add(mb.group(2))
+    use_count = {}
+    for l in lines:
+        for nm in set(re.findall(r'%[\w.\-$]+', l)): use_count[nm] = use_count.get(nm, 0) + 1
     tainted = set()
     changed = bool(defined)
     while changed:                      # propagate "derived from a module-defined global" through address arithmetic
@@ -112,7 +121,7 @@ def rewrite(text):
             m = DEF_RE.match(l)
             if not m or m.group(1) in stack: continue
             rhs = m.group(2)
-            if re.match(r'(getelementptr|bitcast)', rhs) and any(re.search(re.escape(t) + r'(?![\w.\-$])', rhs) for t in stack):
+            if re.match(r'(getelementptr|bitcast)\b', rhs) and any(re.search(re.escape(t) + r'(?![\w.\-$])', rhs) for t in stack):
                 stack.add(m.group(1)); changed = True
     for line in lines:
         mc = CALL.match(line)
@@ -137,7 +146,7 @@ def rewrite(text):
             if ptr not in stack: ptr = xlat(ptr, ind, out)
             if ty == 'i8':                           # bytes need no swapping, only the pointer translation
                 out.append(f'{ind}{dst} = load {vol}{ty}, ptr {ptr}, align {al}{rest}'); continue
-            if ty in INT_BITS and al == '1':          # a load LLVM synthesised from byte loads (host little-endian idiom): its bytes already mean what the code wants
+            if ty in INT_BITS and al == '1' and (ALIGN1_RAW or (dst in bswap_arg and use_count.get(dst, 0) <= 2)):          # a load LLVM synthesised from byte loads (host little-endian idiom): its bytes already mean what the code wants
                 out.append(f'{ind}{dst} = load {vol}{ty}, ptr {ptr}, align {al}{rest}'); continue
             if ty in INT_BITS:
                 t = tmp(); used.add(ty)
@@ -165,7 +174,7 @@ def rewrite(text):
                     after = xlat(after[:pend], ind, out) + after[pend:]
                 if ty == 'i8':
                     out.append(f'{ind}store {vol}{ty} {val}, ptr {after}')
-                elif ty in INT_BITS and ', align 1' in after.split(',')[-1] + ', ' + after and re.search(r'align 1', after):
+                elif ty in INT_BITS and re.search(r'align 1\b', after) and val.strip() in bswap_res:
                     out.append(f'{ind}store {vol}{ty} {val}, ptr {after}')
                 elif ty in INT_BITS:
                     t = tmp(); used.add(ty)

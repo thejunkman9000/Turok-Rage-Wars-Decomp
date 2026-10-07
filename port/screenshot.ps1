@@ -7,7 +7,7 @@ public class W { [DllImport("user32.dll")] public static extern bool GetWindowRe
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
   public struct RECT { public int L, T, R, B; } }
 "@
-$p = Get-Process | Where-Object { $_.ProcessName -like 'turok*' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+$p = Get-Process | Where-Object { $_.ProcessName -like 'turok*' -and $_.MainWindowHandle -ne 0 } | Sort-Object StartTime -Descending | Select-Object -First 1
 if (-not $p) { 'no window'; exit 1 }
 $r = New-Object W+RECT; [W]::GetWindowRect($p.MainWindowHandle, [ref]$r) | Out-Null
 $w = $r.R - $r.L; $h = $r.B - $r.T

@@ -155,7 +155,7 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256];
+static int g_rects; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256];
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
 static void matMul(const float* a, const float* b, float* o) {    // row-vector convention: o = a * b
@@ -213,6 +213,8 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
     auto it = texCache.find(key); if (it != texCache.end()) return it->second;
     std::vector<uint8_t> px((size_t)w * h * 4);
     for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) decodeTexel(t, x, y, &px[((size_t)y * w + x) * 4]);
+    { static int nl; if (nl++ < 12) { long sum = 0, nz = 0; for (size_t i = 0; i < px.size(); i += 4) { sum += px[i] + px[i + 1] + px[i + 2]; nz += px[i + 3] != 0; } fprintf(stderr, "texture %dx%d fmt %d siz %d line %d tmem %d: rgb sum %ld, opaque texels %ld\n", w, h, t.fmt, t.siz, t.line, t.tmem, sum, nz); fflush(stderr); } }
+    { static int nd; if (nd < 6 && getenv("TUROK_TEXDUMP")) { char fn[64]; sprintf(fn, "port/build/tex_%d.ppm", nd++); FILE* f = fopen(fn, "wb"); if (f) { fprintf(f, "P6 %d %d 255 ", w, h); for (size_t i = 0; i < px.size(); i += 4) fwrite(&px[i], 1, 3, f); fclose(f); } } }
     D3D11_TEXTURE2D_DESC td = {}; td.Width = w; td.Height = h; td.MipLevels = td.ArraySize = 1; td.SampleDesc.Count = 1; td.Format = DXGI_FORMAT_R8G8B8A8_UNORM; td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     D3D11_SUBRESOURCE_DATA sr = { px.data(), (UINT)w * 4, 0 }; ID3D11Texture2D* tx = nullptr; ID3D11ShaderResourceView* sv = nullptr;
     if (SUCCEEDED(dev->CreateTexture2D(&td, &sr, &tx))) { dev->CreateShaderResourceView(tx, nullptr, &sv); tx->Release(); }
@@ -351,6 +353,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
             o.r = r > 1 ? 1 : r; o.g = g > 1 ? 1 : g; o.b = b > 1 ? 1 : b;
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
+        { static int nl; if (nl < 14 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx @%p raw %08X %08X %08X %08X; %d: pos %d %d %d st %d %d rgba %02X%02X%02X%02X -> clip %.2f %.2f %.2f %.2f col %.2f %.2f %.2f light=%d nl=%d\n", (const void*)p, rd32(p), rd32(p + 4), rd32(p + 8), rd32(p + 12), v0 + i, (int)x, (int)y, (int)z, o.s, o.t, p[12], p[13], p[14], p[15], o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, (S.geom >> 17) & 1, S.numLights); } }
     }
 }
 
@@ -377,6 +380,7 @@ static void fillRect(int x0, int y0, int x1, int y1) {      // screen pixels (in
 static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     int xh = (w0 >> 12) & 0xFFF, yh = w0 & 0xFFF, tile = (w1 >> 24) & 7, xl = (w1 >> 12) & 0xFFF, yl = w1 & 0xFFF;   // xh,yh = lower right (10.2)
     float s0 = (int16_t)(h1w1 >> 16), t0 = (int16_t)(h1w1 & 0xFFFF), dsdx = (int16_t)(h2w1 >> 16), dtdy = (int16_t)(h2w1 & 0xFFFF);
+    g_rects++; { static int nl; if (nl++ < 8) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
     int cycle = (S.omH >> 20) & 3; float sp = (cycle == 2) ? 0.25f : 1.f;
     int save = S.texTile; S.texTile = tile; uint32_t sg = S.geom, sl = S.omL; S.geom &= ~1u;
     setupState(cycle == 2 ? 2 : 0);
@@ -391,6 +395,7 @@ static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     q[1].x = X1; q[1].y = Y0; q[1].u = uvx(s1); q[1].v = uvy(t0);
     q[2].x = X1; q[2].y = Y1; q[2].u = uvx(s1); q[2].v = uvy(t1);
     q[3].x = X0; q[3].y = Y1; q[3].u = uvx(s0); q[3].v = uvy(t1);
+    { static int nl; if (nl++ < 6) { fprintf(stderr, "  uv %.3f,%.3f - %.3f,%.3f  tex %dx%d uls %d ult %d dsdx %g dtdy %g\n", q[0].u, q[0].v, q[2].u, q[2].v, curTexW, curTexH, t.uls, t.ult, dsdx, dtdy); fflush(stderr); } }
     batch.push_back(q[0]); batch.push_back(q[1]); batch.push_back(q[2]); batch.push_back(q[0]); batch.push_back(q[2]); batch.push_back(q[3]);
     S.texTile = save; S.geom = sg; S.omL = sl;
 }
@@ -442,7 +447,7 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2);
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
-            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m);
+            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); { static int nl; if (nl < 6 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
             if (f & 4) { if (f & 2) memcpy(S.proj, m, 64); else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
@@ -491,7 +496,12 @@ static void runDL(uint32_t addr, int depth) {
         case 0xF4: loadTile(w0, w1); break;
         case 0xF0: loadTlut(w0, w1); break;
         case 0xF6: fillRect((w1 >> 14) & 0x3FF, (w1 >> 2) & 0x3FF, ((w0 >> 12) & 0xFFF) >> 2, (w0 & 0xFFF) >> 2); break;
-        case 0xE4: { const uint8_t* q = p + 8; texRect(w0, w1, rd32(q + 4), rd32(q + 12)); p += 16; break; }
+        case 0xE4: {
+            const uint8_t* q = p + 8;
+            if (q[0] == 0xE1) { texRect(w0, w1, rd32(q + 4), rd32(q + 12)); p += 16; }      // gsSPTextureRectangle: E4 + E1 (s,t) + F1 (dsdx,dtdy)
+            else texRect(w0, w1, 0, 0x04000400u);                                              // this game emits a bare E4: texture origin 0, one texel per pixel
+            break;
+        }
         default: break;     // NOOP, SYNCs, RDPHALF, SETCONVERT, SETSCISSOR, SETPRIMDEPTH, SETFOGCOLOR, SETBLENDCOLOR ...
         }
     }
@@ -513,7 +523,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);
         ctx->RSSetState(rs); ctx->IASetInputLayout(layout); ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ctx->VSSetShader(vs, nullptr, 0); ctx->PSSetShader(ps, nullptr, 0); ctx->PSSetConstantBuffers(0, 1, &cbuf);
-        if (nframes == 300) g_dump = fopen("port_dl.txt", "w");
+        { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 8) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
         runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }

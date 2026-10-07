@@ -133,7 +133,7 @@ def compile_one(p, force):
     if not done:
         return (p, False, 'clang: ' + err.strip().split('\n')[0][:160])
     try:
-        be_ir.n_tmp[0] = 0
+        be_ir.n_tmp[0] = 0; be_ir.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
         open(ll2, 'w', encoding='utf-8', newline='\n').write(be_ir.rewrite(open(ll1, encoding='utf-8').read()))
     except Exception as e:
         return (p, False, f'rewrite: {e}')

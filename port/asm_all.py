@@ -144,6 +144,8 @@ def entry_candidates(ins):
                     break
     return cands
 
+FORCED = [int(x, 16) for x in open('port/forced_entries.txt').read().split()] if os.path.exists('port/forced_entries.txt') else []
+
 def split_points(lo, hi, ins, cands):
     """(splits, blocked): entries glued into the middle of a project function.  A candidate becomes a split when it follows an
     unconditional jr ra / j (+ delay slot) and no branch located before it reaches it or any address after it (the function really ends
@@ -175,6 +177,7 @@ def run():
         pts, blocked = split_points(vaddr, vaddr + 4 * n, ins, cands)
         jt = {t for run in jump_tables(vaddr, vaddr + 4 * n) for t in run}            # switch labels are not entries
         pts = [x for x in pts if x not in jt]; blocked = [x for x in blocked if x not in jt]
+        blocked += [q for q in FORCED if vaddr < q < vaddr + 4 * n and q not in blocked and q not in pts]   # entries found at run time (port/forced_entries.txt)
         bounds = [vaddr] + pts + [vaddr + 4 * n]
         for q in blocked:                                    # overlapping standalone copy of an entry that lies inside another piece
             nxt = [x for x in bounds if x > q][0]

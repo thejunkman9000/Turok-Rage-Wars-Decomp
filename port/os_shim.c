@@ -87,9 +87,13 @@ static void reschedule(HThread *self) {
         if (best) { best->state = 3; SetEvent(best->evt); }
         memcpy(self->fpr, g_fpr, sizeof g_fpr);
         LeaveCriticalSection(&g_lock);
-        WaitForSingleObject(self->evt, INFINITE);
-        EnterCriticalSection(&g_lock);
-        if (g_current == self) { self->state = 3; memcpy(g_fpr, self->fpr, sizeof g_fpr); return; }
+        for (;;) {                               /* wait for the baton; the timeout makes a lost wake-up harmless */
+            WaitForSingleObject(self->evt, 10);
+            EnterCriticalSection(&g_lock);
+            if (!g_current) { HThread *b = pick(); if (b) { g_current = b; b->state = 3; if (b != self) SetEvent(b->evt); } }
+            if (g_current == self) { self->state = 3; memcpy(g_fpr, self->fpr, sizeof g_fpr); return; }
+            LeaveCriticalSection(&g_lock);
+        }
     }
 }
 
@@ -277,6 +281,7 @@ static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
     if (!g_inited) return;
+    { static int ticks; if (++ticks == 900 || ticks == 2700) port_dump_threads(); }
     run_timers();
     {   /* watchdog: if the baton holder never makes progress (lost wake-up), nudge it */
         static HThread *last; static unsigned lastseq; static int stuck;
@@ -364,16 +369,16 @@ void osContGetReadData(OSContPad *pad) {
     { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
-    u16 b = 0;
+    u16 b = 0; int autoy = 0;
     if (key(VK_RETURN)) b |= 0x1000;                          /* Start */
     if (key('Z')) b |= 0x2000;                                /* Z */
     if (key('X')) b |= 0x4000;                                /* B */
     if (key('C')) b |= 0x8000;                                /* A */
-    { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap && (++n / 8) % 12 == 0) b |= 0x1000 | 0x8000; }   /* TUROK_AUTOPRESS=1: tap Start+A now and then to walk through menus unattended */
+    { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) b |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) b |= 0x1000; if (ph == 10) b |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
     { static int nl; if (b && nl++ < 6) { fprintf(stderr, "pad: buttons %04X\n", b); fflush(stderr); } }
     ST16(pad[0].button, b);
     pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0));
-    pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0));
+    pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0) + autoy);
 }
 s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } post_from_host(mq, (OSMesg)0); return 0; }
 void osContGetQuery(OSContStatus *status) { { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); } memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }
@@ -392,6 +397,7 @@ static HANDLE h_open(DWORD tid) { return tid ? OpenThread(THREAD_ALL_ACCESS, FAL
 void port_dump_threads(void) {
     int i;
     EnterCriticalSection(&g_lock);
+    fprintf(stderr, "lock: owner=%p count=%ld recursion=%ld current index=%d seq=%u preempt=%ld\n", (void *)g_lock.OwningThread, g_lock.LockCount, g_lock.RecursionCount, g_current ? (int)(g_current - g_th) : -1, g_seq, (long)g_preempt);
     fprintf(stderr, "threads (current=%p):\n", (void *)g_current);
     for (i = 0; i < MAXT; i++) if (g_th[i].state) {
         HANDLE th = h_open(g_th[i].tid); CONTEXT c; unsigned *sp; int k; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL);

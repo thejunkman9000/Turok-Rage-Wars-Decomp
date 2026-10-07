@@ -483,17 +483,17 @@ def recompile_function(text, name, known, max_stack_args=0):
         rt, types = sg
         if ALLARGC.get(name, 0) > len(types): types = list(types) + ['i'] * (ALLARGC[name] - len(types))     # prototype declared fewer parameters than the code reads
         cparams = ', '.join('%s p%d' % (CT[t], i) for i, t in enumerate(types)) or 'void'
-        words = [None] * 8; setf = []; word = 0
+        words = [None] * 24; setf = []; word = 0
         for idx, t in enumerate(types):
             if t == 'd': word = (word + 1) & ~1
             if (idx == 0 and t in ('f', 'd')) or (idx == 1 and t in ('f', 'd') and types[0] in ('f', 'd')):
                 setf.append('g_fpr[%d] = p%d;' % (12 + 2 * idx, idx) if t == 'f' else 'sd(g_fpr, %d, p%d);' % (12 + 2 * idx, idx))
-            elif word < 8:
+            elif word < 24:
                 if t == 'i': words[word] = 'p%d' % idx
                 elif t == 'f': words[word] = 'f2u(p%d)' % idx
                 else:
                     words[word] = 'd2hi(p%d)' % idx
-                    if word + 1 < 8: words[word + 1] = 'd2lo(p%d)' % idx
+                    if word + 1 < 24: words[word + 1] = 'd2lo(p%d)' % idx
             word += 2 if t == 'd' else 1
         nwords = max(4, inargs + 4)
         callargs = ', '.join(w or '0' for w in words[:nwords])

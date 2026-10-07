@@ -95,7 +95,7 @@ static DWORD WINAPI sampler_thread(LPVOID p) {
         if (Thread32First(snap, &te)) do {
             if (te.th32OwnerProcessID == GetCurrentProcessId() && te.th32ThreadID != GetCurrentThreadId()) {
                 HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE, te.th32ThreadID);
-                if (h) { CONTEXT c; c.ContextFlags = CONTEXT_CONTROL; if (SuspendThread(h) != (DWORD)-1) { c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; if (GetThreadContext(h, &c)) { unsigned long *sp = (unsigned long *)c.Esp; int i, k = 0; fprintf(stderr, " [%lX", te.th32ThreadID & 0xFFFF); __try { for (i = 0; i < 600 && k < 12; i++) if (sp[i] > base && sp[i] < base + 0x400000 && *(unsigned char *)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %lX", sp[i] - (unsigned long)base); k++; } } __except (EXCEPTION_EXECUTE_HANDLER) { } fprintf(stderr, "]"); } ResumeThread(h); } CloseHandle(h); }
+                if (h) { CONTEXT c; c.ContextFlags = CONTEXT_CONTROL; if (SuspendThread(h) != (DWORD)-1) { c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; if (GetThreadContext(h, &c)) { unsigned long *sp = (unsigned long *)c.Esp; int i, k = 0; fprintf(stderr, " [%lX%s", te.th32ThreadID & 0xFFFF, (c.Eip > base && c.Eip < base + 0x400000) ? " RUN" : ""); __try { for (i = 0; i < 600 && k < 12; i++) if (sp[i] > base && sp[i] < base + 0x400000 && *(unsigned char *)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %lX", sp[i] - (unsigned long)base); k++; } } __except (EXCEPTION_EXECUTE_HANDLER) { } fprintf(stderr, "]"); } ResumeThread(h); } CloseHandle(h); }
             }
         } while (Thread32Next(snap, &te));
         fprintf(stderr, "\n"); fflush(stderr); CloseHandle(snap);
@@ -168,6 +168,7 @@ static int page_in(unsigned addr) {
     return 0;
 }
 
+static void *ret_stub_for(unsigned guest);
 static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep);
 static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
@@ -179,6 +180,7 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
         if (a >= 0x200400u && a < 0x450000u) {
             int lo = 0, hi = port_fn_count - 1, best = -1;
             while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= a) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+            { void *rs = ret_stub_for(a); if (rs) { ep->ContextRecord->Eip = (DWORD)(size_t)rs; return EXCEPTION_CONTINUE_EXECUTION; } }
             if (best >= 0 && a - port_fn_table[best].guest <= 8) { fprintf(stderr, "code pointer %08X -> function %08X\n", a, port_fn_table[best].guest); ep->ContextRecord->Eip = (DWORD)(size_t)port_fn_table[best].host; return EXCEPTION_CONTINUE_EXECUTION; }
         }
     }
@@ -241,7 +243,7 @@ void port_early_init(void) {
             if (g >= 0x200000u && g < 0x450000u && !IsBadWritePtr(p, 8)) { p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++; }
         }
         {   /* code pointers a few bytes into a function (its first instructions are dead): {alias, function}; the function's own stub shrinks to a short jump onto the alias stub */
-            static const unsigned alias[][2] = { { 0x42F130u, 0x42F12Cu }, { 0x419B90u, 0x419B8Cu } };
+            static const unsigned alias[][2] = { { 0x42F130u, 0x42F12Cu }, { 0x419B90u, 0x419B8Cu }, { 0x4396C0u, 0x4396BCu } };
             for (i = 0; i < (int)(sizeof alias / sizeof alias[0]); i++) {
                 unsigned char *pa = (unsigned char *)(size_t)alias[i][0], *pb = (unsigned char *)(size_t)alias[i][1]; int k;
                 for (k = 0; k < port_fn_count; k++) if (port_fn_table[k].guest == alias[i][1]) {
@@ -346,17 +348,31 @@ void port_dump_state_tables(void) { int i; unsigned base = (unsigned)(size_t)Get
 
 void port_rnc_log(const char *what, const void *src, void *dst, int packed, int unpacked, int produced) { static int n; if (n++ < 40 || what[4] != 0x20) { const unsigned char *s = (const unsigned char *)src; fprintf(stderr, "%s: src=%p [%02X %02X %02X %02X %02X %02X] dst=%p packed=%d unpacked=%d produced=%d\n", what, src, s[0], s[1], s[2], s[3], s[4], s[5], dst, packed, unpacked, produced); fflush(stderr); } }
 
+/* A code pointer that lands on a bare `jr $ra` (the tail of the previous function, used as a "do nothing, return 0" callback). */
+static unsigned port_ret0(void) { return 0; }
+static void *ret_stub_for(unsigned guest) {
+    unsigned off = guest >= 0x400000u ? guest - 0x400000u + 0x16E000u : guest - 0x200000u + 0xC00u;
+    if (g_rom && off + 8 <= g_rom_size && be32(g_rom + off) == 0x03E00008u) return (void *)port_ret0;
+    return NULL;
+}
+
 /* guest code address -> host function (for jalr in statically recompiled code); host pointers pass through */
 void *port_resolve(unsigned guest) {
     struct port_fn key; struct port_fn *f; key.guest = guest; key.host = 0;
     f = (struct port_fn *)bsearch(&key, port_fn_table, port_fn_count, sizeof key, cmp_fn);
-    if (f) return f->host;
+    if (f) {
+        static unsigned seen[512]; static int ns; int k; static int logr = -1;
+        if (logr < 0) { char e[4]; logr = GetEnvironmentVariableA("TUROK_LOGRESOLVE", e, sizeof e) ? 1 : 0; }
+        if (logr) { for (k = 0; k < ns; k++) if (seen[k] == guest) break; if (k == ns && ns < 512) { seen[ns++] = guest; fprintf(stderr, "resolve %08X\n", guest); } }
+        return f->host;
+    }
     if (guest >= 0x200400u && guest < 0x450000u) {        /* a code address that is no function entry: log it, enter the function that contains it when it is only a few bytes in */
         int lo = 0, hi = port_fn_count - 1, best = -1;
         while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= guest) { best = mid; lo = mid + 1; } else hi = mid - 1; }
         { static unsigned seen[16]; static int ns; int k, dup = 0; for (k = 0; k < ns; k++) if (seen[k] == guest) dup = 1; if (!dup && ns < 16) seen[ns++] = guest; if (dup) goto resolved_quiet; }
         fprintf(stderr, "port_resolve: %08X is not a function entry (previous entry %08X)\n", guest, best >= 0 ? port_fn_table[best].guest : 0); fflush(stderr);
         resolved_quiet:
+        { void *rs = ret_stub_for(guest); if (rs) return rs; }
         if (best >= 0 && guest - port_fn_table[best].guest <= 8) return port_fn_table[best].host;
     }
     return (void *)(size_t)guest;
@@ -369,6 +385,8 @@ unsigned port_unresolve(unsigned host) {
 }
 
 void port_dump_trace_pub(int n) { dump_trace(n); }
+
+int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SKIPMENU", e, sizeof e) ? 1 : 0; } return v; }
 
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;

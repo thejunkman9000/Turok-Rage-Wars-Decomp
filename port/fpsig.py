@@ -41,7 +41,7 @@ def load():
         except OSError: continue
         for m in list(_PAT.finditer(t)) + list(_DEF.finditer(t)):
             rt, name, params = m.group(1), m.group(2), m.group(3)
-            if not re.search(r'\b(f32|f64|float|double)\b', rt + params): continue
+            if not re.search(r'\b(f32|f64|float|double)\b', rt + ' ' + params): continue
             if name in sig: continue
             ps = []
             depth = 0; cur = ''

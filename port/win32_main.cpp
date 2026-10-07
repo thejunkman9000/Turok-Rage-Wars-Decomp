@@ -81,6 +81,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
         port_game_frame();                                   // run one game frame (fills the display list)
         port_present_hook(g_ctx);
         renderer_frame(g_rtv, g_w, g_h);                     // draws the captured display list, blits it letterboxed
-        g_sc->Present(1, 0);
+        g_sc->Present(0, DXGI_PRESENT_DO_NOT_WAIT);                  // no vsync wait: a locked/occluded display must not stall the game
+        {   // 60 Hz pacing of our own
+            static LARGE_INTEGER freq, next; LARGE_INTEGER now; QueryPerformanceCounter(&now);
+            if (!freq.QuadPart) { QueryPerformanceFrequency(&freq); next = now; }
+            next.QuadPart += freq.QuadPart / 60;
+            if (next.QuadPart > now.QuadPart) Sleep((DWORD)((next.QuadPart - now.QuadPart) * 1000 / freq.QuadPart));
+            else if (now.QuadPart - next.QuadPart > freq.QuadPart) next = now;
+        }
     }
 }
