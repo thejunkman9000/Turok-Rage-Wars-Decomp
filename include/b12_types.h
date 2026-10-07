@@ -18,12 +18,20 @@ typedef struct B12Def {
 } B12Def;
 
 typedef struct B12Obj {
-    /* 0x00 */ u8 pad0[0x18];
+    /* 0x00 */ u8 pad0[1];
+    /* 0x01 */ s8 unk1;
+    /* 0x02 */ u8 pad2[6];
+    /* 0x08 */ f32 pos[3];
+    /* 0x14 */ u8 pad14[4];
     /* 0x18 */ B12Def *def;
-    /* 0x1C */ u8 pad1C[4];
+    /* 0x1C */ s32 unk1C;
     /* 0x20 */ s32 *unk20;
     /* 0x24 */ u8 pad24[4];
-    /* 0x28 */ u8 unk28[0x90];
+    /* 0x28 */ u8 unk28[0x80];
+    /* 0xA8 */ s32 unkA8;
+    /* 0xAC */ s32 unkAC;
+    /* 0xB0 */ s32 unkB0;
+    /* 0xB4 */ s32 unkB4;
     /* 0xB8 */ u8 unkB8[0x18];
     /* 0xD0 */ u32 unkD0;
     /* 0xD4 */ u8 padD4[4];
@@ -31,6 +39,7 @@ typedef struct B12Obj {
     /* 0xDA */ u8 unkDA;
     /* 0xDB */ u8 padDB;
     /* 0xDC */ u32 unkDC;
+    /* 0xE0 */ s8 unkE0;
 } B12Obj;
 
 /* 0x28 byte node of the "package" tables: refcount at +8, flags at +0xC */
@@ -43,7 +52,9 @@ struct B12Node {
     /* 0x10 */ u32 unk10;
     /* 0x14 */ B12Node *link;
     /* 0x18 */ B12Node *link18;
-    /* 0x1C */ u8 pad1C[0xC];
+    /* 0x1C */ u8 pad1C[4];
+    /* 0x20 */ B12Node *prev;
+    /* 0x24 */ B12Node *next;
 };
 
 /* intrusive doubly linked list header (offsets of the link fields inside the elements) */
@@ -113,6 +124,21 @@ struct B12Bucket {
     /* 0xC */ B12Bucket *next;
 };
 
+/* cache entry / request record (0x28 bytes, same pool as B12Node): node, dep, key, stamp, flags, fn, owner, size */
+typedef struct B12Ent B12Ent;
+struct B12Ent {
+    /* 0x00 */ B12Node *node;
+    /* 0x04 */ B12Node *dep;
+    /* 0x08 */ u32 key;
+    /* 0x0C */ s32 stamp;
+    /* 0x10 */ u32 flags;
+    /* 0x14 */ void *fn;
+    /* 0x18 */ void *owner;
+    /* 0x1C */ s32 size;
+    /* 0x20 */ B12Ent *prev;
+    /* 0x24 */ B12Ent *next;
+};
+
 /* the module's global block: D_80103F70 (D_80104560, D_80104570, ... D_80105180 are all members) */
 /*MGR_BEGIN*/
 typedef struct B12Mgr {
@@ -120,17 +146,26 @@ typedef struct B12Mgr {
     /* 0x5F0 */ B12Node * nodes;
     /* 0x5F4 */ B12Node ** stk;
     /* 0x5F8 */ B12Node * cur;
-    /* 0x5FC */ u8 pad5FC[0x4];
+    /* 0x5FC */ u8 * pool2;
     /* 0x600 */ B12List lists[2];
     /* 0x628 */ s32 tbl628[2];
     /* 0x630 */ s32 tbl630[2];
     /* 0x638 */ s32 f638;
-    /* 0x63C */ u8 pad63C[0xB88];
+    /* 0x63C */ u8 pad63C[0x4];
+    /* 0x640 */ OSThread thread;
+    /* 0x7F0 */ u8 pad7F0[0x80];
+    /* 0x870 */ OSMesgQueue q870;
+    /* 0x888 */ OSMesg buf870[0x40];
+    /* 0x988 */ u8 stack[0x800];
+    /* 0x1188 */ B12List lists3[3];
     /* 0x11C4 */ s32 tbl11C4[2];
     /* 0x11CC */ s32 cnt;
-    /* 0x11D0 */ u8 pad11D0[0x20];
+    /* 0x11D0 */ OSMesgQueue q11D0;
+    /* 0x11E8 */ OSMesg buf11D0;
+    /* 0x11EC */ s32 lockCnt;
     /* 0x11F0 */ OSMesgQueue q11F0;
-    /* 0x1208 */ u8 pad1208[0x8];
+    /* 0x1208 */ OSMesg buf11F0;
+    /* 0x120C */ s32 f120C;
     /* 0x1210 */ u32 stamp;
     /* 0x1214 */ u8 pad1214[0xC];
     /* 0x1220 */ u32 hashMask;
@@ -138,14 +173,29 @@ typedef struct B12Mgr {
 } B12Mgr;
 /*MGR_END*/
 
-/* context with a free list (+0x5068) and a used list (+0x507C) of 0x18+ byte queue nodes */
+/* queue node of a transfer context (0x20 bytes): {src, dst, len, reply queue}; state at +0x14 */
 typedef struct B12QNode {
-    /* 0x00 */ u8 pad0[0x14];
+    /* 0x00 */ u32 src;
+    /* 0x04 */ u32 dst;
+    /* 0x08 */ u32 len;
+    /* 0x0C */ OSMesgQueue *reply;
+    /* 0x10 */ OSMesg replyMsg;
     /* 0x14 */ s32 state;
+    /* 0x18 */ u8 pad18[8];
 } B12QNode;
 
+/* transfer context: thread at +0, request queue at +0x230, event queue at +0xA48, 0x210 queue nodes at +0xE68,
+   free list (+0x5068) and used list (+0x507C) of the nodes */
 typedef struct B12Ctx {
-    /* 0x0000 */ u8 pad0[0x5068];
+    /* 0x0000 */ OSThread thread;
+    /* 0x01B0 */ u8 pad1B0[0x80];
+    /* 0x0230 */ OSMesgQueue q;
+    /* 0x0248 */ OSMesg qbuf[0x200];
+    /* 0x0A48 */ OSMesgQueue q2;
+    /* 0x0A60 */ OSMesg q2buf[1];
+    /* 0x0A64 */ u8 padA64[4];
+    /* 0x0A68 */ u8 stack[0x400];
+    /* 0x0E68 */ B12QNode nodes[0x210];
     /* 0x5068 */ B12List freeList;
     /* 0x507C */ B12List usedList;
 } B12Ctx;

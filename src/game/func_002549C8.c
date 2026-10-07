@@ -19,7 +19,7 @@ PNode *func_002549C8(void *unused, u32 flags) {
     n->prev = NULL;
     n->f14 = 0;
     n->f10 = D_80103F70.f10;
-    func_00255C58(D_80103F70.list, n);
+    func_00255C58((u8 *)&D_80103F70 + 0x600, n);
     n->fC |= flags & 0xC;
     return n;
 }

@@ -12,7 +12,7 @@ void func_00243864(B10Obj *o) {
     s32 n;
     s32 i;
     if (p) {
-        func_0026F690(o->m64, x->m68, &o->fC);
+        func_0026F690(&o->f64, x->m68, &o->fC);
         node = *p;
         o->pA4 = func_0028FD94(node, 0);
         t = func_0028FD94(node, 2);

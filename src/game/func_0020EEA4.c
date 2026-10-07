@@ -6,7 +6,7 @@ s32 func_0020F57C(u16 id);
 extern B2Mgr D_8013B364;
 extern const f32 D_800C6FD4;
 
-void func_0020EEA4(void) {
+void func_0020EEA4(B2Ctl *ctl) {
     B2Mgr *m = &D_8013B364;
     B2Node *n;
     B2Rec *r;

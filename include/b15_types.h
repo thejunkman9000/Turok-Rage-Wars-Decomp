@@ -15,6 +15,12 @@ typedef struct B15Pair {
     s32 a, b;
 } B15Pair;
 
+/* word + float passed by value */
+typedef struct B15PairF {
+    s32 a;
+    f32 b;
+} B15PairF;
+
 /* 4 halfwords passed by value (2-byte aligned) */
 typedef struct B15S16x4 {
     s16 a, b, c, d;
@@ -50,5 +56,49 @@ typedef struct B15Globals {
     /* 0x004 */ u8 pad4[0x5C8];
     /* 0x5CC */ s32 unk5CC;
 } B15Globals;
+
+/* F3D light structs (as in gbi.h) */
+typedef struct B15Ambient {
+    u8 col[3];
+    s8 pad1;
+    u8 colc[3];
+    s8 pad2;
+} B15Ambient;
+
+typedef struct B15Light {
+    u8 col[3];
+    s8 pad1;
+    u8 colc[3];
+    s8 pad2;
+    s8 dir[3];
+    s8 pad3;
+} B15Light;
+
+typedef struct B15Lights1 {
+    B15Ambient a;
+    B15Light l[1];
+} B15Lights1;
+
+/* game object as seen by the targeting predicates (func_002661FC) */
+typedef struct B15Obj B15Obj;
+struct B15Obj {
+    /* 0x000 */ u8 type;
+    /* 0x001 */ u8 pad1[3];
+    /* 0x004 */ u16 unk4;
+    /* 0x006 */ u8 pad6[0x12];
+    /* 0x018 */ B15Def *def;
+    /* 0x01C */ u8 pad1C[0xC8];
+    /* 0x0E4 */ u16 unkE4;
+    /* 0x0E6 */ u8 padE6[0x1A];
+    /* 0x100 */ u32 flags;
+    /* 0x104 */ u8 pad104[0x14];
+    /* 0x118 */ s32 *unk118;
+    /* 0x11C */ u8 pad11C[0x10];
+    /* 0x12C */ B15Obj *unk12C;
+};
+
+typedef struct B15Vec4 {
+    f32 x, y, z, w;
+} B15Vec4;
 
 #endif

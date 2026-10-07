@@ -21,7 +21,7 @@ for line in open('funcs.txt'):
     name, rom, n, sub = f[:4]
     funcs.append((int(rom, 16), int(n), name, sub))
     for extra in f[4:]:
-        mm = re.fullmatch(r'mode=(\w+)', extra)
+        mm = re.fullmatch(r'mode=([\w+]+)', extra)
         if mm:
             modes.append((name, mm.group(1)))
             continue
@@ -85,7 +85,7 @@ if os.path.exists('funcs_a.txt'):
         f = line.split()
         name, rom, n, sub = f[:4]
         for extra in f[4:]:
-            mm = re.fullmatch(r'mode=(\w+)', extra)
+            mm = re.fullmatch(r'mode=([\w+]+)', extra)
             if mm: modes.append((name, mm.group(1))); continue
             sys.exit(f'overlay A entry {name}: option {extra!r} not supported')
         ofuncs.append((int(rom, 16), int(n), name, sub))

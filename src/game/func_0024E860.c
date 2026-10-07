@@ -11,5 +11,5 @@ f32 func_0024E860(Obj *a) {
     if (!(lo <= hi)) {
         hi = lo;
     }
-    return hi - a->unkC;
+    return hi - a->pos.y;
 }

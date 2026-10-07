@@ -1,0 +1,26 @@
+#include "b12_types.h"
+
+extern OSMesgQueue D_80105140;
+extern s32 D_8010515C;
+void func_00254930(s32 a, B12Node *n);
+
+void func_00254784(B12Node **p) {
+    u32 mask;
+    u32 m2;
+    B12Node *n = p[-4];
+    mask = __osDisableInt();
+    if (++D_8010515C != 1) {
+        __osRestoreInt(mask);
+        osRecvMesg(&D_80105140, 0, 1);
+    } else {
+        __osRestoreInt(mask);
+    }
+    func_00254930(0, n);
+    m2 = __osDisableInt();
+    if (--D_8010515C != 0) {
+        __osRestoreInt(m2);
+        osSendMesg(&D_80105140, 0, 1);
+    } else {
+        __osRestoreInt(m2);
+    }
+}

@@ -1,7 +1,5 @@
 #include "b16_types.h"
 
-typedef struct B16Vec4 { f32 x, y, z, w; } B16Vec4;
-
 f32 func_802BC380(f32 x);
 
 void func_00274214(B16Vec4 *v) {

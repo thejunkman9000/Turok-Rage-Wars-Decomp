@@ -35,7 +35,7 @@ mnem_re = re.compile(r'^[ \t]*([a-z][a-z0-9.]*)(?![a-z0-9.])(.*)$')
 label_tok_re = re.compile(r'[$.][A-Za-z_][A-Za-z0-9_]*')
 
 _label = [0]
-NOFILL = False   # set by chk when the list line carries -DNOFILL: the assembler never moves an insn into a return slot
+NOFILL = os.environ.get('GAS_NOFILL') == '1'   # set by chk when the list line carries -DNOFILL: the assembler never moves an insn into a return slot
 
 BRANCHES = {'j', 'jal', 'jr', 'jalr', 'b', 'beq', 'bne', 'beqz', 'bnez', 'bgez', 'bgtz', 'blez', 'bltz',
             'bgezal', 'bltzal', 'bc1t', 'bc1f'}
@@ -330,4 +330,17 @@ if __name__ == '__main__':
     ro_va = int(sys.argv[3], 0) if len(sys.argv) > 3 else None
     ro_size = int(sys.argv[4], 0) if len(sys.argv) > 4 else None
     s = open(path).read()
-    open(path, 'w', newline='\n').write(fix(s, mode, ro_va, ro_size))
+    out = fix(s, mode, ro_va, ro_size)
+    if os.environ.get('GAS_RO4') == '1' and ro_va is not None and ro_size and out.count('.align\t3') == 1 and not re.search(r'\.(double|dword|quad)', out):
+        # gcc aligns a jump table to 8 and gas pads the section to that alignment; the original object's rodata ended
+        # right after the table (4-byte aligned), so keep the section 4-aligned (the piece start is fixed anyway)
+        out = re.sub(r'(\.section\t\.rodata\n)\t\.align\t3\n', r'\1\t.align\t2\n', out)
+    if ro_va is not None and ro_size:
+        # data the compiled object does not account for (dead constants the original pool kept, bytes of a
+        # neighbouring pool covered by chk's piece): fill the rest of the piece with the ROM's own bytes
+        have = rodata_size(out)
+        if have < ro_size:
+            off = ro_va - 0x80000000 + 0xC00
+            rom = open('baserom.us.v11.z64', 'rb').read()
+            out += '\n\t.section\t.rodata\n' + '\n'.join(f'\t.byte\t{b}' for b in rom[off + have:off + ro_size]) + '\n\t.text\n'
+    open(path, 'w', newline='\n').write(out)

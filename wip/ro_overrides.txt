@@ -1,0 +1,2 @@
+func_00281A70 ro=0xCAB30:12
+func_0028E910 ro=0xCB040:4

@@ -11,12 +11,20 @@ if [ -f mode_map.txt ]; then
   ov=$(awk -v n="$(basename "$in" .c)" '$1==n {print $2}' mode_map.txt)
   [ -n "$ov" ] && mode=$ov
 fi
+# mode may carry per-function build flags:  lu3+nb+ntj+nf+luret+o2   (nb = -fno-builtin, ntj = -fno-thread-jumps,
+# nf = old assembler never fills the return slot after a block move, luret = bare `j $31` keeps its nop, o2 = no -mcpu=r4300)
+spec=$mode; mode=${spec%%+*}; toks="+${spec#*+}"; [ "$spec" = "$mode" ] && toks=""
 [ "$mode" = game ] && mode=lu3   # Acclaim game code: -O2 -mcpu=r4300, same assembler behaviour as libultra
 ver=${GCC_VER:-2.8.1}
 G=$PWD/tools/gcc/$ver
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
-"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) echo "-O2 -mcpu=r4300";; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
+xflags=""; gasmode=$mode
+case "$toks" in *+nb*) xflags="$xflags -fno-builtin";; esac
+case "$toks" in *+ntj*) xflags="$xflags -fno-thread-jumps";; esac
+case "$toks" in *+luret*) gasmode=game;; esac
+export GAS_NOFILL=0; case "$toks" in *+nf*) export GAS_NOFILL=1;; esac
+"$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic $xflags ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) case "$toks" in *+o2*) echo "-O2";; *) echo "-O2 -mcpu=r4300";; esac;; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in"
 
 # reproduce the original assembler's output (move -> addu, div/rem expansion, return delay slot)
@@ -28,6 +36,7 @@ if [ -f rodata_map.txt ]; then
   [ -n "$off" ] && ro_va=$(printf '0x%X' $(( 0x80000000 + off - 0xC00 )))
   ro_size=$(awk -v n="$base" '$1==n {print $3}' rodata_map.txt)
 fi
-python3 tools/gas_compat.py "$mode" "$tmp/o.s" $ro_va ${ro_size:-}
+case "$in" in src/game/*) export GAS_RO4=1;; esac
+python3 tools/gas_compat.py "$gasmode" "$tmp/o.s" $ro_va ${ro_size:-}
 
 bash tools/as.sh "$tmp/o.s" "$out"

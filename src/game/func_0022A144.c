@@ -1,6 +1,6 @@
 #include "b06_types.h"
 
-void func_00253B5C(s32 a, s32 b);
+void func_00253B5C(s32 a, s32 *b);
 void func_0024B8B4(void *a);
 void func_0022BC84(Plr *a, s32 b);
 void func_0024B7D4(Plr *a, s32 b);

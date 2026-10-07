@@ -1,10 +1,10 @@
 #include "b04_types.h"
 extern s32 D_801468C4;
 extern f32 D_800C73B8;
-typedef struct { s32 kind; u8 pad4[0x68]; s32 unk6C; s32 unk70; } B04Menu;
+typedef struct { s32 kind; u8 pad4[0x68]; s32 unk6C; s32 unk70; } B04MenuL;
 s32 func_00218988(B04Act *);
-void func_00219124(B04Menu *, s32, B04Act *);
-void func_002191B8(B04Menu *o, B04Act *p) {
+void func_00219124(B04MenuL *, s32, B04Act *);
+void func_002191B8(B04MenuL *o, B04Act *p) {
     s32 v;
     s32 wf = p->wpn->flagsB0 & 0x8000;
     s32 k = o->kind;
