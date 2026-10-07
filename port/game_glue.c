@@ -176,6 +176,13 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];
         if (a >= GUEST_DELTA + PAGED_LO && a < GUEST_DELTA + PAGED_HI && page_in(a - GUEST_DELTA)) return EXCEPTION_CONTINUE_EXECUTION;
     }
+    if (ep->ExceptionRecord->ExceptionCode == 0x80000003u && (size_t)ep->ExceptionRecord->ExceptionAddress >= 0x200000u && (size_t)ep->ExceptionRecord->ExceptionAddress < 0x450000u) {
+        unsigned a = (unsigned)(size_t)ep->ExceptionRecord->ExceptionAddress; void *rs = ret_stub_for(a);
+        int lo = 0, hi = port_fn_count - 1, best = -1;
+        if (rs) { ep->ContextRecord->Eip = (DWORD)(size_t)rs; return EXCEPTION_CONTINUE_EXECUTION; }
+        while (lo <= hi) { int mid = (lo + hi) / 2; if (port_fn_table[mid].guest <= a) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+        if (best >= 0 && a - port_fn_table[best].guest <= 16) { static int nl_; if (nl_++ < 20) fprintf(stderr, "code pointer %08X -> function %08X (int3)" "\n", a, port_fn_table[best].guest); ep->ContextRecord->Eip = (DWORD)(size_t)port_fn_table[best].host; return EXCEPTION_CONTINUE_EXECUTION; }
+    }
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2 && ep->ExceptionRecord->ExceptionInformation[0] == 8) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];     /* a code pointer a few bytes into a function (the leading instructions are dead): enter the function */
         if (a >= 0x200400u && a < 0x450000u) {
@@ -203,6 +210,9 @@ static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep) {
         fprintf(stderr, "\n");
     }
     dump_trace(80);
+    {   /* TUROK_CRASHDUMP=addr,addr: print 16 guest words at each address when the game crashes */
+        char e[128], *tok; if (GetEnvironmentVariableA("TUROK_CRASHDUMP", e, sizeof e)) for (tok = strtok(e, ","); tok; tok = strtok(NULL, ",")) {
+            unsigned a = (unsigned)strtoul(tok, NULL, 16); int k; fprintf(stderr, "  dump %08X:", a); for (k = 0; k < 16; k++) fprintf(stderr, " %08X", be32((void *)(size_t)(a + k * 4))); fprintf(stderr, "\n"); } }
     fprintf(stderr, "  D_801536B0=%08X D_801536EC=%08X D_8016E000 first=%08X\n",
             *(unsigned *)0x801536B0, *(unsigned *)0x801536EC, *(unsigned *)0x8016E000);
     fflush(stderr);
@@ -239,6 +249,7 @@ void port_early_init(void) {
             if (end <= a) break;
             a = end;
         }
+        for (a = 0x200000u; a < 0x450000u; a += 4) { if (!IsBadWritePtr((void *)(size_t)a, 4)) *(unsigned *)(size_t)a = 0xCCCCCCCCu; }      /* code addresses that are not function entries trap (int3) instead of sliding over zero bytes into the next stub */
         for (i = 0; i < port_fn_count; i++) {
             unsigned g = port_fn_table[i].guest; unsigned char *p = (unsigned char *)(size_t)g;
             if (g >= 0x200000u && g < 0x450000u && !IsBadWritePtr(p, 8)) { p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++; }
