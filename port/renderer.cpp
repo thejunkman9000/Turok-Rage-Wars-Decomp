@@ -120,7 +120,7 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
         D3D11_DEPTH_STENCIL_DESC dd = {}; dd.DepthEnable = t; dd.DepthWriteMask = w ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO; dd.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
         dev->CreateDepthStencilState(&dd, &dss[t * 2 + w]);
     }
-    D3D11_RASTERIZER_DESC rd = {}; rd.FillMode = D3D11_FILL_SOLID; rd.CullMode = D3D11_CULL_NONE; rd.DepthClipEnable = TRUE; dev->CreateRasterizerState(&rd, &rs);
+    D3D11_RASTERIZER_DESC rd = {}; rd.FillMode = D3D11_FILL_SOLID; rd.CullMode = D3D11_CULL_NONE; rd.DepthClipEnable = TRUE; rd.ScissorEnable = TRUE; dev->CreateRasterizerState(&rd, &rs);
     static const D3D11_TEXTURE_ADDRESS_MODE am[3] = { D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_CLAMP };
     for (int f = 0; f < 2; f++) for (int u = 0; u < 3; u++) for (int v = 0; v < 3; v++) {
         D3D11_SAMPLER_DESC sd = {}; sd.Filter = f ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT; sd.AddressU = am[u]; sd.AddressV = am[v]; sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -147,7 +147,7 @@ static struct {
     uint32_t fill; float prim[4], env[4];
     Tile tile[8]; uint8_t tmem[4096]; int tluts;
     float mv[10][16]; int mvTop; float proj[16]; float mvp[16]; bool mvpDirty;
-    float vsc[4], vtr[4]; int numLights; Light lights[10]; uint8_t lightRaw[12][16];
+    int sc[4]; float vsc[4], vtr[4]; int numLights; Light lights[10]; uint8_t lightRaw[12][16];
     uint32_t texScaleS, texScaleT; int texTile, texOn;
     V vtx[64];
     bool dirty;
@@ -227,6 +227,7 @@ struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mo
 static DState cur; static bool curValid; static int curTexW = 1, curTexH = 1;
 
 static void flush() {
+    { static int once; if (!once++) { fprintf(stderr, "debug switches: notri=%d norect=%d\n", getenv("TUROK_NOTRI") != nullptr, getenv("TUROK_NORECT") != nullptr); fflush(stderr); } }
     if (batch.empty() || !ready) { batch.clear(); return; }
     uint32_t cw0 = cur.cw0, cw1 = cur.cw1;
     uint32_t cb[16]; float cf[16];
@@ -259,6 +260,7 @@ static void flush() {
     ctx->PSSetShaderResources(0, 1, cur.texOn && cur.srv ? &cur.srv : &whiteSrv);
     ctx->PSSetSamplers(0, 1, &cur.smp);
     UINT stride = sizeof(Vtx), off = 0; ctx->IASetVertexBuffers(0, 1, &vbuf, &stride, &off);
+    { D3D11_RECT r = { (LONG)(S.sc[0] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[1] * INTERNAL_H / (SCREEN_H * 4)), (LONG)(S.sc[2] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[3] * INTERNAL_H / (SCREEN_H * 4)) }; ctx->RSSetScissorRects(1, &r); }
     ctx->Draw((UINT)batch.size(), 0); g_draws++;
     batch.clear();
 }
@@ -285,7 +287,7 @@ static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool n
     float invw = 1.f / v.cw;
     float nx = v.cx * invw, ny = v.cy * invw, nz = v.cz * invw;
     float px = (nx * S.vsc[0] + S.vtr[0]) * 0.25f, py = (-ny * S.vsc[1] * -1.f + S.vtr[1]) * 0.25f;     // 10.2 fixed point viewport
-    py = (ny * S.vsc[1] + S.vtr[1]) * 0.25f;
+    py = (-ny * S.vsc[1] + S.vtr[1]) * 0.25f;                                                    // clip y is up, screen y is down
     float zs = S.vsc[2] != 0 ? (nz * S.vsc[2] + S.vtr[2]) / 1023.f : (nz * 0.5f + 0.5f);
     if (zs < 0) zs = 0; if (zs > 1) zs = 1;
     Vtx o; o.x = (px / SCREEN_W * 2.f - 1.f) * v.cw; o.y = (1.f - py / SCREEN_H * 2.f) * v.cw; o.z = zs * v.cw; o.w = v.cw;
@@ -296,6 +298,7 @@ static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool n
 }
 
 static void emitTri(int i0, int i1, int i2) {
+    { static int skip = getenv("TUROK_NOTRI") ? 1 : 0; if (skip) return; }
     V* v[3] = { &S.vtx[i0], &S.vtx[i1], &S.vtx[i2] };
     // near-plane clip (z >= -w, w > 0)
     V poly[6]; int n = 0;
@@ -322,6 +325,7 @@ static void emitTri(int i0, int i1, int i2) {
         if ((S.geom & 0x400) && !front) return;
         if ((S.geom & 0x200) && front) return;
     }
+    { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
     if (batch.size() + 12 > 3 * 6000) flush();
@@ -353,7 +357,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
             o.r = r > 1 ? 1 : r; o.g = g > 1 ? 1 : g; o.b = b > 1 ? 1 : b;
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
-        { static int nl; if (nl < 14 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx @%p raw %08X %08X %08X %08X; %d: pos %d %d %d st %d %d rgba %02X%02X%02X%02X -> clip %.2f %.2f %.2f %.2f col %.2f %.2f %.2f light=%d nl=%d\n", (const void*)p, rd32(p), rd32(p + 4), rd32(p + 8), rd32(p + 12), v0 + i, (int)x, (int)y, (int)z, o.s, o.t, p[12], p[13], p[14], p[15], o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, (S.geom >> 17) & 1, S.numLights); } }
+        { static int nl; if (nl < 24 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx %d: pos %d %d %d clip %.2f %.2f %.2f %.2f rgba %.2f %.2f %.2f %.2f light=%d lights=%d\n", v0 + i, (int)x, (int)y, (int)z, o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, o.a, (S.geom >> 17) & 1, S.numLights); } }
     }
 }
 
@@ -378,9 +382,10 @@ static void fillRect(int x0, int y0, int x1, int y1) {      // screen pixels (in
 }
 
 static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
+    { static int skip = getenv("TUROK_NORECT") ? 1 : 0; if (skip) return; }
     int xh = (w0 >> 12) & 0xFFF, yh = w0 & 0xFFF, tile = (w1 >> 24) & 7, xl = (w1 >> 12) & 0xFFF, yl = w1 & 0xFFF;   // xh,yh = lower right (10.2)
     float s0 = (int16_t)(h1w1 >> 16), t0 = (int16_t)(h1w1 & 0xFFFF), dsdx = (int16_t)(h2w1 >> 16), dtdy = (int16_t)(h2w1 & 0xFFFF);
-    g_rects++; { static int nl; if (nl++ < 8) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
+    g_rects++; { static int nl; if (nl < 200 && g_nfpub >= 590 && getenv("TUROK_VTXLOG") && ++nl) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
     int cycle = (S.omH >> 20) & 3; float sp = (cycle == 2) ? 0.25f : 1.f;
     int save = S.texTile; S.texTile = tile; uint32_t sg = S.geom, sl = S.omL; S.geom &= ~1u;
     setupState(cycle == 2 ? 2 : 0);
@@ -465,15 +470,16 @@ static void runDL(uint32_t addr, int depth) {
         case 0xDC: {
             int idx = w0 & 0xFF, off = ((w0 >> 8) & 0xFF) * 8;
             const uint8_t* d = res(w1);
-            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } }
+            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } { static int nv; if (nv++ < 12 && getenv("TUROK_VTXLOG")) fprintf(stderr, "viewport scale %g %g %g %g trans %g %g %g %g\n", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); } }
             else if (idx == 10) {
                 int slot = off / 24;
-                if (slot >= 1 && slot <= 8) {
-                    Light& L = S.lights[slot - 1]; L.r = d[0] / 255.f; L.g = d[1] / 255.f; L.b = d[2] / 255.f;
+                if (slot >= 2 && slot <= 9) {      // LIGHT_n sits at n*24+24 (n = 1..): lights[n-1]; the ambient light follows the last one
+                    Light& L = S.lights[slot - 2]; L.r = d[0] / 255.f; L.g = d[1] / 255.f; L.b = d[2] / 255.f;
                     L.dx = (int8_t)d[8] / 127.f; L.dy = (int8_t)d[9] / 127.f; L.dz = (int8_t)d[10] / 127.f;
                 }
             }
             break; }
+        case 0xED: flush(); S.sc[0] = (w0 >> 12) & 0xFFF; S.sc[1] = w0 & 0xFFF; S.sc[2] = (w1 >> 12) & 0xFFF; S.sc[3] = w1 & 0xFFF; break;      // SETSCISSOR (10.2)
         case 0xE2: case 0xE3: {
             int len = (w0 & 0xFF) + 1, sft = 32 - (int)((w0 >> 8) & 0xFF) - len; uint32_t mask = (len >= 32 ? 0xFFFFFFFFu : ((1u << len) - 1)) << sft;
             uint32_t& r = (op == 0xE2) ? S.omL : S.omH; r = (r & ~mask) | (w1 & mask);
@@ -516,7 +522,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
     static int nframes;
     if (InterlockedExchange(&g_gfx_task_ready, 0)) {
         uint32_t dl = rd32(g_gfx_task + 0x30);
-        memset(&S, 0, sizeof(S)); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
+        memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
         matIdent(S.proj); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
         memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0;
         ctx->OMSetRenderTargets(1, &rtv, dsv);
