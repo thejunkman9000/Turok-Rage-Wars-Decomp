@@ -18,7 +18,7 @@ extern "C" unsigned char g_gfx_task[];
 extern "C" volatile long g_gfx_task_ready;
 
 static const int INTERNAL_W = 1920, INTERNAL_H = 1440;   // 4:3, 4x the N64 frame (480x360)
-static const float SCREEN_W = 480.f, SCREEN_H = 360.f;
+static float SCREEN_W = 480.f, SCREEN_H = 360.f;      // the game switches the colour image width between screens (480 in matches, 284 in menus): follows SETCIMG
 
 static ID3D11Device* dev; static ID3D11DeviceContext* ctx;
 static ID3D11Texture2D* rtTex; static ID3D11RenderTargetView* rtv; static ID3D11ShaderResourceView* rtSrv;
@@ -493,7 +493,7 @@ static void runDL(uint32_t addr, int depth) {
         case 0xFA: S.prim[0] = (w1 >> 24) / 255.f; S.prim[1] = ((w1 >> 16) & 255) / 255.f; S.prim[2] = ((w1 >> 8) & 255) / 255.f; S.prim[3] = (w1 & 255) / 255.f; break;
         case 0xFB: S.env[0] = (w1 >> 24) / 255.f; S.env[1] = ((w1 >> 16) & 255) / 255.f; S.env[2] = ((w1 >> 8) & 255) / 255.f; S.env[3] = (w1 & 255) / 255.f; break;
         case 0xF7: S.fill = w1; break;
-        case 0xFF: S.cimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
+        case 0xFF: { float nw = (float)((w0 & 0xFFF) + 1); if (nw != SCREEN_W && nw >= 64) { flush(); SCREEN_W = nw; SCREEN_H = floorf(nw * 0.75f + 0.5f); } } S.cimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
         case 0xFE: S.zimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
         case 0xFD: S.timgFmt = (w0 >> 21) & 7; S.timgSiz = (w0 >> 19) & 3; S.timgW = (w0 & 0xFFF) + 1; S.timg = w1; break;
         case 0xF5: {
@@ -536,6 +536,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         ctx->VSSetShader(vs, nullptr, 0); ctx->PSSetShader(ps, nullptr, 0); ctx->PSSetConstantBuffers(0, 1, &cbuf);
         g_nfpub = nframes;
         { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 60) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
+        { static int trig; if (trig == 0 && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
         runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
