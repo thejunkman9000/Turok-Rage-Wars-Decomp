@@ -75,3 +75,7 @@ Known problems
 ### Resolved: garbled loadout models
 - Cause: matching C declared `func_0028FDD8` as `void` although the original leaves the piece size in v0 and recompiled callers (`func_00295B90`, ...) use it; models were allocated 0x70 bytes instead of 0xA40. Fixed by `port/overrides/func_0028FDD8.c` returning the size.
 - Same class of bug may exist elsewhere: matching-C functions typed `void` whose result lingers in v0. Symptom: a recompiled caller computes with garbage after the call. Fix by overriding the function with a returning prototype.
+
+### Scripted play (pressfile.ps1)
+- Main menu -> 1 PLAYER TRIALS -> NEW GAME -> level: `stick:0:-80:0.25 wait:1 C:0.3 wait:5` (select 1P trials, pak screen: NO CONTROLLER PAK FOUND), `stick:80:0:0.25 wait:1 C:0.3 wait:5` (DONE), `stick:-80:0:0.25 wait:1 C:0.3 wait:5` (OK), then `C:0.3 wait:6` x5 (NEW GAME and the following screens) until the level (about 40 s after the main menu).
+- In the level: stick = turn/pitch, `CUp:3` walks, `Z` fires. Controller pak is always reported absent (osPfsInitPak/osPfsIsPlug overrides).
