@@ -1,3 +1,4 @@
+/* debug: draft of func_0040E154 with logging (TUROK_E154=1) */
 #include "o02_types.h"
 typedef struct { u8 pad0[0x10]; u8 alpha; u8 pad11; u16 flags; s16 x, y; u16 w, h; s16 ox, oy; f32 sx, sy; } S_node;
 typedef struct { s32 ox, oy; u32 flags; f32 sx, sy; u8 alpha; u8 pad15[3]; O02Rect clip; } S_ctx;
@@ -7,7 +8,7 @@ extern f32 D_800E10D8;
 extern f32 D_800E10DC;
 extern s32 D_800E2AB0;
 extern s32 D_800E2AB4;
-s32 func_0040E154(O02Rect *r0, O02Rect *r1, S_node *n, S_ctx *c) {
+static s32 impl_0040E154(O02Rect *r0, O02Rect *r1, S_node *n, S_ctx *c) {
     u32 fl = n->flags;
     u32 cf = c->flags;
     f32 sx = c->sx;
@@ -117,4 +118,13 @@ s32 func_0040E154(O02Rect *r0, O02Rect *r1, S_node *n, S_ctx *c) {
     c->clip.w[2] = r0->w[2];
     c->clip.w[3] = r0->w[3];
     return 1;
+}
+
+extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned); extern char *getenv(const char *);
+s32 func_0040E154(O02Rect *r0, O02Rect *r1, S_node *n, S_ctx *c) {
+    static int nl; int dbg = getenv("TUROK_E154") != 0;
+    u32 fl = n->flags; u8 al = c->alpha; u32 cfl = c->flags; f32 csx = c->sx;
+    s32 r = impl_0040E154(r0, r1, n, c);
+    if (dbg && nl++ < 300) fprintf(__acrt_iob_func(2), "E154 type=%d ret=%p ", *(u16 *)((u8 *)n + 0xE), __builtin_return_address(0)); fprintf(__acrt_iob_func(2), "E154 node flags=%x nalpha=%d x=%d y=%d w=%d h=%d | ctx alpha=%d flags=%x sx=%g ox=%d oy=%d -> %d rect %d %d %d %d\n", fl, n->alpha, n->x, n->y, (s16)n->w, (s16)n->h, al, cfl, csx, c->ox, c->oy, r, r0->w[0], r0->w[1], r0->w[2], r0->w[3]);
+    return r;
 }

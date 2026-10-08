@@ -195,6 +195,7 @@ def rewrite(text):
         out.append(line)
     decl = []
     for ty in sorted(used):
+        if re.search(r'^declare [^@]*@llvm\.bswap\.' + re.escape(ty) + r'\(', text, re.M): continue      # the source already uses __builtin_bswap
         decl.append(f'declare {ty} @llvm.bswap.{ty}({ty})')
     # insert the declarations right after the target triple line
     for i, l in enumerate(out):

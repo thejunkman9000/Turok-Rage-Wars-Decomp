@@ -7,6 +7,7 @@ the function's own stack frame is a local array.  Integer ISA + single/double FP
 usage (library):  recompile_function(asm_text, name, known)  -> C source text   (known: set of function names with a host definition)
 usage (cli):      mips2c.py in.s funcname"""
 import os, re, sys
+STRUCTARGS = set(open('port/recomp_structargs.txt').read().split()) if os.path.exists('port/recomp_structargs.txt') else set()      # functions that take or pass the 40-byte UI context by value: its words are a big-endian memory image on the native side
 
 REGS = {n: i for i, n in enumerate('zero at v0 v1 a0 a1 a2 a3 t0 t1 t2 t3 t4 t5 t6 t7 s0 s1 s2 s3 s4 s5 s6 s7 t8 t9 k0 k1 gp sp fp ra'.split())}
 REGS['s8'] = 30
@@ -351,6 +352,11 @@ def recompile_function(text, name, known, max_stack_args=0):
             mm = re.match(r'(.*)\(\$?sp\)$', it[2][1])
             if mm and imm(mm.group(1) or '0') >= frame + 0x10:      # (frame may be 0: a leaf without its own stack frame still reads its stack arguments at 16($sp)...)
                 inargs = max(inargs, (imm(mm.group(1)) - frame - 0x10) // 4 + 1)
+    if frame:      # the address of the incoming argument area is taken (a struct passed by value, handed on by pointer): all of it (up to 10 words, 7 on the stack) must arrive
+        for it in items:
+            if it[0] == 'ins' and it[1] in ('addiu', 'addi') and it[2][1] in ('$sp', 'sp') and it[2][0] not in ('$sp', 'sp'):
+                v = simm(imm(it[2][2]))
+                if frame + 4 <= v < frame + 0x40: inargs = max(inargs, 7)
     inargs = min(inargs, 20)
     jtargets = [t for it in items if it[0] == 'jtbl' for t in it[1]]
     body = []
@@ -411,6 +417,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                 nargs = 4
                 while ('sp', 0x10 + 4 * (nargs - 4)) in pending: nargs += 1
                 args = ['r[4]', 'r[5]', 'r[6]', 'r[7]'] + ['*(u32 *)(r[29] + %d)' % (0x10 + 4 * k) for k in range(nargs - 4)]
+                if target in STRUCTARGS: args = [args[0]] + ['__builtin_bswap32(%s)' % a for a in args[1:]]      # struct words go to native code as the memory image
                 sw = lambda k: '*(u32 *)(r[29] + %d)' % (0x10 + 4 * k)
                 if target == 'osGetTime':                        # u64 result comes back in v0 (high) : v1 (low)
                     body.append('%s { u64 v_ = ((u64 (*)())osGetTime)(); r[2] = (u32)(v_ >> 32); r[3] = (u32)v_; }' % delay)
@@ -481,9 +488,9 @@ def recompile_function(text, name, known, max_stack_args=0):
     NULLGUARD = set(open('port/recomp_nullguard.txt').read().split()) if os.path.exists('port/recomp_nullguard.txt') else set()      # functions the game calls with a NULL first argument that the original tolerates or never reaches
     pre = ['port_rc_enter("%s", a0, a1, a2, a3);' % name] + (['if (!a0) return 0;      /* port guard */'] if name in NULLGUARD else []) + [ 'u32 r[32]; float *f = g_fpr; u32 lo = 0, hi = 0; int fcc = 0; u32 stk[%d] = { 0 }; int i_;' % (stk_words + 32),
            'for (i_ = 0; i_ < 32; i_++) r[i_] = 0;',
-           'r[4] = a0; r[5] = a1; r[6] = a2; r[7] = a3; r[31] = 0;',
+           ('r[4] = a0; r[5] = __builtin_bswap32(a1); r[6] = __builtin_bswap32(a2); r[7] = __builtin_bswap32(a3); r[31] = 0;' if name in STRUCTARGS else 'r[4] = a0; r[5] = a1; r[6] = a2; r[7] = a3; r[31] = 0;'),
            'r[29] = (u32)&stk[%d];' % (stk_words),
-           ] + ['*(u32 *)((u32)&stk[%d] + %d) = a%d;' % (stk_words, 0x10 + 4 * k, 4 + k) for k in range(inargs)]
+           ] + ['*(u32 *)((u32)&stk[%d] + %d) = %sa%d%s;' % (stk_words, 0x10 + 4 * k, '__builtin_bswap32(' if name in STRUCTARGS else '', 4 + k, ')' if name in STRUCTARGS else '') for k in range(inargs)]
     # incoming stack args live above the frame: caller frame offset = frame + 0x10 + 4k relative to the entry sp
     # we put them at (entry sp) + 0x10 + 4k, i.e. stk[stk_words + 4 + k]
     if entry_goto: body.insert(0, 'goto %s;' % label_name(name))
