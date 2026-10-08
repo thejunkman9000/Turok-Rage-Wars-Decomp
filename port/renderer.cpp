@@ -42,37 +42,38 @@ cbuffer CB : register(b0) {
     uint4 c0; uint4 a0; uint4 c1; uint4 a1;     // combiner inputs per cycle: (A,B,C,D)
     float4 prim; float4 env; float4 flags;      // flags: x=mode (0 combiner,1 vertex colour,2 copy) y=2-cycle z=alpha test w=texture on
 };
-Texture2D tex : register(t0); SamplerState smp : register(s0);
+Texture2D tex : register(t0); Texture2D tex1 : register(t1); SamplerState smp : register(s0);
 struct VI { float4 pos : POSITION; float4 col : COLOR; float2 uv : TEXCOORD; };
 struct PI { float4 pos : SV_POSITION; float4 col : COLOR; float2 uv : TEXCOORD; };
 PI vsmain(VI i) { PI o; o.pos = i.pos; o.col = i.col; o.uv = i.uv; return o; }
-float3 selA(uint s, float3 cb, float3 t0, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t0 : s==3?pr : s==4?sh : s==5?en : s==6?float3(1,1,1) : s==7?float3(0.5,0.5,0.5) : float3(0,0,0); }
-float3 selB(uint s, float3 cb, float3 t0, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t0 : s==3?pr : s==4?sh : s==5?en : float3(0,0,0); }
-float3 selC(uint s, float3 cb, float ca, float3 t0, float t0a, float3 pr, float pra, float3 sh, float sha, float3 en, float ena) {
-    return s==0?cb : s==1?t0 : s==2?t0 : s==3?pr : s==4?sh : s==5?en : s==7?float3(ca,ca,ca) : s==8?float3(t0a,t0a,t0a) : s==9?float3(t0a,t0a,t0a)
+float3 selA(uint s, float3 cb, float3 t0, float3 t1, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t1 : s==3?pr : s==4?sh : s==5?en : s==6?float3(1,1,1) : s==7?float3(0.5,0.5,0.5) : float3(0,0,0); }
+float3 selB(uint s, float3 cb, float3 t0, float3 t1, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t1 : s==3?pr : s==4?sh : s==5?en : float3(0,0,0); }
+float3 selC(uint s, float3 cb, float ca, float3 t0, float t0a, float3 t1, float t1a, float3 pr, float pra, float3 sh, float sha, float3 en, float ena) {
+    return s==0?cb : s==1?t0 : s==2?t1 : s==3?pr : s==4?sh : s==5?en : s==7?float3(ca,ca,ca) : s==8?float3(t0a,t0a,t0a) : s==9?float3(t1a,t1a,t1a)
          : s==10?float3(pra,pra,pra) : s==11?float3(sha,sha,sha) : s==12?float3(ena,ena,ena) : float3(0,0,0); }
-float3 selD(uint s, float3 cb, float3 t0, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t0 : s==3?pr : s==4?sh : s==5?en : s==6?float3(1,1,1) : float3(0,0,0); }
-float selAa(uint s, float ca, float t0a, float pra, float sha, float ena) { return s==0?ca : s==1?t0a : s==2?t0a : s==3?pra : s==4?sha : s==5?ena : s==6?1.0 : 0.0; }
-float selAc(uint s, float t0a, float pra, float sha, float ena) { return s==1?t0a : s==2?t0a : s==3?pra : s==4?sha : s==5?ena : 0.0; }
-float4 cycle(uint4 c, uint4 a, float4 comb, float4 t0, float4 sh) {
-    float3 A = selA(c.x, comb.rgb, t0.rgb, prim.rgb, sh.rgb, env.rgb);
-    float3 B = selB(c.y, comb.rgb, t0.rgb, prim.rgb, sh.rgb, env.rgb);
-    float3 C = selC(c.z, comb.rgb, comb.a, t0.rgb, t0.a, prim.rgb, prim.a, sh.rgb, sh.a, env.rgb, env.a);
-    float3 D = selD(c.w, comb.rgb, t0.rgb, prim.rgb, sh.rgb, env.rgb);
-    float aA = selAa(a.x, comb.a, t0.a, prim.a, sh.a, env.a);
-    float aB = selAa(a.y, comb.a, t0.a, prim.a, sh.a, env.a);
-    float aC = selAc(a.z, t0.a, prim.a, sh.a, env.a);
-    float aD = selAa(a.w, comb.a, t0.a, prim.a, sh.a, env.a);
+float3 selD(uint s, float3 cb, float3 t0, float3 t1, float3 pr, float3 sh, float3 en) { return s==0?cb : s==1?t0 : s==2?t1 : s==3?pr : s==4?sh : s==5?en : s==6?float3(1,1,1) : float3(0,0,0); }
+float selAa(uint s, float ca, float t0a, float t1a, float pra, float sha, float ena) { return s==0?ca : s==1?t0a : s==2?t1a : s==3?pra : s==4?sha : s==5?ena : s==6?1.0 : 0.0; }
+float selAc(uint s, float t0a, float t1a, float pra, float sha, float ena) { return s==1?t0a : s==2?t1a : s==3?pra : s==4?sha : s==5?ena : 0.0; }
+float4 cycle(uint4 c, uint4 a, float4 comb, float4 t0, float4 t1, float4 sh) {
+    float3 A = selA(c.x, comb.rgb, t0.rgb, t1.rgb, prim.rgb, sh.rgb, env.rgb);
+    float3 B = selB(c.y, comb.rgb, t0.rgb, t1.rgb, prim.rgb, sh.rgb, env.rgb);
+    float3 C = selC(c.z, comb.rgb, comb.a, t0.rgb, t0.a, t1.rgb, t1.a, prim.rgb, prim.a, sh.rgb, sh.a, env.rgb, env.a);
+    float3 D = selD(c.w, comb.rgb, t0.rgb, t1.rgb, prim.rgb, sh.rgb, env.rgb);
+    float aA = selAa(a.x, comb.a, t0.a, t1.a, prim.a, sh.a, env.a);
+    float aB = selAa(a.y, comb.a, t0.a, t1.a, prim.a, sh.a, env.a);
+    float aC = selAc(a.z, t0.a, t1.a, prim.a, sh.a, env.a);
+    float aD = selAa(a.w, comb.a, t0.a, t1.a, prim.a, sh.a, env.a);
     return saturate(float4((A - B) * C + D, (aA - aB) * aC + aD));
 }
 float4 psmain(PI i) : SV_TARGET {
     float4 t0 = flags.w > 0.5 ? tex.Sample(smp, i.uv) : float4(1,1,1,1);
+    float4 t1 = flags.w > 0.5 ? tex1.Sample(smp, i.uv) : float4(1,1,1,1);
     float4 o;
     if (flags.x > 1.5) o = t0;
     else if (flags.x > 0.5) o = i.col;
     else {
-        o = cycle(c0, a0, float4(0,0,0,0), t0, i.col);
-        if (flags.y > 0.5) o = cycle(c1, a1, o, t0, i.col);
+        o = cycle(c0, a0, float4(0,0,0,0), t0, t1, i.col);
+        if (flags.y > 0.5) o = cycle(c1, a1, o, t0, t1, i.col);
     }
     if (o.a < flags.z) discard;
     return o;
@@ -225,7 +226,7 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
 }
 
 // ---- batching
-struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mode; ID3D11ShaderResourceView* srv; ID3D11SamplerState* smp; bool texOn; };
+struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mode; ID3D11ShaderResourceView* srv; ID3D11ShaderResourceView* srv1; ID3D11SamplerState* smp; bool texOn; };
 static DState cur; static bool curValid; static int curTexW = 1, curTexH = 1;
 
 static void flush() {
@@ -260,6 +261,7 @@ static void flush() {
     ctx->OMSetDepthStencilState(dss[((zb && zcmp) ? 2 : 0) + ((zb && zupd) ? 1 : 0)], 0);
     ctx->OMSetBlendState(blend ? bsAlpha : bsOpaque, nullptr, 0xFFFFFFFF);
     ctx->PSSetShaderResources(0, 1, cur.texOn && cur.srv ? &cur.srv : &whiteSrv);
+    ctx->PSSetShaderResources(1, 1, cur.texOn && cur.srv1 ? &cur.srv1 : (cur.texOn && cur.srv ? &cur.srv : &whiteSrv));
     ctx->PSSetSamplers(0, 1, &cur.smp);
     UINT stride = sizeof(Vtx), off = 0; ctx->IASetVertexBuffers(0, 1, &vbuf, &stride, &off);
     { D3D11_RECT r = { (LONG)(S.sc[0] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[1] * INTERNAL_H / (SCREEN_H * 4)), (LONG)(S.sc[2] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[3] * INTERNAL_H / (SCREEN_H * 4)) }; ctx->RSSetScissorRects(1, &r); }
@@ -276,12 +278,15 @@ static void setupState(int mode) {
     if (n.texOn) {
         int w, h; tileDims(t, w, h); curTexW = w; curTexH = h;
         n.srv = getTexture(t, w, h);
+        { uint32_t cw0 = S.combW0, cw1 = S.combW1; uint32_t f[16] = { (cw0 >> 20) & 15, (cw1 >> 28) & 15, (cw0 >> 15) & 31, (cw1 >> 15) & 7, (cw0 >> 12) & 7, (cw1 >> 12) & 7, (cw0 >> 9) & 7, (cw1 >> 9) & 7, (cw0 >> 5) & 15, (cw1 >> 24) & 15, cw0 & 31, (cw1 >> 6) & 7, (cw1 >> 21) & 7, (cw1 >> 3) & 7, (cw1 >> 18) & 7, cw1 & 7 };
+          bool uses1 = false; for (int k = 0; k < 16; k++) if (f[k] == 2 || (k == 2 && f[k] == 9) || (k == 10 && f[k] == 9)) uses1 = true;
+          if (uses1) { const Tile& t1 = S.tile[(S.texTile + 1) & 7]; int w1, h1; tileDims(t1, w1, h1); n.srv1 = getTexture(t1, w1, h1); } else n.srv1 = nullptr; }
         int f = ((S.omH >> 12) & 3) != 0;
         int u = t.maskS == 0 ? 2 : (t.cmS & 2) ? 2 : (t.cmS & 1) ? 1 : 0, v = t.maskT == 0 ? 2 : (t.cmT & 2) ? 2 : (t.cmT & 1) ? 1 : 0;
         n.smp = samplers[f][u][v];
     } else n.smp = samplers[0][2][2];
     bool same = curValid && cur.geom == n.geom && cur.omL == n.omL && cur.omH == n.omH && cur.cw0 == n.cw0 && cur.cw1 == n.cw1 && cur.mode == n.mode &&
-                !memcmp(cur.prim, n.prim, 16) && !memcmp(cur.env, n.env, 16) && cur.srv == n.srv && cur.smp == n.smp && cur.texOn == n.texOn;
+                !memcmp(cur.prim, n.prim, 16) && !memcmp(cur.env, n.env, 16) && cur.srv == n.srv && cur.srv1 == n.srv1 && cur.smp == n.smp && cur.texOn == n.texOn;
     if (!same) { flush(); cur = n; curValid = true; }
 }
 
