@@ -8,6 +8,8 @@ include/ is retried with the headers of the workspace that produced it).  Object
 import glob, os, re, subprocess, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from concurrent.futures import ThreadPoolExecutor
+import threading
+BE_LOCK = threading.Lock()
 sys.path.insert(0, os.path.dirname(__file__))
 import be_ir
 
@@ -133,8 +135,10 @@ def compile_one(p, force):
     if not done:
         return (p, False, 'clang: ' + err.strip().split('\n')[0][:160])
     try:
-        be_ir.n_tmp[0] = 0; be_ir.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
-        open(ll2, 'w', encoding='utf-8', newline='\n').write(be_ir.rewrite(open(ll1, encoding='utf-8').read()))
+        with BE_LOCK:      # be_ir keeps its temp counter and ALIGN1_RAW in module globals: one rewrite at a time
+            be_ir.n_tmp[0] = 0; be_ir.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
+            be_text = be_ir.rewrite(open(ll1, encoding='utf-8').read())
+        open(ll2, 'w', encoding='utf-8', newline='\n').write(be_text)
     except Exception as e:
         return (p, False, f'rewrite: {e}')
     r = subprocess.run(['python', '-m', 'ziglang', 'cc', '-target', 'x86-windows-msvc', '-O1', '-c', ll2, '-o', obj], capture_output=True, text=True)
