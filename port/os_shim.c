@@ -386,8 +386,10 @@ s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     return 0;
 }
 s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartReadData\n"); } post_from_host(mq, (OSMesg)0); return 0; }
+static int autox_file; static unsigned file_b_hold; static int file_y_hold;
 void osContGetReadData(OSContPad *pad) {
-    { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }
+    { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }    { static int lr = -1, lc = -1, ld = -1; int r_ = key(VK_RETURN), c_ = key(0x43), d_ = key(VK_DOWN); if (r_ != lr || c_ != lc || d_ != ld) { fprintf(stderr, "keys: Return=%d C=%d Down=%d\n", r_, c_, d_); fflush(stderr); lr = r_; lc = c_; ld = d_; } }
+    { static int pc; if (++pc % 600 == 0) { fprintf(stderr, "pad polls: %d Return=%d C=%d\n", pc, key(VK_RETURN), key(0x43)); fflush(stderr); } }
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
     u16 b = 0; int autoy = 0;
@@ -396,9 +398,10 @@ void osContGetReadData(OSContPad *pad) {
     if (key('X')) b |= 0x4000;                                /* B */
     if (key('C')) b |= 0x8000;                                /* A */
     { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) b |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) b |= 0x1000; if (ph == 10) b |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
-    { static int nl; if (b && nl++ < 6) { fprintf(stderr, "pad: buttons %04X\n", b); fflush(stderr); } }
+    { static int poll_n; static unsigned fb; static int fx, fy; if (++poll_n % 3 == 1) { FILE *f = fopen("port_input.txt", "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0; if (fscanf(f, "%x %d %d", &bb, &xx, &yy) >= 1) { fb = bb; fx = xx; fy = yy; } fclose(f); } else { fb = 0; fx = fy = 0; } } b |= (u16)fb; autoy += fy; autox_file = fx; }
+    { static int nl; static unsigned lastb = 0xFFFFFFFFu; if (b != lastb && nl++ < 200) { fprintf(stderr, "pad: buttons %04X (was %04X)\n", b, lastb == 0xFFFFFFFFu ? 0 : lastb); fflush(stderr); } lastb = b; }
     ST16(pad[0].button, b);
-    pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0));
+    pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0) + autox_file);
     pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0) + autoy);
     oracle_filter_pad((unsigned char *)pad);
 }
