@@ -23,6 +23,7 @@ foreach ($step in $Seq) {
     elseif ($p[0] -eq 'shot') { $n++; & "$PSScriptRoot\screenshot.ps1" -Out ("port\build\{0}_{1:D2}.png" -f $Prefix, $n) | Out-Null }
     elseif ($p[0] -eq 'dump') { New-Item port_dumpnow.txt -ItemType File -Force | Out-Null; Start-Sleep 2 }
     elseif ($p[0] -eq 'stick') { Hold 0 ([int]$p[1]) ([int]$p[2]) ([double]$p[3]) }
+    elseif ($p[0].StartsWith('p2')) { $nm = $p[0].Substring(2); Set-Content -Path port_input2.txt -Value ('{0:X} 0 0' -f $btn[$nm]) -Encoding ascii; Start-Sleep -Milliseconds ([int]([double]$p[1] * 1000)); Remove-Item port_input2.txt -ErrorAction SilentlyContinue }
     else { Hold $btn[$p[0]] 0 0 ([double]$p[1]) }
 }
 Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill() } catch {} }

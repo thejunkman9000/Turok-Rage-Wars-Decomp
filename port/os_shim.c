@@ -378,35 +378,82 @@ u32 __osDisableInt(void) { return 1; }
 void __osRestoreInt(u32 v) { (void)v; }
 void osInitialize(void) { os_init(); }
 
-/* ---- controllers: keyboard for now ---- */
+/* ---- controllers: keyboard + XInput gamepads + scripted input files ---- */
 static int key(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
+typedef struct { unsigned dwPacketNumber; unsigned short wButtons; unsigned char bLeftTrigger, bRightTrigger; short sThumbLX, sThumbLY, sThumbRX, sThumbRY; } XSTATE;
+static unsigned (WINAPI *p_XInputGetState)(unsigned, XSTATE *); static int xi_tried;
+static int xi_get(int idx, XSTATE *st) {
+    if (!xi_tried) { HMODULE m = LoadLibraryA("xinput1_4.dll"); if (!m) m = LoadLibraryA("xinput9_1_0.dll"); if (m) p_XInputGetState = (unsigned (WINAPI *)(unsigned, XSTATE *))GetProcAddress(m, "XInputGetState"); xi_tried = 1; }
+    return p_XInputGetState && p_XInputGetState((unsigned)idx, st) == 0;
+}
+static int pads_wanted(void) { static int n = -1; if (n < 0) { char e[8]; n = GetEnvironmentVariableA("TUROK_PADS", e, sizeof e) ? atoi(e) : 0; if (n < 0) n = 0; if (n > 4) n = 4; } return n; }
+static int pad_connected(int i) {
+    XSTATE st; static int cache[4], cache_t[4]; DWORD now = GetTickCount();
+    if (i == 0) return 1;
+    if (i < pads_wanted()) return 1;
+    if (now - (DWORD)cache_t[i] > 1000) { cache[i] = xi_get(i, &st); cache_t[i] = (int)now; }      /* rescan once a second */
+    return cache[i];
+}
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
-    (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status); *bitpattern = 1;
-    for (int i = 0; i < 4; i++) { ST16(status[i].type, i == 0 ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = i == 0 ? 0 : 0x80; }
+    int i; u8 bp = 0; (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status);
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); if (c) bp |= (u8)(1 << i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = c ? 0 : 0x80; }
+    *bitpattern = bp;
     return 0;
 }
 s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartReadData\n"); } post_from_host(mq, (OSMesg)0); return 0; }
-static int autox_file; static unsigned file_b_hold; static int file_y_hold;
+static int autox_file;
+/* scripted input: port_input.txt (pad 1), port_input2.txt .. port_input4.txt: "hexbuttons stickx sticky" */
+static void file_pad(int i, unsigned *b, int *x, int *y) {
+    static unsigned fb[4]; static int fx[4], fy[4], n[4]; char fn[32];
+    if (++n[i] % 3 == 1) { FILE *f; sprintf(fn, i ? "port_input%d.txt" : "port_input.txt", i + 1); f = fopen(fn, "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0; if (fscanf(f, "%x %d %d", &bb, &xx, &yy) >= 1) { fb[i] = bb; fx[i] = xx; fy[i] = yy; } fclose(f); } else { fb[i] = 0; fx[i] = fy[i] = 0; } }
+    *b |= fb[i] & 0xFFFF; *x += fx[i]; *y += fy[i];
+}
+static void xinput_pad(int i, unsigned *b, int *x, int *y) {
+    XSTATE st; unsigned w; if (!xi_get(i, &st)) return; w = st.wButtons;
+    if (w & 0x1000) *b |= 0x8000;      /* A */
+    if (w & 0x2000) *b |= 0x4000;      /* B -> B */
+    if (w & 0x4000) *b |= 0x4000;      /* X -> B */
+    if (w & 0x0010) *b |= 0x1000;      /* Start */
+    if (w & 0x0001) *b |= 0x0800; if (w & 0x0002) *b |= 0x0400; if (w & 0x0004) *b |= 0x0200; if (w & 0x0008) *b |= 0x0100;
+    if (w & 0x0100) *b |= 0x0020;      /* LB -> L */
+    if (w & 0x0200) *b |= 0x0010;      /* RB -> R */
+    if (st.bLeftTrigger > 100 || st.bRightTrigger > 100) *b |= 0x2000;      /* triggers -> Z */
+    if (st.sThumbRY > 16000) *b |= 0x0008; if (st.sThumbRY < -16000) *b |= 0x0004; if (st.sThumbRX < -16000) *b |= 0x0002; if (st.sThumbRX > 16000) *b |= 0x0001;      /* right stick -> C buttons */
+    { int lx = st.sThumbLX / 410, ly = st.sThumbLY / 410; if (lx > -6 && lx < 6) lx = 0; if (ly > -6 && ly < 6) ly = 0; *x += lx; *y += ly; }
+}
 void osContGetReadData(OSContPad *pad) {
-    { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }    { static int lr = -1, lc = -1, ld = -1; int r_ = key(VK_RETURN), c_ = key(0x43), d_ = key(VK_DOWN); if (r_ != lr || c_ != lc || d_ != ld) { fprintf(stderr, "keys: Return=%d C=%d Down=%d\n", r_, c_, d_); fflush(stderr); lr = r_; lc = c_; ld = d_; } }
-    { static int pc; if (++pc % 600 == 0) { fprintf(stderr, "pad polls: %d Return=%d C=%d\n", pc, key(VK_RETURN), key(0x43)); fflush(stderr); } }
+    int i; unsigned autob = 0; int autoy = 0;
+    { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }
+    { static int pc; if (++pc % 600 == 0) { fprintf(stderr, "pad polls: %d\n", pc); fflush(stderr); } }
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
-    u16 b = 0; int autoy = 0;
-    if (key(VK_RETURN)) b |= 0x1000;                          /* Start */
-    if (key('Z')) b |= 0x2000;                                /* Z */
-    if (key('X')) b |= 0x4000;                                /* B */
-    if (key('C')) b |= 0x8000;                                /* A */
-    { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) b |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) b |= 0x1000; if (ph == 10) b |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
-    { static int poll_n; static unsigned fb; static int fx, fy; if (++poll_n % 3 == 1) { FILE *f = fopen("port_input.txt", "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0; if (fscanf(f, "%x %d %d", &bb, &xx, &yy) >= 1) { fb = bb; fx = xx; fy = yy; } fclose(f); } else { fb = 0; fx = fy = 0; } } b |= (u16)fb; autoy += fy; autox_file = fx; }
-    { static int nl; static unsigned lastb = 0xFFFFFFFFu; if (b != lastb && nl++ < 200) { fprintf(stderr, "pad: buttons %04X (was %04X)\n", b, lastb == 0xFFFFFFFFu ? 0 : lastb); fflush(stderr); } lastb = b; }
-    ST16(pad[0].button, b);
-    pad[0].stick_x = (s8)((key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0) + autox_file);
-    pad[0].stick_y = (s8)((key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0) + autoy);
+    { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) autob |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) autob |= 0x1000; if (ph == 10) autob |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
+    for (i = 0; i < 4; i++) {
+        unsigned b = 0; int x = 0, y = 0;
+        if (!pad_connected(i)) continue;
+        if (i == 0) {
+            if (key(VK_RETURN)) b |= 0x1000;                          /* Start */
+            if (key('Z')) b |= 0x2000;                                /* Z */
+            if (key('X')) b |= 0x4000;                                /* B */
+            if (key('C')) b |= 0x8000;                                /* A */
+            b |= autob; y += autoy;
+            x += (key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0); y += (key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0);
+        }
+        file_pad(i, &b, &x, &y);
+        xinput_pad(i, &b, &x, &y);
+        if (x > 80) x = 80; if (x < -80) x = -80; if (y > 80) y = 80; if (y < -80) y = -80;
+        { static unsigned lastb[4] = { 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu }; static int nl[4]; if (b != lastb[i] && nl[i]++ < 120) { fprintf(stderr, "pad%d: buttons %04X (was %04X)\n", i + 1, b, lastb[i] == 0xFFFFFFFFu ? 0 : lastb[i]); fflush(stderr); } lastb[i] = b; }
+        ST16(pad[i].button, b); pad[i].stick_x = (s8)x; pad[i].stick_y = (s8)y;
+    }
     oracle_filter_pad((unsigned char *)pad);
 }
 s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } post_from_host(mq, (OSMesg)0); return 0; }
-void osContGetQuery(OSContStatus *status) { { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); } memset(status, 0, 4 * sizeof *status); ST16(status[0].type, 0x0500); }
+void osContGetQuery(OSContStatus *status) {
+    int i; { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); }
+    status = (OSContStatus *)XL(status);      /* (the previous version wrote through the untranslated pointer) */
+    memset(status, 0, 4 * sizeof *status);
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].errno_ = c ? 0 : 0x80; }
+}
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
 s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void)ch; return 1; }
 s32 osMotorStart(void *pfs) { (void)pfs; return 0; }
