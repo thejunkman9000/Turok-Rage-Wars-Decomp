@@ -267,7 +267,7 @@ void port_early_init(void) {
             }
         }
         {   /* code pointers a few bytes into a function (its first instructions are dead): {alias, function}; the function's own stub shrinks to a short jump onto the alias stub */
-            static const unsigned alias[][2] = { { 0x4396C0u, 0x4396BCu }, { 0x202028u, 0x202018u }, { 0x204870u, 0x20486Cu }, { 0x20F6C0u, 0x20F6B8u }, { 0x210230u, 0x210228u }, { 0x21A2E4u, 0x21A2D4u }, { 0x22D03Cu, 0x22D030u }, { 0x230050u, 0x230048u }, { 0x258298u, 0x25828Cu }, { 0x2631DCu, 0x2631D0u }, { 0x290A70u, 0x290A68u }, { 0x291FF4u, 0x291FE8u }, { 0x419B90u, 0x419B8Cu }, { 0x41A0E0u, 0x41A0DCu }, { 0x41F2A0u, 0x41F298u }, { 0x423C20u, 0x423C18u }, { 0x4264F0u, 0x4264E4u }, { 0x429180u, 0x429178u }, { 0x4293B0u, 0x4293ACu }, { 0x429C10u, 0x429C04u }, { 0x42DBD0u, 0x42DBC8u }, { 0x4366D0u, 0x4366C4u }, { 0x43EFD0u, 0x43EFCCu }, { 0x446330u, 0x44632Cu }, };
+            static const unsigned alias[][2] = { { 0x4396C0u, 0x4396BCu }, { 0x230050u, 0x230048u }, { 0x258298u, 0x25828Cu }, { 0x2631DCu, 0x2631D0u }, { 0x291FF4u, 0x291FE8u }, };
             for (i = 0; i < (int)(sizeof alias / sizeof alias[0]); i++) {
                 unsigned char *pa = (unsigned char *)(size_t)alias[i][0], *pb = (unsigned char *)(size_t)alias[i][1]; int k;
                 { int q2, okr = 0; for (q2 = 0; q2 < nours; q2++) if (alias[i][1] >= ours_lo[q2] && alias[i][0] + 8 <= ours_hi[q2]) okr = 1; if (!okr) continue; }
@@ -439,3 +439,10 @@ void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsi
 float g_fpr[32];
 
 #include "difftest_driver.inc"
+
+/* copy the caller's variadic argument words (x86 stack slots, host byte order) into rotating blocks laid out the way the game's memory is (big-endian words, read through swapped loads by the recompiled vsprintf) */
+char *port_vararg_block(void *pva) {
+    static unsigned blk[32][14]; static int idx; unsigned *b = blk[idx++ & 31]; unsigned *s = (unsigned *)*(char **)pva; int i;
+    for (i = 0; i < 14; i++) b[i] = _byteswap_ulong(s[i]);
+    return (char *)b;
+}

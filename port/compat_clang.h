@@ -14,3 +14,7 @@
        for (__va_i = 0; __va_i < sizeof(type); __va_i++) ((volatile char *)&__va_v)[__va_i] = ((char *)(ap))[sizeof(type) - 1 - __va_i]; \
        (ap) = (void *)((char *)(ap) + sizeof(type)); __va_v; })
 #endif
+
+/* printf-style functions (matching C) read their variadic arguments through __builtin_next_arg: hand the recompiled vsprintf a block of big-endian-memory-format words instead of the raw x86 argument slots */
+extern char *port_vararg_block(void *pva);
+#define __builtin_next_arg(x) ({ __builtin_va_list va_blk_; __builtin_va_start(va_blk_, x); port_vararg_block((void *)&va_blk_); })
