@@ -1,4 +1,5 @@
 #include "o02_types.h"
+extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned); extern char *getenv(const char *);
 typedef struct { s32 w[3]; f32 f3, f4; u8 col; u8 padc[3]; s32 w2[4]; } O02CtxF;
 typedef struct { s8 pad[8]; struct { s8 a, b, c, d, e, f, g, h; } e[1]; } O02Font;
 typedef struct {
@@ -132,6 +133,7 @@ void func_0040D350(O02Text *n, O02CtxF c) {
         func_0040CB30();
         SETUP_FONT()
     }
+    { static int nf; if (getenv("TUROK_FONT") && nf++ < 12) { int q; fprintf(__acrt_iob_func(2), "FONT font=%p gap=%d f3=%g f4=%g len=%d s=%.12s ca=%d metrics:", (void *)D_801537F0, (int)D_801537F4, (double)c.f3, (double)c.f4, len, s, (int)(s8)ca); for (q = 0x21; q < 0x28; q++) fprintf(__acrt_iob_func(2), " [a=%d b=%d d=%d]", (int)D_801537F0->e[q].a, (int)D_801537F0->e[q].b, (int)D_801537F0->e[q].d); fprintf(__acrt_iob_func(2), "%c", 10); } }
     it = func_002A25E4(len * 0x18);
     D_80153820[D_80153800].items = it;
     vis = 0;

@@ -1,0 +1,2 @@
+# manual float signatures: name return params...  (r: v i f d; params: i f d) - for functions whose prototypes in the tree hide float parameters behind s32
+func_00417BA0 v f f f f f i i f f i

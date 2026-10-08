@@ -44,7 +44,6 @@ def load():
             rt, name, params = m.group(1), m.group(2), m.group(3)
             if '*' in m.group(0)[:m.start(2) - m.start(0)]: rt = 'void *'          # the pointer star can sit between the type and the name: pointer return
             if not re.search(r'\b(f32|f64|float|double)\b', rt + ' ' + params): continue
-            if name in sig: continue
             ps = []
             depth = 0; cur = ''
             for ch in params:
@@ -57,7 +56,13 @@ def load():
             types = [t for t in types if t is not None]
             rr = rtype(rt)
             if rr == 's': rr = 'v'; types = ['i'] + types
+            nf = sum(1 for t in types if t in ('f', 'd'))
+            if name in sig and sum(1 for t in sig[name][1] if t in ('f', 'd')) >= nf: continue      # several prototypes: the one that sees most floating point parameters is the real one (matching drafts often type everything s32)
             sig[name] = (rr, types)
+    if os.path.exists('port/fpsig_override.txt'):
+        for l in open('port/fpsig_override.txt'):
+            f = l.split('#')[0].split()
+            if len(f) >= 2: sig[f[0]] = (f[1], f[2:])
     return sig
 
 if __name__ == '__main__':
