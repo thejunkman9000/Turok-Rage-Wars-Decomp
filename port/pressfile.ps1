@@ -21,6 +21,7 @@ foreach ($step in $Seq) {
     $p = $step.Split(':')
     if ($p[0] -eq 'wait') { Start-Sleep -Milliseconds ([int]([double]$p[1] * 1000)) }
     elseif ($p[0] -eq 'shot') { $n++; & "$PSScriptRoot\screenshot.ps1" -Out ("port\build\{0}_{1:D2}.png" -f $Prefix, $n) | Out-Null }
+    elseif ($p[0] -eq 'dump') { New-Item port_dumpnow.txt -ItemType File -Force | Out-Null; Start-Sleep 2 }
     elseif ($p[0] -eq 'stick') { Hold 0 ([int]$p[1]) ([int]$p[2]) ([double]$p[3]) }
     else { Hold $btn[$p[0]] 0 0 ([double]$p[1]) }
 }

@@ -57,3 +57,12 @@ Known problems
 ### Debug switches added later
 - `TUROK_LIGHTLOG=1`: log the light slots the display lists load (colour, direction, count). In the gameplay frames seen so far the light is white with grey ambient, so the red cast of the first match scene does not come from lighting.
 - `recomp_skip.txt` / `recomp_nullguard.txt` / `forced_entries.txt`: functions not recompiled (usable C exists, asm head mis-split), recompiled functions that return early on a NULL first argument, extra function entries for code reached only through data tables.
+
+### State after the menu bring-up
+
+- Boot screens, title, main menu (MULTIPLAYER / TRIALS / CONTROLLER PAK / OPTIONS), HOW MANY PLAYERS, the loadout screen and matches all run; a 2-minute autopress soak does not crash.
+- Input for scripted tests: `port\pressfile.ps1` writes `port_input.txt` (hex buttons, stick x, stick y), which `osContGetReadData` merges; OS key injection (`keybd_event`) proved unreliable. `port\shots.ps1`, `port\menushots.ps1`, `port\dumpwhen.ps1` take timed screenshots / display-list dumps.
+- Debug switches: TUROK_TREE (UI node tree + handler slot table per screen), TUROK_EVT (screen event table), TUROK_LIGHTLOG, TUROK_TEXDUMP / TEXDUMP8 / TEXDUMPBIG (decoded textures to port/build/tex_N.ppm), port_dumpnow.txt (trigger a 3-frame display-list dump + RAM image).
+- Renderer: the screen size follows SETCIMG (284 wide in menus, 480 in matches).
+- Recompiler lessons: stack words of a by-value struct are a big-endian memory image on the native side (`port/recomp_structargs.txt` lists the functions that get them swapped at entry/calls); float prototypes typed `s32` hide float arguments (`port/fpsig_override.txt`, and fpsig prefers the prototype with most floats); the address of the incoming argument area being taken forces 7 stack args; printf-family variadics go through `port_vararg_block` (compat_clang.h `__builtin_next_arg`).
+- Known open: garbled 3D previews on the loadout screen (portrait/weapon), audio stubbed, a handful of recompile failures (`be_ir` duplicate-name errors in a few functions; `func_0029BBA0`).
