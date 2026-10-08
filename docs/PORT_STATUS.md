@@ -53,3 +53,7 @@ Known problems
 - libm: the game's `sinf/cosf` double tables are word-swapped on the little-endian host (`DU()` macro in `src/libultra/cosf.c`).
 - The rewriter pitfalls found so far: volatile accesses (atomic in clang's MSVC mode), align-1 loads, `memcpy` pointer attributes,
   byte loads/stores, stack objects.
+
+### Debug switches added later
+- `TUROK_LIGHTLOG=1`: log the light slots the display lists load (colour, direction, count). In the gameplay frames seen so far the light is white with grey ambient, so the red cast of the first match scene does not come from lighting.
+- `recomp_skip.txt` / `recomp_nullguard.txt` / `forced_entries.txt`: functions not recompiled (usable C exists, asm head mis-split), recompiled functions that return early on a NULL first argument, extra function entries for code reached only through data tables.

@@ -478,6 +478,7 @@ static void runDL(uint32_t addr, int depth) {
                 int slot = off / 24;
                 if (slot >= 2 && slot <= 9) {      // LIGHT_n sits at n*24+24 (n = 1..): lights[n-1]; the ambient light follows the last one
                     Light& L = S.lights[slot - 2]; L.r = d[0] / 255.f; L.g = d[1] / 255.f; L.b = d[2] / 255.f;
+                    { static int nl2; if (nl2 < 400 && getenv("TUROK_LIGHTLOG")) { nl2++; fprintf(stderr, "light slot %d: col %d %d %d dir %d %d %d (n=%d)\n", slot, d[0], d[1], d[2], (int8_t)d[8], (int8_t)d[9], (int8_t)d[10], S.numLights); } }
                     L.dx = (int8_t)d[8] / 127.f; L.dy = (int8_t)d[9] / 127.f; L.dz = (int8_t)d[10] / 127.f;
                 }
             }
