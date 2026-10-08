@@ -444,6 +444,7 @@ static void runDL(uint32_t addr, int depth) {
     if (depth > 12) return;
     const uint8_t* p = res(addr);
     for (int guard = 0; guard < 200000; guard++, p += 8) {
+        if ((uintptr_t)p >= 0x80000000u && (uintptr_t)p + 8 > 0x80800000u) return;      /* a display list without an end command ran off the end of RAM */
         uint32_t w0 = rd32(p), w1 = rd32(p + 4); int op = w0 >> 24; g_ops[op]++; if (g_dump) fprintf(g_dump, "%*s%08X %08X\n", depth * 2, "", w0, w1);
         switch (op) {
         case 0xDF: return;

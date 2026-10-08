@@ -6,7 +6,7 @@ the function's own stack frame is a local array.  Integer ISA + single/double FP
 
 usage (library):  recompile_function(asm_text, name, known)  -> C source text   (known: set of function names with a host definition)
 usage (cli):      mips2c.py in.s funcname"""
-import re, sys
+import os, re, sys
 
 REGS = {n: i for i, n in enumerate('zero at v0 v1 a0 a1 a2 a3 t0 t1 t2 t3 t4 t5 t6 t7 s0 s1 s2 s3 s4 s5 s6 s7 t8 t9 k0 k1 gp sp fp ra'.split())}
 REGS['s8'] = 30
@@ -478,7 +478,8 @@ def recompile_function(text, name, known, max_stack_args=0):
     stk_words = max(frame // 4 + 16 + 8, 64)
     fname_ = name + '_rc' if sg else name
     sig = 'u32 %s(u32 a0, u32 a1, u32 a2, u32 a3%s) {' % (fname_, ''.join(', u32 a%d' % (4 + k) for k in range(inargs)))
-    pre = ['port_rc_enter("%s", a0, a1, a2, a3);' % name, 'u32 r[32]; float *f = g_fpr; u32 lo = 0, hi = 0; int fcc = 0; u32 stk[%d] = { 0 }; int i_;' % (stk_words + 32),
+    NULLGUARD = set(open('port/recomp_nullguard.txt').read().split()) if os.path.exists('port/recomp_nullguard.txt') else set()      # functions the game calls with a NULL first argument that the original tolerates or never reaches
+    pre = ['port_rc_enter("%s", a0, a1, a2, a3);' % name] + (['if (!a0) return 0;      /* port guard */'] if name in NULLGUARD else []) + [ 'u32 r[32]; float *f = g_fpr; u32 lo = 0, hi = 0; int fcc = 0; u32 stk[%d] = { 0 }; int i_;' % (stk_words + 32),
            'for (i_ = 0; i_ < 32; i_++) r[i_] = 0;',
            'r[4] = a0; r[5] = a1; r[6] = a2; r[7] = a3; r[31] = 0;',
            'r[29] = (u32)&stk[%d];' % (stk_words),
