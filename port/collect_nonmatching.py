@@ -47,6 +47,9 @@ print('missing functions:', len(missing), ' with a draft:', len(chosen), ' sourc
 for n, f in over.items():
     if n not in chosen:
         shutil.copy(f, f'port/nonmatching/{n}__ovr.c')
+for f in glob.glob('port/overrides/*.c'):      # overrides of non-func_ names (libultra pieces compiled from src/ovl_a)
+    b = os.path.basename(f)[:-2]
+    if not b.startswith('func_'): shutil.copy(f, f'port/nonmatching/{b}__ovr.c')
 print('extra overrides:', [n for n in over if n not in chosen])
 
 import sys; sys.path.insert(0, 'port')

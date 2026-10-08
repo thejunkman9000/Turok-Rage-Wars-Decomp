@@ -18,7 +18,7 @@ os.makedirs(OUT, exist_ok=True); os.makedirs(LL, exist_ok=True)
 COMMON = ['python', '-m', 'ziglang', 'cc', '-target', 'x86-windows-msvc', '-O1', '-g0', '-fno-vectorize', '-fno-slp-vectorize',
           '-fno-strict-aliasing', '-fno-jump-tables', '-fno-math-errno', '-finstrument-functions', '-std=gnu89', '-w', '-Wno-error=int-conversion', '-Wno-error=incompatible-pointer-types', '-Wno-error=incompatible-function-pointer-types', '-Wno-error=incompatible-pointer-types-discards-qualifiers', '-Wno-error=implicit-function-declaration', '-D_LANGUAGE_C', '-DTARGET_PC', '-DM2CTX', '-include', 'port/compat_clang.h']
 ws_inc = sorted(glob.glob('D:/Projects/ws/*/include'), key=os.path.getmtime, reverse=True)
-overrides = {os.path.basename(p)[:-2] for p in glob.glob('port/overrides/func_*.c')}
+overrides = {os.path.basename(p)[:-2] for p in glob.glob('port/overrides/*.c')}
 
 def sources():
     srcs = []
