@@ -470,7 +470,7 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2);
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
-            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); { static int nl; if (nl < 6 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
+            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); if (g_dump) { fprintf(g_dump, "      [mtx f=%d:"); for (int q = 0; q < 16; q++) fprintf(g_dump, " %.3f", m[q]); fprintf(g_dump, "]"); fprintf(g_dump, "%c", 10); } { static int nl; if (nl < 6 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
             if (f & 4) { if (f & 2) memcpy(S.proj, m, 64); else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
@@ -488,7 +488,7 @@ static void runDL(uint32_t addr, int depth) {
         case 0xDC: {
             int idx = w0 & 0xFF, off = ((w0 >> 8) & 0xFF) * 8;
             const uint8_t* d = res(w1);
-            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } { static int nv; if (nv++ < 12 && getenv("TUROK_VTXLOG")) fprintf(stderr, "viewport scale %g %g %g %g trans %g %g %g %g\n", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); } }
+            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } if (g_dump) { fprintf(g_dump, "      [viewport scale %g %g %g %g trans %g %g %g %g]", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); fprintf(g_dump, "%c", 10); } { static int nv; if (nv++ < 12 && getenv("TUROK_VTXLOG")) fprintf(stderr, "viewport scale %g %g %g %g trans %g %g %g %g\n", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); } }
             else if (idx == 10) {
                 int slot = off / 24;
                 if (slot >= 2 && slot <= 9) {      // LIGHT_n sits at n*24+24 (n = 1..): lights[n-1]; the ambient light follows the last one

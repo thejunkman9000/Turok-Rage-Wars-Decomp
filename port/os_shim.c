@@ -326,6 +326,7 @@ void port_wait_idle(void) {
     }
 }
 
+static unsigned char *aud_translate(unsigned a) { return (unsigned char *)(size_t)(0x80000000u | (a & 0x7FFFFFu)); }      /* physical RDRAM offset -> host (guest memory is mapped at its KSEG0 address) */
 /* ---- RSP/RDP tasks: the display list is captured for the renderer; completion is signalled immediately ---- */
 static OSTask g_task; static int g_task_pending;
 OSTask g_gfx_task; volatile LONG g_gfx_task_ready;
@@ -334,6 +335,7 @@ s32 osSpTaskStartGo(OSTask *t) {
     (void)t; g_dbg_startgo++;
     { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12) { fprintf(stderr, "StartGo #%d type=%u flags=%08X\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags)); }
       if (gfx) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
+      if (LD32(g_task.t.type) == 2) { static int hle_init; extern void audio_hle_init(unsigned char *(*tr)(unsigned)); extern int audio_hle_run(unsigned addr, unsigned len); if (!hle_init) { hle_init = 1; audio_hle_init(aud_translate); } audio_hle_run(LD32(g_task.t.data_ptr), LD32(g_task.t.data_size)); }
       os_init(); EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* completion is delivered from the frame tick: the caller still has bookkeeping to do */
     return 0;
 }
@@ -460,8 +462,9 @@ s32 osMotorStart(void *pfs) { (void)pfs; return 0; }
 s32 osMotorStop(void *pfs) { (void)pfs; return 0; }
 
 /* ---- audio interface (placeholder until the audio backend exists) ---- */
-s32 osAiSetFrequency(u32 f) { return (s32)f; }
-s32 osAiSetNextBuffer(void *b, u32 n) { (void)b; (void)n; return 0; }
+extern void port_audio_set_freq(unsigned f); extern void port_audio_push(const unsigned char *be, unsigned n);
+s32 osAiSetFrequency(u32 f) { port_audio_set_freq(f); return (s32)f; }
+s32 osAiSetNextBuffer(void *b, u32 n) { b = (void *)XL(b); if (b && n) port_audio_push((const unsigned char *)b, n); return 0; }
 u32 osAiGetStatus(void) { return 0; }
 
 static HANDLE h_open(DWORD tid) { return tid ? OpenThread(THREAD_ALL_ACCESS, FALSE, tid) : NULL; }

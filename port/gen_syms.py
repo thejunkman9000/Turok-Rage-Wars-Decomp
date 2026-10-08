@@ -23,8 +23,15 @@ for m in re.finditer(r'^\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+)\s*;', open('symbol_addrs
 alias = {'D_80121990b': 'D_80121990'}
 os.makedirs('port/gen', exist_ok=True)
 data, funcs, other, thunks = [], [], [], []
+name_alias = {}
+if os.path.exists('port/audio_alias.txt'):
+    for l in open('port/audio_alias.txt'):
+        f = l.split('#')[0].split()
+        if len(f) == 2: name_alias[f[0]] = f[1]      # libultra .s-only functions: thunk to the recompiled function
+name_alias = {n: t for n, t in name_alias.items() if n in unres and os.path.exists('port/native/recomp/%s.c' % t)}      # only what the linker actually misses
 for n in unres:
     base = alias.get(n, n)
+    if n in name_alias: continue
     if re.fullmatch(r'D_[0-9A-Fa-f]{8}', base):
         data.append((n, int(base[2:], 16)))
     elif re.fullmatch(r'D_[0-9A-Fa-f]{3,6}', base):
@@ -49,6 +56,10 @@ with open('port/gen/syms.asm', 'w') as f:
         f.write(f'EXTERN _func_00{n[5:]}:PROC\n')
     for n in thunks:
         f.write(f'PUBLIC _{n}\n_{n} PROC\n    jmp _func_00{n[5:]}\n_{n} ENDP\n')
+    for n, t in name_alias.items():
+        f.write('EXTERN _%s:PROC'%t + chr(10))
+    for n, t in name_alias.items():
+        f.write('PUBLIC _%s'%n + chr(10) + '_%s PROC'%n + chr(10) + '    jmp _%s'%t + chr(10) + '_%s ENDP'%n + chr(10))
     f.write('END\n')
 funcs = sorted(set(funcs))
 with open('port/gen/stubs.c', 'w') as f:

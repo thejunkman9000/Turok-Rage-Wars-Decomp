@@ -21,7 +21,7 @@ if (-not $Fresh -and (Test-Path port\gen\syms.asm)) { ml /nologo /c /coff /Fopor
 if (-not $Fresh -and (Test-Path port\gen\stubs.c)) { cl /nologo /O1 /w /TC /c /Foport\build\stubs.obj port\gen\stubs.c | Out-Null; $extra += 'port\build\stubs.obj' }
 $objs = @(Get-ChildItem port\build\obj_c\*.obj) | ForEach-Object { $_.FullName }
 $rsp = 'port\build\link.rsp'; ($objs + $extra) | Out-File $rsp -Encoding ascii
-link /nologo /SUBSYSTEM:WINDOWS /LARGEADDRESSAWARE /BASE:0x20000000 /FIXED:NO /ENTRY:port_entry /FORCE:MULTIPLE /MAP:port\build\turok.map "/OUT:$exe" port\build\win32_main.obj $portobjs "@$rsp" user32.lib kernel32.lib d3d11.lib d3dcompiler.lib 2>&1 | Out-File port\build\link.log -Encoding ascii
+link /nologo /SUBSYSTEM:WINDOWS /LARGEADDRESSAWARE /BASE:0x20000000 /FIXED:NO /ENTRY:port_entry /FORCE:MULTIPLE /MAP:port\build\turok.map "/OUT:$exe" port\build\win32_main.obj $portobjs "@$rsp" user32.lib kernel32.lib winmm.lib d3d11.lib d3dcompiler.lib 2>&1 | Out-File port\build\link.log -Encoding ascii
 $n = (Select-String -Path port\build\link.log -Pattern 'LNK2001|LNK2019').Count
 "unresolved reports: $n"
 if (Test-Path $exe) { $exe | Out-File port\build\latest_exe.txt -Encoding ascii }

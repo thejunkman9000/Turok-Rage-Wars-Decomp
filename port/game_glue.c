@@ -446,3 +446,12 @@ char *port_vararg_block(void *pva) {
     for (i = 0; i < 14; i++) b[i] = _byteswap_ulong(s[i]);
     return (char *)b;
 }
+
+/* return values of statically recompiled functions, logged with TUROK_FTRACE=<names>,ret */
+u32 port_rc_ret(const char *name, u32 v) {
+    if (g_trace_names[0] && strstr(g_trace_names, "ret") && strstr(g_trace_names, name)) { fprintf(stderr, "ret %s -> %08X" "%c", name, v, 10); fflush(stderr); }
+    return v;
+}
+
+/* guest address -> host address for pointers handed to C runtime functions by statically recompiled code */
+u32 port_xl(u32 a) { return (a >= 0x200000u && a < 0x2000000u) ? a + 0x30000000u : a; }

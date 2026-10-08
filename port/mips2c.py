@@ -7,6 +7,7 @@ the function's own stack frame is a local array.  Integer ISA + single/double FP
 usage (library):  recompile_function(asm_text, name, known)  -> C source text   (known: set of function names with a host definition)
 usage (cli):      mips2c.py in.s funcname"""
 import os, re, sys
+LIBC_PTR_ARGS = {'memcpy': (0, 1), 'memmove': (0, 1), 'memset': (0,), 'bcopy': (0, 1), 'bzero': (0,), 'strlen': (0,), 'strcpy': (0, 1), 'strncpy': (0, 1), 'strcat': (0, 1), 'strcmp': (0, 1), 'memcmp': (0, 1)}
 STRUCTARGS = set(open('port/recomp_structargs.txt').read().split()) if os.path.exists('port/recomp_structargs.txt') else set()      # functions that take or pass the 40-byte UI context by value: its words are a big-endian memory image on the native side
 
 REGS = {n: i for i, n in enumerate('zero at v0 v1 a0 a1 a2 a3 t0 t1 t2 t3 t4 t5 t6 t7 s0 s1 s2 s3 s4 s5 s6 s7 t8 t9 k0 k1 gp sp fp ra'.split())}
@@ -362,7 +363,7 @@ def recompile_function(text, name, known, max_stack_args=0):
     body = []
     regconst = {}
     pending = set()
-    saved_slots = set()
+    saved_slots = set(); saved_regs = set()      # a callee-saved register is spilled once (its first store); later stores of the same register into the argument area are outgoing arguments
     seen_call = False
     i = 0
     code_consts = set()
@@ -401,7 +402,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                     jn_ = len([b for b in body if 'jr_again' in b]) 
                     body.append('{ u32 jr_ = %s; %s jr_again%d:; switch (jr_) { %s default: { u32 g_ = port_unresolve(jr_); if (g_ != jr_) { jr_ = g_; goto jr_again%d; } __builtin_trap(); } } }' % (R(reg(ops[0])), delay, jn_, cases, jn_))
                 else:
-                    body.append('%s return r[2];' % delay)
+                    body.append(('%s return port_rc_ret("%s", r[2]);' % (delay, name)) if os.environ.get('TUROK_GEN_RET') else ('%s return r[2];' % delay))
             elif m in ('jal', 'jalr'):
                 if m == 'jal': target = ops[0]
                 else: target = None
@@ -410,7 +411,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                     mm = re.match(r'(.*)\(\$?sp\)$', dops[1])
                     if mm:
                         off = simm(imm(mm.group(1) or '0'))
-                        if dm == 'sw' and not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31): saved_slots.add(off)
+                        if dm == 'sw' and not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and reg(dops[0]) not in saved_regs: saved_slots.add(off); saved_regs.add(reg(dops[0]))
                         elif 0x10 <= off < 0x70 and off not in saved_slots:
                             pending.add(('sp', off))
                             if dm == 'sdc1': pending.add(('sp', off + 4))
@@ -447,6 +448,9 @@ def recompile_function(text, name, known, max_stack_args=0):
                     elif rt == 'd': body.append('%s sd(f, 0, %s);' % (delay, call))
                     elif rt == 'v': body.append('%s %s;' % (delay, call))
                     else: body.append('%s r[2] = (u32)%s;' % (delay, call))
+                elif target is not None and target in LIBC_PTR_ARGS:      # C runtime functions get host pointers: translate the guest addresses (the low guest range is mapped at +0x30000000)
+                    xa = [('port_xl(%s)' % a) if i in LIBC_PTR_ARGS[target] else a for i, a in enumerate(args)]
+                    body.append('%s r[2] = (u32)((u32 (*)())%s)(%s);' % (delay, target, ', '.join(xa)))
                 elif target is not None:
                     body.append('%s r[2] = (u32)((u32 (*)())%s)(%s);' % (delay, target, ', '.join(args)))
                 else:
@@ -458,8 +462,8 @@ def recompile_function(text, name, known, max_stack_args=0):
             mm = re.match(r'(.*)\(\$?sp\)$', ops[1])
             if mm:
                 off = simm(imm(mm.group(1) or '0'))
-                if m == 'sw' and not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31):
-                    saved_slots.add(off)                          # callee-saved register spill, not an argument
+                if m == 'sw' and not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and reg(ops[0]) not in saved_regs:
+                    saved_slots.add(off); saved_regs.add(reg(ops[0]))                          # callee-saved register spill, not an argument
                 elif 0x10 <= off < 0x70 and off not in saved_slots:
                     pending.add(('sp', off))
                     if m == 'sdc1': pending.add(('sp', off + 4))
@@ -494,7 +498,7 @@ def recompile_function(text, name, known, max_stack_args=0):
     # incoming stack args live above the frame: caller frame offset = frame + 0x10 + 4k relative to the entry sp
     # we put them at (entry sp) + 0x10 + 4k, i.e. stk[stk_words + 4 + k]
     if entry_goto: body.insert(0, 'goto %s;' % label_name(name))
-    text = '\n'.join([sig] + ['    ' + l for l in pre + body] + ['    return r[2];', '}'])
+    text = '\n'.join([sig] + ['    ' + l for l in pre + body] + [('    return port_rc_ret("%s", r[2]);' % name) if os.environ.get('TUROK_GEN_RET') else '    return r[2];', '}'])
     if sg:
         rt, types = sg
         if ALLARGC.get(name, 0) > len(types): types = list(types) + ['i'] * (ALLARGC[name] - len(types))     # prototype declared fewer parameters than the code reads

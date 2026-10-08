@@ -23,6 +23,8 @@ static u32 d2hi(double d) { u64 v; memcpy(&v, &d, 8); return (u32)(v >> 32); }
 static u32 d2lo(double d) { u64 v; memcpy(&v, &d, 8); return (u32)v; }
 extern void *port_resolve(u32 guest_code_address);
 extern u32 port_unresolve(u32 host_or_guest);
+extern u32 port_xl(u32 guest);
+extern u32 port_rc_ret(const char *name, u32 v);
 extern void port_rc_enter(const char *name, u32 a0, u32 a1, u32 a2, u32 a3);
 '''
 

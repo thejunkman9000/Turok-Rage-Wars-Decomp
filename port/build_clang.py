@@ -28,7 +28,8 @@ def sources():
         if os.path.basename(p)[:-2] not in overrides and os.path.basename(p)[:-2] not in ('memset', 'memcpy', 'memmove'): srcs.append(p)   # libc names: the host CRT provides them
     for p in sorted(glob.glob('src/libultra/*.c')):
         b = os.path.basename(p)[:-2]
-        if b == 'string' or (re.match(r'^_?al[A-Z]', b) and not re.match(r'^al(Heap|Link|Unlink|Evtq|Copy|Cents)', b)): continue           # audio library: no-op stubs until a sound backend exists
+        if b in overrides: continue                                                                  # replaced by port/overrides/<name>.c (compiled from port/nonmatching)
+        if b == 'string': continue                                                                  # (the audio library is now compiled: port/audio_hle.c + the AI/SP shims provide the sound backend)
         if b == 'string': continue                                                                  # memcpy/strlen: host CRT
         if re.match(r'^(__os|os[A-Z]|dbg|__divdi3|__moddi3|__udivdi3|__umoddi3|__floatdi|__cmpdi|__ucmpdi)', b): continue          # hardware layer: port/os_shim.c
         srcs.append(p)
