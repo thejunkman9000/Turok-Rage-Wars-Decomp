@@ -66,3 +66,7 @@ Known problems
 - Renderer: the screen size follows SETCIMG (284 wide in menus, 480 in matches).
 - Recompiler lessons: stack words of a by-value struct are a big-endian memory image on the native side (`port/recomp_structargs.txt` lists the functions that get them swapped at entry/calls); float prototypes typed `s32` hide float arguments (`port/fpsig_override.txt`, and fpsig prefers the prototype with most floats); the address of the incoming argument area being taken forces 7 stack args; printf-family variadics go through `port_vararg_block` (compat_clang.h `__builtin_next_arg`).
 - Known open: garbled 3D previews on the loadout screen (portrait/weapon), audio stubbed, a handful of recompile failures (`be_ir` duplicate-name errors in a few functions; `func_0029BBA0`).
+
+### Lead on the garbled loadout models
+- The 32x64 CI8 model textures (display list: `FD500000 801D4050` image, `FD100000 801D4070` palette) decode as noise because the image address overlaps the palette: RAM at 0x801D4040.. shows chunk headers (`00000001 00000010 ...`) where the image should be. The model resource is not laid out the way the display list builder assumes, so suspect the loader/unpacker of that resource type (pointer fix-up or chunk unpack in recompiled code). Dump the area with `port_dumpnow.txt` (writes port_mem.bin / port_mem2.bin).
+- `TUROK_TEXDUMPWH=32x64` dumps decoded textures of one size to port/build/tex_N.ppm.
