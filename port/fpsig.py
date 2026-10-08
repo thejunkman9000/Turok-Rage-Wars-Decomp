@@ -29,6 +29,7 @@ def rtype(r):
     if r in ('f64', 'double'): return 'd'
     if r == 'void': return 'v'
     if r in ('s64', 'u64', 'OSTime'): return 'l'
+    if re.match(r'^(struct\s+)?(Vec\w*|\w*Vec\d\w*)$', r): return 's'                  # struct returned by value: a hidden result pointer comes first
     return 'i'
 
 def load():
@@ -54,7 +55,9 @@ def load():
             if cur.strip(): ps.append(cur)
             types = [ptype(x) for x in ps]
             types = [t for t in types if t is not None]
-            sig[name] = (rtype(rt), types)
+            rr = rtype(rt)
+            if rr == 's': rr = 'v'; types = ['i'] + types
+            sig[name] = (rr, types)
     return sig
 
 if __name__ == '__main__':

@@ -134,9 +134,11 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
 
 // ---------------------------------------------------------------------------------------------------------- RDP / RSP state
 static uint32_t segbase[16];
+static uint8_t g_zero[1 << 16];                                       // stands in for display-list addresses that do not point at guest memory
 static const uint8_t* res(uint32_t a) {
-    if (a & 0x80000000u) return (const uint8_t*)(size_t)a;
-    return (const uint8_t*)(size_t)(0x80000000u | (segbase[(a >> 24) & 0xF] + (a & 0xFFFFFF)));
+    if (!(a & 0x80000000u)) a = 0x80000000u | (segbase[(a >> 24) & 0xF] + (a & 0xFFFFFF));
+    if (a >= 0x80000000u && a < 0x80800000u) return (const uint8_t*)(size_t)a;
+    return g_zero;                                                       // garbage pointer (e.g. an object not initialised yet): read zeros instead of crashing
 }
 struct Tile { int fmt, siz, line, tmem, pal, cmT, maskT, shiftT, cmS, maskS, shiftS, uls, ult, lrs, lrt; };
 struct Light { float r, g, b; float dx, dy, dz; };
@@ -504,6 +506,7 @@ static void runDL(uint32_t addr, int depth) {
         case 0xF6: fillRect((w1 >> 14) & 0x3FF, (w1 >> 2) & 0x3FF, ((w0 >> 12) & 0xFFF) >> 2, (w0 & 0xFFF) >> 2); break;
         case 0xE4: {
             const uint8_t* q = p + 8;
+            if (g_dump) fprintf(g_dump, "      [texrect follow %08X %08X | %08X %08X]\n", rd32(q), rd32(q + 4), rd32(q + 8), rd32(q + 12));
             if (q[0] == 0xE1) { texRect(w0, w1, rd32(q + 4), rd32(q + 12)); p += 16; }      // gsSPTextureRectangle: E4 + E1 (s,t) + F1 (dsdx,dtdy)
             else texRect(w0, w1, 0, 0x04000400u);                                              // this game emits a bare E4: texture origin 0, one texel per pixel
             break;

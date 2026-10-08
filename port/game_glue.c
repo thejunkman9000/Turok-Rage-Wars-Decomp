@@ -108,7 +108,7 @@ static DWORD WINAPI game_thread(LPVOID p) {
     fprintf(stderr, "game thread: calling func_00293518\n"); fflush(stderr);
     __try { func_00293518(); }
     __except (fprintf(stderr, "game thread exception 0x%08lX at %p\n", GetExceptionCode(),
-                      GetExceptionInformation()->ExceptionRecord->ExceptionAddress), dump_trace(60), EXCEPTION_EXECUTE_HANDLER) { }
+                      GetExceptionInformation()->ExceptionRecord->ExceptionAddress), fprintf(stderr, "  rva %08lX\n", (unsigned long)((size_t)GetExceptionInformation()->ExceptionRecord->ExceptionAddress - (size_t)GetModuleHandleA(0))), dump_trace(60), EXCEPTION_EXECUTE_HANDLER) { }
     fprintf(stderr, "game thread ended\n"); fflush(stderr);
     { extern void port_thread_died(void); port_thread_died(); }
     return 0;
@@ -237,33 +237,47 @@ void port_early_init(void) {
     g_ranges_ok = ok;
     {   /* guest code addresses (0x200400-0x44F000) get executable jump stubs to the host functions: code pointers that are created
            or loaded at run time (object tables inside RNC packs, constants in drafts) can then be called as they are */
-        MEMORY_BASIC_INFORMATION mi; unsigned a = 0x200000u; int n = 0, i;
+        MEMORY_BASIC_INFORMATION mi; unsigned a = 0x200000u; int n = 0, i; static unsigned ours_lo[64], ours_hi[64]; int nours = 0;      /* only ranges this code committed are ever written below: other modules may live in 0x200000-0x44F000 */
         while (a < 0x450000u && VirtualQuery((void *)(size_t)a, &mi, sizeof mi)) {
             unsigned base = (unsigned)(size_t)mi.BaseAddress, end = base + (unsigned)mi.RegionSize;
             if (mi.State == MEM_FREE) {
                 unsigned lo = a > base ? a : base, hi = end < 0x450000u ? end : 0x450000u;
                 lo = (lo + 0xFFFFu) & ~0xFFFFu;
-                if (hi > lo && !VirtualAlloc((void *)(size_t)lo, hi - lo, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE)) { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code range alloc failed [%08X+%X] err=%lu" "\n", lo, hi - lo, GetLastError()); fclose(f); } }
+                if (hi > lo && VirtualAlloc((void *)(size_t)lo, hi - lo, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE) && nours < 64) { ours_lo[nours] = lo; ours_hi[nours] = hi; nours++; }
+                else if (hi > lo) { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code range alloc failed [%08X+%X] err=%lu" "\n", lo, hi - lo, GetLastError()); fclose(f); } }
+            } else if (mi.State == MEM_RESERVE && mi.Type == MEM_PRIVATE) {      /* reserved earlier by this process (guest low space): commit it as executable */
+                unsigned lo = a > base ? a : base, hi = end < 0x450000u ? end : 0x450000u;
+                if (hi > lo && VirtualAlloc((void *)(size_t)lo, hi - lo, MEM_COMMIT, PAGE_EXECUTE_READWRITE) && nours < 64) { ours_lo[nours] = lo; ours_hi[nours] = hi; nours++; }
             } else { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code range busy [%08X+%X] st=%lX ty=%lX" "\n", base, (unsigned)mi.RegionSize, mi.State, mi.Type); fclose(f); }
             }
             if (end <= a) break;
             a = end;
         }
-        for (a = 0x200000u; a < 0x450000u; a += 4) { if (!IsBadWritePtr((void *)(size_t)a, 4)) *(unsigned *)(size_t)a = 0xCCCCCCCCu; }      /* code addresses that are not function entries trap (int3) instead of sliding over zero bytes into the next stub */
+        for (i = 0; i < nours; i++) memset((void *)(size_t)ours_lo[i], 0xCC, ours_hi[i] - ours_lo[i]);      /* code addresses that are not function entries trap (int3) instead of sliding over zero bytes into the next stub */
         for (i = 0; i < port_fn_count; i++) {
             unsigned g = port_fn_table[i].guest; unsigned char *p = (unsigned char *)(size_t)g;
-            if (g >= 0x200000u && g < 0x450000u && !IsBadWritePtr(p, 8)) { p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++; }
+            int inours = 0, q; for (q = 0; q < nours; q++) if (g >= ours_lo[q] && g + 8 <= ours_hi[q]) inours = 1;
+            if (inours) {
+                int room = 1, j2;
+                for (j2 = 0; j2 < port_fn_count && room; j2++) if (port_fn_table[j2].guest > g && port_fn_table[j2].guest < g + 9) room = 0;
+                p[0] = 0xE9; *(int *)(p + 1) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 5)); n++;
+                if (room) {        /* data tables also hold entry+4 (the first instruction is skipped or dead): answer there too, the entry stub becomes a short jump onto that second stub */
+                    p[4] = 0xE9; *(int *)(p + 5) = (int)((size_t)port_fn_table[i].host - (size_t)(g + 9)); p[0] = 0xEB; p[1] = 2;
+                }
+            }
         }
         {   /* code pointers a few bytes into a function (its first instructions are dead): {alias, function}; the function's own stub shrinks to a short jump onto the alias stub */
-            static const unsigned alias[][2] = { { 0x42F130u, 0x42F12Cu }, { 0x419B90u, 0x419B8Cu }, { 0x4396C0u, 0x4396BCu } };
+            static const unsigned alias[][2] = { { 0x4396C0u, 0x4396BCu }, { 0x202028u, 0x202018u }, { 0x204870u, 0x20486Cu }, { 0x20F6C0u, 0x20F6B8u }, { 0x210230u, 0x210228u }, { 0x21A2E4u, 0x21A2D4u }, { 0x22D03Cu, 0x22D030u }, { 0x230050u, 0x230048u }, { 0x258298u, 0x25828Cu }, { 0x2631DCu, 0x2631D0u }, { 0x290A70u, 0x290A68u }, { 0x291FF4u, 0x291FE8u }, { 0x419B90u, 0x419B8Cu }, { 0x41A0E0u, 0x41A0DCu }, { 0x41F2A0u, 0x41F298u }, { 0x423C20u, 0x423C18u }, { 0x4264F0u, 0x4264E4u }, { 0x429180u, 0x429178u }, { 0x4293B0u, 0x4293ACu }, { 0x429C10u, 0x429C04u }, { 0x42DBD0u, 0x42DBC8u }, { 0x4366D0u, 0x4366C4u }, { 0x43EFD0u, 0x43EFCCu }, { 0x446330u, 0x44632Cu }, };
             for (i = 0; i < (int)(sizeof alias / sizeof alias[0]); i++) {
                 unsigned char *pa = (unsigned char *)(size_t)alias[i][0], *pb = (unsigned char *)(size_t)alias[i][1]; int k;
+                { int q2, okr = 0; for (q2 = 0; q2 < nours; q2++) if (alias[i][1] >= ours_lo[q2] && alias[i][0] + 8 <= ours_hi[q2]) okr = 1; if (!okr) continue; }
                 for (k = 0; k < port_fn_count; k++) if (port_fn_table[k].guest == alias[i][1]) {
                     pa[0] = 0xE9; *(int *)(pa + 1) = (int)((size_t)port_fn_table[k].host - (size_t)(alias[i][0] + 5));
                     pb[0] = 0xEB; pb[1] = (unsigned char)(alias[i][0] - alias[i][1] - 2); break; }
             }
         }
         { FILE *f = fopen("port_early.txt", "a"); if (f) { fprintf(f, "code stubs installed: %d of %d" "\n", n, port_fn_count); fclose(f); } }
+        if (n < port_fn_count) ok = 0;      /* some code range is occupied by another module in this run: relaunch for a different layout (see the retry below) */
     }
     {   /* the guest's low space [0x200000,0x2000000) is accessed at +GUEST_DELTA; keep host allocations (thread stacks, heap) out of
            the original range, otherwise a host pointer there would be translated by mistake */
@@ -304,7 +318,8 @@ void port_early_init(void) {
 }
 
 void port_game_init(void) {
-    freopen("port_log.txt", "w", stderr); setvbuf(stderr, NULL, _IONBF, 0);
+    { char lf[260]; if (!GetEnvironmentVariableA("TUROK_LOG", lf, sizeof lf)) strcpy(lf, "port_log.txt"); if (!freopen(lf, "w", stderr)) { sprintf(lf, "port_log_%lu.txt", GetCurrentProcessId()); freopen(lf, "w", stderr); } }   /* another instance may still hold port_log.txt */
+    setvbuf(stderr, NULL, _IONBF, 0);
     SetUnhandledExceptionFilter(crash_final); AddVectoredExceptionHandler(1, crash_filter);
     if (!g_ranges_ok) { fprintf(stderr, "could not reserve the game's address ranges (after retries)\n"); return; }
     fprintf(stderr, "guest address ranges reserved (attempt %s)\n", getenv("PORT_RETRY") ? getenv("PORT_RETRY") : "0");
@@ -413,7 +428,7 @@ void port_watch_tick(void) {
 /* TUROK_TRACE=func_0044E454,func_00254B2C  logs the arguments of those statically recompiled functions on every call */
 static char g_trace_names[512]; static int g_trace_init;
 void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsigned a3) {
-    if (!g_trace_init) { g_trace_init = 1; if (!GetEnvironmentVariableA("TUROK_TRACE", g_trace_names, sizeof g_trace_names)) g_trace_names[0] = 0; }
+    if (!g_trace_init) { g_trace_init = 1; if (!GetEnvironmentVariableA("TUROK_FTRACE", g_trace_names, sizeof g_trace_names)) g_trace_names[0] = 0; }
     if (g_trace_names[0] && strstr(g_trace_names, name) && (!strcmp(name, "func_0044E454") || !strcmp(name, "func_0044D408") || !strcmp(name, "func_0044D024") || !strcmp(name, "func_0044CD58"))) { unsigned p1 = be32((void *)(size_t)a1), p2 = (p1 >= 0x80000000u && p1 < 0x80800000u) ? be32((void *)(size_t)p1) : 0; fprintf(stderr, "chain: *a1=%08X **a1=%08X\n", p1, p2); if (p2 >= 0x80000000u && p2 < 0x80800000u) { int i; for (i = 0; i < 24; i++) fprintf(stderr, " %08X", be32((unsigned char *)(size_t)p2 + i * 4)); fprintf(stderr, "\n"); } }
     if (g_trace_names[0] && strstr(g_trace_names, name)) { fprintf(stderr, "call %s(%08X, %08X, %08X, %08X)\n", name, a0, a1, a2, a3); fflush(stderr); }
     if (g_trace_names[0] && strstr(g_trace_names, name) && strstr(g_trace_names, "dump") && a0 >= 0x80000000u && a0 < 0x80800000u) { static int nd; int k; if (nd++ < 3) { fprintf(stderr, "  obj %08X:", a0); for (k = 0; k < 40; k++) fprintf(stderr, " %08X", be32((void *)(size_t)(a0 + k * 4))); fprintf(stderr, "\n"); } }

@@ -20,6 +20,8 @@ def main():
     absorbed -= {n for n in absorbed if n not in defd}
     missing = sorted(n for n in idx if re.match(r'func_[0-9A-F]{8}$', n) and n not in man and n not in absorbed)
     fpm = re.compile(r'\b(lwc1|swc1|ldc1|sdc1|mtc1|mfc1|[a-z]+\.[sd]|cvt\.\S+|bc1[tf]l?|ctc1|cfc1|mtc0|mfc0|eret|tlb\w+|cache)\b')
+    skip = set(open('port/recomp_skip.txt').read().split()) if os.path.exists('port/recomp_skip.txt') else set()      # has usable C although the asm entry label is mis-split
+    missing = [n for n in missing if n not in skip]
     sel = []; fp = 0; fail = 0
     for n in missing:
         t = open(idx[n], encoding='utf-8').read()

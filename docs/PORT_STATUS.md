@@ -42,7 +42,7 @@ How the missing code is covered
   into a function or on a bare `jr $ra`; those are handled by alias stubs / an exec-fault redirect.
 
 Debug switches (environment variables): `TUROK_SKIPMENU=1` (leave the controller-pak screen), `TUROK_AUTOPRESS=1`,
-`TUROK_TRACE=func_x,bt,dump`, `TUROK_WATCH=<guest word>`, `TUROK_SAMPLE=1`, `TUROK_DLFRAME=n` (dump display lists),
+`TUROK_FTRACE=func_x,bt,dump (function arg trace; TUROK_TRACE is the oracle frame trace)`, `TUROK_WATCH=<guest word>`, `TUROK_SAMPLE=1`, `TUROK_DLFRAME=n` (dump display lists),
 `TUROK_VTXLOG=1`, `TUROK_NOTRI`, `TUROK_NORECT`, `TUROK_DUMPTICK=1`.
 
 Known problems

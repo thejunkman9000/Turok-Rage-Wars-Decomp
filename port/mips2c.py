@@ -349,7 +349,7 @@ def recompile_function(text, name, known, max_stack_args=0):
     for it in items:
         if it[0] == 'ins' and it[1] in ('lw', 'lh', 'lhu', 'lb', 'lbu', 'lwc1'):
             mm = re.match(r'(.*)\(\$?sp\)$', it[2][1])
-            if mm and imm(mm.group(1) or '0') >= frame + 0x10 and frame:
+            if mm and imm(mm.group(1) or '0') >= frame + 0x10:      # (frame may be 0: a leaf without its own stack frame still reads its stack arguments at 16($sp)...)
                 inargs = max(inargs, (imm(mm.group(1)) - frame - 0x10) // 4 + 1)
     inargs = min(inargs, 20)
     jtargets = [t for it in items if it[0] == 'jtbl' for t in it[1]]
@@ -400,12 +400,14 @@ def recompile_function(text, name, known, max_stack_args=0):
                 if m == 'jal': target = ops[0]
                 else: target = None
                 # stack-passed arguments: stores to 0x10(sp).. since the last call
-                if dm == 'sw':                                   # an argument store in the delay slot counts too
+                if dm in ('sw', 'swc1', 'sdc1'):                 # an argument store in the delay slot counts too
                     mm = re.match(r'(.*)\(\$?sp\)$', dops[1])
                     if mm:
                         off = simm(imm(mm.group(1) or '0'))
-                        if not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31): saved_slots.add(off)
-                        elif 0x10 <= off < 0x70 and off not in saved_slots: pending.add(('sp', off))
+                        if dm == 'sw' and not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31): saved_slots.add(off)
+                        elif 0x10 <= off < 0x70 and off not in saved_slots:
+                            pending.add(('sp', off))
+                            if dm == 'sdc1': pending.add(('sp', off + 4))
                 nargs = 4
                 while ('sp', 0x10 + 4 * (nargs - 4)) in pending: nargs += 1
                 args = ['r[4]', 'r[5]', 'r[6]', 'r[7]'] + ['*(u32 *)(r[29] + %d)' % (0x10 + 4 * k) for k in range(nargs - 4)]
@@ -445,13 +447,15 @@ def recompile_function(text, name, known, max_stack_args=0):
                 pending = set(); seen_call = True
             i = min(j + 1, len(items)); continue
         # remember stores to outgoing argument slots
-        if m == 'sw':
+        if m in ('sw', 'swc1', 'sdc1'):
             mm = re.match(r'(.*)\(\$?sp\)$', ops[1])
             if mm:
                 off = simm(imm(mm.group(1) or '0'))
-                if not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31):
+                if m == 'sw' and not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31):
                     saved_slots.add(off)                          # callee-saved register spill, not an argument
-                elif 0x10 <= off < 0x70 and off not in saved_slots: pending.add(('sp', off))
+                elif 0x10 <= off < 0x70 and off not in saved_slots:
+                    pending.add(('sp', off))
+                    if m == 'sdc1': pending.add(('sp', off + 4))
         txt = gen_ins(m, ops, known, None)
         # function addresses materialised as constants (lui + addiu/ori, possibly with other instructions in between):
         # use the real function symbol so that the value is a host pointer
