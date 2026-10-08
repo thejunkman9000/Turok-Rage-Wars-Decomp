@@ -450,6 +450,16 @@ static void runDL(uint32_t addr, int depth) {
         case 0xDF: return;
         case 0xDE: { uint32_t a = w1; if (g_dump) fprintf(g_dump, "DL call %08X (depth %d)\n", a, depth); if ((w0 >> 16) & 1) { runDL(a, depth + 1); return; } runDL(a, depth + 1); break; }
         case 0x01: loadVtx(w0, w1); break;
+        case 0x02: {      // G_MODIFYVTX: overwrite colour / texture coordinates / screen position of a loaded vertex
+            int off = (w0 >> 16) & 0xFF, idx = (w0 & 0xFFFF) / 2;
+            if (idx >= 0 && idx < 64) {
+                V& v = S.vtx[idx];
+                if (off == 0x10) { v.r = ((w1 >> 24) & 255) / 255.f; v.g = ((w1 >> 16) & 255) / 255.f; v.b = ((w1 >> 8) & 255) / 255.f; v.a = (w1 & 255) / 255.f; }
+                else if (off == 0x14) { v.s = (float)(int16_t)(w1 >> 16); v.t = (float)(int16_t)(w1 & 0xFFFF); }
+                else if (off == 0x18) { float x = (float)(int16_t)(w1 >> 16), y = (float)(int16_t)(w1 & 0xFFFF); float vs0 = S.vsc[0] != 0 ? S.vsc[0] : 1.f, vs1 = S.vsc[1] != 0 ? S.vsc[1] : 1.f; v.cw = 1.f; v.cx = (x - S.vtr[0]) / vs0; v.cy = (S.vtr[1] - y) / vs1; }
+                else if (off == 0x1C) { v.cz = 0.f; }
+            }
+            break; }
         case 0x05: emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2); break;
         case 0x06: case 0x07:
             emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2);
