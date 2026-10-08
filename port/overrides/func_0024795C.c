@@ -26,7 +26,9 @@ B10Q4 *func_0024795C(B10Q4 *out, B10Obj *o) {
     f32 k;
     f32 k2;
     f32 s;
+    { static B10Obj *last; static int nl; if (o != last && nl++ < 40) { last = o; fprintf(__acrt_iob_func(2), "24795C: o=%p flags100=%08x p18=%p p1D8=%p out=%p%c", (void *)o, (unsigned)o->flags100, (void *)o->p18, (void *)o->p1D8, (void *)out, 10); } }
     if (!(o->flags100 & 0x300000) && o->p18 == 0) { u32 *w = (u32 *)o; int k; fprintf(__acrt_iob_func(2), "24795C: obj %p p18 NULL, words:", o); for (k = 0; k < 24; k++) fprintf(__acrt_iob_func(2), " %08x", w[k]); fprintf(__acrt_iob_func(2), "\n"); { extern u8 *D_80145044; extern s32 D_80145048; fprintf(__acrt_iob_func(2), "  player array %p count %d\n", D_80145044, D_80145048); } { extern void port_bt(void); port_bt(); } out->x = out->y = out->z = 0; out->w = 1; return out; }
+    if ((o->flags100 & 0x300000) && ((u32)o->p1D8 < 0x80000000u || (u32)o->p1D8 >= 0x80800000u)) { u32 *w = (u32 *)o; int k; static int nbad; if (nbad++ < 3) { fprintf(__acrt_iob_func(2), "24795C: obj %p p1D8=%p bad, words:", (void *)o, (void *)o->p1D8); for (k = 0; k < 24; k++) fprintf(__acrt_iob_func(2), " %08x", w[k]); fprintf(__acrt_iob_func(2), " | +1D0:"); for (k = 0x74; k < 0x80; k++) fprintf(__acrt_iob_func(2), " %08x", w[k]); fprintf(__acrt_iob_func(2), "%c", 10); { extern void port_bt(void); port_bt(); } } out->x = out->y = out->z = 0; out->w = 1; return out; }
     if (o->flags100 & 0x300000) {
         ow = o->p1D8;
         pl = ow->p5DC;

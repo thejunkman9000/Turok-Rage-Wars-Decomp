@@ -91,17 +91,17 @@ def patch_implicit_args(text):
     def sub2(m):
         name, argtxt = m.group(1), m.group(2)
         n = _ALLDEFS.get(name)
-        if not n or not argtxt.strip(): return m.group(0)
+        if not n: return m.group(0)
         line_start = text.rfind('\n', 0, m.start()) + 1
         before = text[line_start:m.start()].rstrip()
         if before and not (before[-1] in '{};:(,=' or before.endswith(('return', 'else', '&&', '||', '!', '?'))): return m.group(0)
-        args = [a for a in argtxt.split(',')]
+        args = [a for a in argtxt.split(',')] if argtxt.strip() else []
         if len(args) >= n: return m.group(0)
         caller = [d for d in defs if d[0] < m.start()]
         if not caller: return m.group(0)
         cp = [nm for _, nm in caller[-1][1]]
         extra = [cp[i] if i < len(cp) and cp[i] else '0' for i in range(len(args), n)]
-        return f'{name}({argtxt.strip()}, {", ".join(extra)})'
+        return f'{name}({argtxt.strip() + ", " if argtxt.strip() else ""}{", ".join(extra)})'
     return PARTIAL_CALL.sub(sub2, text)
 
 def compile_one(p, force):
