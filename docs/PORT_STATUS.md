@@ -28,10 +28,12 @@ The ROM is read from `baserom.us.v11.z64` in the working directory (never commit
 - **Debugging.** `-finstrument-functions` feeds a ring buffer of function entries; a crash prints the last calls
   (`python port\where.py` turns RVAs into names).
 
-## Status (latest)
-The port boots, runs the game's own boot sequence and renders it: the Acclaim Studios logo and the legal/copyright screens appear
-correctly through the D3D11 F3DEX2 renderer (`port/renderer.cpp`).  The state machine advances through the splash states into the
-main-menu state; the menu's 3D background still crashes on half-initialised objects.
+## Status (latest, 2026-10-09)
+The port boots through the game's own boot sequence, menus, loadout and match options into 1-player trials and 2-player split-screen
+matches with music and sound effects (libultra audio library + `port/audio_hle.c`), renders them through the D3D11 F3DEX2 renderer
+(`port/renderer.cpp`) and runs the attract mode indefinitely (seven demo screens, then recorded gameplay demos).  Scripted runs
+(`port/pressfile.ps1`, fast-forward `TUROK_FF`) cover boot -> level and 2-player matches; the sections below are the chronological log
+of how each piece was brought up and which traps were found.  Older paragraphs describe the state at their date, not today.
 
 How the missing code is covered
 - **Exact static recompilation** (`port/mips2c.py`, `gen_recomp.py`): every function without matching C is recompiled from the ROM's
@@ -45,11 +47,12 @@ Debug switches (environment variables): `TUROK_SKIPMENU=1` (leave the controller
 `TUROK_FTRACE=func_x,bt,dump (function arg trace; TUROK_TRACE is the oracle frame trace)`, `TUROK_WATCH=<guest word>`, `TUROK_SAMPLE=1`, `TUROK_DLFRAME=n` (dump display lists),
 `TUROK_VTXLOG=1`, `TUROK_NOTRI`, `TUROK_NORECT`, `TUROK_DUMPTICK=1`.
 
-Known problems
+Known problems (as of the first bring-up; see the dated sections for what was resolved since)
 - Menu background objects: slots in the object array are visited before they are initialised (null `def`), guarded in
-  `port/overrides/func_0024795C.c` / `func_0024B2C0.c` for now.
+  `port/overrides/func_0024795C.c` / `func_0024B2C0.c` for now.  (Resolved 2026-10-09: the "null" objects were dropped argument
+  registers, see "Dropped argument registers"; the guards are now dormant.)
 - The controller-pak screen (screen 19) is not completed by the port's pak stubs; `TUROK_SKIPMENU` is a workaround.
-- Audio (alAudio*, alSndp*, alCSP*) is stubbed; no sound.
+- Audio (alAudio*, alSndp*, alCSP*) is stubbed; no sound.  (Resolved 2026-10-09: see "Audio".)
 - libm: the game's `sinf/cosf` double tables are word-swapped on the little-endian host (`DU()` macro in `src/libultra/cosf.c`).
 - The rewriter pitfalls found so far: volatile accesses (atomic in clang's MSVC mode), align-1 loads, `memcpy` pointer attributes,
   byte loads/stores, stack objects.
@@ -109,3 +112,9 @@ Known problems
 - Every demo soak "ended" quietly after the 7th attract cycle: run.log stopped at `screen id -> 2` / `game state st=20` and the process was gone. It was a crash on the main thread (renderer) that no handler reported: the game-thread `__except` only covers the game thread, and the one-shot vectored report had already been consumed by a first-chance fault (an `IsBadReadPtr` probe inside the handler itself). `crash_filter2` now writes a raw report first (`CRASH(raw): code rva acc addr tid registers` plus up to 160 return addresses into the module, via WriteFile on the log handle - `_get_osfhandle(_fileno(stderr))`, a GUI process has no fd 2) for the first 6 access violations, then the old fprintf report once. `port_early.txt` keeps the same raw line for every exception, including first-chance ones. Symbolise rvas against `port/build/turok.map` (Rva+Base column minus 0x20000000; lowercase hex). `TUROK_CRASHTEST=1` faults on purpose at frame 300 to check the path.
 - The fault: `loadTile` with lrs < uls (a LoadTile command the game issues while tearing the demo down) gave a negative row size, which memcpy took as ~4 GB and wrote past the heap. The RDP loads nothing for an empty rectangle; loadTile now returns for w <= 0 / h <= 0 and loadBlock clamps to the 4 KB TMEM.
 - After that fix the soak still froze at the same point, this time with every thread alive: a stall watchdog thread (`stall_watch` in game_glue.c, dumps `STALL: ... g_lock owner/recursion, every game thread's state/queue/eip/stack, the platform thread`, through WriteFile only) showed all eight game threads waiting on their queues and the platform thread inside `runDL` twelve levels deep: a self-referencing display list (the game re-initialising while the renderer still reads the previous task's list) ran the 200000-command guard at every nesting level, i.e. forever. `runDL` now has a per-frame budget of 4M commands (`renderer: display list runaway, frame abandoned` once it trips); the per-vertex `getenv("TUROK_VTXLOG")` it was spinning in is cached.
+
+### Reference: game state machine, screen ids (2026-10-09)
+- Main loop `func_00291404` waits on the queue `D_80146980` and calls the state dispatcher `func_0029382C` (overridden to log `game state: st=N fn_rva`), which runs `D_800D29DC[st].fn(g)`; the table at `D_800D29D8` (ROM 0xD35D8; RAM = ROM + 0x7FFFF400 for the main segment) has 26 entries of {init, update, x}. Seen states: 0 boot, 1 title (`func_00293EAC/F38`), 4 (`func_002941AC/1D0`), 8 recorded gameplay demo (`func_002943B8/00294404`, screen 24 pushed), 13 title/attract loop (`func_002946A8/7BC`), 20 transition (`func_00294AC4`: waits for the fade counter `D_80146D68 == 2` and `g->f26DD0 == 0`, then switches to `g->f26DBC` and calls its init).
+- Attract sequence from the title: seven cycles of state 13 with the demo screen (ids `-1, 2, 24`), then `13 -> 20 -> 1 -> 20 -> 4 -> 20 -> 8/24 -> 20 -> 13 ...` repeating with recorded gameplay demos in the arenas.
+- UI screen ids (`screen id -> N (top=K)` from `func_0029A958`): 29 title, 24 attract demo, 3 main menu, 19 controller-pak screen, 9 ?, 26 how many players, 7 join page, 8 loadout, 20/21 match options (21 = options page), 25 rumble prompt / in-level overlay, 10 in-level overlay, `2 (top=0)` = UI stack empty (in a level or between screens), -1 = stack cleared.
+- `TUROK_FF` stages key off those ids (`port_ff_screen`); `pressfile.ps1 -Gate` defaults to `-> 3 ` (main menu).
