@@ -6,7 +6,7 @@ void alEvtqPostEvent(ALEventQueue *evtq, ALEvent *evt, ALMicroTime delta);
 void alSndpPlay(ALSndPlayer *sndp) {
     ALEvent evt;
     static int n;
-    if (n++ < 40) fprintf(__acrt_iob_func(2), "alSndpPlay(sndp=%p target=%d)\n", (void *)sndp, (int)sndp->target);
+    { extern unsigned long long port_audio_pushed(void); if (n++ < 60) fprintf(__acrt_iob_func(2), "alSndpPlay(sndp=%p target=%d) wav_byte=%llu\n", (void *)sndp, (int)sndp->target, port_audio_pushed()); }
     evt.type = AL_SNDP_PLAY_EVT;
     evt.msg.sndp.state = sndp->sndState + sndp->target;
     alEvtqPostEvent(&sndp->evtq, &evt, 0);

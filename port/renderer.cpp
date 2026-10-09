@@ -397,13 +397,14 @@ static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     float s0 = (int16_t)(h1w1 >> 16), t0 = (int16_t)(h1w1 & 0xFFFF), dsdx = (int16_t)(h2w1 >> 16), dtdy = (int16_t)(h2w1 & 0xFFFF);
     g_rects++; { static int nl; if (nl < 200 && g_nfpub >= 590 && getenv("TUROK_VTXLOG") && ++nl) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
     int cycle = (S.omH >> 20) & 3; float sp = (cycle == 2) ? 0.25f : 1.f;
-    int save = S.texTile; S.texTile = tile; uint32_t sg = S.geom, sl = S.omL, sh = S.omH; S.geom &= ~1u;
-    if (dsdx == 1024 && dtdy == 1024) S.omH &= ~(3u << 12);      // 1:1 copies sample texel centres on the RDP: point sampling keeps them exact when the target is upscaled (bilinear bled the padding of cached background patches into a visible outline)
+    int save = S.texTile; S.texTile = tile; uint32_t sg = S.geom, sl = S.omL; S.geom &= ~1u;
     setupState(cycle == 2 ? 2 : 0);
     const Tile& t = S.tile[tile & 7];
     float x0 = xl / 4.f, y0 = yl / 4.f, x1 = xh / 4.f, y1 = yh / 4.f;
     if (cycle >= 2) { x1 += 1; y1 += 1; }
     float s1 = s0 + (x1 - x0) * dsdx * sp / 1024.f * 32.f, t1 = t0 + (y1 - y0) * dtdy / 1024.f * 32.f;
+    if (dsdx == 1024 && cycle < 2) { s0 += 16; s1 -= 16; }      // 1:1 copies: the RDP samples texel centres, so the quad's edge pixels map to the edge texel centres; otherwise the upscaled bilinear fetch
+    if (dtdy == 1024 && cycle < 2) { t0 += 16; t1 -= 16; }      // bleeds the padding next to cached background patches into a visible outline (main menu, lower left)
     auto uvx = [&](float s) { return (s / 32.f - t.uls / 4.f) / curTexW; }; auto uvy = [&](float tt) { return (tt / 32.f - t.ult / 4.f) / curTexH; };
     float X0 = x0 / SCREEN_W * 2 - 1, X1 = x1 / SCREEN_W * 2 - 1, Y0 = 1 - y0 / SCREEN_H * 2, Y1 = 1 - y1 / SCREEN_H * 2;
     Vtx q[4]; for (int i = 0; i < 4; i++) { q[i].z = 0; q[i].w = 1; q[i].r = q[i].g = q[i].b = q[i].a = 1; }
@@ -413,7 +414,7 @@ static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     q[3].x = X0; q[3].y = Y1; q[3].u = uvx(s0); q[3].v = uvy(t1);
     { static int nl; if (nl++ < 6) { fprintf(stderr, "  uv %.3f,%.3f - %.3f,%.3f  tex %dx%d uls %d ult %d dsdx %g dtdy %g\n", q[0].u, q[0].v, q[2].u, q[2].v, curTexW, curTexH, t.uls, t.ult, dsdx, dtdy); fflush(stderr); } }
     batch.push_back(q[0]); batch.push_back(q[1]); batch.push_back(q[2]); batch.push_back(q[0]); batch.push_back(q[2]); batch.push_back(q[3]);
-    S.texTile = save; S.geom = sg; S.omL = sl; S.omH = sh;
+    S.texTile = save; S.geom = sg; S.omL = sl;
 }
 
 static void loadBlock(uint32_t w0, uint32_t w1) {
