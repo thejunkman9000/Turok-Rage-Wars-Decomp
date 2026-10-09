@@ -36,7 +36,7 @@ void func_002536F4(s32 a, void *p);
 void func_00255C58(void *l, void *n);
 void func_00255E78(void *l, void *n);
 void func_0027200C(M04Vec3 *d, M04Vec3 *s, f32 f);
-s32 func_0028B1F8(void *w);
+s32 func_0028B1F8(void *w, u32);
 s32 func_0028B238(void *w, s32 a);
 s32 func_0028CF48(void *w, u16 a);
 void *func_0028FD94(s32 n, s32 i);
@@ -58,7 +58,7 @@ void *func_002627C0(M04Spawn *w, s32 id, s32 a2, M04Vec3 p, f32 g, M04Vec3 q, M0
     void *res;
     void *ret;
     res = 0;
-    m = func_0028B1F8(D_8011FE88);
+    m = func_0028B1F8(D_8011FE88, id);   /* port: the MIPS code passed this function's own a1 (id) on; the decomp dropped it */
     ret = 0;
     if (m != -1) {
         k = func_0028FE08(*(s32 *)(D_8011FE88 + 0x54), *(s32 *)(D_8011FE88 + 0x24), m);
