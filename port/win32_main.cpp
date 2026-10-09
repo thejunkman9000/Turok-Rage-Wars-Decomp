@@ -85,10 +85,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
         int ff = port_ff_active(); int nfr = ff ? 10 : port_speed();
         if (nfr > 1) { for (int k = 0; k < nfr; k++) { port_game_frame(); port_wait_idle(); } }   // TUROK_SPEED=n: n frames per presented frame (paced); fast-forward: 10, unpaced   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
         else port_game_frame();                                   // run one game frame (fills the display list)
-        if (nfr > 1) {   // TUROK_SPEED: report the delivered rate every 5 s of wall time (the pacer skips its sleep when n frames take longer than 16.7 ms, so the real multiplier can fall below n)
+        if (!ff) {   // report the delivered frame rate every 5 s of wall time (the pacer skips its sleep when the frames take longer than 16.7 ms, so the real rate can fall below 60 x n)
             static LARGE_INTEGER rf, rt; static long rn; LARGE_INTEGER t; QueryPerformanceCounter(&t);
             if (!rf.QuadPart) { QueryPerformanceFrequency(&rf); rt = t; rn = g_frames; }
-            else if (t.QuadPart - rt.QuadPart >= rf.QuadPart * 5) { double s = (double)(t.QuadPart - rt.QuadPart) / rf.QuadPart; fprintf(stderr, "speed: %ld game frames in %.1f s wall = %.1fx\n", (long)(g_frames - rn), s, (g_frames - rn) / (60.0 * s)); rt = t; rn = g_frames; }
+            else if (t.QuadPart - rt.QuadPart >= rf.QuadPart * 5) { double s = (double)(t.QuadPart - rt.QuadPart) / rf.QuadPart; fprintf(stderr, "speed: %ld game frames in %.1f s wall = %.1fx (%.1f fps)\n", (long)(g_frames - rn), s, (g_frames - rn) / (60.0 * s), (g_frames - rn) / s); rt = t; rn = g_frames; }
         }
         oracle_frame_end();                                  // TUROK_ORACLE & co: trace / frame limit (see port/oracle.c)
         if (oracle_headless()) continue;

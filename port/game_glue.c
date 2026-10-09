@@ -373,6 +373,9 @@ void port_game_init(void) {
 }
 void port_game_frame(void) {
     InterlockedIncrement(&g_frames); port_vi_tick();
+    if ((g_frames % 6) == 0) {   /* publish the frame counter (port_frame.txt, atomically replaced) so pressfile.ps1 can wait in game frames instead of wall time (a loaded host runs below n x 60 fps) */
+        FILE *pf = fopen("port_frame.tmp", "w"); if (pf) { fprintf(pf, "%ld\n", (long)g_frames); fclose(pf); MoveFileExA("port_frame.tmp", "port_frame.txt", MOVEFILE_REPLACE_EXISTING); }
+    }
     { static int ct = -1; if (ct < 0) ct = getenv("TUROK_CRASHTEST") ? 1 : 0; if (ct && g_frames == 300) *(volatile int *)16 = 1; }   /* TUROK_CRASHTEST=1: fault on purpose to check the crash log */
 }
 extern volatile long g_gfx_task_ready; extern unsigned char g_gfx_task[];

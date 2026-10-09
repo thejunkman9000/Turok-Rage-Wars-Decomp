@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define RING_BYTES (1 << 18)
-#define BLK_FRAMES 1024
+#define BLK_FRAMES 512                 /* 16 ms device blocks at 32 kHz (4 queued = 64 ms device latency) */
 #define NBLK 4
 
 static unsigned char ring[RING_BYTES];
@@ -20,13 +20,18 @@ static HANDLE ev, th;
 static unsigned freq = 32000;
 static int started, failed, muted = -1;
 static unsigned long long pushed;
+static unsigned underruns;                /* device blocks filled with silence because the ring was empty (choppy sound) */
+static int primed;                        /* consuming: set once PREBUF is queued, cleared by an underrun (hysteresis, see fill) */
+#define PREBUF_BYTES (freq / 10 * 4)      /* 100 ms: production and consumption run at the same average rate, so without this the ring
+                                             sat near empty and every other block came out as silence (895 underruns in a 40 s match) */
 
 static void fill(short *dst) {
     unsigned avail, want = BLK_FRAMES * 4, i; unsigned char *d = (unsigned char *)dst;
     EnterCriticalSection(&cs);
     avail = wr - rd;
-    if (avail >= want) { for (i = 0; i < want; i++) d[i] = ring[(rd + i) & (RING_BYTES - 1)]; rd += want; }
-    else { memset(d, 0, want); }          /* underrun: silence (keep the data for the next block) */
+    if (!primed && avail >= PREBUF_BYTES) primed = 1;
+    if (primed && avail >= want) { for (i = 0; i < want; i++) d[i] = ring[(rd + i) & (RING_BYTES - 1)]; rd += want; }
+    else { memset(d, 0, want); if (primed) { underruns++; primed = 0; } }      /* underrun: silence, and wait for PREBUF again before resuming */
     LeaveCriticalSection(&cs);
 }
 static DWORD WINAPI feeder(LPVOID p) {
@@ -61,7 +66,7 @@ void port_audio_push(const unsigned char *be, unsigned n) {
     if (failed || muted) return;
     n &= ~3u;
     EnterCriticalSection(&cs);
-    if ((wr - rd) + n > RING_BYTES - 4096) rd = wr - (RING_BYTES / 4);      /* far behind: drop the old audio */
+    if ((wr - rd) + n > PREBUF_BYTES * 3) rd = wr - PREBUF_BYTES;          /* more than 300 ms queued (the game ran ahead, e.g. after a stall): drop back to 100 ms of latency */
     for (i = 0; i < n; i += 2) { ring[(wr + i) & (RING_BYTES - 1)] = be[i + 1]; ring[(wr + i + 1) & (RING_BYTES - 1)] = be[i]; }
     wr += n; pushed += n;
     {   /* TUROK_WAVDUMP=<file>: also write the stream to a .wav (header patched on exit) */
@@ -71,7 +76,7 @@ void port_audio_push(const unsigned char *be, unsigned n) {
     }
     {   static int pk; static unsigned long long lastlog; int v;
         for (i = 0; i + 1 < n; i += 2) { v = (short)((be[i] << 8) | be[i + 1]); if (v < 0) v = -v; if (v > pk) pk = v; }
-        if (pushed - lastlog > (unsigned long long)freq * 4 * 3) { lastlog = pushed; fprintf(stderr, "audio: pushed %llu bytes, peak %d%c", pushed, pk, 10); pk = 0; }
+        if (pushed - lastlog > (unsigned long long)freq * 4 * 3) { lastlog = pushed; fprintf(stderr, "audio: pushed %llu bytes, peak %d, queued %u ms, underruns %u%c", pushed, pk, (wr - rd) / 4 * 1000 / freq, underruns, 10); pk = 0; }
     }
     LeaveCriticalSection(&cs);
 }

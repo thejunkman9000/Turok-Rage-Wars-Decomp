@@ -9,6 +9,11 @@
 #include <string.h>
 #include <intrin.h>
 #include "os_types.h"
+extern volatile long g_frames;           /* game_glue.c: game frames run so far (log timestamps) */
+static OSMesgQueue *g_ev_mq[16]; static OSMesg g_ev_msg[16];   /* osSetEventMesg registrations */
+static int g_tasklog;                    /* TUROK_TASKLOG=1: every RSP task start / completion in the log */
+static int g_aud_done;                   /* an audio RSP task completed (HLE ran at submit); its SP-done is posted when the scheduler next waits for events */
+static void post_from_host(OSMesgQueue *mq, OSMesg m);
 
 /* Guest memory (game structs, message buffers, DMA targets) is big-endian: the game code reads it through byte-swapping
    loads/stores (port/be_ir.py).  The shim must use the same representation for every guest field it touches. */
@@ -147,6 +152,7 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
     mq = (OSMesgQueue *)XL(mq); m = (OSMesg *)XL(m);
     HThread *self = self_thread(); os_init();
     maybe_yield(self);                                    /* a polling thread must not starve a higher-priority thread that became ready */
+    if (g_aud_done && mq == (OSMesgQueue *)XL(g_ev_mq[4])) { g_aud_done = 0; if (g_tasklog) fprintf(stderr, "task done (audio) frame=%ld\n", (long)g_frames); post_from_host(g_ev_mq[4], g_ev_msg[4]); }
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) == 0) {
         if (flags == OS_MESG_NOBLOCK) { LeaveCriticalSection(&g_lock); return -1; }
@@ -176,7 +182,8 @@ static void post_from_host(OSMesgQueue *mq, OSMesg m) {
         ST32(buf[(first + valid) % cnt], (u32)(size_t)m); ST32(mq->validCount, valid + 1);
         wake_one(mq, 1);
         if (!g_current) { HThread *b = pick(); if (b) { g_current = b; b->state = 3; SetEvent(b->evt); } g_preempt = 0; }
-    }
+    } else { static int drops; if (!drops) { extern void port_dump_threads(void); port_dump_threads(); }   /* first drop: who is not consuming? */
+             if (drops++ < 40) fprintf(stderr, "post_from_host: queue %p full (%d), dropped msg %08X at frame %ld\n", (void *)mq, (int)LD32(mq->msgCount), (unsigned)(size_t)m, (long)g_frames); }
     LeaveCriticalSection(&g_lock);
 }
 
@@ -271,7 +278,6 @@ static void run_timers(void) {                               /* called from the 
 }
 
 /* ---- events / VI ---- */
-static OSMesgQueue *g_ev_mq[16]; static OSMesg g_ev_msg[16];
 void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg m) { fprintf(stderr, "osSetEventMesg(%d, %p, %p)\n", (int)e, (void *)mq, (void *)m); if (e < 16) { g_ev_mq[e] = mq; g_ev_msg[e] = m; } }
 static OSMesgQueue *g_vi_mq; static OSMesg g_vi_msg; static int g_vi_count = 1, g_vi_phase;
 void osViSetEvent(OSMesgQueue *mq, OSMesg m, u32 retraceCount) { fprintf(stderr, "osViSetEvent(%p, %p, %u)\n", (void *)mq, (void *)m, retraceCount); g_vi_mq = mq; g_vi_msg = m; g_vi_count = retraceCount ? retraceCount : 1; }
@@ -286,9 +292,10 @@ void *osViGetCurrentFramebuffer(void) { return g_fb; }
 
 void port_dump_threads(void); void port_wait_idle(void);
 static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
+static unsigned long long g_ai_end;      /* AI FIFO model (see the audio interface below): clock time at which the queued buffers finish */
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
-    if (!g_main_tid) g_main_tid = GetCurrentThreadId();
+    if (!g_main_tid) { g_main_tid = GetCurrentThreadId(); g_tasklog = getenv("TUROK_TASKLOG") ? 1 : 0; }
     if (!g_inited) { if (oracle_enabled()) port_wait_idle(); return; }
     { extern void port_watch_tick(void); port_watch_tick(); }
     { static int ticks, dump = -1; if (dump < 0) { char e[4]; dump = GetEnvironmentVariableA("TUROK_DUMPTICK", e, sizeof e) ? 1 : 0; } if (dump && (++ticks == 900 || ticks == 2700)) port_dump_threads(); }
@@ -304,7 +311,7 @@ void port_vi_tick(void) {
     for (;;) {                       /* one queued RSP task completion per tick: SP done, then DP done for graphics tasks */
         int isgfx = -1;
         EnterCriticalSection(&g_lock);
-        if (g_tq_n) { g_dbg_pop++; isgfx = g_tq[g_tq_r]; g_tq_r = (g_tq_r + 1) & 15; g_tq_n--; }
+        if (g_tq_n) { g_dbg_pop++; isgfx = g_tq[g_tq_r]; g_tq_r = (g_tq_r + 1) & 15; g_tq_n--; if (g_tasklog) fprintf(stderr, "task done (gfx=%d) #%d frame=%ld\n", isgfx, g_dbg_pop, (long)g_frames); }
         LeaveCriticalSection(&g_lock);
         if (isgfx < 0) break;
         if (g_ev_mq[4]) post_from_host(g_ev_mq[4], g_ev_msg[4]);                 /* SP done */
@@ -312,6 +319,9 @@ void port_vi_tick(void) {
         break;
     }
     if (g_ev_mq[OS_EVENT_VI]) post_from_host(g_ev_mq[OS_EVENT_VI], g_ev_msg[OS_EVENT_VI]);
+    /* AI DMA-done interrupt (OS_EVENT_AI = 6): about one per frame while audio is queued; the game's audio thread refills the AI FIFO on it
+     * (osSetEventMesg(6, audio queue, 7)) and otherwise only every 21 retraces, which left 350 ms gaps once audio tasks completed at once */
+    if (g_ev_mq[6] && g_ai_end + 46875000ull / 60 > counter_now()) post_from_host(g_ev_mq[6], g_ev_msg[6]);
     if (g_vi_mq && ++g_vi_phase >= g_vi_count) { g_vi_phase = 0; post_from_host(g_vi_mq, g_vi_msg); }
     if (oracle_enabled()) port_wait_idle();
 }
@@ -339,7 +349,7 @@ extern CRITICAL_SECTION g_snap_lock; extern int g_snap_lock_ready; extern int po
 s32 osSpTaskLoad(OSTask *t) { g_task = *(OSTask *)XL(t); return 0; }
 s32 osSpTaskStartGo(OSTask *t) {
     (void)t; g_dbg_startgo++;
-    { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12) { fprintf(stderr, "StartGo #%d type=%u flags=%08X\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags)); }
+    { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12 || g_tasklog) { fprintf(stderr, "StartGo #%d type=%u flags=%08X frame=%ld\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags), (long)g_frames); }
       if (gfx) {
           /* the renderer walks the list on the platform thread while other game threads keep running (loaders overwrite the previous
            * state's lists at transitions), so at normal speed it gets a copy of RDRAM taken while the submitting thread holds the baton;
@@ -350,7 +360,11 @@ s32 osSpTaskStartGo(OSTask *t) {
           if (g_snap_lock_ready) LeaveCriticalSection(&g_snap_lock);
       }
       if (LD32(g_task.t.type) == 2) { static int hle_init; extern void audio_hle_init(unsigned char *(*tr)(unsigned)); extern int audio_hle_run(unsigned addr, unsigned len); if (!hle_init) { hle_init = 1; audio_hle_init(aud_translate); { unsigned char *so = aud_translate(0x801462E0u & 0x1FFFFFFF); if (so && !so[0] && !so[1] && !so[2]) { const char *vo = getenv("TUROK_VOLOPT"); unsigned v = vo ? (unsigned)strtoul(vo, NULL, 16) : 0x8080u; so[0] = (unsigned char)(v >> 8); so[1] = (unsigned char)v; fprintf(stderr, "audio: no saved options, default volumes set%c", 10); } } { unsigned char *pt = aud_translate(0x800D8240u & 0x1FFFFFFF); if (pt) fprintf(stderr, "pan table: %02X%02X %02X%02X %02X%02X %02X%02X%c", pt[0], pt[1], pt[2], pt[3], pt[254], pt[255], pt[256], pt[257], 10); else fprintf(stderr, "pan table: untranslatable%c", 10); } } { static int noaud = -1; if (noaud < 0) noaud = getenv("TUROK_NOAUDIO") ? 1 : 0; if (!noaud) audio_hle_run(LD32(g_task.t.data_ptr), LD32(g_task.t.data_size)); } }
-      os_init(); EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* completion is delivered from the frame tick: the caller still has bookkeeping to do */
+      os_init();
+      /* audio tasks complete at once (the HLE already ran, the real RSP takes about 1 ms): delivering them from the frame tick, one task per
+       * tick shared with the graphics task, starved the audio thread to about 60% of real time (6 s of audio per 10 s of frames, choppy sound) */
+      if (LD32(g_task.t.type) == 2) { g_aud_done = 1; return 0; }   /* delivered when the scheduler next waits on its queue (osRecvMesg), after its post-dispatch bookkeeping */
+      EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* graphics completion is delivered from the frame tick: the caller still has bookkeeping to do */
     return 0;
 }
 void osSpTaskYield(void) {}
@@ -478,11 +492,21 @@ s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void
 s32 osMotorStart(void *pfs) { (void)pfs; return 0; }
 s32 osMotorStop(void *pfs) { (void)pfs; return 0; }
 
-/* ---- audio interface (placeholder until the audio backend exists) ---- */
+/* ---- audio interface ----
+   The AI DMA FIFO is modelled on the clock: every osAiSetNextBuffer extends the time at which the queued buffers finish playing, and
+   osAiGetStatus reports FULL (bit 31) while more than two frames of buffers plus the host output's 100 ms lead are pending.  The game's
+   audio thread produces frames until FULL on every tick (it never reads AI_LEN), which is how it regulates its rate; with the status
+   stuck at "not full" the production rate was set by the task completions instead.  Under TUROK_SPEED/FF the clock is frame based, so
+   the thread still produces about one frame per game frame (the output itself is dropped there). */
 extern void port_audio_set_freq(unsigned f); extern void port_audio_push(const unsigned char *be, unsigned n);
-s32 osAiSetFrequency(u32 f) { port_audio_set_freq(f); return (s32)f; }
-s32 osAiSetNextBuffer(void *b, u32 n) { b = (void *)XL(b); if (b && n) port_audio_push((const unsigned char *)b, n); return 0; }
-u32 osAiGetStatus(void) { return 0; }
+static unsigned g_ai_freq = 22050;
+s32 osAiSetFrequency(u32 f) { if (f) g_ai_freq = f; port_audio_set_freq(f); return (s32)f; }
+s32 osAiSetNextBuffer(void *b, u32 n) {
+    unsigned long long now = counter_now(); if (g_ai_end < now) g_ai_end = now; g_ai_end += (unsigned long long)(n / 4) * 46875000ull / g_ai_freq;
+    { static int c; if (c++ < 4) fprintf(stderr, "osAiSetNextBuffer: %u bytes (%.1f ms at %u Hz)\n", (unsigned)n, (double)(n / 4) * 1000.0 / g_ai_freq, g_ai_freq); }
+    b = (void *)XL(b); if (b && n) port_audio_push((const unsigned char *)b, n); return 0;
+}
+u32 osAiGetStatus(void) { unsigned long long now = counter_now(), lead = g_ai_end > now ? g_ai_end - now : 0; return lead >= 46875000ull / 60 * 2 + 46875000ull / 10 ? 0x80000000u : 0; }
 
 static HANDLE h_open(DWORD tid) { return tid ? OpenThread(THREAD_ALL_ACCESS, FALSE, tid) : NULL; }
 /* debugging aid: what is every game thread doing? */
@@ -493,7 +517,8 @@ void port_dump_threads(void) {
     fprintf(stderr, "threads (current=%p):\n", (void *)g_current);
     for (i = 0; i < MAXT; i++) if (g_th[i].state) {
         HANDLE th = h_open(g_th[i].tid); CONTEXT c; unsigned *sp; int k; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL);
-        fprintf(stderr, "  [%d] tid=%lX state=%d prio=%d entry=%X waitq=%p kind=%d\n", i, (unsigned long)(g_th[i].tid & 0xFFFF), g_th[i].state, g_th[i].prio, (unsigned)((size_t)g_th[i].entry - base), (void *)g_th[i].waitq, g_th[i].waitkind);
+        { OSMesgQueue *wq = g_th[i].waitq ? (OSMesgQueue *)XL(g_th[i].waitq) : NULL; int wv = wq && !IsBadReadPtr(wq, 24) ? (int)LD32(wq->validCount) : -1, wc = wq && !IsBadReadPtr(wq, 24) ? (int)LD32(wq->msgCount) : -1;
+          fprintf(stderr, "  [%d] tid=%lX state=%d prio=%d entry=%X waitq=%p kind=%d queue %d/%d\n", i, (unsigned long)(g_th[i].tid & 0xFFFF), g_th[i].state, g_th[i].prio, (unsigned)((size_t)g_th[i].entry - base), (void *)g_th[i].waitq, g_th[i].waitkind, wv, wc); }
         if (th && g_th[i].tid != GetCurrentThreadId()) {
             SuspendThread(th); c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; GetThreadContext(th, &c);
             fprintf(stderr, "      eip rva %X stack:", (unsigned)c.Eip - base); sp = (unsigned *)c.Esp;
