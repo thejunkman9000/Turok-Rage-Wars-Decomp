@@ -25,4 +25,20 @@ typedef struct Q04Info {
     f32 fC, f10;
     s32 x0, x1, y0, y1;   /* 0x14..0x20; total size 0x24 */
 } Q04Info;
+/* D_800E59E0 page block as seen by func_0043A0A4 (same block as O05L2 but with word fields at 0x134C/0x1354) */
+#include "o05_types.h"
+typedef struct Q04L2 {
+    /* 0x0000 */ void *f0;
+    /* 0x0004 */ void *f4;
+    /* 0x0008 */ O05Row2 row[4];
+    /* 0x1348 */ void *f1348;
+    /* 0x134C */ s32 f134C;
+    /* 0x1350 */ void *f1350;
+    /* 0x1354 */ s32 f1354;
+    /* 0x1358 */ s32 f1358;
+    /* 0x135C */ s32 f135C;
+    /* 0x1360 */ void *f1360;
+    /* 0x1364 */ void *f1364;
+    /* 0x1368 */ s32 f1368;
+} Q04L2;
 #endif
