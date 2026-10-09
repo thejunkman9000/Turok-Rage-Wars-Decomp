@@ -47,7 +47,7 @@ def peephole(c, known):
     return c, used
 
 def gen(names):
-    os.makedirs('port/native/recomp', exist_ok=True)
+    os.makedirs(os.environ.get('RECOMP_OUT') or 'port/native/recomp', exist_ok=True)
     idx = m2c_fallback.asm_index()
     known = known_functions(idx)
     for _n, _p in idx.items():
@@ -67,7 +67,7 @@ def gen(names):
         callee = (set(re.findall(r'\(u32 \(\*\)\(\)\)(\w+)\)\(', c)) | set(re.findall(r'\(\*\)\([^()]*\)\)(\w+)\)\(', c))) - {name}
         decls = ''.join('extern u32 %s();\n' % n for n in sorted(callee | used) if n != name and n not in ('memcpy', 'sqrtf', 'fabsf', 'sqrt', 'fabs', 'floor', 'ceil', 'rint', 'floorf', 'ceilf', 'rintf') and not n.startswith(('port_', '__builtin')))
         data = set(re.findall(r'\b(D_[0-9A-F]{8})\b', c))
-        open('port/native/recomp/%s.c' % name, 'w', newline='\n').write(HEADER % name + decls + c + '\n')
+        open((os.environ.get('RECOMP_OUT') or 'port/native/recomp') + '/%s.c' % name, 'w', newline='\n').write(HEADER % name + decls + c + '\n')
         done.append(name)
     open('port/build/rc_argc.txt', 'w').write('\n'.join('%s %d' % (n, mips2c.ARGC.get(n, 0)) for n in done if mips2c.ARGC.get(n, 0) > 0) + '\n')
     return done

@@ -15,6 +15,7 @@ REGS['s8'] = 30
 def reg(tok):
     tok = tok.strip().lstrip('$')
     return REGS[tok] if tok in REGS else int(tok)
+OLD_SAVED = bool(os.environ.get('MIPS2C_OLD_SAVED'))      # bisect aid: every pre-call store of a callee-saved register is a spill (the rule before 9fbf901)
 FREGS = {}
 for _i, _n in enumerate(['fv0', 'fv0f', 'fv1', 'fv1f', 'ft0', 'ft0f', 'ft1', 'ft1f', 'ft2', 'ft2f', 'ft3', 'ft3f', 'fa0', 'fa0f', 'fa1', 'fa1f',
                          'ft4', 'ft4f', 'ft5', 'ft5f', 'fs0', 'fs0f', 'fs1', 'fs1f', 'fs2', 'fs2f', 'fs3', 'fs3f', 'fs4', 'fs4f', 'fs5', 'fs5f']):
@@ -407,7 +408,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                     mm = re.match(r'(.*)\(\$?sp\)$', dops[1])
                     if mm:
                         off = simm(imm(mm.group(1) or '0'))
-                        if dm == 'sw' and not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and reg(dops[0]) not in saved_regs: saved_slots.add(off); saved_regs.add(reg(dops[0]))
+                        if dm == 'sw' and not seen_call and reg(dops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and (OLD_SAVED or reg(dops[0]) not in saved_regs): saved_slots.add(off); saved_regs.add(reg(dops[0]))
                         elif 0x10 <= off < 0x70 and off not in saved_slots:
                             pending.add(('sp', off))
                             if dm == 'sdc1': pending.add(('sp', off + 4))
@@ -458,7 +459,7 @@ def recompile_function(text, name, known, max_stack_args=0):
             mm = re.match(r'(.*)\(\$?sp\)$', ops[1])
             if mm:
                 off = simm(imm(mm.group(1) or '0'))
-                if m == 'sw' and not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and reg(ops[0]) not in saved_regs:
+                if m == 'sw' and not seen_call and reg(ops[0]) in (16, 17, 18, 19, 20, 21, 22, 23, 30, 31) and (OLD_SAVED or reg(ops[0]) not in saved_regs):
                     saved_slots.add(off); saved_regs.add(reg(ops[0]))                          # callee-saved register spill, not an argument
                 elif 0x10 <= off < 0x70 and off not in saved_slots:
                     pending.add(('sp', off))
