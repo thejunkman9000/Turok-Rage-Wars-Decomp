@@ -136,6 +136,7 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
 
 // ---------------------------------------------------------------------------------------------------------- RDP / RSP state
 static uint32_t segbase[16];
+static int vtxlog_on() { static int v = -1; if (v < 0) v = getenv("TUROK_VTXLOG") ? 1 : 0; return v; }   // cached: this used to be a getenv per vertex command
 static uint8_t g_zero[1 << 16];                                       // stands in for display-list addresses that do not point at guest memory
 static const uint8_t* res(uint32_t a) {
     if (!(a & 0x80000000u)) a = 0x80000000u | (segbase[(a >> 24) & 0xF] + (a & 0xFFFFFF));
@@ -335,7 +336,7 @@ static void emitTri(int i0, int i1, int i2) {
         if ((S.geom & 0x200) && front) return;
     }
     if (g_dump) fprintf(g_dump, "      [tri %d %d %d scr (%.1f %.1f %.3f) (%.1f %.1f %.3f) (%.1f %.1f %.3f) geom=%x]\n", i0, i1, i2, poly[0].cx / poly[0].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[0].cy / poly[0].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[1].cy / poly[1].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[2].cy / poly[2].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[2].cz / poly[2].cw, (unsigned)S.geom);
-    { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
+    { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && vtxlog_on()) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
     if (batch.size() + 12 > 3 * 6000) flush();
@@ -368,7 +369,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
         if (g_dump) fprintf(g_dump, "      [vtx %d: xyz %d %d %d st %d %d raw %02X %02X %02X %02X -> rgba %.2f %.2f %.2f %.2f w %.1f]\n", v0 + i, (int)x, (int)y, (int)z, (int)o.s, (int)o.t, p[12], p[13], p[14], p[15], o.r, o.g, o.b, o.a, o.cw);
-        { static int nl; if (nl < 24 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx %d: pos %d %d %d clip %.2f %.2f %.2f %.2f rgba %.2f %.2f %.2f %.2f light=%d lights=%d\n", v0 + i, (int)x, (int)y, (int)z, o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, o.a, (S.geom >> 17) & 1, S.numLights); } }
+        { static int nl; if (nl < 24 && g_nfpub >= 590 && vtxlog_on()) { nl++; fprintf(stderr, "vtx %d: pos %d %d %d clip %.2f %.2f %.2f %.2f rgba %.2f %.2f %.2f %.2f light=%d lights=%d\n", v0 + i, (int)x, (int)y, (int)z, o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, o.a, (S.geom >> 17) & 1, S.numLights); } }
     }
 }
 
@@ -396,7 +397,7 @@ static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     { static int skip = getenv("TUROK_NORECT") ? 1 : 0; if (skip) return; }
     int xh = (w0 >> 12) & 0xFFF, yh = w0 & 0xFFF, tile = (w1 >> 24) & 7, xl = (w1 >> 12) & 0xFFF, yl = w1 & 0xFFF;   // xh,yh = lower right (10.2)
     float s0 = (int16_t)(h1w1 >> 16), t0 = (int16_t)(h1w1 & 0xFFFF), dsdx = (int16_t)(h2w1 >> 16), dtdy = (int16_t)(h2w1 & 0xFFFF);
-    g_rects++; { static int nl; if (nl < 200 && g_nfpub >= 590 && getenv("TUROK_VTXLOG") && ++nl) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
+    g_rects++; { static int nl; if (nl < 200 && g_nfpub >= 590 && vtxlog_on() && ++nl) { fprintf(stderr, "texrect: x %d..%d y %d..%d tile %d cycle %d\n", xl, xh, yl, yh, tile, (int)((S.omH >> 20) & 3)); fflush(stderr); } }
     int cycle = (S.omH >> 20) & 3; float sp = (cycle == 2) ? 0.25f : 1.f;
     int save = S.texTile; S.texTile = tile; uint32_t sg = S.geom, sl = S.omL, sh = S.omH; S.geom &= ~1u;
     if (dsdx == 1024 && dtdy == 1024) S.omH &= ~(3u << 12);      // 1:1 copies: point sampling reproduces the RDP's texel-centre fetch on the upscaled target (bilinear smeared a green line around the cached background patch of the main menu)
@@ -422,6 +423,7 @@ static void loadBlock(uint32_t w0, uint32_t w1) {
     int bpt = S.timgSiz == 0 ? 1 : S.timgSiz == 1 ? 1 : S.timgSiz == 2 ? 2 : 4;
     int texels = lrs + 1;
     int bytes = S.timgSiz == 0 ? (texels + 1) / 2 : texels * bpt;
+    if (bytes > 4096) bytes = 4096;                          /* TMEM is 4 KB: a bigger load wraps on hardware, here it would read past the source buffer */
     uint32_t addr = S.timg + (S.timgSiz == 0 ? (ult * S.timgW + uls) / 2 : (ult * S.timgW + uls) * bpt);
     const uint8_t* src = res(addr); uint8_t* dst = S.tmem + S.tile[tile].tmem * 8;
     int words = (bytes + 7) / 8;
@@ -436,6 +438,7 @@ static void loadTile(uint32_t w0, uint32_t w1) {
     int bpt = S.timgSiz == 2 ? 2 : S.timgSiz == 3 ? 4 : 1; int w = lrs - uls + 1, h = lrt - ult + 1;
     int rowBytes = S.timgSiz == 0 ? (w + 1) / 2 : w * bpt; int line = S.tile[tile].line * 8;
     int srcStride = S.timgSiz == 0 ? S.timgW / 2 : S.timgW * bpt;
+    if (w <= 0 || h <= 0 || rowBytes > 4096) return;        /* lrs < uls: the RDP loads nothing; a negative size here became a giant memcpy (attract demo, 7th cycle) */
     uint32_t base = S.timg + (S.timgSiz == 0 ? uls / 2 : uls * bpt) + ult * srcStride;
     for (int r = 0; r < h; r++) {
         const uint8_t* src = res(base + r * srcStride); int off = S.tile[tile].tmem * 8 + r * line;
@@ -450,11 +453,13 @@ static void loadTlut(uint32_t w0, uint32_t w1) {
     for (int i = 0; i < count && base + i * 8 + 8 <= 4096; i++) for (int k = 0; k < 4; k++) memcpy(S.tmem + base + i * 8 + k * 2, src + i * 2, 2);
 }
 
+static long g_dlBudget;                                                              /* commands left for this frame: a self-referencing list (seen after the 7th attract demo) would otherwise spin the platform thread forever */
 static void runDL(uint32_t addr, int depth) {
     if (depth > 12) return;
     const uint8_t* p = res(addr);
     for (int guard = 0; guard < 200000; guard++, p += 8) {
         if ((uintptr_t)p >= 0x80000000u && (uintptr_t)p + 8 > 0x80800000u) return;      /* a display list without an end command ran off the end of RAM */
+        if (--g_dlBudget < 0) { static int warned; if (warned++ < 5) { fprintf(stderr, "renderer: display list runaway (depth %d), frame abandoned\n", depth); fflush(stderr); } return; }
         uint32_t w0 = rd32(p), w1 = rd32(p + 4); int op = w0 >> 24; g_ops[op]++; if (g_dump) fprintf(g_dump, "%*s%08X %08X\n", depth * 2, "", w0, w1);
         switch (op) {
         case 0xDF: return;
@@ -475,7 +480,7 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w0 >> 16) & 0xFF) / 2, ((w0 >> 8) & 0xFF) / 2, (w0 & 0xFF) / 2);
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
-            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); if (g_dump) { fprintf(g_dump, "      [mtx f=%d:"); for (int q = 0; q < 16; q++) fprintf(g_dump, " %.3f", m[q]); fprintf(g_dump, "]"); fprintf(g_dump, "%c", 10); } { static int nl; if (nl < 6 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
+            int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); if (g_dump) { fprintf(g_dump, "      [mtx f=%d:"); for (int q = 0; q < 16; q++) fprintf(g_dump, " %.3f", m[q]); fprintf(g_dump, "]"); fprintf(g_dump, "%c", 10); } { static int nl; if (nl < 6 && g_nfpub >= 590 && vtxlog_on()) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
             if (f & 4) { if (f & 2) memcpy(S.proj, m, 64); else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
@@ -493,7 +498,7 @@ static void runDL(uint32_t addr, int depth) {
         case 0xDC: {
             int idx = w0 & 0xFF, off = ((w0 >> 8) & 0xFF) * 8;
             const uint8_t* d = res(w1);
-            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } if (g_dump) { fprintf(g_dump, "      [viewport scale %g %g %g %g trans %g %g %g %g]", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); fprintf(g_dump, "%c", 10); } { static int nv; if (nv++ < 12 && getenv("TUROK_VTXLOG")) fprintf(stderr, "viewport scale %g %g %g %g trans %g %g %g %g\n", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); } }
+            if (idx == 8) { for (int i = 0; i < 4; i++) { S.vsc[i] = (int16_t)rd16(d + i * 2); S.vtr[i] = (int16_t)rd16(d + 8 + i * 2); } if (g_dump) { fprintf(g_dump, "      [viewport scale %g %g %g %g trans %g %g %g %g]", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); fprintf(g_dump, "%c", 10); } { static int nv; if (nv++ < 12 && vtxlog_on()) fprintf(stderr, "viewport scale %g %g %g %g trans %g %g %g %g\n", S.vsc[0], S.vsc[1], S.vsc[2], S.vsc[3], S.vtr[0], S.vtr[1], S.vtr[2], S.vtr[3]); } }
             else if (idx == 10) {
                 int slot = off / 24;
                 if (slot >= 2 && slot <= 9) {      // LIGHT_n sits at n*24+24 (n = 1..): lights[n-1]; the ambient light follows the last one
@@ -557,7 +562,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         g_nfpub = nframes;
         { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 60) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
         { static int trig; if (trig == 0 && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; port_dump_threads(); port_dump_trace_pub(400); { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } { FILE* m2 = fopen("port_mem2.bin", "wb"); if (m2) { fwrite((void*)0x801D0C00u, 1, 0x3600, m2); fclose(m2); } } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
-        runDL(dl, 0); flush();
+        g_dlBudget = 4000000; runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
         if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size()); fflush(stderr); }

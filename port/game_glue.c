@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdio.h>
+#include <io.h>
 #include <stdlib.h>
 #include <string.h>
 #include <intrin.h>
@@ -171,6 +172,27 @@ static int page_in(unsigned addr) {
 
 static void *ret_stub_for(unsigned guest);
 static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep);
+/* return addresses into this module found on the stack, written without stdio and bounded by the thread's stack base
+ * (no memory probes: a failing IsBadReadPtr is itself a first-chance exception that used up the one CRASH report) */
+static HANDLE g_crash_log = INVALID_HANDLE_VALUE;      /* OS handle of the log (fd 2 after the freopen); cached so the handler makes no CRT calls */
+static void raw_stack_scan(HANDLE h, unsigned long *sp) {
+    NT_TIB *tib = (NT_TIB *)NtCurrentTeb(); unsigned long *top = (unsigned long *)tib->StackBase; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
+    char b[32]; DWORD n; int i, hits = 0;
+    for (i = 0; i < 65536 && sp + i < top && hits < 160; i++) { unsigned long v = sp[i]; if (v > base && v < base + 0x1000000) { int l = wsprintfA(b, " %lX", v - base); WriteFile(h, b, l, &n, NULL); hits++; } }
+}
+/* the same for another (suspended) thread: bounded by the committed region its stack pointer lies in */
+void raw_scan_other(HANDLE h, unsigned long *sp) {
+    MEMORY_BASIC_INFORMATION mi; unsigned long base = (unsigned long)GetModuleHandleA(NULL); char b[32]; DWORD n; int i, hits = 0; unsigned long *top;
+    if (!VirtualQuery(sp, &mi, sizeof mi) || mi.State != MEM_COMMIT) return;
+    top = (unsigned long *)((char *)mi.BaseAddress + mi.RegionSize);
+    for (i = 0; i < 65536 && sp + i < top && hits < 120; i++) { unsigned long v = sp[i]; if (v > base && v < base + 0x1000000) { int l = wsprintfA(b, " %lX", v - base); WriteFile(h, b, l, &n, NULL); hits++; } }
+}
+/* stall watchdog: a host thread outside the scheduler; when no frame completes for 8 s it dumps every thread (port/os_shim.c) */
+extern void port_stall_dump(HANDLE h);
+static DWORD WINAPI stall_watch(LPVOID p) {
+    LONG last = -1; int quiet = 0, dumped = 0; (void)p;
+    for (;;) { LONG f; Sleep(1000); f = g_frames; if (f == last) { if (++quiet >= 8 && !dumped) { dumped = 1; port_stall_dump(g_crash_log); } } else { quiet = 0; last = f; } }
+}
 static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];
@@ -195,8 +217,21 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     return crash_filter2(ep);
 }
 static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep) {
-    static volatile LONG once;
-    if (ep->ExceptionRecord->ExceptionCode != 0xC0000005 || InterlockedExchange(&once, 1)) return EXCEPTION_CONTINUE_SEARCH;
+    static volatile LONG once, raw_n;
+    if (ep->ExceptionRecord->ExceptionCode != 0xC0000005 || InterlockedIncrement(&raw_n) > 6) return EXCEPTION_CONTINUE_SEARCH;
+    {   /* raw write first (no stdio): the stream may be mid-write when the faulting thread is the one that was printing */
+        HANDLE h = g_crash_log; char b[512]; DWORD n; int l; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
+        unsigned long *sp = (unsigned long *)ep->ContextRecord->Esp; int i;
+        l = wsprintfA(b, "CRASH(raw): code=%08lX rva=%lX acc=%lu addr=%08lX tid=%lX eax=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX ebp=%08lX esp=%08lX\r\n  stack rvas:",
+            ep->ExceptionRecord->ExceptionCode, (unsigned long)ep->ExceptionRecord->ExceptionAddress - base,
+            ep->ExceptionRecord->NumberParameters >= 2 ? (unsigned long)ep->ExceptionRecord->ExceptionInformation[0] : 0ul,
+            ep->ExceptionRecord->NumberParameters >= 2 ? (unsigned long)ep->ExceptionRecord->ExceptionInformation[1] : 0ul,
+            GetCurrentThreadId(), ep->ContextRecord->Eax, ep->ContextRecord->Ecx, ep->ContextRecord->Edx, ep->ContextRecord->Esi, ep->ContextRecord->Edi, ep->ContextRecord->Ebp, ep->ContextRecord->Esp);
+        if (h != INVALID_HANDLE_VALUE) WriteFile(h, b, l, &n, NULL);
+        if (h != INVALID_HANDLE_VALUE) raw_stack_scan(h, sp);
+        if (h != INVALID_HANDLE_VALUE) WriteFile(h, "\r\n", 2, &n, NULL);
+    }
+    if (InterlockedExchange(&once, 1)) return EXCEPTION_CONTINUE_SEARCH;
     fprintf(stderr, "CRASH: exception 0x%08lX at %p", ep->ExceptionRecord->ExceptionCode, ep->ExceptionRecord->ExceptionAddress);
     if (ep->ExceptionRecord->NumberParameters >= 2) fprintf(stderr, " (access %lu at 0x%08lX)", (unsigned long)ep->ExceptionRecord->ExceptionInformation[0], (unsigned long)ep->ExceptionRecord->ExceptionInformation[1]);
     fprintf(stderr, " rva=%08lX esp=%08lX eax=%08lX\n", (unsigned long)((size_t)ep->ExceptionRecord->ExceptionAddress - (size_t)GetModuleHandleA(NULL)), ep->ContextRecord->Esp, ep->ContextRecord->Eax);
@@ -319,7 +354,8 @@ void port_early_init(void) {
 
 void port_game_init(void) {
     { char lf[260]; if (!GetEnvironmentVariableA("TUROK_LOG", lf, sizeof lf)) strcpy(lf, "port_log.txt"); if (!freopen(lf, "w", stderr)) { sprintf(lf, "port_log_%lu.txt", GetCurrentProcessId()); freopen(lf, "w", stderr); } }   /* another instance may still hold port_log.txt */
-    setvbuf(stderr, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0); g_crash_log = (HANDLE)_get_osfhandle(_fileno(stderr)); fprintf(stderr, "crash log handle %p\n", (void *)g_crash_log);   /* a GUI process has no fd 2: ask the FILE */
+    CreateThread(NULL, 0, stall_watch, NULL, 0, NULL);
     SetUnhandledExceptionFilter(crash_final); AddVectoredExceptionHandler(1, crash_filter);
     if (!g_ranges_ok) { fprintf(stderr, "could not reserve the game's address ranges (after retries)\n"); return; }
     fprintf(stderr, "guest address ranges reserved (attempt %s)\n", getenv("PORT_RETRY") ? getenv("PORT_RETRY") : "0");
@@ -330,7 +366,10 @@ void port_game_init(void) {
     CreateThread(NULL, 4 * 1024 * 1024, game_thread, NULL, 0, NULL);
     { char e[8]; if (GetEnvironmentVariableA("TUROK_SAMPLE", e, sizeof e)) CreateThread(NULL, 0, sampler_thread, NULL, 0, NULL); }
 }
-void port_game_frame(void) { InterlockedIncrement(&g_frames); port_vi_tick(); }
+void port_game_frame(void) {
+    InterlockedIncrement(&g_frames); port_vi_tick();
+    { static int ct = -1; if (ct < 0) ct = getenv("TUROK_CRASHTEST") ? 1 : 0; if (ct && g_frames == 300) *(volatile int *)16 = 1; }   /* TUROK_CRASHTEST=1: fault on purpose to check the crash log */
+}
 extern volatile long g_gfx_task_ready; extern unsigned char g_gfx_task[];
 extern void port_dump_threads(void); extern int g_dbg_startgo, g_dbg_pop;
 void port_present_hook(struct ID3D11DeviceContext *ctx) {
@@ -348,10 +387,11 @@ static LONG WINAPI early_crash(EXCEPTION_POINTERS *ep) {
     if (h != INVALID_HANDLE_VALUE) {
         char b[256]; DWORD n; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
         unsigned long *sp = (unsigned long *)ep->ContextRecord->Esp; int i;
-        int l = wsprintfA(b, "EARLY CRASH %08lX rva=%lX acc=%lu addr=%08lX\r\nstack rvas:", ep->ExceptionRecord->ExceptionCode,
-            (unsigned long)ep->ExceptionRecord->ExceptionAddress - base, (unsigned long)ep->ExceptionRecord->ExceptionInformation[0], (unsigned long)ep->ExceptionRecord->ExceptionInformation[1]);
+        int l = wsprintfA(b, "EARLY CRASH %08lX rva=%lX acc=%lu addr=%08lX tid=%lX eax=%08lX ecx=%08lX edx=%08lX ebx=%08lX esi=%08lX edi=%08lX ebp=%08lX esp=%08lX\r\nstack rvas:", ep->ExceptionRecord->ExceptionCode,
+            (unsigned long)ep->ExceptionRecord->ExceptionAddress - base, (unsigned long)ep->ExceptionRecord->ExceptionInformation[0], (unsigned long)ep->ExceptionRecord->ExceptionInformation[1],
+            GetCurrentThreadId(), ep->ContextRecord->Eax, ep->ContextRecord->Ecx, ep->ContextRecord->Edx, ep->ContextRecord->Ebx, ep->ContextRecord->Esi, ep->ContextRecord->Edi, ep->ContextRecord->Ebp, ep->ContextRecord->Esp);
         WriteFile(h, b, l, &n, NULL);
-        for (i = 0; i < 64; i++) { unsigned long v = sp[i]; if (v > base && v < base + 0x1C2000) { l = wsprintfA(b, " %lX", v - base); WriteFile(h, b, l, &n, NULL); } }
+        raw_stack_scan(h, sp);
         WriteFile(h, "\r\n", 2, &n, NULL); CloseHandle(h);
     }
     return EXCEPTION_CONTINUE_SEARCH;

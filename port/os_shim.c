@@ -37,6 +37,7 @@ typedef struct HThread {
 } HThread;
 
 static CRITICAL_SECTION g_lock;
+static DWORD g_main_tid;         /* the platform thread (first port_vi_tick caller), for the stall dump */
 static int g_inited;
 static HThread g_th[MAXT];
 static HThread *g_current;
@@ -284,6 +285,7 @@ void port_dump_threads(void); void port_wait_idle(void);
 static int g_tq[16], g_tq_r, g_tq_w, g_tq_n; int g_dbg_startgo, g_dbg_pop;
 /* called once per displayed frame by the platform loop */
 void port_vi_tick(void) {
+    if (!g_main_tid) g_main_tid = GetCurrentThreadId();
     if (!g_inited) { if (oracle_enabled()) port_wait_idle(); return; }
     { extern void port_watch_tick(void); port_watch_tick(); }
     { static int ticks, dump = -1; if (dump < 0) { char e[4]; dump = GetEnvironmentVariableA("TUROK_DUMPTICK", e, sizeof e) ? 1 : 0; } if (dump && (++ticks == 900 || ticks == 2700)) port_dump_threads(); }
@@ -501,4 +503,30 @@ void port_thread_died(void) {
     h->state = 1; if (g_current == h) g_current = NULL;
     { HThread *b = pick(); if (b) { g_current = b; b->state = 3; SetEvent(b->evt); } }
     LeaveCriticalSection(&g_lock);
+}
+
+/* ---- stall watchdog dump (called from a host thread that never takes g_lock; see game_glue.c stall_watch) ---- */
+extern void raw_scan_other(HANDLE h, unsigned long *sp);
+static void stall_dump_thread(HANDLE h, const char *what, int i, HThread *t, DWORD tid) {
+    char b[256]; DWORD n; int l; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
+    HANDLE th = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, tid);
+    if (t) l = wsprintfA(b, "  %s %d tid=%lX prio=%d state=%d waitq=%p kind=%d", what, i, tid, t->prio, t->state, (void *)t->waitq, t->waitkind);
+    else l = wsprintfA(b, "  %s tid=%lX", what, tid);
+    WriteFile(h, b, l, &n, NULL);
+    if (th && SuspendThread(th) != (DWORD)-1) {
+        CONTEXT c; c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+        if (GetThreadContext(th, &c)) { l = wsprintfA(b, " eip=%lX esp=%08lX stack:", c.Eip - base, c.Esp); WriteFile(h, b, l, &n, NULL); raw_scan_other(h, (unsigned long *)c.Esp); }
+        ResumeThread(th);
+    }
+    if (th) CloseHandle(th);
+    WriteFile(h, "\r\n", 2, &n, NULL);
+}
+void port_stall_dump(HANDLE h) {
+    char b[256]; DWORD n; int l, i;
+    if (h == INVALID_HANDLE_VALUE) return;
+    l = wsprintfA(b, "STALL: no frame for 8 s; g_lock owner=%lX recursion=%ld current=%p seq=%u preempt=%d\r\n",
+                  (unsigned long)(size_t)g_lock.OwningThread, g_lock.RecursionCount, (void *)g_current, g_seq, g_preempt);
+    WriteFile(h, b, l, &n, NULL);
+    for (i = 0; i < MAXT; i++) if (g_th[i].state) stall_dump_thread(h, "th", i, &g_th[i], g_th[i].tid);
+    if (g_main_tid) stall_dump_thread(h, "main", 0, NULL, g_main_tid);
 }
