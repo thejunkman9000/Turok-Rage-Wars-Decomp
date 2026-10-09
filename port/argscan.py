@@ -150,6 +150,18 @@ def collect(show_all=False, show_maybe=False):
     """Return (rows, recomp, cdefs, objs); rows = (file, line, callee, passed, reads, maybe, kind)."""
     objs = read_map()
     recomp = {}
+    asmargs = {}   # hand-written libultra assembly (src/**/*.s): registers read before written, so __osDisableInt() etc. do not count as 'uses everything'
+    try:
+        import mips2c
+        for path in glob.glob(os.path.join(ROOT, 'src', '**', '*.s'), recursive=True):
+            text = open(path, encoding='utf-8', errors='replace').read()
+            for name in re.findall(r'glabel (\S+)', text):
+                try:
+                    asmargs[name] = mips2c.int_arg_count(mips2c.parse(text, name))
+                except Exception:
+                    pass
+    except ImportError:
+        pass
     for path in sorted(glob.glob(os.path.join(RECOMP, '*.c'))):
         name = os.path.basename(path)[:-2]
         r = analyse_recomp(path)
@@ -194,6 +206,8 @@ def collect(show_all=False, show_maybe=False):
                     tgt_used, tgt_maybe = used[callee], maybe[callee]
                 elif callee in cdefs:
                     tgt_used = tgt_maybe = set(range(cdefs[callee]))
+                elif callee in asmargs:
+                    tgt_used = tgt_maybe = set(range(asmargs[callee]))
                 else:
                     tgt_used, tgt_maybe = set(), set(range(4))  # unknown callee (libultra etc.)
                 if k in tgt_used and k not in used[n]:

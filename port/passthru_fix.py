@@ -167,7 +167,7 @@ def plan(sites, cdefs):
 
 def main():
     write = '--write' in sys.argv
-    sites, cdefs = passthru.analyse()
+    sites, cdefs = passthru.analyse('--maybe' in sys.argv)
     results = plan(sites, cdefs)
     written = []
     for rel, caller, text, status in results:

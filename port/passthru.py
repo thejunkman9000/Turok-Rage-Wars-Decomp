@@ -52,15 +52,15 @@ def jal_targets(items):
         written |= regs_written_by(m, ops)
 
 
-def analyse():
+def analyse(maybe=False):
     """One dict per flagged call site: file, line, callee, passed, need, verdict ('PASS'/'garbage'/'no asm'/
     'no jal'), live (pass-through registers as indices), caller."""
-    rows, recomp, cdefs, objs = argscan.collect()
+    rows, recomp, cdefs, objs = argscan.collect(show_maybe=maybe)
     asm = asm_files()
     out = []
     for rel, line, callee, n_c, need, soft, kind in rows:
         caller = os.path.basename(rel)[:-2].split('__')[0]
-        need = min(need, 4)
+        need = min(soft if maybe else need, 4)
         d = dict(file=rel, line=line, callee=callee, passed=n_c, need=need, caller=caller, live=[], verdict='')
         out.append(d)
         p = asm.get(caller) or asm.get(caller.replace('func_00', 'func_'))
@@ -86,7 +86,7 @@ def analyse():
 
 def main():
     show_all = '--all' in sys.argv
-    out, cdefs = analyse()
+    out, cdefs = analyse('--maybe' in sys.argv)
     for d in out:
         if d['verdict'] == 'PASS' or show_all:
             print('%s:%d %s C=%d reads=%d  %s %s  caller has %s params' % (
