@@ -1,5 +1,6 @@
 /* libultra aspMain (ABI1) audio microcode HLE. Layout notes in AUDIO_HLE.md.
  * DMEM is kept as a big-endian byte array so DMA load/save are plain copies. */
+#include <stdio.h>
 #include "audio_hle.h"
 #include <string.h>
 #include <math.h>
@@ -132,7 +133,7 @@ static void op_setvol(uint32_t w0, uint32_t w1)
     uint32_t f = (w0 >> 16) & 0xFF;
     int lr = (f & A_LEFT) ? 0 : 1;
     if (f & A_AUX) {
-        S.dry = (int16_t)(w1 >> 16);
+        S.dry = (int16_t)w0;
         S.wet = (int16_t)w1;
     } else if (f & A_VOL) {
         S.vol[lr] = (int16_t)w0;

@@ -1146,3 +1146,4 @@ func_0044EBB0
 func_0044ECB0
 func_0044ED1C
 func_0044ED24
+_decodeChunk

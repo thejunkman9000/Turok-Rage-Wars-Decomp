@@ -332,6 +332,8 @@ static void emitTri(int i0, int i1, int i2) {
         if ((S.geom & 0x400) && !front) return;
         if ((S.geom & 0x200) && front) return;
     }
+    if (g_dump) fprintf(g_dump, "      [tri %d %d %d scr (%.1f %.1f %.3f) (%.1f %.1f %.3f) (%.1f %.1f %.3f) geom=%x]
+", i0, i1, i2, poly[0].cx / poly[0].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[0].cy / poly[0].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[1].cy / poly[1].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f, -poly[2].cy / poly[2].cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f, poly[2].cz / poly[2].cw, (unsigned)S.geom);
     { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
@@ -364,6 +366,8 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
             o.r = r > 1 ? 1 : r; o.g = g > 1 ? 1 : g; o.b = b > 1 ? 1 : b;
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
+        if (g_dump) fprintf(g_dump, "      [vtx %d: xyz %d %d %d st %d %d raw %02X %02X %02X %02X -> rgba %.2f %.2f %.2f %.2f w %.1f]
+", v0 + i, (int)x, (int)y, (int)z, (int)o.s, (int)o.t, p[12], p[13], p[14], p[15], o.r, o.g, o.b, o.a, o.cw);
         { static int nl; if (nl < 24 && g_nfpub >= 590 && getenv("TUROK_VTXLOG")) { nl++; fprintf(stderr, "vtx %d: pos %d %d %d clip %.2f %.2f %.2f %.2f rgba %.2f %.2f %.2f %.2f light=%d lights=%d\n", v0 + i, (int)x, (int)y, (int)z, o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, o.a, (S.geom >> 17) & 1, S.numLights); } }
     }
 }

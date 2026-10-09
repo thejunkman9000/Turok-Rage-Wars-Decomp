@@ -120,7 +120,7 @@ def arg_exprs(types):
     for idx, t in enumerate(types):
         if t == 'd': word = (word + 1) & ~1
         if (idx == 0 and t in ('f', 'd')) or (idx == 1 and t in ('f', 'd') and types[0] in ('f', 'd')):
-            out.append('f[%d]' % (12 + 2 * idx) if t == 'f' else 'gd(f, %d)' % (12 + 2 * idx))
+            out.append('f[%d]' % (2 * (12 + 2 * idx)) if t == 'f' else 'gd(f, %d)' % (12 + 2 * idx))
         else:
             def w(k): return 'r[%d]' % (4 + k) if k < 4 else '*(u32 *)(r[29] + %d)' % (0x10 + 4 * (k - 4))
             if t == 'i': out.append(w(word))
@@ -164,7 +164,7 @@ def fa_read_first(items):
 BR = {'beqzl', 'bnezl', 'beq', 'bne', 'beql', 'bnel', 'bgez', 'bltz', 'blez', 'bgtz', 'bgezl', 'bltzl', 'blezl', 'bgtzl', 'beqz', 'bnez', 'b', 'bc1t', 'bc1f', 'bc1tl', 'bc1fl'}
 def label_name(t): return 'L_' + t.lstrip('.').replace('.', '_')
 R = lambda i: 'r[%d]' % i
-F = lambda i: 'f[%d]' % i
+F = lambda i: 'f[%d]' % (2 * i)      # FR=1 (Status.FR is set in osCreateThread): 32 separate 64-bit registers; the single view of $fN is its low word f[2N]
 
 def gen_ins(m, ops, known, ctx):
     if m in ('nop',): return ''
@@ -224,12 +224,8 @@ def gen_ins(m, ops, known, ctx):
             fr = freg(ops[0])
             if m == 'lwc1': return '{ u32 w_ = *(u32 *)%s; memcpy(&%s, &w_, 4); }' % (addr, F(fr))
             if m == 'swc1': return '{ u32 w_; memcpy(&w_, &%s, 4); *(u32 *)%s = w_; }' % (F(fr), addr)
-            if fr % 2 == 1:     # an odd register holds a single (doubles use even registers): the 64-bit save/restore moves only its own 32 bits (low word),
-                                # otherwise restoring $f21 would also overwrite $f22 with a stale value
-                if m == 'ldc1': return '{ u32 w_ = *(u32 *)(%s + 4); memcpy(&%s, &w_, 4); }' % (addr, F(fr))
-                return '{ u32 w_; memcpy(&w_, &%s, 4); *(u32 *)%s = 0; *(u32 *)(%s + 4) = w_; }' % (F(fr), addr, addr)
-            if m == 'ldc1': return '{ u32 hi_ = *(u32 *)%s, lo_ = *(u32 *)(%s + 4); memcpy(&%s, &hi_, 4); memcpy(&%s, &lo_, 4); }' % (addr, addr, F(fr + 1) if False else F(fr), F(fr + 1))
-            return '{ u32 hi_, lo_; memcpy(&hi_, &%s, 4); memcpy(&lo_, &%s, 4); *(u32 *)%s = hi_; *(u32 *)(%s + 4) = lo_; }' % (F(fr), F(fr + 1), addr, addr)
+            if m == 'ldc1': return '{ u32 hi_ = *(u32 *)%s, lo_ = *(u32 *)(%s + 4); memcpy(&f[%d], &lo_, 4); memcpy(&f[%d], &hi_, 4); }' % (addr, addr, 2 * fr, 2 * fr + 1)
+            return '{ u32 hi_, lo_; memcpy(&lo_, &f[%d], 4); memcpy(&hi_, &f[%d], 4); *(u32 *)%s = hi_; *(u32 *)(%s + 4) = lo_; }' % (2 * fr, 2 * fr + 1, addr, addr)
         t = R(reg(ops[0]))
         if m == 'lw': return '%s = *(u32 *)%s;' % (t, addr)
         if m == 'lh': return '%s = (u32)(s32)*(s16 *)%s;' % (t, addr)
@@ -433,7 +429,7 @@ def recompile_function(text, name, known, max_stack_args=0):
                     if target.endswith('f'): body.append('%s f[0] = (float)(%s)(((u64)r[4] << 32) | r[5]);' % (delay, cv))
                     else: body.append('%s sd(f, 0, (double)(%s)(((u64)r[4] << 32) | r[5]));' % (delay, cv))
                 elif target in ('__fixdfdi', '__fixsfdi', '__fixunsdfdi', '__fixunssfdi'):
-                    src = 'gd(f, 12)' if 'df' in target else 'f[12]'
+                    src = 'gd(f, 12)' if 'df' in target else 'f[24]'
                     ty = 's64' if 'uns' not in target else 'u64'
                     body.append('%s { %s v_ = (%s)%s; r[2] = (u32)((u64)v_ >> 32); r[3] = (u32)v_; }' % (delay, ty, ty, src))
                 elif target == 'osSetTimer':                     # (t, pad, countdown_hi, countdown_lo | interval_hi, interval_lo, mq, msg on the stack)
@@ -507,7 +503,7 @@ def recompile_function(text, name, known, max_stack_args=0):
         for idx, t in enumerate(types):
             if t == 'd': word = (word + 1) & ~1
             if (idx == 0 and t in ('f', 'd')) or (idx == 1 and t in ('f', 'd') and types[0] in ('f', 'd')):
-                setf.append('g_fpr[%d] = p%d;' % (12 + 2 * idx, idx) if t == 'f' else 'sd(g_fpr, %d, p%d);' % (12 + 2 * idx, idx))
+                setf.append('g_fpr[%d] = p%d;' % (2 * (12 + 2 * idx), idx) if t == 'f' else 'sd(g_fpr, %d, p%d);' % (12 + 2 * idx, idx))
             elif word < 24:
                 if t == 'i': words[word] = 'p%d' % idx
                 elif t == 'f': words[word] = 'f2u(p%d)' % idx

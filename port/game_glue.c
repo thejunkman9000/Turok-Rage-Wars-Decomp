@@ -436,7 +436,7 @@ void port_rc_enter(const char *name, unsigned a0, unsigned a1, unsigned a2, unsi
 }
 
 /* the guest FPU register file shared by all statically recompiled code (saved/restored per thread by the OS shim) */
-float g_fpr[32];
+float g_fpr[64];      /* the 32 guest FPU registers in 64-bit (FR=1) mode: two words each */
 
 #include "difftest_driver.inc"
 
@@ -448,10 +448,10 @@ char *port_vararg_block(void *pva) {
 }
 
 /* return values of statically recompiled functions, logged with TUROK_FTRACE=<names>,ret */
-u32 port_rc_ret(const char *name, u32 v) {
+unsigned port_rc_ret(const char *name, unsigned v) {
     if (g_trace_names[0] && strstr(g_trace_names, "ret") && strstr(g_trace_names, name)) { fprintf(stderr, "ret %s -> %08X" "%c", name, v, 10); fflush(stderr); }
     return v;
 }
 
 /* guest address -> host address for pointers handed to C runtime functions by statically recompiled code */
-u32 port_xl(u32 a) { return (a >= 0x200000u && a < 0x2000000u) ? a + 0x30000000u : a; }
+unsigned port_xl(unsigned a) { return (a >= 0x200000u && a < 0x2000000u) ? a + 0x30000000u : a; }

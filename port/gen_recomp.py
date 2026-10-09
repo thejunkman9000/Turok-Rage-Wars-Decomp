@@ -13,9 +13,9 @@ typedef unsigned char u8; typedef signed char s8; typedef unsigned long long u64
 extern void *memcpy(void *, const void *, unsigned);
 extern float sqrtf(float); extern float fabsf(float); extern double sqrt(double); extern double fabs(double);
 extern double floor(double); extern double ceil(double); extern double rint(double); extern float floorf(float); extern float ceilf(float); extern float rintf(float);
-static double gd(const float *f, int i) { u32 a, b; u64 v; double d; memcpy(&a, &f[i], 4); memcpy(&b, &f[i + 1], 4); v = ((u64)a << 32) | b; memcpy(&d, &v, 8); return d; }
-static void sd(float *f, int i, double d) { u64 v; u32 a, b; memcpy(&v, &d, 8); a = (u32)(v >> 32); b = (u32)v; memcpy(&f[i], &a, 4); memcpy(&f[i + 1], &b, 4); }
-extern float g_fpr[32];
+static double gd(const float *f, int i) { u32 lo, hi; u64 v; double d; memcpy(&lo, &f[2 * i], 4); memcpy(&hi, &f[2 * i + 1], 4); v = ((u64)hi << 32) | lo; memcpy(&d, &v, 8); return d; }      /* FR=1: register i = words f[2i] (low, also its single view) and f[2i+1] (high); word-sized accesses only, the big-endian rewrite swaps every load/store */
+static void sd(float *f, int i, double d) { u64 v; u32 lo, hi; memcpy(&v, &d, 8); lo = (u32)v; hi = (u32)(v >> 32); memcpy(&f[2 * i], &lo, 4); memcpy(&f[2 * i + 1], &hi, 4); }
+extern float g_fpr[64];
 static float u2f(u32 v) { float x; memcpy(&x, &v, 4); return x; }
 static u32 f2u(float x) { u32 v; memcpy(&v, &x, 4); return v; }
 static double u2d(u32 hi, u32 lo) { u64 v = ((u64)hi << 32) | lo; double d; memcpy(&d, &v, 8); return d; }

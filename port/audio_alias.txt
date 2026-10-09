@@ -39,7 +39,6 @@ __voiceHandler func_002B5624
 __voiceNeedsNoteKillOff func_002B66A0
 __vsPan func_002B6974
 __vsVol func_002B68E4
-_decodeChunk func_002C3D24
 _doModFunc func_002BB3D0
 _filterBuffer func_002BB32C
 _getRate func_002BA038

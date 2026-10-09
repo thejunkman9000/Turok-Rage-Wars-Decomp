@@ -33,7 +33,7 @@ typedef struct HThread {
     OSMesgQueue *waitq; int waitkind;   /* waiting on queue: 1 = receive (empty), 2 = send (full) */
     unsigned seq;                /* FIFO order among equal priorities */
     DWORD tid;
-    float fpr[32];               /* the guest FPU registers of this thread (statically recompiled code keeps them in g_fpr) */
+    float fpr[64];               /* the guest FPU registers of this thread (statically recompiled code keeps them in g_fpr) */
 } HThread;
 
 static CRITICAL_SECTION g_lock;
@@ -78,7 +78,7 @@ static HThread *pick(void) {
 }
 
 /* give the baton away if someone better is runnable (or self blocked); wait until self is current again.  Holds g_lock on entry/exit. */
-extern float g_fpr[32];
+extern float g_fpr[64];
 static void reschedule(HThread *self) {
     for (;;) {
         HThread *best = pick();
@@ -335,7 +335,7 @@ s32 osSpTaskStartGo(OSTask *t) {
     (void)t; g_dbg_startgo++;
     { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12) { fprintf(stderr, "StartGo #%d type=%u flags=%08X\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags)); }
       if (gfx) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
-      if (LD32(g_task.t.type) == 2) { static int hle_init; extern void audio_hle_init(unsigned char *(*tr)(unsigned)); extern int audio_hle_run(unsigned addr, unsigned len); if (!hle_init) { hle_init = 1; audio_hle_init(aud_translate); } audio_hle_run(LD32(g_task.t.data_ptr), LD32(g_task.t.data_size)); }
+      if (LD32(g_task.t.type) == 2) { static int hle_init; extern void audio_hle_init(unsigned char *(*tr)(unsigned)); extern int audio_hle_run(unsigned addr, unsigned len); if (!hle_init) { hle_init = 1; audio_hle_init(aud_translate); { unsigned char *so = aud_translate(0x801462E0u & 0x1FFFFFFF); if (so && !so[0] && !so[1] && !so[2]) { so[0] = 0xC0; so[1] = 0xC0; so[2] = 0x80; fprintf(stderr, "audio: no saved options, default volumes set%c", 10); } } { unsigned char *pt = aud_translate(0x800D8240u & 0x1FFFFFFF); if (pt) fprintf(stderr, "pan table: %02X%02X %02X%02X %02X%02X %02X%02X%c", pt[0], pt[1], pt[2], pt[3], pt[254], pt[255], pt[256], pt[257], 10); else fprintf(stderr, "pan table: untranslatable%c", 10); } } audio_hle_run(LD32(g_task.t.data_ptr), LD32(g_task.t.data_size)); }
       os_init(); EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* completion is delivered from the frame tick: the caller still has bookkeeping to do */
     return 0;
 }

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /* audio output for the port: the game's AI buffers (big-endian 16-bit stereo, produced by the RSP audio microcode HLE) are
    converted to host order and played through waveOut.  A ring buffer decouples the 60 Hz game thread from the device. */
 #include <windows.h>
@@ -62,6 +63,15 @@ void port_audio_push(const unsigned char *be, unsigned n) {
     if ((wr - rd) + n > RING_BYTES - 4096) rd = wr - (RING_BYTES / 4);      /* far behind: drop the old audio */
     for (i = 0; i < n; i += 2) { ring[(wr + i) & (RING_BYTES - 1)] = be[i + 1]; ring[(wr + i + 1) & (RING_BYTES - 1)] = be[i]; }
     wr += n; pushed += n;
+    {   /* TUROK_WAVDUMP=<file>: also write the stream to a .wav (header patched on exit) */
+        static FILE *wf; static int tried; static unsigned long long wbytes;
+        if (!tried) { const char *e = getenv("TUROK_WAVDUMP"); tried = 1; if (e && (wf = fopen(e, "wb")) != NULL) { unsigned char h[44] = { 'R','I','F','F',0,0,0,0,'W','A','V','E','f','m','t',' ',16,0,0,0,1,0,2,0 }; unsigned br = freq * 4; h[24] = (unsigned char)freq; h[25] = (unsigned char)(freq >> 8); h[26] = (unsigned char)(freq >> 16); h[27] = (unsigned char)(freq >> 24); h[28] = (unsigned char)br; h[29] = (unsigned char)(br >> 8); h[30] = (unsigned char)(br >> 16); h[31] = (unsigned char)(br >> 24); h[32] = 4; h[34] = 16; h[36] = 'd'; h[37] = 'a'; h[38] = 't'; h[39] = 'a'; fwrite(h, 1, 44, wf); } }
+        if (wf) { for (i = 0; i + 1 < n; i += 2) { unsigned char t2[2] = { be[i + 1], be[i] }; fwrite(t2, 1, 2, wf); } wbytes += n; if ((wbytes & 0xFFFF) < n) { unsigned v = (unsigned)wbytes; long pos = ftell(wf); fseek(wf, 40, SEEK_SET); fputc(v & 255, wf); fputc((v >> 8) & 255, wf); fputc((v >> 16) & 255, wf); fputc(v >> 24, wf); v += 36; fseek(wf, 4, SEEK_SET); fputc(v & 255, wf); fputc((v >> 8) & 255, wf); fputc((v >> 16) & 255, wf); fputc(v >> 24, wf); fseek(wf, pos, SEEK_SET); fflush(wf); } }
+    }
+    {   static int pk; static unsigned long long lastlog; int v;
+        for (i = 0; i + 1 < n; i += 2) { v = (short)((be[i] << 8) | be[i + 1]); if (v < 0) v = -v; if (v > pk) pk = v; }
+        if (pushed - lastlog > (unsigned long long)freq * 4 * 3) { lastlog = pushed; fprintf(stderr, "audio: pushed %llu bytes, peak %d%c", pushed, pk, 10); pk = 0; }
+    }
     LeaveCriticalSection(&cs);
 }
 unsigned long long port_audio_pushed(void) { return pushed; }

@@ -1,3 +1,4 @@
+_decodeChunk
 func_00200500
 func_00200538
 func_00200568
