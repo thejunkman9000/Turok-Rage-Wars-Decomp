@@ -41,6 +41,9 @@ foreach ($step in $Seq) {
     $p = $step.Split(':')
     if ($p[0] -eq 'wait') { WaitFrames ([double]$p[1]) }
     elseif ($p[0] -eq 'shot') { $n++; & "$PSScriptRoot\screenshot.ps1" -Out ("port\build\{0}_{1:D2}.png" -f $Prefix, $n) | Out-Null }
+    elseif ($p[0] -eq 'mapdump') { Set-Content port_mapdump.txt $p[1] -Encoding ascii; WaitFrames 3 }      # TUROK_MAPDUMP=1: write mapdump/<name>/map.obj (static triangles seen so far)
+    elseif ($p[0] -eq 'ramdump') { Remove-Item port_ram.bin -ErrorAction SilentlyContinue; Copy-Item port_cam.txt ("port\build\ram_{0}.cam" -f $p[1]) -ErrorAction SilentlyContinue; New-Item port_ramdump.txt -ItemType File -Force | Out-Null; WaitFrames 3; Start-Sleep -Milliseconds 800; Move-Item port_ram.bin ("port\build\ram_{0}.bin" -f $p[1]) -Force -ErrorAction SilentlyContinue }   # full 8 MB guest RAM + camera position (TUROK_MAPDUMP=1)
+    elseif ($p[0] -eq 'mapreset') { New-Item port_mapreset.txt -ItemType File -Force | Out-Null; WaitFrames 1 }
     elseif ($p[0] -eq 'dump') { New-Item port_dumpnow.txt -ItemType File -Force | Out-Null; WaitFrames 2 }
     elseif ($p[0] -match '^until(?:p([2-4]))?$') {   # until:C:-> 2 (top=0):30  = press A every 1.2 game-s until the pattern appears in NEW log lines (30 game-s limit); untilp2:... for pad 2
         $f = if ($Matches[1]) { 'port_input{0}.txt' -f $Matches[1] } else { 'port_input.txt' }; $b = $btn[$p[1]]; $pat = $p[2]; $lim = [double]$p[3]

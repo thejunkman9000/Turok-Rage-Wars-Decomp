@@ -11,6 +11,7 @@
 #include <string.h>
 #include <math.h>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -153,13 +154,13 @@ static const uint8_t* res(uint32_t a) {
 }
 struct Tile { int fmt, siz, line, tmem, pal, cmT, maskT, shiftT, cmS, maskS, shiftS, uls, ult, lrs, lrt; };
 struct Light { float r, g, b; float dx, dy, dz; };
-struct V { float cx, cy, cz, cw; float r, g, b, a; float s, t; };
+struct V { float cx, cy, cz, cw; float r, g, b, a; float s, t; float wx, wy, wz; };
 static struct {
     uint32_t geom, omL, omH, combW0, combW1;
     uint32_t cimg, zimg, timg, timgW; int timgFmt, timgSiz;
     uint32_t fill; float prim[4], env[4];
     Tile tile[8]; uint8_t tmem[4096]; int tluts;
-    float mv[10][16]; int mvTop; float proj[16]; float mvp[16]; bool mvpDirty;
+    float mv[10][16]; int mvTop; float proj[16]; float mvp[16]; bool mvpDirty; float camInv[16]; bool camSet;
     int sc[4]; float vsc[4], vtr[4]; int numLights; Light lights[10]; uint8_t lightRaw[12][16];
     uint32_t texScaleS, texScaleT; int texTile, texOn;
     V vtx[64];
@@ -216,6 +217,9 @@ static void tileDims(const Tile& t, int& w, int& h) {
     if (t.maskT && (1 << t.maskT) > h) h = 1 << t.maskT;
     if (w < 1) w = 1; if (h < 1) h = 1; if (w > 1024) w = 1024; if (h > 1024) h = 1024;
 }
+static std::map<ID3D11ShaderResourceView*, uint64_t> srvKey;
+static int capOn();
+static void capTexture(uint64_t key, const std::vector<uint8_t>& px, int w, int h);
 static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
     uint64_t key = 1469598103934665603ull;
     auto mix = [&](uint64_t v) { key = (key ^ v) * 1099511628211ull; };
@@ -233,7 +237,7 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
     D3D11_SUBRESOURCE_DATA sr = { px.data(), (UINT)w * 4, 0 }; ID3D11Texture2D* tx = nullptr; ID3D11ShaderResourceView* sv = nullptr;
     if (SUCCEEDED(dev->CreateTexture2D(&td, &sr, &tx))) { dev->CreateShaderResourceView(tx, nullptr, &sv); tx->Release(); }
     if (texCache.size() > 4000) { for (auto& kv : texCache) if (kv.second) kv.second->Release(); texCache.clear(); }
-    texCache[key] = sv; g_texdecodes++; return sv;
+    texCache[key] = sv; if (sv) srvKey[sv] = key; if (capOn()) capTexture(key, px, w, h); g_texdecodes++; return sv;
 }
 
 // ---- batching
@@ -311,6 +315,75 @@ static void setupState(int mode) {
     if (!same) { flush(); cur = n; curValid = true; }
 }
 
+
+// ---- map capture (TUROK_MAPDUMP=1): accumulates the static world triangles of every frame (world space = vertex * modelview * inverse(first
+// modelview load after the projection load), i.e. the camera matrix undone) and, when port_mapdump.txt appears (its first line is the
+// output name), writes mapdump/<name>/map.obj + map.mtl (textures in mapdump/tex_*.tga).  A triangle is exported once it was seen in
+// >= TUROK_MAPSEEN (default 3) frames at the same world position, which drops moving actors and the first-person weapon.
+// port_mapreset.txt clears the accumulated triangles.
+struct CapTri { float p[3][3]; float uv[3][2]; uint8_t c[3][4]; uint64_t tex; int seen; int lastFrame; };
+static std::unordered_map<uint64_t, CapTri> capTris;
+static bool g_frameCamSet; static float g_frameCam[3];
+static int capOn() { static int v = -1; if (v < 0) v = getenv("TUROK_MAPDUMP") ? 1 : 0; return v; }
+static bool matInv(const float* m, float* o) {
+    double a[4][8];
+    for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) { a[i][j] = m[i * 4 + j]; a[i][4 + j] = i == j; }
+    for (int c = 0; c < 4; c++) {
+        int piv = c; for (int r = c + 1; r < 4; r++) if (fabs(a[r][c]) > fabs(a[piv][c])) piv = r;
+        if (fabs(a[piv][c]) < 1e-12) return false;
+        if (piv != c) for (int j = 0; j < 8; j++) std::swap(a[c][j], a[piv][j]);
+        double d = a[c][c]; for (int j = 0; j < 8; j++) a[c][j] /= d;
+        for (int r = 0; r < 4; r++) if (r != c) { double f = a[r][c]; for (int j = 0; j < 8; j++) a[r][j] -= f * a[c][j]; }
+    }
+    for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) o[i * 4 + j] = (float)a[i][4 + j];
+    return true;
+}
+static void capTexture(uint64_t key, const std::vector<uint8_t>& px, int w, int h) {
+    CreateDirectoryA("mapdump", nullptr);
+    char fn[96]; sprintf(fn, "mapdump/tex_%016llx.tga", (unsigned long long)key);
+    FILE* f = fopen(fn, "wb"); if (!f) return;
+    uint8_t hd[18] = { 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, (uint8_t)(w & 255), (uint8_t)(w >> 8), (uint8_t)(h & 255), (uint8_t)(h >> 8), 32, 0x28 };   // top-left origin, BGRA
+    fwrite(hd, 1, 18, f);
+    for (size_t i = 0; i < px.size(); i += 4) { uint8_t q[4] = { px[i + 2], px[i + 1], px[i], px[i + 3] }; fwrite(q, 1, 4, f); }
+    fclose(f);
+}
+static void capRecord(const V* v[3], ID3D11ShaderResourceView* srv, float tw, float th, float uls, float ult, int frame) {
+    CapTri t; memset(&t, 0, sizeof t);
+    float sScale = S.texScaleS / 65536.f, tScale = S.texScaleT / 65536.f;
+    uint64_t h = 1469598103934665603ull;
+    for (int i = 0; i < 3; i++) {
+        t.p[i][0] = v[i]->wx; t.p[i][1] = v[i]->wy; t.p[i][2] = v[i]->wz;
+        t.uv[i][0] = (v[i]->s / 32.f * sScale - uls / 4.f) / tw; t.uv[i][1] = (v[i]->t / 32.f * tScale - ult / 4.f) / th;
+        t.c[i][0] = (uint8_t)(v[i]->r * 255.f + .5f); t.c[i][1] = (uint8_t)(v[i]->g * 255.f + .5f); t.c[i][2] = (uint8_t)(v[i]->b * 255.f + .5f); t.c[i][3] = (uint8_t)(v[i]->a * 255.f + .5f);
+        for (int k = 0; k < 3; k++) h = (h ^ (uint64_t)(int64_t)lroundf(t.p[i][k] * 4.f)) * 1099511628211ull;
+    }
+    auto sk = srvKey.find(srv); t.tex = sk == srvKey.end() ? 0 : sk->second;
+    h = (h ^ t.tex) * 1099511628211ull;
+    auto it = capTris.find(h);
+    if (it == capTris.end()) { t.seen = 1; t.lastFrame = frame; capTris[h] = t; }
+    else if (it->second.lastFrame != frame) { it->second.seen++; it->second.lastFrame = frame; }
+}
+static void capWrite(const char* name) {
+    static int minSeen = -1; if (minSeen < 0) { const char* e = getenv("TUROK_MAPSEEN"); minSeen = e ? atoi(e) : 3; }
+    char dir[160]; CreateDirectoryA("mapdump", nullptr); sprintf(dir, "mapdump/%s", name); CreateDirectoryA(dir, nullptr);
+    char fn[220]; sprintf(fn, "%s/map.obj", dir); FILE* o = fopen(fn, "w"); sprintf(fn, "%s/map.mtl", dir); FILE* m = fopen(fn, "w");
+    if (!o || !m) { if (o) fclose(o); if (m) fclose(m); return; }
+    fprintf(o, "mtllib map.mtl\n");
+    std::map<uint64_t, std::vector<const CapTri*>> byTex; size_t n = 0;
+    for (auto& kv : capTris) if (kv.second.seen >= minSeen) { byTex[kv.second.tex].push_back(&kv.second); n++; }
+    int nv = 0;
+    for (auto& g : byTex) {
+        fprintf(m, "newmtl t%016llx\nKd 1 1 1\nmap_Kd ../tex_%016llx.tga\nmap_d ../tex_%016llx.tga\n\n", (unsigned long long)g.first, (unsigned long long)g.first, (unsigned long long)g.first);
+        fprintf(o, "g t%016llx\nusemtl t%016llx\n", (unsigned long long)g.first, (unsigned long long)g.first);
+        for (const CapTri* t : g.second) {
+            for (int i = 0; i < 3; i++) fprintf(o, "v %.3f %.3f %.3f %.3f %.3f %.3f\nvt %.5f %.5f\n", t->p[i][0], t->p[i][1], t->p[i][2], t->c[i][0] / 255.f, t->c[i][1] / 255.f, t->c[i][2] / 255.f, t->uv[i][0], 1.f - t->uv[i][1]);
+            fprintf(o, "f %d/%d %d/%d %d/%d\n", nv + 1, nv + 1, nv + 2, nv + 2, nv + 3, nv + 3); nv += 3;
+        }
+    }
+    fclose(o); fclose(m);
+    fprintf(stderr, "mapdump: wrote %s (%d static triangles of %d seen, %d textures)\n", name, (int)n, (int)capTris.size(), (int)byTex.size()); fflush(stderr);
+}
+
 static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool noPersp = false) {
     float invw = 1.f / v.cw;
     float nx = v.cx * invw, ny = v.cy * invw, nz = v.cz * invw;
@@ -357,6 +430,7 @@ static void emitTri(int i0, int i1, int i2) {
     { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && vtxlog_on()) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
+    if (capOn()) { const V* cv[3] = { v[0], v[1], v[2] }; capRecord(cv, cur.texOn ? cur.srv : nullptr, (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult, g_nfpub); }
     if (batch.size() + 12 > 3 * 6000) flush();
     for (int k = 1; k + 1 < n; k++) { pushVtx(poly[0], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k + 1], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); g_tris++; }
 }
@@ -373,6 +447,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
         o.cx = x * m[0] + y * m[4] + z * m[8] + m[12]; o.cy = x * m[1] + y * m[5] + z * m[9] + m[13];
         o.cz = x * m[2] + y * m[6] + z * m[10] + m[14]; o.cw = x * m[3] + y * m[7] + z * m[11] + m[15];
         o.s = (int16_t)rd16(p + 8); o.t = (int16_t)rd16(p + 10);
+        if (capOn()) { const float* mv = S.mv[S.mvTop]; float vx = x * mv[0] + y * mv[4] + z * mv[8] + mv[12], vy = x * mv[1] + y * mv[5] + z * mv[9] + mv[13], vz = x * mv[2] + y * mv[6] + z * mv[10] + mv[14]; const float* c = S.camInv; o.wx = vx * c[0] + vy * c[4] + vz * c[8] + c[12]; o.wy = vx * c[1] + vy * c[5] + vz * c[9] + c[13]; o.wz = vx * c[2] + vy * c[6] + vz * c[10] + c[14]; }
         if (S.geom & 0x20000) {      // lighting: colour bytes are a normal
             const float* mv = S.mv[S.mvTop];
             float nx = (int8_t)p[12], ny = (int8_t)p[13], nz = (int8_t)p[14];
@@ -510,10 +585,11 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
             int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); if (g_dump) { fprintf(g_dump, "      [mtx f=%d:"); for (int q = 0; q < 16; q++) fprintf(g_dump, " %.3f", m[q]); fprintf(g_dump, "]"); fprintf(g_dump, "%c", 10); } { static int nl; if (nl < 6 && g_nfpub >= 590 && vtxlog_on()) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
-            if (f & 4) { if (f & 2) memcpy(S.proj, m, 64); else matMul(m, S.proj, S.proj); }
+            if (f & 4) { if (f & 2) { memcpy(S.proj, m, 64); S.camSet = false; } else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
                 if (f & 2) memcpy(S.mv[S.mvTop], m, 64); else matMul(m, S.mv[S.mvTop], S.mv[S.mvTop]);
+                /* the game loads view*projection as the projection matrix and each object's world matrix as the modelview: world = vertex * modelview (camInv stays identity) */
             }
             S.mvpDirty = true; break; }
         case 0xD8: { int n = (w1 >> 6) & 0x3FF; if (n < 1) n = 1; S.mvTop -= n; if (S.mvTop < 0) S.mvTop = 0; S.mvpDirty = true; break; }
@@ -584,7 +660,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         g_snapNow = g_gfx_snap_valid ? g_gfx_snap : nullptr;
         uint32_t dl = rd32(g_gfx_task + 0x30);
         memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
-        matIdent(S.proj); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
+        g_frameCamSet = false; matIdent(S.proj); matIdent(S.camInv); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
         memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0;
         ctx->OMSetRenderTargets(1, &rtv, dsv);
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);
@@ -595,6 +671,9 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         { static int trig; if (trig == 0 && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; port_dump_threads(); port_dump_trace_pub(400); { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } { FILE* m2 = fopen("port_mem2.bin", "wb"); if (m2) { fwrite((void*)0x801D0C00u, 1, 0x3600, m2); fclose(m2); } } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
         g_dlBudget = 4000000; runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
+        if (capOn() && (nframes & 3) == 0) { FILE* cf = fopen("port_cam.tmp", "w"); if (cf) { fprintf(cf, "%.3f %.3f %.3f\n", g_frameCam[0], g_frameCam[1], g_frameCam[2]); fclose(cf); MoveFileExA("port_cam.tmp", "port_cam.txt", MOVEFILE_REPLACE_EXISTING); } }
+        if (capOn() && GetFileAttributesA("port_ramdump.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_ramdump.txt"); FILE* rf = fopen("port_ram.bin", "wb"); if (rf) { fwrite((void*)0x80000000u, 1, 0x800000, rf); fclose(rf); } }
+        if (capOn() && (nframes & 15) == 0) { FILE* tf = fopen("port_mapdump.txt", "r"); if (tf) { char nm[100] = "map"; if (fscanf(tf, "%99s", nm) != 1) strcpy(nm, "map"); fclose(tf); DeleteFileA("port_mapdump.txt"); capWrite(nm); } if (GetFileAttributesA("port_mapreset.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_mapreset.txt"); capTris.clear(); } }
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
         if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size()); fflush(stderr); }
     }
