@@ -482,7 +482,7 @@ static void loadTlut(uint32_t w0, uint32_t w1) {
 
 static long g_dlBudget;                                                              /* commands left for this frame: a self-referencing list (seen after the 7th attract demo) would otherwise spin the platform thread forever */
 static void runDL(uint32_t addr, int depth) {
-    if (depth > 12) return;
+    if (depth > 18) return;      // F3DEX2 keeps an 18-entry display-list stack; the 4th split-screen view reaches its weapon list 13 deep
     const uint8_t* p = res(addr);
     for (int guard = 0; guard < 200000; guard++, p += 8) {
         { const uint8_t* ramBase = g_snapNow ? g_snapNow : (const uint8_t*)(size_t)0x80000000u; if (p >= ramBase && p + 8 > ramBase + 0x800000) return; }      /* a display list without an end command ran off the end of RAM */
@@ -490,7 +490,9 @@ static void runDL(uint32_t addr, int depth) {
         uint32_t w0 = rd32(p), w1 = rd32(p + 4); int op = w0 >> 24; g_ops[op]++; if (g_dump) fprintf(g_dump, "%*s%08X %08X\n", depth * 2, "", w0, w1);
         switch (op) {
         case 0xDF: return;
-        case 0xDE: { uint32_t a = w1; if (g_dump) fprintf(g_dump, "DL call %08X (depth %d)\n", a, depth); if ((w0 >> 16) & 1) { runDL(a, depth + 1); return; } runDL(a, depth + 1); break; }
+        case 0xDE: { uint32_t a = w1; int br = (w0 >> 16) & 1; if (g_dump) fprintf(g_dump, "DL %s %08X (depth %d)\n", br ? "branch" : "call", a, depth);
+                     if (br) { p = res(a) - 8; break; }      // G_DL branch: continue in the new list without using a stack level (a recursive branch pushed the 4th player's weapon past the old depth-12 limit)
+                     runDL(a, depth + 1); break; }
         case 0x01: loadVtx(w0, w1); break;
         case 0x02: {      // G_MODIFYVTX: overwrite colour / texture coordinates / screen position of a loaded vertex
             int off = (w0 >> 16) & 0xFF, idx = (w0 & 0xFFFF) / 2;
