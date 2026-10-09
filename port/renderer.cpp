@@ -16,6 +16,9 @@
 
 extern "C" unsigned char g_gfx_task[];
 extern "C" volatile long g_gfx_task_ready;
+extern "C" unsigned char* g_gfx_snap; extern "C" volatile long g_gfx_snap_valid;      // os_shim.c: RDRAM copy taken when the task was submitted (normal speed only)
+extern "C" { CRITICAL_SECTION g_snap_lock; int g_snap_lock_ready; }                 // held while a task is captured and while its list is walked
+static const uint8_t* g_snapNow;                                                     // the copy the current frame reads from, or null for live memory
 extern "C" void port_dump_threads(void); extern "C" void port_dump_trace_pub(int);      // os_shim.c / game_glue.c: thread states and wait queues (printed on the port_dumpnow trigger)
 
 static const int INTERNAL_W = 1920, INTERNAL_H = 1440;   // 4:3, 4x the N64 frame (480x360)
@@ -131,6 +134,7 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
     uint32_t white = 0xFFFFFFFF; D3D11_SUBRESOURCE_DATA sr = { &white, 4, 4 }; td = {}; td.Width = td.Height = 1; td.MipLevels = td.ArraySize = 1; td.SampleDesc.Count = 1; td.Format = DXGI_FORMAT_R8G8B8A8_UNORM; td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     ID3D11Texture2D* wt; dev->CreateTexture2D(&td, &sr, &wt); dev->CreateShaderResourceView(wt, nullptr, &whiteSrv); wt->Release();
     float black[4] = { 0, 0, 0, 1 }; ctx->ClearRenderTargetView(rtv, black); ctx->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.f, 0);
+    InitializeCriticalSection(&g_snap_lock); g_snap_lock_ready = 1;
     ready = vs && ps && blitVs && blitPs && vbuf && cbuf; fprintf(stderr, "renderer: init %s\n", ready ? "ok" : "FAILED"); fflush(stderr);
 }
 
@@ -140,7 +144,7 @@ static int vtxlog_on() { static int v = -1; if (v < 0) v = getenv("TUROK_VTXLOG"
 static uint8_t g_zero[1 << 16];                                       // stands in for display-list addresses that do not point at guest memory
 static const uint8_t* res(uint32_t a) {
     if (!(a & 0x80000000u)) a = 0x80000000u | (segbase[(a >> 24) & 0xF] + (a & 0xFFFFFF));
-    if (a >= 0x80000000u && a < 0x80800000u) return (const uint8_t*)(size_t)a;
+    if (a >= 0x80000000u && a < 0x80800000u) return g_snapNow ? g_snapNow + (a - 0x80000000u) : (const uint8_t*)(size_t)a;
     return g_zero;                                                       // garbage pointer (e.g. an object not initialised yet): read zeros instead of crashing
 }
 struct Tile { int fmt, siz, line, tmem, pal, cmT, maskT, shiftT, cmS, maskS, shiftS, uls, ult, lrs, lrt; };
@@ -458,7 +462,7 @@ static void runDL(uint32_t addr, int depth) {
     if (depth > 12) return;
     const uint8_t* p = res(addr);
     for (int guard = 0; guard < 200000; guard++, p += 8) {
-        if ((uintptr_t)p >= 0x80000000u && (uintptr_t)p + 8 > 0x80800000u) return;      /* a display list without an end command ran off the end of RAM */
+        { const uint8_t* ramBase = g_snapNow ? g_snapNow : (const uint8_t*)(size_t)0x80000000u; if (p >= ramBase && p + 8 > ramBase + 0x800000) return; }      /* a display list without an end command ran off the end of RAM */
         if (--g_dlBudget < 0) { static int warned; if (warned++ < 5) { fprintf(stderr, "renderer: display list runaway (depth %d), frame abandoned\n", depth); fflush(stderr); } return; }
         uint32_t w0 = rd32(p), w1 = rd32(p + 4); int op = w0 >> 24; g_ops[op]++; if (g_dump) fprintf(g_dump, "%*s%08X %08X\n", depth * 2, "", w0, w1);
         switch (op) {
@@ -550,7 +554,9 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
     static const bool selftest = getenv("TUROK_SELFTEST") != nullptr;
     if (selftest) selftest_present();
     static int nframes;
+    EnterCriticalSection(&g_snap_lock);
     if (InterlockedExchange(&g_gfx_task_ready, 0)) {
+        g_snapNow = g_gfx_snap_valid ? g_gfx_snap : nullptr;
         uint32_t dl = rd32(g_gfx_task + 0x30);
         memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
         matIdent(S.proj); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
@@ -567,6 +573,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
         if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size()); fflush(stderr); }
     }
+    LeaveCriticalSection(&g_snap_lock);
     // blit the internal frame (4:3) letterboxed into the window
     ctx->OMSetRenderTargets(1, &bb, nullptr);
     float black[4] = { 0, 0, 0, 1 }; ctx->ClearRenderTargetView(bb, black);

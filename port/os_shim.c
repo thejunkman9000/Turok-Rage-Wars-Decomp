@@ -37,6 +37,7 @@ typedef struct HThread {
 } HThread;
 
 static CRITICAL_SECTION g_lock;
+unsigned char *g_gfx_snap; volatile LONG g_gfx_snap_valid;      /* RDRAM copy for the captured graphics task (port/renderer.cpp reads it) */
 static DWORD g_main_tid;         /* the platform thread (first port_vi_tick caller), for the stall dump */
 static int g_inited;
 static HThread g_th[MAXT];
@@ -52,6 +53,7 @@ extern unsigned char *port_rom(unsigned *size);
 static void os_init(void) {
     if (g_inited) return;
     InitializeCriticalSection(&g_lock); g_inited = 1;
+    g_gfx_snap = (unsigned char *)VirtualAlloc(NULL, 0x800000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
 static HThread *self_thread(void) {
@@ -332,11 +334,20 @@ static unsigned char *aud_translate(unsigned a) { return (unsigned char *)(size_
 /* ---- RSP/RDP tasks: the display list is captured for the renderer; completion is signalled immediately ---- */
 static OSTask g_task; static int g_task_pending;
 OSTask g_gfx_task; volatile LONG g_gfx_task_ready;
+extern CRITICAL_SECTION g_snap_lock; extern int g_snap_lock_ready; extern int port_ff_active(void);      /* port/renderer.cpp owns the lock */
 s32 osSpTaskLoad(OSTask *t) { g_task = *(OSTask *)XL(t); return 0; }
 s32 osSpTaskStartGo(OSTask *t) {
     (void)t; g_dbg_startgo++;
     { int gfx = LD32(g_task.t.type) == 1; if (g_dbg_startgo < 12) { fprintf(stderr, "StartGo #%d type=%u flags=%08X\n", g_dbg_startgo, (unsigned)LD32(g_task.t.type), (unsigned)LD32(g_task.t.flags)); }
-      if (gfx) { g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1); }
+      if (gfx) {
+          /* the renderer walks the list on the platform thread while other game threads keep running (loaders overwrite the previous
+           * state's lists at transitions), so at normal speed it gets a copy of RDRAM taken while the submitting thread holds the baton;
+           * fast-forward skips the copy (10 tasks per presented frame) and reads live memory as before */
+          if (g_snap_lock_ready) EnterCriticalSection(&g_snap_lock);
+          if (g_gfx_snap && !port_ff_active()) { memcpy(g_gfx_snap, (void *)0x80000000u, 0x800000); g_gfx_snap_valid = 1; } else g_gfx_snap_valid = 0;
+          g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1);
+          if (g_snap_lock_ready) LeaveCriticalSection(&g_snap_lock);
+      }
       if (LD32(g_task.t.type) == 2) { static int hle_init; extern void audio_hle_init(unsigned char *(*tr)(unsigned)); extern int audio_hle_run(unsigned addr, unsigned len); if (!hle_init) { hle_init = 1; audio_hle_init(aud_translate); { unsigned char *so = aud_translate(0x801462E0u & 0x1FFFFFFF); if (so && !so[0] && !so[1] && !so[2]) { const char *vo = getenv("TUROK_VOLOPT"); unsigned v = vo ? (unsigned)strtoul(vo, NULL, 16) : 0x8080u; so[0] = (unsigned char)(v >> 8); so[1] = (unsigned char)v; fprintf(stderr, "audio: no saved options, default volumes set%c", 10); } } { unsigned char *pt = aud_translate(0x800D8240u & 0x1FFFFFFF); if (pt) fprintf(stderr, "pan table: %02X%02X %02X%02X %02X%02X %02X%02X%c", pt[0], pt[1], pt[2], pt[3], pt[254], pt[255], pt[256], pt[257], 10); else fprintf(stderr, "pan table: untranslatable%c", 10); } } { static int noaud = -1; if (noaud < 0) noaud = getenv("TUROK_NOAUDIO") ? 1 : 0; if (!noaud) audio_hle_run(LD32(g_task.t.data_ptr), LD32(g_task.t.data_size)); } }
       os_init(); EnterCriticalSection(&g_lock); if (g_tq_n < 16) { g_tq[g_tq_w] = gfx; g_tq_w = (g_tq_w + 1) & 15; g_tq_n++; } LeaveCriticalSection(&g_lock); }   /* completion is delivered from the frame tick: the caller still has bookkeeping to do */
     return 0;
