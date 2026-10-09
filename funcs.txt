@@ -2811,3 +2811,43 @@ func_00264E10 0x65A10 60 game ro=0xCA000:12
 func_00267D80 0x68980 17 game
 func_00268768 0x69368 63 game
 func_00268A40 0x69640 104 game
+
+func_00202FDC 0x3BDC 167 game mode=lu3+nb
+func_00203278 0x3E78 139 game mode=lu3+nb
+pad_010E28 0x10E28 2 game
+func_00210228 0x10E30 75 game
+func_00208000 0x8C00 86 game
+pad_0102B8 0x102B8 2 game
+func_0020F6B8 0x102C0 140 game
+func_00214310 0x14F10 197 game mode=lu3+nb
+func_00202E4C 0x3A4C 100 game ro=0xC7700:4 mode=lu3+nb
+func_00203D4C 0x494C 41 game
+pad_00546C 0x546C 1 game
+func_0020486C 0x5470 126 game
+func_00204A68 0x5668 83 game ro=0xC7774:4
+func_00205F18 0x6B18 64 game ro=0xC77B8:8
+func_00210964 0x11564 172 game
+func_0020C5A0 0xD1A0 253 game
+func_00215B90 0x16790 350 game ro=0xC7E8C:24 mode=lu3+nb
+
+func_0026B6A0 0x6C2A0 211 game
+func_0026BC60 0x6C860 240 game
+func_0026C020 0x6CC20 281 game
+func_0026C484 0x6D084 149 game
+func_0026C6D8 0x6D2D8 168 game
+func_0026CBA4 0x6D7A4 157 game
+func_0026D27C 0x6DE7C 157 game ro=0xCA398:4
+func_0026E5E0 0x6F1E0 556 game ro=0xCA3A0:12
+func_00270980 0x71580 103 game ro=0xCA4C4:8
+func_00271888 0x72488 164 game ro=0xCA510:24
+func_00277B08 0x78708 111 game ro=0xCA7DC:12
+func_00278BAC 0x797AC 52 game
+func_0027A0F4 0x7ACF4 275 game mode=lu3+nb
+func_0027A540 0x7B140 286 game mode=lu3+nb
+func_0027C5A0 0x7D1A0 154 game
+func_0027FF2C 0x80B2C 90 game
+
+func_00292910 0x93510 382 game ro=0xCB15C:8
+func_0028C248 0x8CE48 65 game
+func_00282304 0x82F04 294 game ro=0xCAB44:8 mode=lu3+nb
+func_002911E8 0x91DE8 135 game

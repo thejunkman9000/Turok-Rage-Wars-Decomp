@@ -108,6 +108,14 @@ seqplayer lu+inl
 func_0023E6DC lu3+nb
 func_0024AA08 lu3+nb
 func_0023E168 lu3+nb
+func_00202FDC lu3+nb
+func_00203278 lu3+nb
+func_00214310 lu3+nb
+func_00202E4C lu3+nb
+func_00215B90 lu3+nb
+func_0027A0F4 lu3+nb
+func_0027A540 lu3+nb
+func_00282304 lu3+nb
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
