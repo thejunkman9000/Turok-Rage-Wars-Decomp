@@ -470,3 +470,6 @@ int port_ff_active(void) {
     return g_ff_target >= 0 || (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
 }
 void port_ff_screen(int id) { if (g_ff_target >= 0 && id == g_ff_target) { g_ff_target = -1; fprintf(stderr, "fast-forward: reached screen %d" "%c", id, 10); fflush(stderr); } }
+
+/* TUROK_VERBOSE=1 re-enables the per-frame trace prints (DMA, allocations, UI node dumps) that otherwise swamp run.log */
+int port_verbose(void) { static int v = -1; if (v < 0) v = getenv("TUROK_VERBOSE") ? 1 : 0; return v; }

@@ -358,7 +358,7 @@ s32 osPiStartDma(OSIoMesg *mb, s32 pri, s32 dir, u32 dev, void *vaddr, u32 n, OS
     return 0;
 }
 s32 osPiRawStartDma(s32 dir, u32 dev, void *vaddr, u32 n) {
-    fprintf(stderr, "osPiRawStartDma dir=%d dev=%08X dram=%p size=%X\n", dir, dev, vaddr, n);
+    { extern int port_verbose(void); if (port_verbose()) fprintf(stderr, "osPiRawStartDma dir=%d dev=%08X dram=%p size=%X\n", dir, dev, vaddr, n); }
     if (!vaddr) return -1;
     if (dir == 0) rom_copy(XL(vaddr), dev, n);
     post_from_host(g_ev_mq[8], g_ev_msg[8]);                  /* PI interrupt: DMA finished */

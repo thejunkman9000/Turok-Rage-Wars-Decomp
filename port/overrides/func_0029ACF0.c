@@ -1,6 +1,7 @@
 
 #include "b22_types.h"
 extern SndMgr *D_8014D080;
+extern int port_verbose(void);
 extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned);
 s32 func_0029A958(void);
 s32 func_0029A5D4(s32, s32, s32, s32, s32);
@@ -11,7 +12,7 @@ void func_0029ACF0(SndCtx *n, s32 cmd, s32 a, s32 b, s32 c, s32 depth)
     s32 saved;
     s32 ok;
     if (n != 0) {
-        if (cmd == 0xE06) fprintf(__acrt_iob_func(2), "E06 node id=%d unkE=%d depth=%d flags12=%x" "\n", n->id, n->unkE, depth, n->flags12);
+        if (cmd == 0xE06 && port_verbose()) fprintf(__acrt_iob_func(2), "E06 node id=%d unkE=%d depth=%d flags12=%x" "\n", n->id, n->unkE, depth, n->flags12);
         m = D_8014D080;
         saved = m->unk520;
         m->unk520 = 0;

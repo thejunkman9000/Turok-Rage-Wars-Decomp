@@ -13,7 +13,7 @@ u32 func_00254B2C(s32 unused, u32 size, s32 flag, u32 flags) {
     } else {
         p = func_002558C0(D_801051A0, size);
     }
-    fprintf(stderr, "alloc size=%X flag=%d flags=%X -> %08X\n", size, flag, flags, p);
+    if (port_verbose()) fprintf(stderr, "alloc size=%X flag=%d flags=%X -> %08X\n", size, flag, flags, p);
     { extern void port_bt(void); extern char *getenv(const char *); if (getenv("TUROK_ALLOCBT") && !flag && (size == 0x3360 || size == 0x70)) { fprintf(stderr, "ALLOCBT size=%X", size); port_bt(); } }
     if (p == 0) {
         u32 r;
