@@ -466,7 +466,7 @@ void __assert(const char *exp, const char *file, int line) {
    holding Tab fast-forwards at any time. Audio is muted meanwhile (port/audio_out.c), frames are run 10 per presented frame (port/win32_main.cpp). */
 static int g_ff_target = -1, g_ff_env;
 int port_ff_active(void) {
-    if (!g_ff_env) { const char *e = getenv("TUROK_FF"); g_ff_env = 1; if (e && *e) { g_ff_target = atoi(e); if (g_ff_target <= 1) g_ff_target = 3; fprintf(stderr, "fast-forward until screen %d" "%c", g_ff_target, 10); } }
+    if (!g_ff_env) { const char *e = getenv("TUROK_FF"); g_ff_env = 1; if (e && *e) { g_ff_target = atoi(e); if (g_ff_target <= 1) g_ff_target = 29;      /* the title screen: its own timeout would skip into the attract demo between scripted Start taps if the menu were the target */ fprintf(stderr, "fast-forward until screen %d" "%c", g_ff_target, 10); } }
     return g_ff_target >= 0 || (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
 }
 void port_ff_screen(int id) { if (g_ff_target >= 0 && id == g_ff_target) { g_ff_target = -1; fprintf(stderr, "fast-forward: reached screen %d" "%c", id, 10); fflush(stderr); } }

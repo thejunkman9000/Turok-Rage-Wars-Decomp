@@ -32,5 +32,4 @@ Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object { try { $
 Remove-Item port_input.txt -ErrorAction SilentlyContinue
 Remove-Item Env:TUROK_SKIPMENU, Env:TUROK_LOG -ErrorAction SilentlyContinue
 "shots: $n"
-un_{0}.log" -f $Prefix) -ErrorAction SilentlyContinue
 Copy-Item port\build\run.log ("port\build\run_{0}.log" -f $Prefix) -ErrorAction SilentlyContinue

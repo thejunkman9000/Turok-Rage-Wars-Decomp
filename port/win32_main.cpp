@@ -12,6 +12,7 @@ extern "C" void port_game_init(void);
 extern "C" void port_difftest(void);          // port/game_glue.c
 extern "C" void port_game_frame(void);
 extern "C" int port_ff_active(void);         // port/game_glue.c: TUROK_FF / Tab fast-forward
+extern "C" void port_wait_idle(void);        // port/os_shim.c: block until every game thread is waiting
 extern "C" void oracle_frame_end(void);
 extern "C" int oracle_headless(void);
 extern "C" void port_present_hook(ID3D11DeviceContext* ctx);
@@ -82,7 +83,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
             TranslateMessage(&msg); DispatchMessageA(&msg);
         }
         int ff = port_ff_active();
-        for (int k = 0, reps = ff ? 10 : 1; k < reps; k++) port_game_frame();   // run one game frame (fills the display list); 10 while fast-forwarding
+        if (ff) { for (int k = 0; k < 10; k++) { port_game_frame(); port_wait_idle(); } }   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
+        else port_game_frame();                                   // run one game frame (fills the display list)
         oracle_frame_end();                                  // TUROK_ORACLE & co: trace / frame limit (see port/oracle.c)
         if (oracle_headless()) continue;
         port_present_hook(g_ctx);
