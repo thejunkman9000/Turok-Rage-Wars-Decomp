@@ -12,6 +12,8 @@ void func_00246690(void *o, s32 a, s32 b, s32 c, void *d, s32 e, s32 f, f32 g, O
 void func_0024B2C0(void *o);
 void func_00272908(void *a, O3Vec3 *b, O3Vec3 *c);
 void func_0041CE88(void *a, s32 b, s32 c, s32 d);
+extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned);
+extern u8 D_800E42D0[];
 void *func_0041CB48(O3Act *a, s32 id, s32 p, s32 q, s32 r, O3Vec3 va, O3Vec3 vb, f32 f, s32 e) {
     O3Vec3 sp50;
     O3Vec3 sp60;
@@ -44,6 +46,7 @@ void *func_0041CB48(O3Act *a, s32 id, s32 p, s32 q, s32 r, O3Vec3 va, O3Vec3 vb,
     *(s32 *)((u8 *)a + 0x20) = 0;
     *(f32 *)((u8 *)a + 0xC) = 10240.0f;
     sc = *(f32 *)(base + 0x29C) / (f32)D_800E28D0;
+    fprintf(__acrt_iob_func(2), "portrait actor: player %d id=%d cam.f29C=%f f2A0=%f D_800E28D0=%d D_800E28D4=%d sc=%f va=(%f %f %f) vb=(%f %f %f) f=%f e=%d\n", (int)(((u8 *)a - D_800E42D0) / 0x4C8), id, (double)*(f32 *)(base + 0x29C), (double)*(f32 *)(base + 0x2A0), D_800E28D0, D_800E28D4, (double)sc, (double)va.x, (double)va.y, (double)va.z, (double)vb.x, (double)vb.y, (double)vb.z, (double)f, e);
     sp50.x = a->v480.x * sc;
     sp50.z = a->v480.z * sc;
     sp50.y = a->v480.y * (*(f32 *)(base + 0x2A0) / (f32)D_800E28D4);

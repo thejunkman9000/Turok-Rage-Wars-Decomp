@@ -11,6 +11,7 @@ extern "C" void port_early_init(void);
 extern "C" void port_game_init(void);
 extern "C" void port_difftest(void);          // port/game_glue.c
 extern "C" void port_game_frame(void);
+extern "C" int port_ff_active(void);         // port/game_glue.c: TUROK_FF / Tab fast-forward
 extern "C" void oracle_frame_end(void);
 extern "C" int oracle_headless(void);
 extern "C" void port_present_hook(ID3D11DeviceContext* ctx);
@@ -80,13 +81,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
             if (msg.message == WM_QUIT) return 0;
             TranslateMessage(&msg); DispatchMessageA(&msg);
         }
-        port_game_frame();                                   // run one game frame (fills the display list)
+        int ff = port_ff_active();
+        for (int k = 0, reps = ff ? 10 : 1; k < reps; k++) port_game_frame();   // run one game frame (fills the display list); 10 while fast-forwarding
         oracle_frame_end();                                  // TUROK_ORACLE & co: trace / frame limit (see port/oracle.c)
         if (oracle_headless()) continue;
         port_present_hook(g_ctx);
         renderer_frame(g_rtv, g_w, g_h);                     // draws the captured display list, blits it letterboxed
         g_sc->Present(0, DXGI_PRESENT_DO_NOT_WAIT);                  // no vsync wait: a locked/occluded display must not stall the game
-        {   // 60 Hz pacing of our own
+        if (!ff) {   // 60 Hz pacing of our own
             static LARGE_INTEGER freq, next; LARGE_INTEGER now; QueryPerformanceCounter(&now);
             if (!freq.QuadPart) { QueryPerformanceFrequency(&freq); next = now; }
             next.QuadPart += freq.QuadPart / 60;

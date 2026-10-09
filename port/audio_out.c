@@ -57,6 +57,7 @@ void port_audio_set_freq(unsigned f) { if (f >= 8000 && f <= 48000 && !started) 
 void port_audio_push(const unsigned char *be, unsigned n) {
     unsigned i;
     if (!started) start();
+    { extern int port_ff_active(void); if (port_ff_active()) return; }      /* fast-forward: drop the audio instead of queueing minutes of it */
     if (failed || muted) return;
     n &= ~3u;
     EnterCriticalSection(&cs);

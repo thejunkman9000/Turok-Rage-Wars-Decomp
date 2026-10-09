@@ -455,3 +455,18 @@ unsigned port_rc_ret(const char *name, unsigned v) {
 
 /* guest address -> host address for pointers handed to C runtime functions by statically recompiled code */
 unsigned port_xl(unsigned a) { return (a >= 0x200000u && a < 0x2000000u) ? a + 0x30000000u : a; }
+
+/* libultra assertion hook (the ROM has no implementation): report and continue */
+void __assert(const char *exp, const char *file, int line) {
+    extern unsigned port_xl(unsigned);
+    fprintf(stderr, "assert(%s) failed at %s:%d" "%c", (const char *)(size_t)port_xl((unsigned)(size_t)exp), (const char *)(size_t)port_xl((unsigned)(size_t)file), line, 10); fflush(stderr);
+}
+
+/* fast-forward: TUROK_FF=1 runs the game at full host speed until the main menu (screen 3), TUROK_FF=<n> until screen n;
+   holding Tab fast-forwards at any time. Audio is muted meanwhile (port/audio_out.c), frames are run 10 per presented frame (port/win32_main.cpp). */
+static int g_ff_target = -1, g_ff_env;
+int port_ff_active(void) {
+    if (!g_ff_env) { const char *e = getenv("TUROK_FF"); g_ff_env = 1; if (e && *e) { g_ff_target = atoi(e); if (g_ff_target <= 1) g_ff_target = 3; fprintf(stderr, "fast-forward until screen %d" "%c", g_ff_target, 10); } }
+    return g_ff_target >= 0 || (GetAsyncKeyState(VK_TAB) & 0x8000) != 0;
+}
+void port_ff_screen(int id) { if (g_ff_target >= 0 && id == g_ff_target) { g_ff_target = -1; fprintf(stderr, "fast-forward: reached screen %d" "%c", id, 10); fflush(stderr); } }
