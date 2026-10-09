@@ -441,11 +441,13 @@ s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(
 static int autox_file;
 /* scripted input: port_input.txt (pad 1), port_input2.txt .. port_input4.txt: "hexbuttons stickx sticky" */
 static void file_pad(int i, unsigned *b, int *x, int *y) {
-    static unsigned fb[4]; static int fx[4], fy[4], n[4], hold[4], timed[4]; char fn[32];
-    /* "hexbuttons stickx sticky [frames]": with a 4th field the press lasts exactly that many game frames (polls) and the file is consumed here,
-     * so scripted presses are the same length at any TUROK_SPEED; without it the press follows the file's existence (plus two reads of grace) */
-    if (hold[i] > 0) { hold[i]--; if (hold[i] == 0 && timed[i]) { fb[i] = 0; fx[i] = fy[i] = 0; timed[i] = 0; } }
-    if (!timed[i] && ++n[i] % 3 == 1) { FILE *f; sprintf(fn, i ? "port_input%d.txt" : "port_input.txt", i + 1); f = fopen(fn, "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0, ff = 0; int k = fscanf(f, "%x %d %d %d", &bb, &xx, &yy, &ff); fclose(f); if (k >= 1) { fb[i] = bb; fx[i] = xx; fy[i] = yy; if (k >= 4 && ff > 0) { hold[i] = ff; timed[i] = 1; remove(fn); } else hold[i] = 6; } } else if (hold[i] <= 0) { fb[i] = 0; fx[i] = fy[i] = 0; } }
+    static unsigned fb[4]; static int fx[4], fy[4], n[4], hold[4], timed[4]; static long hold_end[4]; char fn[32];
+    /* "hexbuttons stickx sticky [frames]": with a 4th field the press lasts exactly that many game frames (g_frames, not polls: the 1-player
+     * trial polls the pad every other frame, so a poll-counted hold lasted twice as long and swallowed the next press) and the file is consumed
+     * here, so scripted presses are the same length at any TUROK_SPEED; without it the press follows the file's existence (plus two reads of grace) */
+    if (timed[i]) { if (g_frames >= hold_end[i]) { fb[i] = 0; fx[i] = fy[i] = 0; timed[i] = 0; hold[i] = 0; } }
+    else if (hold[i] > 0) hold[i]--;
+    if (!timed[i] && ++n[i] % 3 == 1) { FILE *f; sprintf(fn, i ? "port_input%d.txt" : "port_input.txt", i + 1); f = fopen(fn, "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0, ff = 0; int k = fscanf(f, "%x %d %d %d", &bb, &xx, &yy, &ff); fclose(f); if (k >= 1) { fb[i] = bb; fx[i] = xx; fy[i] = yy; if (k >= 4 && ff > 0) { hold_end[i] = g_frames + ff; hold[i] = ff; timed[i] = 1; remove(fn); } else hold[i] = 6; } } else if (hold[i] <= 0) { fb[i] = 0; fx[i] = fy[i] = 0; } }
     *b |= fb[i] & 0xFFFF; *x += fx[i]; *y += fy[i];
 }
 static void xinput_pad(int i, unsigned *b, int *x, int *y) {
