@@ -46,6 +46,7 @@ def r_special(l):
     return t
 lines = open(manifest).read().split('\n')
 have = {l.split('#')[0].split()[0]: i for i, l in enumerate(lines) if l.split('#')[0].split()}
+skip = set(open('wip/integrate_dropped.txt').read().split()) if os.path.exists('wip/integrate_dropped.txt') else set()
 todo = []
 for l in open(f'{ws}/wip/out/results.txt'):
     f = l.split('#')[0].split()
@@ -53,6 +54,7 @@ for l in open(f'{ws}/wip/out/results.txt'):
     if 'gcc 2.7' in l or '-msplit-addresses' in l or 'low-region' in l:
         print('skipping (special compiler):', f[0]); continue
     fn, r, n = f[0], int(f[1], 16), int(f[2])
+    if fn in skip: continue
     if fn in start_over: r = int(start_over[fn], 16)
     ro = [t for t in f[4:] if t.startswith('ro=')]
     if fn in ro_over: ro = [] if ro_over[fn] == 'none' else [ro_over[fn]]

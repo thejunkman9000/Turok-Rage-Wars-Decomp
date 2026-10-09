@@ -5,7 +5,7 @@ usage: python tools/integrate.py <ws dir> [--game|--ovl]
 1. tools/apply_results.py (new manifest entries / C files)   2. tools/cycle.ps1   3. on MISMATCH find the function that
 contains the first differing ROM offset, drop it again (manifest entry + its .c, pad entries stay valid) and repeat.
 Dropped functions are listed in wip/integrate_dropped.txt (retry them by hand)."""
-import subprocess, sys, re, os
+import subprocess, sys, re, os, shutil
 ws = sys.argv[1]
 flag = [a for a in sys.argv[2:] if a in ('--game', '--ovl')]
 game = '--game' in flag; ovl = '--ovl' in flag
@@ -29,6 +29,47 @@ for it in range(40):
     out = p.stdout + p.stderr
     if 'OK: byte-identical' in out:
         print('byte-identical after', it, 'drops'); break
+    merged_any = False
+    for m in re.finditer(r"multiple definition of `(\w+)'; build/src/" + sub + r"/(\w+)\.o:", out):
+        S, Y = m.group(1), m.group(2)
+        ent = {e[0]: e for e in entries()}
+        if S in ent and Y in ent and S != Y and S in cand and Y in cand:
+            a, b = sorted([ent[S], ent[Y]], key=lambda e: e[1])
+            if a[1] + 4 * a[2] == b[1]:
+                srcfile = f'src/{sub}/{Y}.c'
+                dstfile = f'src/{sub}/{a[0]}.c'
+                if srcfile != dstfile:
+                    shutil.copy(srcfile, dstfile)
+                    if os.path.exists(f'src/{sub}/{b[0]}.c') and b[0] != a[0] and Y != b[0]:
+                        pass
+                ls = open(manifest).read().split(chr(10))
+                out_ls = []
+                for l in ls:
+                    f = l.split('#')[0].split()
+                    if f and f[0] == a[0]:
+                        f[2] = str(a[2] + b[2]); l = ' '.join(f + [])
+                    elif f and f[0] == b[0]:
+                        continue
+                    out_ls.append(l)
+                open(manifest, 'w', newline=chr(10)).write(chr(10).join(out_ls))
+                if b[0] != a[0] and os.path.exists(f'src/{sub}/{b[0]}.c') and b[0] != Y:
+                    os.remove(f'src/{sub}/{b[0]}.c')
+                if b[0] == Y and os.path.exists(f'src/{sub}/{b[0]}.c'):
+                    os.remove(f'src/{sub}/{b[0]}.c')
+                cand.discard(b[0]); merged_any = True
+                print('merged objects', a[0], b[0]); 
+    if merged_any: continue
+    dup = {m.group(2) for m in re.finditer(r"multiple definition of `(\w+)'; build/src/" + sub + r"/(\w+)\.o:", out)}
+    if dup:
+        dup = {d for d in dup if d in cand}
+        ls = open(manifest).read().split(chr(10))
+        ls = [l for l in ls if not (l.split('#')[0].split() and l.split('#')[0].split()[0] in dup)]
+        open(manifest, 'w', newline=chr(10)).write(chr(10).join(ls))
+        for b in dup:
+            c = f'src/{sub}/{b}.c'
+            if os.path.exists(c): os.remove(c)
+            cand.discard(b); dropped.append(b)
+        print('dropped (duplicate definitions):', sorted(dup)); continue
     bad = set(re.findall(r'src/' + sub + r'/(\w+)\.c:\d+: (?:parse error|.*error|.*undeclared)', out)) | set(re.findall(r'build/src/' + sub + r'/(\w+)\.o\]', out))
     for m in re.finditer(r'src/' + sub + r'/(\w+)\.c:\(\.text[^)]*\): multiple definition of `\w+\'; build/src/' + sub + r'/(\w+)\.o:', out):
         bad.update(m.groups())

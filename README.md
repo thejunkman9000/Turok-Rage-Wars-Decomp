@@ -30,12 +30,15 @@ byte-identical to the base ROM. Compilers: decompals/old-gcc; libultra is GCC 2.
 Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other code); splat keeps those words in asm and
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
-## Status
-The whole library region of the main image (ROM 0xAEF80-0xC76B0: debugger stubs, audio library, libm/gu, libultra, printf,
-libgcc helpers) is now in `src/libultra/`: matched C where possible (`funcs.txt`, ~110 objects incl. printf, gu, osViManager,
-PI/SI/SP/AI/DP/motor, cseq) and named hand-written asm (`*.s`; exception handler, TLB/cache primitives, 64DD interrupt code,
-the remaining audio functions as `func_<VRAM>.s`) plus `pad_*.s` for linker padding. Everything is byte-identical to the ROM
-(`powershell tools/cycle.ps1`). The Controller-Pak (PFS) code in overlay A (ROM 0x1B4BD0-0x1B7970, `funcs_a.txt`, `src/ovl_a/`) is
-named hand-written asm. Remaining work: turn the named `.s` audio/PFS functions into matching C, then the game code. Helper scripts: `tools/chk.ps1` (score a C candidate), `tools/try.ps1 -Align`, `tools/vtry.py`
-(variant search), `tools/perm_setup.sh` (decomp-permuter), `tools/regen_hasm.ps1`/`mkspec.py`/`mkhasm.py` (asm -> src/*.s),
-`tools/rename_fn.py`.
+## Status (2026-10-09)
+- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. Game code (GCC 2.8.1 `-O2 -mcpu=r4300`, per-function
+  overrides in `funcs.txt`) is C in `src/game/` (main image) and `src/ovl_a/` (overlay A); libultra/libaudio in `src/libultra/`
+  (`-O3 -fforce-addr -fno-builtin`). About half of all game instructions (2167 of 2701 main-image functions, 982 of 1183 overlay-A
+  functions; the large ones are the remaining tail) are matched C; the rest is still splat asm, plus ~120 hand-written libultra/libaudio
+  asm stubs (`src/libultra/*.s`) - the RNC decompressor and CPU/TLB/exception code are real hand-written assembly.
+- **Windows port** (`port/`, `docs/PORT_STATUS.md`): runs the game natively (32-bit x86, Direct3D 11 F3DEX2 renderer, libultra audio with an
+  ABI1 audio HLE, scripted input) through the menus into 1-4 player matches; functions without matching C are exact static recompilations
+  of the ROM code (`port/mips2c.py`).
+- Tooling for parallel matching work: `tools/mkws.py` (isolated workspaces), `tools/fchk.ps1` (fast checker with relocation verification),
+  `tools/apply_results.py` / `tools/integrate.py` (bring results back; keep the build byte-identical), `docs/AGENT_GUIDE.md`,
+  `docs/GAME_GUIDE.md`, `docs/FINDINGS_all.txt` (combined lessons). C/H/TXT files must keep LF line endings (`.gitattributes`).
