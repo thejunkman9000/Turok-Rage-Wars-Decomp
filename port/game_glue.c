@@ -13,6 +13,7 @@ struct ID3D11DeviceContext;
 
 static unsigned char *g_rom; static unsigned g_rom_size;
 static volatile LONG g_frames;
+volatile LONG g_game_ticks;      /* state-dispatcher calls (port_log_state): the stall watchdog treats a game thread that stops ticking while frames go on as stalled */
 
 unsigned char *port_rom(unsigned *size) { if (size) *size = g_rom_size; return g_rom; }
 extern void port_vi_tick(void);
@@ -190,8 +191,12 @@ void raw_scan_other(HANDLE h, unsigned long *sp) {
 /* stall watchdog: a host thread outside the scheduler; when no frame completes for 8 s it dumps every thread (port/os_shim.c) */
 extern void port_stall_dump(HANDLE h);
 static DWORD WINAPI stall_watch(LPVOID p) {
-    LONG last = -1; int quiet = 0, dumped = 0; (void)p;
-    for (;;) { LONG f; Sleep(1000); f = g_frames; if (f == last) { if (++quiet >= 8 && !dumped) { dumped = 1; port_stall_dump(g_crash_log); } } else { quiet = 0; last = f; } }
+    LONG last = -1, lastg = -1; int quiet = 0, quietg = 0, dumped = 0; (void)p;
+    for (;;) {
+        LONG f, g; Sleep(1000); f = g_frames; g = g_game_ticks;
+        if (f == last) { if (++quiet >= 8 && !dumped) { dumped = 1; port_stall_dump(g_crash_log); } } else { quiet = 0; last = f; }
+        if (g == lastg && f != last) { if (++quietg >= 10 && !dumped) { dumped = 1; { DWORD n; if (g_crash_log != INVALID_HANDLE_VALUE) WriteFile(g_crash_log, "STALL(game thread): frames continue but the state dispatcher stopped\r\n", 70, &n, NULL); } port_stall_dump(g_crash_log); } } else { quietg = 0; lastg = g; }
+    }
 }
 static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
@@ -401,6 +406,7 @@ void __cdecl port_entry(void) { AddVectoredExceptionHandler(1, early_crash); Win
 void port_dump_state_tables(void);
 void port_log_state(void *gp, int st, void *fn) {
     static int n, last = -1;
+    InterlockedIncrement(&g_game_ticks);
     if (st != last || (++n % 300) == 0) { fprintf(stderr, "game state: g=%p st=%d fn_rva=%X\n", gp, st, (unsigned)((size_t)fn - (size_t)GetModuleHandleA(NULL))); fflush(stderr); }
     if (st != last) { static int once; if (!once) { once = 1; port_dump_state_tables(); } }
     last = st;

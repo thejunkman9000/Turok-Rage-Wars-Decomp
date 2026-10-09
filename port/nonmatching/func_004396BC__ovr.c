@@ -43,6 +43,11 @@ s32 func_004396BC(void *cfg) {
     D_800E5950->f4 = 0;
     D_801462C8->f24 = 10;
     D_801462C8->f25 = 10;
+    {   /* port: TUROK_TIMELIMIT=<minutes> / TUROK_FRAGLIMIT=<n> override the 10/10 defaults of a custom match (end-of-match tests) */
+        extern char *getenv(const char *); extern int atoi(const char *); const char *e;
+        if ((e = getenv("TUROK_TIMELIMIT")) != 0) D_801462C8->f24 = (u8)atoi(e);
+        if ((e = getenv("TUROK_FRAGLIMIT")) != 0) D_801462C8->f25 = (u8)atoi(e);
+    }
     for (i = 0; i < 4; i++) {
         func_0022EF20(&D_80102B00[i]);
     }
