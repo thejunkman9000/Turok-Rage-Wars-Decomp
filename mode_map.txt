@@ -105,6 +105,8 @@ func_002AB940 lu3+nb
 cseq lu+inl
 csplayer lu+inl
 seqplayer lu+inl
+func_0023E6DC lu3+nb
+func_0024AA08 lu3+nb
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
