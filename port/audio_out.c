@@ -30,7 +30,7 @@ static void fill(short *dst) {
     LeaveCriticalSection(&cs);
 }
 static DWORD WINAPI feeder(LPVOID p) {
-    (void)p;
+    (void)p; fprintf(stderr, "audio: feeder thread tid=%lX\n", GetCurrentThreadId());
     for (;;) {
         int i; WaitForSingleObject(ev, 50);
         for (i = 0; i < NBLK; i++) if (hdr[i].dwFlags & WHDR_DONE) { fill(blk[i]); waveOutWrite(hwo, &hdr[i], sizeof hdr[i]); }
@@ -57,7 +57,7 @@ void port_audio_set_freq(unsigned f) { if (f >= 8000 && f <= 48000 && !started) 
 void port_audio_push(const unsigned char *be, unsigned n) {
     unsigned i;
     if (!started) start();
-    { extern int port_ff_active(void); if (port_ff_active()) return; }      /* fast-forward: drop the audio instead of queueing minutes of it */
+    { extern int port_ff_active(void); extern int port_speed(void); if (port_ff_active() || port_speed() > 1) return; }      /* fast-forward / TUROK_SPEED: drop the audio instead of queueing minutes of it */
     if (failed || muted) return;
     n &= ~3u;
     EnterCriticalSection(&cs);

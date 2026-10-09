@@ -12,7 +12,7 @@
 struct ID3D11DeviceContext;
 
 static unsigned char *g_rom; static unsigned g_rom_size;
-static volatile LONG g_frames;
+volatile LONG g_frames;          /* presented+fast-forwarded game frames (port_game_frame); also the virtual clock under TUROK_SPEED / TUROK_FF */
 volatile LONG g_game_ticks;      /* state-dispatcher calls (port_log_state): the stall watchdog treats a game thread that stops ticking while frames go on as stalled */
 
 unsigned char *port_rom(unsigned *size) { if (size) *size = g_rom_size; return g_rom; }
@@ -511,6 +511,20 @@ void __assert(const char *exp, const char *file, int line) {
 /* fast-forward: TUROK_FF=1 runs the game at full host speed until the main menu (screen 3), TUROK_FF=<n> until screen n;
    holding Tab fast-forwards at any time. Audio is muted meanwhile (port/audio_out.c), frames are run 10 per presented frame (port/win32_main.cpp). */
 static int g_ff_target = -1, g_ff_env, g_ff_list[8], g_ff_n, g_ff_pos;      /* TUROK_FF=a;b;c: fast-forward until screen a appears, normal speed until screen b appears, fast again until c ... */
+/* TUROK_SPEED=n: run the whole session n times faster - n game frames per presented frame, paced at 60 Hz, with the game clock
+ * (osGetTime/osGetCount) derived from the frame count so every timer, timeout and script wait scales with it.  Unlike TUROK_FF
+ * (which is staged) the multiplier is constant, so pressfile.ps1 -Speed n can divide all its waits by n and the same sequence works. */
+int port_speed(void) {
+    static int n = -1;
+    if (n < 0) { const char *e = getenv("TUROK_SPEED"); n = e ? atoi(e) : 1; if (n < 1) n = 1; if (n > 50) n = 50; if (n > 1) fprintf(stderr, "speed: %d game frames per presented frame, frame-based clock\n", n); }
+    return n;
+}
+/* the frame-based clock is used for the whole run whenever a speed multiplier can be active (switching clocks mid-run would jump time) */
+int port_vclock(void) {
+    static int v = -1;
+    if (v < 0) v = (port_speed() > 1 || getenv("TUROK_FF") || getenv("TUROK_VCLOCK")) ? 1 : 0;
+    return v;
+}
 int port_ff_active(void) {
     if (!g_ff_env) { const char *e = getenv("TUROK_FF"); g_ff_env = 1; if (e && *e) { const char *q = e; while (*q && g_ff_n < 8) { g_ff_list[g_ff_n++] = atoi(q); while (*q && *q != 59) q++; if (*q == 59) q++; } if (g_ff_list[0] <= 1) g_ff_list[0] = 29;      /* the title screen: its own timeout would skip into the attract demo between scripted Start taps if the menu were the target */
         g_ff_target = g_ff_list[0]; fprintf(stderr, "fast-forward until screen %d (%d stage%s)" "%c", g_ff_target, g_ff_n, g_ff_n == 1 ? "" : "s", 10); } }

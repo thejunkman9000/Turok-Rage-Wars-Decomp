@@ -232,6 +232,7 @@ OSId osGetThreadId(OSThread *t) { HThread *h = find(t); return h && h->t ? (OSId
 extern int oracle_enabled(void); extern unsigned long long oracle_counter(void); extern void oracle_filter_pad(unsigned char *pad);
 static unsigned long long counter_now(void) {
     if (oracle_enabled()) return oracle_counter();
+    { extern int port_vclock(void); extern volatile LONG g_frames; if (port_vclock()) return (unsigned long long)g_frames * (46875000ull / 60); }   /* TUROK_SPEED / TUROK_FF: 1/60 s per game frame */
     LARGE_INTEGER f, c; QueryPerformanceFrequency(&f); QueryPerformanceCounter(&c);
     return (unsigned long long)((double)c.QuadPart * 46875000.0 / (double)f.QuadPart);
 }
@@ -334,7 +335,7 @@ static unsigned char *aud_translate(unsigned a) { return (unsigned char *)(size_
 /* ---- RSP/RDP tasks: the display list is captured for the renderer; completion is signalled immediately ---- */
 static OSTask g_task; static int g_task_pending;
 OSTask g_gfx_task; volatile LONG g_gfx_task_ready;
-extern CRITICAL_SECTION g_snap_lock; extern int g_snap_lock_ready; extern int port_ff_active(void);      /* port/renderer.cpp owns the lock */
+extern CRITICAL_SECTION g_snap_lock; extern int g_snap_lock_ready; extern int port_ff_active(void); extern int port_speed(void);      /* port/renderer.cpp owns the lock */
 s32 osSpTaskLoad(OSTask *t) { g_task = *(OSTask *)XL(t); return 0; }
 s32 osSpTaskStartGo(OSTask *t) {
     (void)t; g_dbg_startgo++;
@@ -344,7 +345,7 @@ s32 osSpTaskStartGo(OSTask *t) {
            * state's lists at transitions), so at normal speed it gets a copy of RDRAM taken while the submitting thread holds the baton;
            * fast-forward skips the copy (10 tasks per presented frame) and reads live memory as before */
           if (g_snap_lock_ready) EnterCriticalSection(&g_snap_lock);
-          if (g_gfx_snap && !port_ff_active()) { memcpy(g_gfx_snap, (void *)0x80000000u, 0x800000); g_gfx_snap_valid = 1; } else g_gfx_snap_valid = 0;
+          if (g_gfx_snap && !port_ff_active() && port_speed() == 1) { memcpy(g_gfx_snap, (void *)0x80000000u, 0x800000); g_gfx_snap_valid = 1; } else g_gfx_snap_valid = 0;   /* fast-forward and TUROK_SPEED run every frame to completion (port_wait_idle) before the renderer reads live RAM, so no copy is needed; at 1x the game threads run concurrently with the renderer */
           g_gfx_task = g_task; InterlockedExchange(&g_gfx_task_ready, 1);
           if (g_snap_lock_ready) LeaveCriticalSection(&g_snap_lock);
       }
@@ -411,7 +412,7 @@ static int pad_connected(int i) {
 }
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     int i; u8 bp = 0; (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status);
-    for (i = 0; i < 4; i++) { int c = pad_connected(i); if (c) bp |= (u8)(1 << i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = c ? 0 : 0x80; }
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); if (c) bp |= (u8)(1 << i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = c ? 0 : 0x08; }
     *bitpattern = bp;
     return 0;
 }
@@ -419,8 +420,11 @@ s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(
 static int autox_file;
 /* scripted input: port_input.txt (pad 1), port_input2.txt .. port_input4.txt: "hexbuttons stickx sticky" */
 static void file_pad(int i, unsigned *b, int *x, int *y) {
-    static unsigned fb[4]; static int fx[4], fy[4], n[4]; char fn[32];
-    if (++n[i] % 3 == 1) { FILE *f; sprintf(fn, i ? "port_input%d.txt" : "port_input.txt", i + 1); f = fopen(fn, "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0; if (fscanf(f, "%x %d %d", &bb, &xx, &yy) >= 1) { fb[i] = bb; fx[i] = xx; fy[i] = yy; } fclose(f); } else { fb[i] = 0; fx[i] = fy[i] = 0; } }
+    static unsigned fb[4]; static int fx[4], fy[4], n[4], hold[4], timed[4]; char fn[32];
+    /* "hexbuttons stickx sticky [frames]": with a 4th field the press lasts exactly that many game frames (polls) and the file is consumed here,
+     * so scripted presses are the same length at any TUROK_SPEED; without it the press follows the file's existence (plus two reads of grace) */
+    if (hold[i] > 0) { hold[i]--; if (hold[i] == 0 && timed[i]) { fb[i] = 0; fx[i] = fy[i] = 0; timed[i] = 0; } }
+    if (!timed[i] && ++n[i] % 3 == 1) { FILE *f; sprintf(fn, i ? "port_input%d.txt" : "port_input.txt", i + 1); f = fopen(fn, "r"); if (f) { unsigned bb = 0; int xx = 0, yy = 0, ff = 0; int k = fscanf(f, "%x %d %d %d", &bb, &xx, &yy, &ff); fclose(f); if (k >= 1) { fb[i] = bb; fx[i] = xx; fy[i] = yy; if (k >= 4 && ff > 0) { hold[i] = ff; timed[i] = 1; remove(fn); } else hold[i] = 6; } } else if (hold[i] <= 0) { fb[i] = 0; fx[i] = fy[i] = 0; } }
     *b |= fb[i] & 0xFFFF; *x += fx[i]; *y += fy[i];
 }
 static void xinput_pad(int i, unsigned *b, int *x, int *y) {
@@ -467,7 +471,7 @@ void osContGetQuery(OSContStatus *status) {
     int i; { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); }
     status = (OSContStatus *)XL(status);      /* (the previous version wrote through the untranslated pointer) */
     memset(status, 0, 4 * sizeof *status);
-    for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].errno_ = c ? 0 : 0x80; }
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].errno_ = c ? 0 : 0x08; }
 }
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
 s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void)ch; return 1; }

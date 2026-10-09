@@ -11,7 +11,7 @@ extern "C" void port_early_init(void);
 extern "C" void port_game_init(void);
 extern "C" void port_difftest(void);          // port/game_glue.c
 extern "C" void port_game_frame(void);
-extern "C" int port_ff_active(void);         // port/game_glue.c: TUROK_FF / Tab fast-forward
+extern "C" int port_ff_active(void); extern "C" int port_speed(void); extern "C" volatile long g_frames;         // port/game_glue.c: TUROK_FF / Tab fast-forward
 extern "C" void port_wait_idle(void);        // port/os_shim.c: block until every game thread is waiting
 extern "C" void oracle_frame_end(void);
 extern "C" int oracle_headless(void);
@@ -82,9 +82,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
             if (msg.message == WM_QUIT) return 0;
             TranslateMessage(&msg); DispatchMessageA(&msg);
         }
-        int ff = port_ff_active();
-        if (ff) { for (int k = 0; k < 10; k++) { port_game_frame(); port_wait_idle(); } }   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
+        int ff = port_ff_active(); int nfr = ff ? 10 : port_speed();
+        if (nfr > 1) { for (int k = 0; k < nfr; k++) { port_game_frame(); port_wait_idle(); } }   // TUROK_SPEED=n: n frames per presented frame (paced); fast-forward: 10, unpaced   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
         else port_game_frame();                                   // run one game frame (fills the display list)
+        if (nfr > 1) {   // TUROK_SPEED: report the delivered rate every 5 s of wall time (the pacer skips its sleep when n frames take longer than 16.7 ms, so the real multiplier can fall below n)
+            static LARGE_INTEGER rf, rt; static long rn; LARGE_INTEGER t; QueryPerformanceCounter(&t);
+            if (!rf.QuadPart) { QueryPerformanceFrequency(&rf); rt = t; rn = g_frames; }
+            else if (t.QuadPart - rt.QuadPart >= rf.QuadPart * 5) { double s = (double)(t.QuadPart - rt.QuadPart) / rf.QuadPart; fprintf(stderr, "speed: %ld game frames in %.1f s wall = %.1fx\n", (long)(g_frames - rn), s, (g_frames - rn) / (60.0 * s)); rt = t; rn = g_frames; }
+        }
         oracle_frame_end();                                  // TUROK_ORACLE & co: trace / frame limit (see port/oracle.c)
         if (oracle_headless()) continue;
         port_present_hook(g_ctx);
