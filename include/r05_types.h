@@ -85,4 +85,36 @@ typedef struct R05Cfg {
     /* 0x14 */ s32 cntB;
 } R05Cfg;
 
+/* animation playback state (func_0025E5D0 / func_00261EB8 / func_0026195C) */
+typedef struct R05Anim {
+    /* 0x00 */ f32 time;
+    /* 0x04 */ s16 f4;
+    /* 0x06 */ s16 f6;
+    /* 0x08 */ s16 count;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u32 loopStart;
+    /* 0x10 */ void **data;
+} R05Anim;
+
+/* sampling output of func_00261EB8 */
+typedef struct R05AnimOut {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 off0;
+    /* 0x14 */ s32 off1;
+    /* 0x18 */ s32 off2;
+    /* 0x1C */ s32 off3;
+    /* 0x20 */ f32 frac;
+} R05AnimOut;
+
+typedef struct R05CurveCfg {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 n;
+    /* 0x1C */ f32 scale;
+} R05CurveCfg;
+
+typedef struct R05Vec3i { s32 x, y, z; } R05Vec3i;
+
 #endif
