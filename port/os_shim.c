@@ -152,6 +152,13 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *m, s32 flags) {
     mq = (OSMesgQueue *)XL(mq); m = (OSMesg *)XL(m);
     HThread *self = self_thread(); os_init();
     maybe_yield(self);                                    /* a polling thread must not starve a higher-priority thread that became ready */
+    /* SI transfers complete instantly in the port, so a blocking wait on the controller queue can only mean the game lost track of what is in flight
+     * (its state byte D_8010FBB8 is also written outside the b14 lock by func_002A3090; with our timing that landed between a pak section and the next
+     * retrace a few times per hundred 4-player runs and the scheduler thread waited forever).  Complete the wait rather than hang. */
+    if (g_ev_mq[5] && mq == (OSMesgQueue *)XL(g_ev_mq[5]) && flags != OS_MESG_NOBLOCK && (s32)LD32(mq->validCount) == 0) {
+        static int n; if (n++ < 10) fprintf(stderr, "si: wait on the controller queue with no transfer in flight at frame %ld, completed\n", (long)g_frames);
+        post_from_host(g_ev_mq[5], g_ev_msg[5]);
+    }
     if (g_aud_done && mq == (OSMesgQueue *)XL(g_ev_mq[4])) { g_aud_done = 0; if (g_tasklog) fprintf(stderr, "task done (audio) frame=%ld\n", (long)g_frames); post_from_host(g_ev_mq[4], g_ev_msg[4]); }
     EnterCriticalSection(&g_lock);
     while ((s32)LD32(mq->validCount) == 0) {
@@ -522,7 +529,8 @@ void port_dump_threads(void) {
         if (th && g_th[i].tid != GetCurrentThreadId()) {
             SuspendThread(th); c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER; GetThreadContext(th, &c);
             fprintf(stderr, "      eip rva %X stack:", (unsigned)c.Eip - base); sp = (unsigned *)c.Esp;
-            for (k = 0; k < 96; k++) if (sp[k] > base && sp[k] < base + 0x1C2000) fprintf(stderr, " %X", sp[k] - base);
+            { MEMORY_BASIC_INFORMATION mbi; unsigned char *end = (VirtualQuery(sp, &mbi, sizeof mbi) ? (unsigned char *)mbi.BaseAddress + mbi.RegionSize : (unsigned char *)sp);   /* stay inside the stack region: a 96-word scan ran past the top of a thread stack and killed the main thread */
+              for (k = 0; k < 96 && (unsigned char *)&sp[k + 1] <= end; k++) if (sp[k] > base && sp[k] < base + 0x1C2000) fprintf(stderr, " %X", sp[k] - base); }
             fprintf(stderr, "\n"); ResumeThread(th);
         }
         if (th) CloseHandle(th);
