@@ -18,4 +18,17 @@ typedef struct R1Hit {
     /* 0x0E4 */ Vec3f pos;
 } R1Hit;
 
+/* selection record written by func_00215410 (target class + geometry) */
+typedef struct R1Sel {
+    /* 0x00 */ s32 cls;
+    /* 0x04 */ struct M1Actor *tgt;
+    /* 0x08 */ f32 ang;
+    /* 0x0C */ Vec3f p;
+    /* 0x18 */ Vec3f d;
+    /* 0x24 */ f32 len;
+    /* 0x28 */ Vec3f p2;
+    /* 0x34 */ Vec3f d2;
+    /* 0x40 */ f32 len2;
+} R1Sel;
+
 #endif

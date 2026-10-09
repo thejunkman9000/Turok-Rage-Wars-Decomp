@@ -50,4 +50,10 @@ typedef struct R3G {
     /* 0x04 */ u8 pad4[0x68];
     /* 0x6C */ s32 unk6C;
 } R3G;
+
+/* display-list word pair appended through D_80110634 */
+typedef struct R3DlCmd {
+    u32 w0;
+    u32 w1;
+} R3DlCmd;
 #endif
