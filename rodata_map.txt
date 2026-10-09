@@ -141,9 +141,10 @@ func_002AAED8 0xCBF4C 4
 func_002ADE28 0xCC048 32
 func_002AE1A4 0xCC070 8
 dbgLinkServerLoop 0xCC090 192
-cseq_new 0xCD150 16
-cseq_ticks 0xCD160 52
+cseq 0xCD140 88 84
+csplayer 0xCD1A0 224 220
 alCents2Ratio 0xCD280 12
+seqplayer 0xCD290 152 148
 seq 0xCD330 40
 alSndpAllocate 0xCD360 4
 _handleEvent 0xCD370 40

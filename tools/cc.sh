@@ -24,6 +24,7 @@ case "$toks" in *+nb*) xflags="$xflags -fno-builtin";; esac
 case "$toks" in *+ntj*) xflags="$xflags -fno-thread-jumps";; esac
 case "$toks" in *+luret*) gasmode=game;; esac
 export GAS_NOFILL=0; case "$toks" in *+nf*) export GAS_NOFILL=1;; esac
+case "$toks" in *+inl*) export GAS_INLINE=1;; esac   # li.s/li.d literals emitted at the point of use (csplayer, seqplayer)
 "$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic $xflags ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) case "$toks" in *+o2*) echo "-O2";; *) echo "-O2 -mcpu=r4300";; esac;; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in" \
     || { [ -s "$tmp/o.s" ] || exit 1; echo "cc.sh: gcc reported errors for $in, using its output anyway (as tools/chk.py does)" >&2; }
@@ -39,8 +40,10 @@ if [ -f rodata_map.txt ]; then
     else ro_va=$(printf '0x%X' $(( 0x80000000 + off - 0xC00 ))); fi
   fi
   ro_size=$(awk -v n="$base" '$1==n {print $3}' rodata_map.txt)
+  ro_real=$(awk -v n="$base" '$1==n {print $4}' rodata_map.txt)   # data proper, when the piece is larger (alignment tail comes from the ROM)
 fi
 case "$in" in src/game/*|src/ovl_a/*) export GAS_RO4=1;; esac
-python3 tools/gas_compat.py "$gasmode" "$tmp/o.s" $ro_va ${ro_size:-}
+python3 tools/gas_compat.py "$gasmode" "$tmp/o.s" $ro_va ${ro_size:-} ${ro_real:-}
 
 bash tools/as.sh "$tmp/o.s" "$out"
+

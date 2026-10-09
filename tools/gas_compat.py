@@ -59,6 +59,9 @@ def reg_use(mnemonic, rest):
     return regs[0], set(regs[1:])
 
 
+INLINE = os.environ.get('GAS_INLINE') == '1'
+
+
 class Pool:
     """Per-object literal pool: 4-byte floats and 8-byte doubles, first-use order, one literal per use."""
 
@@ -75,6 +78,11 @@ class Pool:
         if size == 4:
             return [f'\t.word\t0x{value:08X}']
         return [f'\t.word\t0x{value >> 32:08X}', f'\t.word\t0x{value & 0xFFFFFFFF:08X}']
+
+    def inline(self, ref, size, value):
+        """old gas: the literal is appended to .rodata when the li.s/li.d is assembled, i.e. chronologically with GCC's own
+        .rodata output (strings, jump tables) - ROM-verified for csplayer.c / seqplayer.c (GAS_INLINE=1)."""
+        return ['	.section	.rodata', '	.align	' + ('2' if size == 4 else '3'), ref + ':'] + self._data(size, value) + ['	.text']
 
     def emit_aligned(self):
         """Pool with alignment directives (used to learn the label offsets, or by the diff tools)."""
@@ -252,7 +260,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             ref = f'.LFL{pool.add(8, value)}'
             ind = m.group(1)
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
-                                  f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat']))
+                                  f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat'] + (pool.inline(ref, 8, value) if INLINE else [])))
             prev = 'ldc1'
             continue
         m = lis_re.match(line)
@@ -261,7 +269,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             ref = f'.LFL{pool.add(4, word)}'
             ind = m.group(1)
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
-                                  f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat']))
+                                  f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat'] + (pool.inline(ref, 4, word) if INLINE else [])))
             prev = 'lwc1'
             continue
         if imm_div_re.match(line):
@@ -318,6 +326,8 @@ def fix(text, mode, ro_va=None, ro_size=None):
                 if not (prev and prev.startswith('c.') and st.endswith(':')):
                     prev = None
 
+    if INLINE:
+        pool.items = []          # literals were emitted inline above (no end-of-section pool)
     if ro_va is not None:
         return finalize_rodata(out, pool, ro_va, ro_size)
     if pool.items:
@@ -329,6 +339,7 @@ if __name__ == '__main__':
     mode, path = sys.argv[1], sys.argv[2]
     ro_va = int(sys.argv[3], 0) if len(sys.argv) > 3 else None
     ro_size = int(sys.argv[4], 0) if len(sys.argv) > 4 else None
+    ro_real = int(sys.argv[5], 0) if len(sys.argv) > 5 else None
     s = open(path).read()
     out = fix(s, mode, ro_va, ro_size)
     if os.environ.get('GAS_RO4') == '1' and ro_va is not None and ro_size and out.count('.align\t3') == 1 and not re.search(r'\.(double|dword|quad)', out):
@@ -338,7 +349,7 @@ if __name__ == '__main__':
     if ro_va is not None and ro_size:
         # data the compiled object does not account for (dead constants the original pool kept, bytes of a
         # neighbouring pool covered by chk's piece): fill the rest of the piece with the ROM's own bytes
-        have = rodata_size(out)
+        have = ro_real if ro_real else rodata_size(out)
         if have < ro_size:
             off = (ro_va - 0x400000 + 0x16E000) if ro_va < 0x80000000 else (ro_va - 0x80000000 + 0xC00)
             rom = open('baserom.us.v11.z64', 'rb').read()

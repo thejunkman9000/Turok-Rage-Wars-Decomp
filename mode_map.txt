@@ -102,6 +102,9 @@ func_00260EEC lu3+nf
 func_0028C810 lu3+nb
 func_002AB8DC lu3+nb
 func_002AB940 lu3+nb
+cseq lu+inl
+csplayer lu+inl
+seqplayer lu+inl
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu

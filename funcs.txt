@@ -224,19 +224,8 @@ rncMakeHuffTable 0xB3470 85 libultra
 dbgSetWatchpoint 0xB35C4 19 libultra
 rncUnpackMethod2 0xB3610 43 libultra
 rncUnpackMethod2Body 0xB36BC 401 libultra
-__alCSeqGetTrackEvent 0xB3D00 152 libultra
-alCSeqNewMarker 0xB3F60 156 libultra
-__getTrackByte 0xB41D0 46 libultra
 alCSPGetState 0xB4770 3 libultra
 pad_0B477C 0xB477C 1 libultra
-alCSPNew 0xB4780 92 libultra
-__CSPVoiceHandler 0xB48F0 332 libultra
-__CSPHandleNextSeqEvent 0xB4E20 100 libultra
-__CSPHandleMIDIMsg 0xB4FB0 547 libultra
-__CSPHandleMetaMsg 0xB583C 101 libultra
-__CSPPostNextSeqEvent 0xB59D0 27 libultra
-__CSPRepostEvent 0xB5A3C 36 libultra
-__setUsptFromTempo_2 0xB5ACC 12 libultra
 pad_0B5AFC 0xB5AFC 1 libultra
 alCents2Ratio 0xB5B00 20 libultra ro=0xCD280:12 mode=lu
 alCSPPlay 0xB5B50 11 libultra
@@ -258,25 +247,6 @@ alCopy 0xB5FE0 11 libultra
 pad_0B600C 0xB600C 1 libultra
 alHeapDBAlloc 0xB6010 18 libultra
 pad_0B6058 0xB6058 2 libultra
-__handleNextSeqEvent 0xB6760 129 libultra
-__handleMIDIMsg 0xB6964 546 libultra
-__mapVoice 0xB71EC 20 libultra
-__unmapVoice 0xB723C 25 libultra
-__voiceNeedsNoteKillOff 0xB72A0 44 libultra
-__lookupVoice 0xB7350 24 libultra
-__lookupSoundQuick 0xB73B0 77 libultra
-__vsVol 0xB74E4 29 libultra
-__vsDelta 0xB7558 7 libultra
-__vsPan 0xB7574 16 libultra
-__initFromBank 0xB75B4 43 libultra
-__initChanState 0xB7660 44 libultra
-__resetPerfChanState 0xB7710 32 libultra
-__setInstChanState 0xB7790 21 libultra
-__seqpReleaseVoice 0xB77E4 72 libultra
-__seqpStopOsc 0xB7904 60 libultra
-__postNextSeqEvent 0xB79F4 50 libultra
-__handleMetaMsg 0xB7ABC 25 libultra
-__setUsptFromTempo 0xB7B20 12 libultra
 seq 0xB7B50 369 libultra ro=0xCD330:40
 pad_0B8114 0xB8114 3 libultra
 alUnlink 0xB8120 12 libultra
@@ -454,13 +424,7 @@ __floatdisf 0xC7600 44 libultra ro=0xCDF70:24 mode=lu4
 pad_0C7014 0xC7014 3 libultra
 xprintf  0xC3120  620  libultra ro=0xCD940:376
 xlitob  0xC3AD0  182  libultra
-cseq_new  0xB4288  65  libultra ro=0xCD150:16
-cseq_next  0xB438C  61  libultra
-cseq_ticks  0xB4480  70  libultra ro=0xCD160:52
-cseq2  0xB4598  118  libultra
 alHeapInit 0xB6060 13 libultra
-alSeqpNew 0xB6094 100 libultra
-__voiceHandler 0xB6224 335 libultra
 
 pad_0B82E4 0xB82E4 3 libultra
 pad_0B8A48 0xB8A48 2 libultra
@@ -2731,3 +2695,10 @@ func_002A7058 0xA7C58 67 game
 
 func_00222D40 0x23940 80 game
 func_00224F38 0x25B38 160 game ro=0xC8720:40
+
+cseq 0xB3D00 668 libultra ro=0xCD140:88:84 mode=lu+inl
+
+csplayer 0xB4780 1247 libultra ro=0xCD1A0:224:220 mode=lu+inl
+
+seqplayer 0xB60A0 1708 libultra ro=0xCD290:152:148 mode=lu+inl
+pad_0B6094 0xB6094 3 libultra
