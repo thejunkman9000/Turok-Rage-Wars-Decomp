@@ -239,6 +239,7 @@ static DState cur; static bool curValid; static int curTexW = 1, curTexH = 1;
 static void flush() {
     { static int once; if (!once++) { fprintf(stderr, "debug switches: notri=%d norect=%d\n", getenv("TUROK_NOTRI") != nullptr, getenv("TUROK_NORECT") != nullptr); fflush(stderr); } }
     if (batch.empty() || !ready) { batch.clear(); return; }
+    { static int drawmax = -2; if (drawmax == -2) { const char* e = getenv("TUROK_DRAWMAX"); drawmax = e ? atoi(e) : -1; } if (drawmax >= 0 && g_draws >= drawmax) { batch.clear(); return; } }   // TUROK_DRAWMAX=n: only the first n draw calls of each frame (bisecting what blackens a screen)
     uint32_t cw0 = cur.cw0, cw1 = cur.cw1;
     uint32_t cb[16]; float cf[16];
     // combiner fields (see gbi.h GCCc0w0 / GCCc0w1 / GCCc1w0 / GCCc1w1)
@@ -254,6 +255,7 @@ static void flush() {
     for (int i = 0; i < 4; i++) { fl[i] = cur.prim[i]; fl[4 + i] = cur.env[i]; }
     int cycle = (cur.omH >> 20) & 3;
     fl[8] = (float)cur.mode; fl[9] = (cycle == 1) ? 1.f : 0.f;
+    { static int no2 = -1; if (no2 < 0) no2 = getenv("TUROK_NO2CYC") ? 1 : 0; if (no2) fl[9] = 0.f; }   // TUROK_NO2CYC=1: run 2-cycle combiners as 1-cycle (bisecting shader paths)
     float thr = -1.f;
     if (cycle == 2) thr = 0.01f;
     else if ((cur.omL & 3) == 1) thr = 0.5f;
@@ -272,6 +274,13 @@ static void flush() {
     ctx->PSSetSamplers(0, 1, &cur.smp);
     UINT stride = sizeof(Vtx), off = 0; ctx->IASetVertexBuffers(0, 1, &vbuf, &stride, &off);
     { D3D11_RECT r = { (LONG)(S.sc[0] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[1] * INTERNAL_H / (SCREEN_H * 4)), (LONG)(S.sc[2] * INTERNAL_W / (SCREEN_W * 4)), (LONG)(S.sc[3] * INTERNAL_H / (SCREEN_H * 4)) }; ctx->RSSetScissorRects(1, &r); }
+    if (g_dump) {   /* one line per draw call in the port_dlnow dump: what was drawn, where, how */
+        float x0 = 9, y0 = 9, x1 = -9, y1 = -9, r = 0, g = 0, b = 0, a = 0; for (const Vtx& v : batch) { if (v.x < x0) x0 = v.x; if (v.x > x1) x1 = v.x; if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y; r += v.r; g += v.g; b += v.b; a += v.a; }
+        float n = (float)batch.size();
+        fprintf(g_dump, "[draw tris=%d ndc %.2f,%.2f-%.2f,%.2f avg rgba %.2f %.2f %.2f %.2f tex=%d%s cw=%06X/%08X omL=%08X omH=%08X geom=%06X cycle=%d prim %.2f %.2f %.2f %.2f env %.2f %.2f %.2f %.2f zb=%d zcmp=%d zupd=%d blend=%d thr=%.2f]\n",
+                (int)batch.size() / 3, x0, y0, x1, y1, r / n, g / n, b / n, a / n, cur.texOn ? 1 : 0, (cur.texOn && !cur.srv) ? "(nosrv)" : "", cw0, cw1, cur.omL, cur.omH, cur.geom, cycle,
+                cur.prim[0], cur.prim[1], cur.prim[2], cur.prim[3], cur.env[0], cur.env[1], cur.env[2], cur.env[3], zb, zcmp, zupd, blend, thr);
+    }
     ctx->Draw((UINT)batch.size(), 0); g_draws++;
     batch.clear();
 }
@@ -579,6 +588,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
     float black[4] = { 0, 0, 0, 1 }; ctx->ClearRenderTargetView(bb, black);
     float ww = (float)w, hh = (float)h, sc = ww / INTERNAL_W < hh / INTERNAL_H ? ww / INTERNAL_W : hh / INTERNAL_H;
     float vw = INTERNAL_W * sc, vh = INTERNAL_H * sc; D3D11_VIEWPORT vp = { (ww - vw) / 2, (hh - vh) / 2, vw, vh, 0, 1 }; ctx->RSSetViewports(1, &vp);
+    { D3D11_RECT full = { 0, 0, w, h }; ctx->RSSetScissorRects(1, &full); }     // the last game draw's scissor (a portrait viewport on the player-select screens) must not clip the blit
     ctx->OMSetBlendState(bsOpaque, nullptr, 0xFFFFFFFF); ctx->OMSetDepthStencilState(dss[0], 0);
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); ctx->IASetInputLayout(nullptr);
     ctx->VSSetShader(blitVs, nullptr, 0); ctx->PSSetShader(blitPs, nullptr, 0);
