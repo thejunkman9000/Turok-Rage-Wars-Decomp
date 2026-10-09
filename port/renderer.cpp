@@ -30,8 +30,10 @@ static ID3D11Texture2D* dsTex; static ID3D11DepthStencilView* dsv;
 static ID3D11VertexShader* vs; static ID3D11PixelShader* ps; static ID3D11InputLayout* layout;
 static ID3D11VertexShader* blitVs; static ID3D11PixelShader* blitPs;
 static ID3D11Buffer* vbuf; static ID3D11Buffer* cbuf;
-static ID3D11BlendState *bsOpaque, *bsAlpha;
+static ID3D11BlendState *bsOpaque, *bsAlpha, *bsNoColor;     // bsNoColor: colour writes off (partial depth clears)
 static ID3D11DepthStencilState* dss[4];     // [test][write]
+static ID3D11DepthStencilState* dssClear;   // always pass, write depth: a far-plane quad clears part of the z-buffer
+static int g_zclear;                        // flush() is drawing such a quad
 static ID3D11RasterizerState* rs;
 static ID3D11SamplerState* samplers[2][3][3];
 static ID3D11ShaderResourceView* whiteSrv;
@@ -121,10 +123,12 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
     bl.RenderTarget[0].BlendEnable = TRUE; bl.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA; bl.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
     bl.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD; bl.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE; bl.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO; bl.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     dev->CreateBlendState(&bl, &bsAlpha);
+    bl = {}; bl.RenderTarget[0].RenderTargetWriteMask = 0; dev->CreateBlendState(&bl, &bsNoColor);
     for (int t = 0; t < 2; t++) for (int w = 0; w < 2; w++) {
         D3D11_DEPTH_STENCIL_DESC dd = {}; dd.DepthEnable = t; dd.DepthWriteMask = w ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO; dd.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
         dev->CreateDepthStencilState(&dd, &dss[t * 2 + w]);
     }
+    { D3D11_DEPTH_STENCIL_DESC dd = {}; dd.DepthEnable = TRUE; dd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL; dd.DepthFunc = D3D11_COMPARISON_ALWAYS; dev->CreateDepthStencilState(&dd, &dssClear); }
     D3D11_RASTERIZER_DESC rd = {}; rd.FillMode = D3D11_FILL_SOLID; rd.CullMode = D3D11_CULL_NONE; rd.DepthClipEnable = TRUE; rd.ScissorEnable = TRUE; dev->CreateRasterizerState(&rd, &rs);
     static const D3D11_TEXTURE_ADDRESS_MODE am[3] = { D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_CLAMP };
     for (int f = 0; f < 2; f++) for (int u = 0; u < 3; u++) for (int v = 0; v < 3; v++) {
@@ -261,14 +265,15 @@ static void flush() {
     else if ((cur.omL & 3) == 1) thr = 0.5f;
     else if (cur.omL & 0x3000) thr = 0.3f;
     if (cur.omL & 0x4000) thr = (thr > 0) ? 0.02f : -1.f;
+    if (g_zclear) thr = -1.f;
     fl[10] = thr; fl[11] = cur.texOn ? 1.f : 0.f;
     D3D11_MAPPED_SUBRESOURCE m;
     ctx->Map(cbuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &m); memcpy(m.pData, cbData, sizeof(cbData)); ctx->Unmap(cbuf, 0);
     ctx->Map(vbuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &m); memcpy(m.pData, batch.data(), batch.size() * sizeof(Vtx)); ctx->Unmap(vbuf, 0);
     bool zb = (cur.geom & 1) != 0, zcmp = (cur.omL & 0x10) != 0, zupd = (cur.omL & 0x20) != 0;
     bool blend = (cur.omL & 0x4000) != 0 && cycle < 2;
-    ctx->OMSetDepthStencilState(dss[((zb && zcmp) ? 2 : 0) + ((zb && zupd) ? 1 : 0)], 0);
-    ctx->OMSetBlendState(blend ? bsAlpha : bsOpaque, nullptr, 0xFFFFFFFF);
+    ctx->OMSetDepthStencilState(g_zclear ? dssClear : dss[((zb && zcmp) ? 2 : 0) + ((zb && zupd) ? 1 : 0)], 0);
+    ctx->OMSetBlendState(g_zclear ? bsNoColor : (blend ? bsAlpha : bsOpaque), nullptr, 0xFFFFFFFF);
     ctx->PSSetShaderResources(0, 1, cur.texOn && cur.srv ? &cur.srv : &whiteSrv);
     ctx->PSSetShaderResources(1, 1, cur.texOn && cur.srv1 ? &cur.srv1 : (cur.texOn && cur.srv ? &cur.srv : &whiteSrv));
     ctx->PSSetSamplers(0, 1, &cur.smp);
@@ -392,7 +397,16 @@ static void fillRect(int x0, int y0, int x1, int y1) {      // screen pixels (in
     uint16_t c16 = (uint16_t)(col >> 16);
     r = ((c16 >> 11) & 31) / 31.f; g = ((c16 >> 6) & 31) / 31.f; b = ((c16 >> 1) & 31) / 31.f;
     if (S.cimg == S.zimg) {
-        if (x0 <= 0 && y0 <= 0 && x1 >= SCREEN_W - 1 && y1 >= SCREEN_H - 1) { flush(); ctx->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.f, 0); }
+        flush();
+        if (x0 <= 0 && y0 <= 0 && x1 >= SCREEN_W - 1 && y1 >= SCREEN_H - 1) { ctx->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.f, 0); return; }
+        // split-screen viewports clear only their quadrant of the z-buffer (4-player: 240x178 fills); ignoring those left stale depth
+        // from the previous frame, so every moving view lost most of its geometry to the fill colour (black / red sky)
+        g_zclear = 1; setupState(1);
+        float fx0 = x0 / SCREEN_W * 2 - 1, fx1 = (x1 + 1) / SCREEN_W * 2 - 1, fy0 = 1 - y0 / SCREEN_H * 2, fy1 = 1 - (y1 + 1) / SCREEN_H * 2;
+        Vtx q[4]; for (int i = 0; i < 4; i++) { q[i].z = 1; q[i].w = 1; q[i].r = q[i].g = q[i].b = q[i].a = 1; q[i].u = q[i].v = 0; }
+        q[0].x = fx0; q[0].y = fy0; q[1].x = fx1; q[1].y = fy0; q[2].x = fx1; q[2].y = fy1; q[3].x = fx0; q[3].y = fy1;
+        batch.push_back(q[0]); batch.push_back(q[1]); batch.push_back(q[2]); batch.push_back(q[0]); batch.push_back(q[2]); batch.push_back(q[3]);
+        flush(); g_zclear = 0;
         return;
     }
     if (x0 <= 0 && y0 <= 0 && x1 >= SCREEN_W - 1 && y1 >= SCREEN_H - 1) { flush(); float c[4] = { r, g, b, 1 }; ctx->ClearRenderTargetView(rtv, c); return; }
