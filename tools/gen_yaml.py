@@ -64,7 +64,7 @@ if not ros:
     lines.append(f'      - [0x{MAIN_CODE_END:X}, bin, rsp_and_data_unsplit]')
 else:
     first_ro = ros[0][0]
-    lines.append(f'      - [0x{MAIN_CODE_END:X}, bin, rsp_and_data_0]')
+    if first_ro > MAIN_CODE_END: lines.append(f'      - [0x{MAIN_CODE_END:X}, bin, rsp_and_data_0]')      # an owned rodata piece right at the start of the blob (func_002014A4 ro=0xC76B0) leaves it empty: splat rejects a zero-size segment
     cur = first_ro
     k = 1
     for off, size, name, sub in ros:

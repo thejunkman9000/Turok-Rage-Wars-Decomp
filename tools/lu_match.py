@@ -52,7 +52,7 @@ def compile_funcs(src):
         cc = (f"{SN}/cc1_272 -quiet -G0 -mips3 -mgp32 -mfp32 -O2 {xf}" if '@SN272' in extra else
               f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu={cpu} -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
         r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
-               f"{cc} {base}.i -o {base}.s && python3 {ROOT}/tools/sn_expand.py {base}.s && sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
+               f"{cc} {base}.i -o {base}.s && {'python3 ' + ROOT + '/tools/snfix.py ' + base + '.s ' + ' '.join(t for t in extra if t in ('@L', '@K', '@Z')) + ' && ' if any(t in extra for t in ('@L', '@K', '@Z')) else ''}python3 {ROOT}/tools/sn_expand.py {base}.s && {'python3 ' + ROOT + '/tools/snepi.py ' + base + '.s && ' if '@EPI' in extra else ''}sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
                f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o && "
                f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
         if r.returncode:
