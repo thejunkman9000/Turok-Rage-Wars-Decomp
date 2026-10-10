@@ -69,7 +69,10 @@ def gen(names):
         callee = (set(re.findall(r'\(u32 \(\*\)\(\)\)(\w+)\)\(', c)) | set(re.findall(r'\(\*\)\([^()]*\)\)(\w+)\)\(', c))) - {name}
         decls = ''.join('extern u32 %s();\n' % n for n in sorted(callee | used) if n != name and n not in ('memcpy', 'sqrtf', 'fabsf', 'sqrt', 'fabs', 'floor', 'ceil', 'rint', 'floorf', 'ceilf', 'rintf') and not n.startswith(('port_', '__builtin')))
         data = set(re.findall(r'\b(D_[0-9A-F]{8})\b', c))
-        open((os.environ.get('RECOMP_OUT') or 'port/native/recomp') + '/%s.c' % name, 'w', newline='\n').write(HEADER % name + decls + c + '\n')
+        outp = (os.environ.get('RECOMP_OUT') or 'port/native/recomp') + '/%s.c' % name; newtxt = HEADER % name + decls + c + '\n'
+        try: same = open(outp, newline='\n').read() == newtxt
+        except OSError: same = False
+        if not same: open(outp, 'w', newline='\n').write(newtxt)          # an unchanged twin keeps its mtime: build_clang.py does not recompile it
         done.append(name)
     open('port/build/rc_argc.txt', 'w').write('\n'.join('%s %d' % (n, mips2c.ARGC.get(n, 0)) for n in done if mips2c.ARGC.get(n, 0) > 0) + '\n')
     return done

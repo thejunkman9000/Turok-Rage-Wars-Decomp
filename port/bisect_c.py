@@ -40,18 +40,27 @@ def main():
     base = [l.strip() for l in open('port/recomp_base.txt') if l.strip()]
     idx = sorted(int(re.fullmatch(r'func_([0-9A-F]{8})\.s', f).group(1), 16) for f in os.listdir('port/build/asm_func') if re.fullmatch(r'func_[0-9A-F]{8}\.s', f))
     ents = entries()
-    skip, force = set(), set()
+    skip, force, per = set(), set(), {}
     for n in names:
         if not re.fullmatch(r'func_[0-9A-F]{8}', n): continue
         va = int(n[5:], 16)
         hit = [e for e in ents if e[0] == n] or [e for e in ents if va_of_rom(e[1]) <= va < va_of_rom(e[1]) + 4 * e[2]]      # an entry may start after its (stray head words) name
         if not hit: print('no manifest entry covers', n); continue
         e = hit[0]; skip.add(e[0]); lo = va_of_rom(e[1]); hi = lo + 4 * e[2]
-        force.update('func_%08X' % a for a in idx if lo <= a < hi)
+        member = {'func_%08X' % a for a in idx if lo <= a < hi}
+        force.update(member); per.setdefault(e[0], set()).update(member)
     open('port/c_skip.txt', 'w', newline='\n').write('\n'.join(sorted(skip)) + '\n')
     open('port/recomp.txt', 'w', newline='\n').write('\n'.join(base + sorted(force - set(base))) + '\n')
     print(len(skip), 'sources skipped,', len(force), 'functions recompiled'); sys.stdout.flush()
     regen()
+    # a twin that could not be generated (unsupported instruction / float signature) leaves the function missing: keep that source as C
+    bad = sorted(st for st, ns in per.items() if any(not os.path.exists('port/native/recomp/%s.c' % n) for n in ns))
+    if bad:
+        skip -= set(bad)
+        drop = set().union(*(per[st] for st in bad)) - set(base)
+        open('port/c_skip.txt', 'w', newline=chr(10)).write(chr(10).join(sorted(skip)) + chr(10))
+        open('port/recomp.txt', 'w', newline=chr(10)).write(chr(10).join(base + sorted(force - drop - set(base))) + chr(10))
+        print('kept as C (no twin possible):', ' '.join(bad)[:300])
 
 if __name__ == "__main__":
     main()

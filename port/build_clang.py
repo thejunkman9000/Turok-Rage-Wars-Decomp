@@ -45,6 +45,22 @@ def draft_superseded(p):
     if 'func_' + m.group(1) in rc or 'func_' + m.group(1) in _NAMES: return True
     return any(a <= va < b for a, b in _COVER[:-1])
 
+
+_SN = []
+def sn_stems():
+    """sources of the real-toolchain integration (mode=sn): hacks written for the MIPS code generator (empty asm barriers, permuter shapes, undefined-behaviour
+    spellings) are only safe unoptimised on the host - func_00427690 at -O1 reads a NULL object where the MIPS code does not.  Older matched C keeps -O1.
+    PORT_O1_SN=1 compiles them optimised like the rest."""
+    if os.environ.get('PORT_O1_SN'): return ()
+    if not _SN:
+        names = set()
+        for fn in ('funcs.txt', 'funcs_a.txt'):
+            for l in open(fn):
+                f = l.split('#')[0].split()
+                if len(f) >= 4 and 'mode=sn' in ' '.join(f[4:]): names.add(f[0])
+        _SN.append(names)
+    return _SN[0]
+
 def sources():
     srcs = []
     cskip = set(open('port/c_skip.txt').read().split()) if os.path.exists('port/c_skip.txt') else set()      # sources the port does not compile (their functions are statically recompiled instead): bisecting behaviour differences
@@ -165,7 +181,7 @@ def compile_one(p, force):
         pp = f'{LL}/{prefix}{base}.c'; open(pp, 'w', newline='\n').write(patched)
         done = False
         for inc in incs:
-            r = subprocess.run(COMMON + inc + ['-S', '-emit-llvm', pp, '-o', ll1], capture_output=True, text=True)
+            r = subprocess.run((['-O0' if a == '-O1' else a for a in COMMON] if (base in os.environ.get('PORT_O0', '').split(',') or base in sn_stems()) else COMMON) + inc + ['-S', '-emit-llvm', pp, '-o', ll1], capture_output=True, text=True)      # PORT_O0=name,name: more sources unoptimised
             if r.returncode == 0: done = True; break
             err = r.stderr
         if done: break
