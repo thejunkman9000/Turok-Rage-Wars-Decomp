@@ -36,7 +36,17 @@ if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
   else
     "$SN/cc1_281" -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 $xflags "$tmp/s.i" -o "$tmp/s.s"
   fi
-  "$SN/n64link" asn64 --as mips-linux-gnu-as -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 "$tmp/s.s" -o "$out"
+  "$SN/n64link" asn64 "$tmp/s.s" > "$tmp/n.s"
+  # rodata label references -> absolute addresses (the real rodata sits in KSEG0, the splat segment's VA does not match)
+  sbase=$(basename "$in" .c); sro_va=""; sro_size=""
+  if [ -f rodata_map.txt ]; then
+    soff=$(awk -v n="$sbase" '$1==n {print $2}' rodata_map.txt); sro_size=$(awk -v n="$sbase" '$1==n {print $3}' rodata_map.txt)
+    if [ -n "$soff" ]; then
+      if [ $(( soff )) -ge $(( 0x16E000 )) ]; then sro_va=$(printf '0x%X' $(( 0x400000 + soff - 0x16E000 ))); else sro_va=$(printf '0x%X' $(( 0x80000000 + soff - 0xC00 ))); fi
+    fi
+  fi
+  python3 tools/sn_abs.py "$tmp/n.s" $sro_va ${sro_size:-} > "$tmp/a.s"
+  bash tools/as.sh "$tmp/a.s" "$out"
   exit 0
 fi
 "$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic $xflags ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) case "$toks" in *+o2*) echo "-O2";; *) echo "-O2 -mcpu=r4300";; esac;; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \

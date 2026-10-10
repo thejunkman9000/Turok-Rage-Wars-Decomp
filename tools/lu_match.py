@@ -52,6 +52,7 @@ def compile_funcs(src):
               f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
         r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
                f"{cc} {base}.i -o {base}.s && {SN}/n64link asn64 --as {P}-as -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
+               f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o && "
                f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
         if r.returncode:
             return None, (r.stderr.strip().splitlines() or ['sn pipeline failed'])[:3]

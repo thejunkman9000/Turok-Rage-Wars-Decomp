@@ -80,13 +80,14 @@ for line in open(list_file):
     rbad = reloc_check(off, n, fw, rw, relnames) if not bad else []
     # literal pool location from HI16/LO16 relocs against .rodata
     ro = LAST.get('ro', b'')
+    if os.environ.get('CHKDBG'): print('DBG ro', len(ro), sorted(set(v[1] for v in relnames.values()))[:6], [k for k in LAST])
     pool = ''
     if ro:
         addrs = []
         pend = {}
         for i in range(n):
             o = off + 4 * i
-            if o in relnames and relnames[o][1] == '.rodata':
+            if o in relnames and relnames[o][1] in ('.rodata', '.rdata'):
                 t = relnames[o][0]
                 if t == 'R_MIPS_HI16': pend[i] = rw[i] & 0xFFFF
                 elif t == 'R_MIPS_LO16' and pend:
