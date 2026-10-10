@@ -2982,3 +2982,186 @@ FINDINGS s707 (targets: func_00444320, func_0044632C; both already solved by ear
 - func_00444320 is not a function: it is the case-3 loop body of func_00444260 (jump-table label split into a fake symbol); chk on the fake name says "not found in object", but func_00444260 (61 insns, 0x1B2260..0x1B2354) is EXACT @SN and covers it.
 - func_0044632C is EXACT @SN from the s607 source (void return, inlined func_004467D8 as do{c=*a++;d=*b++;n--;}while(c==d&&c!=0&&n==0); return c==d;). All earlier PARTIALs (o06, q04, s411, s508) returned 8-cnt; the ROM function returns void, which fixes the li/subu tail scheduling. The old-flags version needed an `asm("$6")` pin for the inlined helper; the SN version needs none.
 - Machine load was ~37 (WSL load average); a single fchk call took >2 minutes.
+
+=== ROUND 8 FINDINGS (workspace s806) ===
+FINDINGS s806 (round 8, real toolchain @SN; targets func_004351A0 ... func_00444024) -- new lessons only
+
+RESULT: all 10 targets EXACT under @SN (func_0043C4F4 = span file with 21 members), ALL WITHOUT HACKS: no asm, no register pins, no volatile.  The two functions that
+earlier drafts matched only with hacks (func_0043F69C: f32 register pin + asm barrier; func_00444024: 4/0 plateau, then volatile + pin + early inits) are now natural source.
+
+HEADLINE LESSONS (check these first on every near-miss)
+A. DECLARE READ-ONLY POOL SYMBOLS `const`.  `extern const f32 D_800E2798;` makes the load RTX_UNCHANGING_P: sched/alias then add NO dependence between it and any store.
+   `extern f32 D_800E2798;` (non-const) is "may alias" with every store through a pointer parameter: every store written BEFORE the read is pinned before it and every store
+   after it behind it.  func_00444024 was a 4-structural plateau for three workers and needed volatile + a register pin + early initialised declarations (all dead ends, see 10)
+   until the symbol was made const: then plain source in ROM order matches (statement order below).  Applies to any pool constant (float or integer table) that the
+   original code read as a literal/const object; try it before volatile, pins, asm or the permuter.
+B. `do { } while (0)` (or wrapping one statement in it) is a natural scheduling barrier: the LOOP_BEG/LOOP_END notes make the first insn after them a barrier that depends on
+   everything before it, so nothing moves across (same effect as `__asm__ volatile("")`, which earlier workers used 10+ times; probably the original macro form).
+   func_0043F69C: `do { o->f4 = (o->f4 * D_800E28D0[0]) / 284; } while (0);` stops sched2 from hoisting `lw v1,4(s2)` above the `trunc.w.s/swc1` pair (an EMPTY
+   `do { } while (0);` between the statements works too; a bare `{ }` block does not).
+C. A REGISTER PIN ON A TEMPORARY IS USUALLY THE WRONG FIX (func_0043F69C `register f32 fq asm("$f0")`).  Cause: local-alloc ranks quantities by refs / life length; sched1 puts
+   the `(set r (float:SF (mem)))` insn (lwc1+cvt.s.w) after a plain load (larger potential hazard => picked first backward => placed last), so in `E->f8 * (f32)D_800E28D4`
+   the f8 pseudo lives 3 insns, the height 2, the height wins $f0 and everything is swapped.  The ROM allocation needs sched1 order [height, f8, mul], i.e. the height's
+   def UNBOOSTED: make it a NAMED temp that is assigned in several branch arms (multi-set pseudo): `hh = (f32)D_800E28D4;` in the flags arm (`v = hh;`), in the mode==2 arm
+   (`v = (E->f8 + 0.5f) * hh;`) and in the else arm (`v = E->f8 * hh;`) -> EXACT, no pin (mode==2 + else arms alone also work; else alone / flags + else do not).  sched2 then swaps
+   the two loads back by itself (forcing the order with a barrier instead fixes the registers but sched2 cannot swap: 2 structural off).  Diagnostics: s.c.lreg
+   "Register N used x times across y insns" and the sched1 order of the two loads (wip/sh/cmp3.sh).
+D. cse deletes a store that is IMMEDIATELY followed (adjacent insns) by a store to the same address.  The ROM keeps `unk4 = 0; ... unk4 = 0x4000000; ... unk4 = -1` (three stores)
+   because another statement sits between the last two in the source: `a->unk10 = 0;` (a free store that sched2 later dumps elsewhere).  When a ROM shows apparently dead
+   double stores, look for the statement between them, not for volatile.
+
+func_00444024 STATEMENT ORDER THAT MATCHES (all non-volatile, const global):
+   `a->unk17 = 1;` FIRST (see E), then unk18, unk19, unk1A, unk14 (0x80 etc.), unk8, unk0 = 0, unk4 = 0, unk0 = 0x4000000, unk4 = 0x4000000, unk10 = 0 (the separator, D),
+   unk4 = -1, unk1B = 1, unk1C, unk1F, unk580 = 0, unk24..27 = 10, unk28 = 1, unk29, unk2A, unk2B = 1, `a->unk16 = a->unk14;` (narrows to lbu 21), `a->unk20 = D_800E2798;`
+   (read at its use), natural `for (i = 0; i < 10; i++) a->unk2C[i] = 1;`, then the two inlined func_00444204 calls.
+E. WHY `move v1,a2` sits at the very top of the ROM function (idx 7) although the four `sb v1,..` stores are 27..40 insns later: the constant `1` of the four byte stores (pseudo A)
+   is created by cse at the FIRST use of that constant, so the first source statement `a->unk17 = 1;` gives A the lowest luid; sched1 releases A last (its first user is the first
+   chain store), boosts it and puts its `li` in front of the first chain `li 128`; the loop-1 invariant `li a2,1` (hoisted by loop.c, unboosted) and the biv/giv inits float
+   to the top group in front of it; reload_cse turns A's `li` into `move v1,a2`.  Then sched2 sinks the FREE stores (stores of $0 / of v1 are not tied to the v0 `li` chain) into the
+   first gap behind `li v0,10` (ROM idx 33-39: `sb v1,23; sw zero,16; sb v1,27; sb zero,28; sb zero,31; sb zero,1408`).  With a non-const global this first store is pinned
+   BEFORE the `lwc1` (store -> load of possibly aliasing memory), which is exactly the s706 draft's 4/0 plateau (`sb v1,27` at idx 20 instead of 36; lbu after the lwc1).
+
+SCHEDULER MODEL (verified with -fsched-verbose=5 -dS / -dR on these functions; gcc 2.8.1 sched.c streamed from the gcc-2.8.1 tag, never saved)
+- birthing boost: adjust_priority() runs only when an insn is RELEASED by dependence (last successor scheduled) and only before reload; if its dest pseudo is in bb_live_regs and
+  REG_N_SETS == 1 its priority becomes max_priority = LAUNCH_PRIORITY 0x7f000001 (dump: "uid (7f000001)").  Insns in the INITIAL ready list (no successor in the block: hoisted loop
+  invariants, biv/giv inits, an `li` whose only use is in the next block) are never boosted; with rank (priority, class, luid) they are picked only when no store is ready, i.e. at
+  the END of the backward pass = the TOP of the block, in descending luid pick order (ascending in program order: invariant `li`, biv init, giv init).
+- schedule_select prefers (same priority) the insn with the larger potential hazard = STORES over ALU insns, and a `(set r (float:SF (mem)))` insn over a plain load; a LOAD is
+  "blocked for 1 cycle" after every store pick and launched only right after an ALU pick ("launching 120 before 84"): a boosted load lands directly before the first ALU insn
+  (usually a boosted `li`) that follows its release, NOT next to its use; an unboosted or pinned load sinks to the top of the block.
+- a store that consumes a load result has priority 2 (load latency 2) and is picked first = placed LAST in the block (`sb a0,22`, `swc1 f0,32` at the end of func_00444024).
+- sched2 has no boost, but register REUSE after allocation creates the dependences: constants sharing $v0 form a rigid li/store chain (li K2 must follow the store of K1: WAR),
+  while stores of $0 / of another register are FREE: every ready free store is taken before the next `li` (store > ALU), so all free stores below the chain element are dumped at the
+  first gap, consecutively, in luid order.
+- reload_cse_regs turns a later `li` of a constant that another hard reg holds into `move` (not for the `li` reload itself emits for an asm operand); `li a2 ... move v1,a2` therefore
+  proves that the loop-invariant `li` has the LOWER luid in the sched2 stream.
+- cse merges a later same-EBB `1` into an earlier `1` (also across modes via lowpart), so two registers holding 1 in one block need different EBBs/hard regs.
+
+TOOLING (all in tools/ or wip/sh/, run through WSL; there is NO Windows python)
+- tools/w.sh "<cmd>"  runs <cmd> in WSL at the workspace root.  Traps: (a) `$var` / `\$var` inside the quoted command are expanded by the outer shells and arrive EMPTY -> put
+  loops/variables into a script file (wip/sh/*.sh) and call `tools/w.sh "bash wip/sh/x.sh args"`; (b) the Bash tool collapses backslashes (`\n` becomes `n`) -> wip/sh/mkvar.py uses the
+  token @NL@ for a newline; (c) a foreground call that runs > 120 s is moved to the background (use run_in_background, then Read the output file).
+- tools/vb.py <fn> <rom hex> [--flags "@SN"] [--jobs N] [--top N] (--dir D | --file variants.txt | files...)  : PARALLEL variant ranking with the aligned metric (structural =
+  inserted/deleted/changed-mnemonic insns, operand = same mnemonic but other register/immediate; relocations masked).  It skips lu_match's 8 MB ROM index build, so a variant costs
+  ~2-3 s on an idle box (use --jobs 3-6 when other agents load the machine: load average was 40+ on 16 cores).  Best variant -> wip/vb_best.c.
+- wip/sh/mkvar.py base out 'old=>new'... : text-replace variant generator (a hypothesis test = 5 variants + vb.py in one call, ~15 s).  wip/sh/exp5.py : every single-statement
+  MOVE (or swap) inside a statement block -> directory of variants (vb.py --dir; 676 variants ~25 min under load).  wip/sh/exp13.py : `do { } while (0)` before / around every statement.
+- wip/sh/dumpall.sh <file.c> (all RTL stages), show.sh / lines.sh / grepst.sh / around.sh / cmp3.sh / cmp4.sh (condensed one-line RTL of any stage), stages.sh, sverb.sh <file.c>
+  -dS|-dR sched|sched2 (scheduler log: "ready list at T-n: uid (priority)", "blocking insn", "launching n before m", "insn n has a greater potential hazard", "now ..." = pick order,
+  insn[uid]: priority =, ref_count =).  Stage files: s.c.rtl/jump/cse/loop/cse2/combine/sched/lreg/greg/sched2/jump2.  tools/rtlc.py condenses a dump to one line per insn.
+  wip/sh/diffonly.sh = side-by-side restricted to the differing regions.
+- tools/constsweep.py <file.c> <fn> <rom hex> [--jobs N] : lesson A as a tool: one variant per non-function `extern` made `const` (+ all-const), ranked with vb.py next to the
+  base.  On the non-const func_00444024 source: base 12 structural / 14 operand, `extern const f32 D_800E2798;` variant EXACT.  Run it on every near-miss that reads extern data.
+- tools/syms.py <file.c> [tokens] : list the function symbols (name, offset, size) a file produces (proves that a `static inline` helper emits no out-of-line copy).
+- tools/rdis.sh <rom hex> <n> : disassemble ROM words.  wip/sh/tgrep.py / tshow.py : grep / print a subagent transcript jsonl (recover text after a context reset).
+
+OTHER LESSONS
+5. `static inline` helper copies inside a group file must be `static`: a plain `inline` helper that the lead integrates separately as its own function is emitted a second time
+   out-of-line (check with tools/syms.py).  Verified for func_0043F290/0043F404/00442E80 (typed getter/setter helpers).
+6. Verification recipe used for every result: `bash tools/fk.sh list` (chk) AND for functions with a rodata pool `python3 tools/rocheck.py file fn rom @SN` (pool base must be one
+   value; differing words may only be jump-table words, which are relocations in our object).
+7. An EMPTY asm("+r") on a pseudo that holds a constant is optimised away by combine (the constant is folded into the asm input "0[ 1 ]"); only a global register variable
+   (`register T x __asm__("$3")`) keeps the `li` as a separate, unboosted hard-reg set.  Redundant plain re-assignments of such a variable are deleted by cse.
+8. When a context reset hides earlier reasoning, the subagent transcript can be searched with wip/sh/tgrep.py (pattern, context, max hits); the sched.c source can be streamed
+   (never saved) with `curl -s https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-2.8.1/gcc/sched.c | sed -n 'a,bp'` (birthing_insn_p 2499, adjust_priority 2545,
+   rank_for_schedule 2415, schedule_select 2647, schedule_block 3173, bb_live_regs updates 3444-3680 / 3760-3900).
+9. A helper that exists both inlined and standalone (func_00444204, 23 insns at ROM 0x1B2204): look for ONE body order that matches in both contexts.  The order
+   unk78, unk79, unk7A, unk7C, unk7B, unk7D, unk7E, unk7F, unk80, unk82, unk83, unk81, unk94, unk95 (then the call of func_00444260) is EXACT inlined in func_00444024 (the
+   inline stores keep source order there, there is no reordering room) AND as the standalone function, while o06's delivered standalone order (79, 7A, 78, ...) matches
+   only standalone (EXACT inlined needs 5 operand fixes).  The group file defines it `static inline`; the lead can use the same body for the standalone func_00444204.
+10. DEAD ENDS FOR func_00444024 (kept in wip/hard/func_00444024.va2_volatile_pin.c, all exact but unnecessary): `volatile O06B *` param (rigid chain, explicit byte read
+   `((volatile u8 *)a)[0x15]` because a volatile s16 read is not narrowed to lbu), `register u8 one __asm__("$3") = 1;` + empty asm("+r") (unboosted A), initialised declarations
+   `u8 two = 1; s32 i = 9; u8 *p = ...;` + a pointer-walking for loop (loop invariants earlier in the stream than A).  They compensated for the pinned load; with `const` the
+   plain source matches.  Lesson: if a pool symbol is read in the function, test `const` BEFORE trying volatile/pins; and when the rigid ROM order looks "volatile", remember
+   that sched2 itself makes $v0-chain stores rigid and dumps free stores into gaps.
+
+FINDINGS s806 (round 8, real toolchain @SN; targets func_004351A0 ... func_00444024) -- new lessons only
+
+RESULT: all 10 targets EXACT under @SN (func_0043C4F4 = span file with 21 members), ALL WITHOUT HACKS: no asm, no register pins, no volatile.  The two functions that
+earlier drafts matched only with hacks (func_0043F69C: f32 register pin + asm barrier; func_00444024: 4/0 plateau, then volatile + pin + early inits) are now natural source.
+
+HEADLINE LESSONS (check these first on every near-miss)
+A. DECLARE READ-ONLY POOL SYMBOLS `const`.  `extern const f32 D_800E2798;` makes the load RTX_UNCHANGING_P: sched/alias then add NO dependence between it and any store.
+   `extern f32 D_800E2798;` (non-const) is "may alias" with every store through a pointer parameter: every store written BEFORE the read is pinned before it and every store
+   after it behind it.  func_00444024 was a 4-structural plateau for three workers and needed volatile + a register pin + early initialised declarations (all dead ends, see 10)
+   until the symbol was made const: then plain source in ROM order matches (statement order below).  Applies to any pool constant (float or integer table) that the
+   original code read as a literal/const object; try it before volatile, pins, asm or the permuter.
+B. `do { } while (0)` (or wrapping one statement in it) is a natural scheduling barrier: the LOOP_BEG/LOOP_END notes make the first insn after them a barrier that depends on
+   everything before it, so nothing moves across (same effect as `__asm__ volatile("")`, which earlier workers used 10+ times; probably the original macro form).
+   func_0043F69C: `do { o->f4 = (o->f4 * D_800E28D0[0]) / 284; } while (0);` stops sched2 from hoisting `lw v1,4(s2)` above the `trunc.w.s/swc1` pair (an EMPTY
+   `do { } while (0);` between the statements works too; a bare `{ }` block does not).
+C. A REGISTER PIN ON A TEMPORARY IS USUALLY THE WRONG FIX (func_0043F69C `register f32 fq asm("$f0")`).  Cause: local-alloc ranks quantities by refs / life length; sched1 puts
+   the `(set r (float:SF (mem)))` insn (lwc1+cvt.s.w) after a plain load (larger potential hazard => picked first backward => placed last), so in `E->f8 * (f32)D_800E28D4`
+   the f8 pseudo lives 3 insns, the height 2, the height wins $f0 and everything is swapped.  The ROM allocation needs sched1 order [height, f8, mul], i.e. the height's
+   def UNBOOSTED: make it a NAMED temp that is assigned in several branch arms (multi-set pseudo): `hh = (f32)D_800E28D4;` in the flags arm (`v = hh;`), in the mode==2 arm
+   (`v = (E->f8 + 0.5f) * hh;`) and in the else arm (`v = E->f8 * hh;`) -> EXACT, no pin (mode==2 + else arms alone also work; else alone / flags + else do not).  sched2 then swaps
+   the two loads back by itself (forcing the order with a barrier instead fixes the registers but sched2 cannot swap: 2 structural off).  Diagnostics: s.c.lreg
+   "Register N used x times across y insns" and the sched1 order of the two loads (wip/sh/cmp3.sh).
+D. cse deletes a store that is IMMEDIATELY followed (adjacent insns) by a store to the same address.  The ROM keeps `unk4 = 0; ... unk4 = 0x4000000; ... unk4 = -1` (three stores)
+   because another statement sits between the last two in the source: `a->unk10 = 0;` (a free store that sched2 later dumps elsewhere).  When a ROM shows apparently dead
+   double stores, look for the statement between them, not for volatile.
+
+func_00444024 STATEMENT ORDER THAT MATCHES (all non-volatile, const global):
+   `a->unk17 = 1;` FIRST (see E), then unk18, unk19, unk1A, unk14 (0x80 etc.), unk8, unk0 = 0, unk4 = 0, unk0 = 0x4000000, unk4 = 0x4000000, unk10 = 0 (the separator, D),
+   unk4 = -1, unk1B = 1, unk1C, unk1F, unk580 = 0, unk24..27 = 10, unk28 = 1, unk29, unk2A, unk2B = 1, `a->unk16 = a->unk14;` (narrows to lbu 21), `a->unk20 = D_800E2798;`
+   (read at its use), natural `for (i = 0; i < 10; i++) a->unk2C[i] = 1;`, then the two inlined func_00444204 calls.
+E. WHY `move v1,a2` sits at the very top of the ROM function (idx 7) although the four `sb v1,..` stores are 27..40 insns later: the constant `1` of the four byte stores (pseudo A)
+   is created by cse at the FIRST use of that constant, so the first source statement `a->unk17 = 1;` gives A the lowest luid; sched1 releases A last (its first user is the first
+   chain store), boosts it and puts its `li` in front of the first chain `li 128`; the loop-1 invariant `li a2,1` (hoisted by loop.c, unboosted) and the biv/giv inits float
+   to the top group in front of it; reload_cse turns A's `li` into `move v1,a2`.  Then sched2 sinks the FREE stores (stores of $0 / of v1 are not tied to the v0 `li` chain) into the
+   first gap behind `li v0,10` (ROM idx 33-39: `sb v1,23; sw zero,16; sb v1,27; sb zero,28; sb zero,31; sb zero,1408`).  With a non-const global this first store is pinned
+   BEFORE the `lwc1` (store -> load of possibly aliasing memory), which is exactly the s706 draft's 4/0 plateau (`sb v1,27` at idx 20 instead of 36; lbu after the lwc1).
+
+SCHEDULER MODEL (verified with -fsched-verbose=5 -dS / -dR on these functions; gcc 2.8.1 sched.c streamed from the gcc-2.8.1 tag, never saved)
+- birthing boost: adjust_priority() runs only when an insn is RELEASED by dependence (last successor scheduled) and only before reload; if its dest pseudo is in bb_live_regs and
+  REG_N_SETS == 1 its priority becomes max_priority = LAUNCH_PRIORITY 0x7f000001 (dump: "uid (7f000001)").  Insns in the INITIAL ready list (no successor in the block: hoisted loop
+  invariants, biv/giv inits, an `li` whose only use is in the next block) are never boosted; with rank (priority, class, luid) they are picked only when no store is ready, i.e. at
+  the END of the backward pass = the TOP of the block, in descending luid pick order (ascending in program order: invariant `li`, biv init, giv init).
+- schedule_select prefers (same priority) the insn with the larger potential hazard = STORES over ALU insns, and a `(set r (float:SF (mem)))` insn over a plain load; a LOAD is
+  "blocked for 1 cycle" after every store pick and launched only right after an ALU pick ("launching 120 before 84"): a boosted load lands directly before the first ALU insn
+  (usually a boosted `li`) that follows its release, NOT next to its use; an unboosted or pinned load sinks to the top of the block.
+- a store that consumes a load result has priority 2 (load latency 2) and is picked first = placed LAST in the block (`sb a0,22`, `swc1 f0,32` at the end of func_00444024).
+- sched2 has no boost, but register REUSE after allocation creates the dependences: constants sharing $v0 form a rigid li/store chain (li K2 must follow the store of K1: WAR),
+  while stores of $0 / of another register are FREE: every ready free store is taken before the next `li` (store > ALU), so all free stores below the chain element are dumped at the
+  first gap, consecutively, in luid order.
+- reload_cse_regs turns a later `li` of a constant that another hard reg holds into `move` (not for the `li` reload itself emits for an asm operand); `li a2 ... move v1,a2` therefore
+  proves that the loop-invariant `li` has the LOWER luid in the sched2 stream.
+- cse merges a later same-EBB `1` into an earlier `1` (also across modes via lowpart), so two registers holding 1 in one block need different EBBs/hard regs.
+
+TOOLING (all in tools/ or wip/sh/, run through WSL; there is NO Windows python)
+- tools/w.sh "<cmd>"  runs <cmd> in WSL at the workspace root.  Traps: (a) `$var` / `\$var` inside the quoted command are expanded by the outer shells and arrive EMPTY -> put
+  loops/variables into a script file (wip/sh/*.sh) and call `tools/w.sh "bash wip/sh/x.sh args"`; (b) the Bash tool collapses backslashes (`\n` becomes `n`) -> wip/sh/mkvar.py uses the
+  token @NL@ for a newline; (c) a foreground call that runs > 120 s is moved to the background (use run_in_background, then Read the output file).
+- tools/vb.py <fn> <rom hex> [--flags "@SN"] [--jobs N] [--top N] (--dir D | --file variants.txt | files...)  : PARALLEL variant ranking with the aligned metric (structural =
+  inserted/deleted/changed-mnemonic insns, operand = same mnemonic but other register/immediate; relocations masked).  It skips lu_match's 8 MB ROM index build, so a variant costs
+  ~2-3 s on an idle box (use --jobs 3-6 when other agents load the machine: load average was 40+ on 16 cores).  Best variant -> wip/vb_best.c.
+- wip/sh/mkvar.py base out 'old=>new'... : text-replace variant generator (a hypothesis test = 5 variants + vb.py in one call, ~15 s).  wip/sh/exp5.py : every single-statement
+  MOVE (or swap) inside a statement block -> directory of variants (vb.py --dir; 676 variants ~25 min under load).  wip/sh/exp13.py : `do { } while (0)` before / around every statement.
+- wip/sh/dumpall.sh <file.c> (all RTL stages), show.sh / lines.sh / grepst.sh / around.sh / cmp3.sh / cmp4.sh (condensed one-line RTL of any stage), stages.sh, sverb.sh <file.c>
+  -dS|-dR sched|sched2 (scheduler log: "ready list at T-n: uid (priority)", "blocking insn", "launching n before m", "insn n has a greater potential hazard", "now ..." = pick order,
+  insn[uid]: priority =, ref_count =).  Stage files: s.c.rtl/jump/cse/loop/cse2/combine/sched/lreg/greg/sched2/jump2.  tools/rtlc.py condenses a dump to one line per insn.
+  wip/sh/diffonly.sh = side-by-side restricted to the differing regions.
+- tools/constsweep.py <file.c> <fn> <rom hex> [--jobs N] : lesson A as a tool: one variant per non-function `extern` made `const` (+ all-const), ranked with vb.py next to the
+  base.  On the non-const func_00444024 source: base 12 structural / 14 operand, `extern const f32 D_800E2798;` variant EXACT.  Run it on every near-miss that reads extern data.
+- tools/syms.py <file.c> [tokens] : list the function symbols (name, offset, size) a file produces (proves that a `static inline` helper emits no out-of-line copy).
+- tools/rdis.sh <rom hex> <n> : disassemble ROM words.  wip/sh/tgrep.py / tshow.py : grep / print a subagent transcript jsonl (recover text after a context reset).
+
+OTHER LESSONS
+5. `static inline` helper copies inside a group file must be `static`: a plain `inline` helper that the lead integrates separately as its own function is emitted a second time
+   out-of-line (check with tools/syms.py).  Verified for func_0043F290/0043F404/00442E80 (typed getter/setter helpers).
+6. Verification recipe used for every result: `bash tools/fk.sh list` (chk) AND for functions with a rodata pool `python3 tools/rocheck.py file fn rom @SN` (pool base must be one
+   value; differing words may only be jump-table words, which are relocations in our object).
+7. An EMPTY asm("+r") on a pseudo that holds a constant is optimised away by combine (the constant is folded into the asm input "0[ 1 ]"); only a global register variable
+   (`register T x __asm__("$3")`) keeps the `li` as a separate, unboosted hard-reg set.  Redundant plain re-assignments of such a variable are deleted by cse.
+8. When a context reset hides earlier reasoning, the subagent transcript can be searched with wip/sh/tgrep.py (pattern, context, max hits); the sched.c source can be streamed
+   (never saved) with `curl -s https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-2.8.1/gcc/sched.c | sed -n 'a,bp'` (birthing_insn_p 2499, adjust_priority 2545,
+   rank_for_schedule 2415, schedule_select 2647, schedule_block 3173, bb_live_regs updates 3444-3680 / 3760-3900).
+9. A helper that exists both inlined and standalone (func_00444204, 23 insns at ROM 0x1B2204): look for ONE body order that matches in both contexts.  The order
+   unk78, unk79, unk7A, unk7C, unk7B, unk7D, unk7E, unk7F, unk80, unk82, unk83, unk81, unk94, unk95 (then the call of func_00444260) is EXACT inlined in func_00444024 (the
+   inline stores keep source order there, there is no reordering room) AND as the standalone function, while o06's delivered standalone order (79, 7A, 78, ...) matches
+   only standalone (EXACT inlined needs 5 operand fixes).  The group file defines it `static inline`; the lead can use the same body for the standalone func_00444204.
+10. DEAD ENDS FOR func_00444024 (kept in wip/hard/func_00444024.va2_volatile_pin.c, all exact but unnecessary): `volatile O06B *` param (rigid chain, explicit byte read
+   `((volatile u8 *)a)[0x15]` because a volatile s16 read is not narrowed to lbu), `register u8 one __asm__("$3") = 1;` + empty asm("+r") (unboosted A), initialised declarations
+   `u8 two = 1; s32 i = 9; u8 *p = ...;` + a pointer-walking for loop (loop invariants earlier in the stream than A).  They compensated for the pinned load; with `const` the
+   plain source matches.  Lesson: if a pool symbol is read in the function, test `const` BEFORE trying volatile/pins; and when the rigid ROM order looks "volatile", remember
+   that sched2 itself makes $v0-chain stores rigid and dumps free stores into gaps.

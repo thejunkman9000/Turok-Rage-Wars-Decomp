@@ -101,3 +101,25 @@ vrun_metrics.py          (from s704) import re, difflib
 vv.py                    (from s706) usage: python tools/vv.py <variants.txt> <fn> <rom> [flags...]   variants separated by lines starting with //====
 waitlog.sh               (from s705) waitlog.sh <logfile> <pattern> <max seconds>
 waitperm.sh              (from s703) waitperm.sh <fn> <maxsecs> : wait until the permuter for <fn> finishes (or maxsecs), then print its best scores
+constsweep.py            (from s806) constsweep.py <file.c> <fn> <rom hex> [--flags "@SN"] [--jobs N] [--top N]   (run inside WSL at the workspace root)
+deliver.py               (from s806) deliver.py <chk list file> : run chk (via WSL fk.sh) on every line; for EXACT lines add a results line to wip/out/results.txt
+rdis.sh                  (from s806) rdis.sh <rom hex start> <n insns> [ovl]  : disassemble ROM words (WSL)
+syms.py                  (from s806) syms.py <file.c rel ~/trw_s806 or wip path> [tokens]  (WSL, from ws root): compile with the @SN pipeline and list function symbols (name, offset, size)."""
+vb.py                    (from s806) vb.py - parallel variant evaluator for the @SN toolchain (run inside WSL from the workspace root).
+w.sh                     (from s806) run a command inside WSL at the workspace root:  tools/w.sh "bash tools/fk.sh wip/lists/x.txt"
+around.sh                (from s806) around.sh <stage> <regex> <before> <after> : condensed RTL lines around the first match
+cmp3.sh                  (from s806) cmp3.sh <file.c> <regex> : dump all stages, print matching condensed lines of sched, greg, sched2
+cmp4.sh                  (from s806) cmp4.sh <file.c> <regex> <stage list...> : dump all stages, print matching lines for the given stages
+diffonly.sh              (from s806) diffonly.sh <file.c> <fn> <rom> <n> : side-by-side, only lines near differences (context 3)
+dumpall.sh               (from s806) dumpall.sh <file.c rel to ~/trw_s806 or ws>  : sync ws wip/ to ~/trw_s806, dump all RTL stages to ~/sndump_s806
+exp13.py                 (from s806) exp13.py <base.c> <first_stmt_regex> <last_stmt_regex> <outdir> : do-while(0) barrier placements.
+exp5.py                  (from s806) exp5.py: statement-move search around a base file (non-volatile world).
+grepst.sh                (from s806) grepst.sh <stage> <pattern> : condensed lines matching pattern with their index
+lines.sh                 (from s806) lines.sh <stage> <from> <to> : condensed lines (same numbering as grepst.sh)
+mkvar.py                 (from s806) mkvar.py <base.c> <out.c> 'old=>new' ['old2=>new2' ...] : text-replace.
+show.sh                  (from s806) show.sh <stage> [from] [to] : condensed RTL lines from/to (line numbers of the condensed listing)
+stages.sh                (from s806) stages.sh <file.c> <from> <to> stage...   : dump + show listed stages
+sverb.sh                 (from s806) sverb.sh <file.c> <stage dump flag e.g. -dS|-dR> <suffix sched|sched2> : verbose scheduler log of first block
+tgrep.py                 (from s806) import sys, json, re
+tshow.py                 (from s806) import sys, json
+x.sh                     (from s806) grep -n -E "^;; (ready list at|launching|blocking|insn .* has a greater)" /tmp/dd3_w2/a.i.sched2 | sed -n 1,200p | cut -c1-200 | sed -n 1,75p
