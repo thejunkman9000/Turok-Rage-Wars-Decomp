@@ -46,10 +46,11 @@ def compile_funcs(src):
         # melalawi/ragewars-decomp toolchain: preprocessor + pmret gcc 2.8.1 (or the KMC gcc 2.7.2 for the low region) + n64link asn64
         # (normalises the SN64 cc1 assembly) + GNU as.  tools/sn_setup.sh installs the three programs in ~/sn.
         SN = os.path.expanduser('~/sn')
-        xf = ' '.join(t for t in extra if t.startswith('-f') or t in ('-fno-builtin',))
+        xf = ' '.join(t for t in extra if (t.startswith('-f') or t.startswith('-m') or t.startswith('-W')) and not t.startswith('-mcpu='))
+        cpu = next((t[6:] for t in extra if t.startswith('-mcpu=')), 'VR4300')
         inc = os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))
         cc = (f"{SN}/cc1_272 -quiet -G0 -mips3 -mgp32 -mfp32 -O2 {xf}" if '@SN272' in extra else
-              f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
+              f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu={cpu} -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
         r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
                f"{cc} {base}.i -o {base}.s && sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
                f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o && "
