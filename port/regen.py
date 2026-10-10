@@ -32,6 +32,9 @@ def main():
     print('recomp_prune'); run([py, 'port/recomp_prune.py'])
     print('gen_recomp'); run([py, 'port/gen_recomp.py'], {'PORT_NO_ASM_REGEN': '1'})
     print('pass_through'); pt = [l.strip() for l in run([py, 'port/pass_through.py'], quiet=True).split('\n') if re.fullmatch(r'func_[0-9A-F]{8}', l.strip())]
+    if os.path.exists('port/twin_prefer.txt'):                     # hand-maintained: C that behaves wrongly although it matches
+        pt += [l.split('#')[0].strip() for l in open('port/twin_prefer.txt') if l.split('#')[0].strip()]
+    pt = sorted(set(pt))
     print('  ', len(pt), 'sources run as recompiled twins')
     print('bisect_c set'); run([py, 'port/bisect_c.py', 'set'] + pt, {'PORT_NO_ASM_REGEN': '1'})
     keep = set(open('port/recomp.txt').read().split())

@@ -1,0 +1,2 @@
+# matched C sources that misbehave on x86 even unoptimised (checked with port/bisect_auto.py): run as recompiled twins
+func_00427690   # lobby: reads a NULL object (permuter-hacked twenty/off2 shape); crash in 3 of 6 scripted runs as C, never as twin
