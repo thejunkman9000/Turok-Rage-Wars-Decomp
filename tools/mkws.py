@@ -18,7 +18,7 @@ if update:
             shutil.copy(os.path.join(src, 'include', h), os.path.join(dst, 'include', h))
 elif os.path.exists(dst):
     shutil.rmtree(dst, ignore_errors=True)
-if not update: shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', *([] if '--asm' in sys.argv else ['asm']), 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s', 'assets', 'mapdump', 'port', 'nul'))
+if not update: shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git', 'build', *([] if '--asm' in sys.argv else ['asm']), 'ud_json', '__pycache__', 'wip', 'm2c_jt_tmp.s', 'assets', 'mapdump', 'port', 'nul', 'port_*', 'port_ram*'))
 os.makedirs(os.path.join(dst, 'wip'), exist_ok=True)
 subs = [
     (r'D:\Projects\TurokRageWars', rf'D:\Projects\ws\{name}'),
