@@ -123,6 +123,7 @@ func_00234DD0 lu3+nb
 func_00240A88 lu3+nb
 func_002070D0 lu3+nb
 func_0028FEEC lu3+nb
+func_0027ADBC lu3+nb
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
