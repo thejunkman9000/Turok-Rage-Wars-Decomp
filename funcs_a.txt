@@ -399,6 +399,7 @@ func_0041A0AC 0x1880AC 4 ovl_a
 func_0041A0BC 0x1880BC 8 ovl_a
 pad_1880DC 0x1880DC 1 ovl_a
 func_0041A0DC 0x1880E0 136 ovl_a ro=0xE2050:32
+func_0041A300 0x188300 96 ovl_a mode=sn ro=0xE2070:8
 func_0041A480 0x188480 12 ovl_a
 func_0041A4B0 0x1884B0 16 ovl_a
 func_0041A4F0 0x1884F0 3 ovl_a
@@ -662,6 +663,7 @@ func_00428FF0 0x196FF0 26 ovl_a
 func_00429058 0x197058 36 ovl_a
 func_004290E8 0x1970E8 36 ovl_a
 pad_197178 0x197178 2 ovl_a
+func_00429180 0x197180 10 ovl_a mode=sn
 func_004291A8 0x1971A8 75 ovl_a mode=sn ro=0xE2640:20
 func_004292D4 0x1972D4 18 ovl_a
 func_0042931C 0x19731C 36 ovl_a
@@ -732,6 +734,7 @@ func_0042DAA4 0x19BAA4 17 ovl_a
 func_0042DAE8 0x19BAE8 20 ovl_a
 func_0042DB38 0x19BB38 36 ovl_a
 pad_19BBC8 0x19BBC8 2 ovl_a
+func_0042DBD0 0x19BBD0 54 ovl_a mode=sn
 func_0042DCA8 0x19BCA8 12 ovl_a
 func_0042DCD8 0x19BCD8 67 ovl_a
 func_0042DDE4 0x19BDE4 48 ovl_a
@@ -877,6 +880,7 @@ func_004379F0 0x1A59F0 57 ovl_a
 func_00437AD4 0x1A5AD4 15 ovl_a
 func_00437B10 0x1A5B10 34 ovl_a
 func_00437B98 0x1A5B98 36 ovl_a
+func_00437C30 0x1A5C30 531 ovl_a mode=sn ro=0xE2B40:4
 func_0043847C 0x1A647C 222 ovl_a ro=0xE2B44:12
 func_004387F4 0x1A67F4 133 ovl_a ro=0xE2B50:28
 func_00438A08 0x1A6A08 103 ovl_a ro=0xE2B6C:4
@@ -959,6 +963,7 @@ func_0043C4C0 0x1AA4C0 4 ovl_a
 func_0043C4D0 0x1AA4D0 2 ovl_a
 func_0043C4D8 0x1AA4D8 4 ovl_a
 func_0043C4E8 0x1AA4E8 3 ovl_a
+func_0043C500 0x1AA500 1043 ovl_a mode=sn ro=0xE2C80:484
 func_0043D54C 0x1AB54C 7 ovl_a
 func_0043D568 0x1AB568 27 ovl_a
 func_0043D5D4 0x1AB5D4 7 ovl_a
@@ -1011,6 +1016,8 @@ func_0043EFCC 0x1ACFD0 120 ovl_a ro=0xE2FA0:12
 func_0043F1B0 0x1AD1B0 2 ovl_a
 func_0043F1B8 0x1AD1B8 32 ovl_a
 func_0043F238 0x1AD238 19 ovl_a
+func_0043F290 0x1AD290 93 ovl_a mode=sn ro=0xE2FC8:96
+func_0043F404 0x1AD404 166 ovl_a mode=sn ro=0xE2FF8:192
 func_0043FFAC 0x1ADFAC 296 ovl_a ro=0xE3090:28
 func_0044044C 0x1AE44C 115 ovl_a
 func_00440618 0x1AE618 228 ovl_a
@@ -1051,6 +1058,7 @@ func_00442CF8 0x1B0CF8 8 ovl_a
 func_00442D18 0x1B0D18 76 ovl_a ro=0xE32BC:8
 func_00442E48 0x1B0E48 7 ovl_a
 func_00442E64 0x1B0E64 7 ovl_a
+func_00442E80 0x1B0E80 51 ovl_a mode=sn
 func_00442F4C 0x1B0F4C 57 ovl_a
 func_00443030 0x1B1030 60 ovl_a mode=sn ro=0xE32C8:48
 func_00443120 0x1B1120 85 ovl_a ro=0xE32F8:48
