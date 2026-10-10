@@ -255,6 +255,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
                 out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,{hi}', f'{ind}addu\t$1,{base},$1',
                                       f'{ind}{op}\t{reg},{lo}($1)', f'{ind}.set\tat']))
                 prev = 'MACRO_AT'   # macro expansion: never moved into a return delay slot by the old assembler
+                lastmul = lastmul and mode != 'game'   # game objects only: libultra's objects keep the old behaviour
                 continue
 
         m = symidx_re.match(line)
@@ -264,6 +265,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({sym})', f'{ind}addu\t$1,$1,{idx}',
                                   f'{ind}{op}\t{reg},%lo({sym})($1)', f'{ind}.set\tat']))
             prev = 'MACRO_AT'
+            lastmul = lastmul and mode != 'game'   # game objects only: libultra's objects keep the old behaviour
             continue
         m = lid_re.match(line)
         if m:
@@ -273,6 +275,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
                                   f'{ind}ldc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat'] + (pool.inline(ref, 8, value) if INLINE else [])))
             prev = 'ldc1'
+            lastmul = lastmul and mode != 'game'   # game objects only: libultra's objects keep the old behaviour
             continue
         m = lis_re.match(line)
         if m:
@@ -282,6 +285,7 @@ def fix(text, mode, ro_va=None, ro_size=None):
             out.append('\n'.join([f'{ind}.set\tnoat', f'{ind}lui\t$1,%hi({ref})',
                                   f'{ind}lwc1\t{m.group(2)},%lo({ref})($1)', f'{ind}.set\tat'] + (pool.inline(ref, 4, word) if INLINE else [])))
             prev = 'lwc1'
+            lastmul = lastmul and mode != 'game'   # game objects only: libultra's objects keep the old behaviour
             continue
         if imm_div_re.match(line):
             sys.stderr.write(f'gas_compat: immediate div form not handled: {line.strip()}\n')

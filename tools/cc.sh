@@ -26,6 +26,19 @@ case "$toks" in *+luret*) gasmode=game;; esac
 export GAS_NOFILL=0; case "$toks" in *+nf*) export GAS_NOFILL=1;; esac
 case "$toks" in *+inl*) export GAS_INLINE=1;; esac   # li.s/li.d literals emitted at the point of use (csplayer, seqplayer)
 export GAS_MULTFIX=1   # original toolchain never fills a branch delay slot with mult/div
+# mode sn / sn272: the toolchain of github.com/melalawi/ragewars-decomp (pmret gcc 2.8.1 cc1, or KMC gcc 2.7.2 for the low region, then
+# n64link asn64 to normalise the SN64 assembly, then GNU as).  Programs are installed in ~/sn by tools/sn_setup.sh; their headers are in include/their.
+if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
+  SN=${SN_DIR:-$HOME/sn}
+  cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I include -I include/their "$in" > "$tmp/s.i"
+  if [ "$mode" = sn272 ]; then
+    "$SN/cc1_272" -quiet -G0 -mips3 -mgp32 -mfp32 -O2 $xflags "$tmp/s.i" -o "$tmp/s.s"
+  else
+    "$SN/cc1_281" -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 $xflags "$tmp/s.i" -o "$tmp/s.s"
+  fi
+  "$SN/n64link" asn64 --as mips-linux-gnu-as -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 "$tmp/s.s" -o "$out"
+  exit 0
+fi
 "$G/gcc" -B"$G/" -meb ${CC_ISA:--mips3 -mgp32} -G 0 -mno-abicalls -fno-pic $xflags ${CC_OPT:-$(case "$mode" in lu) echo "-O3 -fforce-addr -fno-builtin -mcpu=r4300";; lu2) echo "-O2 -fforce-addr -fno-builtin -mcpu=r4300";; lu3) case "$toks" in *+o2*) echo "-O2";; *) echo "-O2 -mcpu=r4300";; esac;; lu4) echo "-O2 -msplit-addresses -mcpu=r4300 -mfp32";; *) echo -O2;; esac)} \
     -I include -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -S -o "$tmp/o.s" "$in" \
     || { [ -s "$tmp/o.s" ] || exit 1; echo "cc.sh: gcc reported errors for $in, using its output anyway (as tools/chk.py does)" >&2; }

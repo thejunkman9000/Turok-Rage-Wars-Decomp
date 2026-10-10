@@ -27,6 +27,9 @@ for w in filter(None, os.environ.get('EXCLUDE_WS', '').split(',')):
     if os.path.exists(t):
         ex = {l.split()[0] for l in open(t) if l.strip()}
         rem = [r for r in rem if r[1] not in ex]
+if os.path.exists('wip/skip_funcs.txt'):                      # padding words / hand-written asm that no C can match
+    sk = set(open('wip/skip_funcs.txt').read().split())
+    rem = [r for r in rem if r[1] not in sk]
 rem.sort()
 groups = [rem[i:i + size] for i in range(0, len(rem), size)]
 print(len(rem), 'functions,', sum(r[3] for r in rem), 'insns ->', len(groups), 'groups')

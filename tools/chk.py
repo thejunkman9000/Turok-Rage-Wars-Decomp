@@ -15,14 +15,15 @@ okf = open('chk_ok.txt', 'w')
 
 import re as _re
 _SYMS = {}
-for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld'):
+for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld'):
     try:
         for _l in open(os.path.join(os.path.expanduser('~/trw') if False else '.', _f), encoding='utf-8', errors='replace'):
-            _m = _re.match(r'\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
+            _m = _re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
             if _m: _SYMS[_m.group(1)] = int(_m.group(2), 16)
     except OSError:
         pass
 def _symaddr(n):
+    if n in _SYMS and n.endswith(('_de', '_eu', '_eu_x', '_us', '_us_rev1')) or (n in _SYMS and _re.fullmatch(r'(?:D|func|jtbl)_[0-9A-Fa-f]{8}', n) and _SYMS[n] != int(n[-8:], 16)): return _SYMS[n]   # melalawi names (their_syms.ld): de-version addresses in the name
     m = _re.fullmatch(r'(?:D|func|jtbl)_([0-9A-Fa-f]{8})', n)
     if m: return int(m.group(1), 16)
     return _SYMS.get(n)

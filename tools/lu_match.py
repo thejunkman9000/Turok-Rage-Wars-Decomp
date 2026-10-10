@@ -42,18 +42,33 @@ def compile_funcs(src):
     tmp = tempfile.mkdtemp()
     base = os.path.basename(src)[:-2]
     cp = f'{tmp}/{base}.c'; open(cp, 'w').write(open(src).read())
-    flags = ' '.join(extra) or '-O2'
-    isa = os.environ.get('LU_ISA', '-mips3 -mgp32')   # override e.g. LU_ISA="-mips2 -mgp32 -mfp32"
-    r = sh(f"cd {tmp} && {G}/gcc -B{G}/ -meb {isa} -G 0 -mno-abicalls -fno-pic {flags} "
-           f"-I{os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))} -I{LU}/include -I{LU}/include/PR -I{LU}/lib/src -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -DTARGET_N64 -D_FINALROM -DNDEBUG -S -o {base}.s {base}.c")
-    if r.returncode:
-        return None, r.stderr.strip().splitlines()[:3]
-    asm = fix_asm(open(f'{tmp}/{base}.s').read())
-    open(f'{tmp}/{base}.s', 'w').write(asm)
-    r = sh(f"cd {tmp} && {P}-as -EB -march=vr4300 -mabi=32 -mno-pdr -W -I {os.path.expanduser("~/trw")} -I {os.path.expanduser("~/trw/include")} -o {base}.o {base}.s && "
-           f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
-    if r.returncode:
-        return None, r.stderr.strip().splitlines()[:3]
+    if '@SN' in extra or '@SN272' in extra:
+        # melalawi/ragewars-decomp toolchain: preprocessor + pmret gcc 2.8.1 (or the KMC gcc 2.7.2 for the low region) + n64link asn64
+        # (normalises the SN64 cc1 assembly) + GNU as.  tools/sn_setup.sh installs the three programs in ~/sn.
+        SN = os.path.expanduser('~/sn')
+        xf = ' '.join(t for t in extra if t.startswith('-f') or t in ('-fno-builtin',))
+        inc = os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))
+        cc = (f"{SN}/cc1_272 -quiet -G0 -mips3 -mgp32 -mfp32 -O2 {xf}" if '@SN272' in extra else
+              f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
+        r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
+               f"{cc} {base}.i -o {base}.s && {SN}/n64link asn64 --as {P}-as -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
+               f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
+        if r.returncode:
+            return None, (r.stderr.strip().splitlines() or ['sn pipeline failed'])[:3]
+        asm = None
+    else:
+      flags = ' '.join(extra) or '-O2'
+      isa = os.environ.get('LU_ISA', '-mips3 -mgp32')   # override e.g. LU_ISA="-mips2 -mgp32 -mfp32"
+      r = sh(f"cd {tmp} && {G}/gcc -B{G}/ -meb {isa} -G 0 -mno-abicalls -fno-pic {flags} "
+             f"-I{os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))} -I{LU}/include -I{LU}/include/PR -I{LU}/lib/src -DINCLUDE_ASM_USE_MACRO_INC=1 -D_LANGUAGE_C -DTARGET_N64 -D_FINALROM -DNDEBUG -S -o {base}.s {base}.c")
+      if r.returncode:
+          return None, r.stderr.strip().splitlines()[:3]
+      asm = fix_asm(open(f'{tmp}/{base}.s').read())
+      open(f'{tmp}/{base}.s', 'w').write(asm)
+      r = sh(f"cd {tmp} && {P}-as -EB -march=vr4300 -mabi=32 -mno-pdr -W -I {os.path.expanduser("~/trw")} -I {os.path.expanduser("~/trw/include")} -o {base}.o {base}.s && "
+             f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
+      if r.returncode:
+          return None, r.stderr.strip().splitlines()[:3]
     text = open(f'{tmp}/{base}.bin', 'rb').read()
     sh(f"cd {tmp} && {P}-objcopy -O binary -j .rodata {base}.o {base}.ro")
     LAST['ro'] = open(f'{tmp}/{base}.ro', 'rb').read() if os.path.exists(f'{tmp}/{base}.ro') else b''
