@@ -1207,3 +1207,5 @@ func_0042E7CC 0x19C7CC 231 ovl_a mode=sn
 func_0042EB94 0x19CB94 87 ovl_a mode=sn
 func_00440F10 0x1AEF10 195 ovl_a mode=sn
 func_004409A8 0x1AE9A8 346 ovl_a mode=sn+nb ro=0xE30B0:36
+func_0040067C 0x16E67C 222 ovl_a mode=sn
+func_004009F4 0x16E9F4 279 ovl_a mode=sn

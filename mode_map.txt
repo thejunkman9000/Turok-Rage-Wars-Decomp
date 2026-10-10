@@ -265,6 +265,14 @@ func_00297E3C sn
 func_00298310 sn
 func_00299368 sn+ntj+nrc
 func_0029D288 sn+nb
+func_002AC0A0 sn
+func_002AC1A0 sn
+func_002AC34C sn
+func_002AC398 sn
+func_002A2BE0 sn
+func_002A3478 sn
+func_002ABD04 sn+nb
+func_002ACBCC sn
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
@@ -330,3 +338,5 @@ func_0042E7CC sn
 func_0042EB94 sn
 func_00440F10 sn
 func_004409A8 sn+nb
+func_0040067C sn
+func_004009F4 sn
