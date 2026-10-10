@@ -14,6 +14,7 @@ def load(fn):
         if len(f) >= 4: r = int(f[1], 16); out.append((r, r + 4 * int(f[2]), f[0]))
     return out
 existing = load('funcs.txt') + load('funcs_a.txt')
+SKIP = set(open('wip/port_skip.txt').read().split()) if os.path.exists('wip/port_skip.txt') else set()
 rodat = []
 for fn in ('funcs.txt', 'funcs_a.txt'):
     for l in open(fn):
@@ -28,6 +29,7 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     mm = re.search(r'flags:\s*((?:[@-]\S+[ 	]*)+)', note)
     if mm: rest += [t.rstrip('.,;') for t in mm.group(1).split()]
     if not any(t in ('@SN', '@SN272') for t in rest): continue
+    if name in SKIP: skipped.append((name, 'port_skip')); continue
     ro = next((t for t in rest if t.startswith('ro=')), None)
     src = f'{ws}/wip/out/{name}.c'
     if not os.path.exists(src): skipped.append((name, 'no source')); continue

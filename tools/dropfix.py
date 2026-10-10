@@ -36,6 +36,24 @@ for it in range(LIM):
         open('wip/subsumed.txt', 'a').write(chr(10).join(sorted(und)) + chr(10)); print('aliasing', sorted(und)); continue
     if 'OK: byte-identical' in out:
         print('byte-identical after', len(dropped), 'drops:', dropped); break
+    mm = re.search(r'built:\s+(\d+) bytes', out)
+    if mm and int(mm.group(1)) != 8388608:          # an object's size differs from its manifest entry (a ported file defines extra functions, or fewer)
+        q = subprocess.run(['wsl', '-d', 'Ubuntu-24.04', '--', 'python3', '/mnt/d/Projects/TurokRageWars/tools/sizecheck.py'], capture_output=True, text=True)
+        bigger = []; smaller = []
+        for l in q.stdout.split(chr(10)):
+            f = l.split()
+            if len(f) == 3 and f[0].startswith('func_') and f[2].lstrip('-').isdigit():
+                (bigger if int(f[2]) > int(f[1]) else smaller).append((f[0], int(f[2])))
+        if bigger or smaller:
+            for n, sz in smaller:
+                for fn in ('funcs.txt', 'funcs_a.txt'):
+                    L = open(fn).read().split(chr(10))
+                    for i, l in enumerate(L):
+                        g = l.split('#')[0].split()
+                        if g and g[0] == n and sz > 0: g[2] = str(sz // 4); L[i] = ' '.join(g)
+                    open(fn, 'w', newline=chr(10)).write(chr(10).join(L))
+            for n, sz in bigger: drop(n); dropped.append(n)
+            print('size fix: dropped', [b[0] for b in bigger], 'shrunk', [s_[0] for s_ in smaller]); continue
     bad = set(re.findall(r'src/(?:game|ovl_a)/(\w+)\.c:\d+: (?:parse error|.*error|.*undeclared)', out)) | set(re.findall(r'build/src/(?:game|ovl_a)/(\w+)\.o\]', out))
     for m in re.finditer(r"multiple definition of `(\w+)'; build/src/(?:game|ovl_a)/(\w+)\.o", out): bad.add(m.group(2))
     es = {e[0]: e for e in entries()}
