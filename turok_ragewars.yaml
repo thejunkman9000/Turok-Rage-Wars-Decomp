@@ -1067,13 +1067,13 @@ segments:
       - [0x48B08, c, game/func_00247F08]
       - [0x48CE0, c, game/func_002480E0]
       - [0x490A0, c, game/func_002484A0]
-      - [0x4AA18, asm]
+      - [0x4AA18, c, game/func_00249E18]
       - [0x4ADC0, c, game/func_0024A1C0]
       - [0x4AFA0, c, game/func_0024A3A0]
       - [0x4B198, c, game/func_0024A598]
       - [0x4B390, c, game/func_0024A790]
       - [0x4B608, c, game/func_0024AA08]
-      - [0x4B9C0, asm]
+      - [0x4B9C0, c, game/func_0024ADC0]
       - [0x4BC5C, c, game/func_0024B05C]
       - [0x4BEC0, c, game/func_0024B2C0]
       - [0x4BF98, c, game/func_0024B398]
@@ -3267,7 +3267,8 @@ segments:
       - [0xC9690, .rodata, game/func_002484A0]
       - {start: 0xC96D4, type: bin, name: data_54, linker_section_order: .rodata, linker_section: .data}
       - [0xC976C, .rodata, game/func_0024AA08]
-      - {start: 0xC97A8, type: bin, name: data_55, linker_section_order: .rodata, linker_section: .data}
+      - [0xC97A8, .rodata, game/func_0024ADC0]
+      - {start: 0xC97D0, type: bin, name: data_55, linker_section_order: .rodata, linker_section: .data}
       - [0xC9870, .rodata, game/func_0024CC20]
       - {start: 0xC98A0, type: bin, name: data_56, linker_section_order: .rodata, linker_section: .data}
       - [0xC98B0, .rodata, game/func_0024D150]

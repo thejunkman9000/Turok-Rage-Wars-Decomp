@@ -19,6 +19,7 @@ for fn in ('funcs.txt', 'funcs_a.txt'):
     for l in open(fn):
         for m in re.finditer(r'ro=(0x[0-9A-Fa-f]+):(\d+)', l.split('#')[0]): rodat.append((int(m.group(1), 16), int(m.group(1), 16) + int(m.group(2)), l.split()[0]))
 add = {'funcs.txt': [], 'funcs_a.txt': []}; skipped = []
+seen = {}                      # source text -> (manifest file, index, end rom): group files (several functions, one file) become ONE entry
 for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     body = l.split('#')[0].split()
     if len(body) < 4 or body[3] != 'EXACT' or not body[0].startswith('func_'): continue
@@ -27,6 +28,14 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     ro = next((t for t in rest if t.startswith('ro=')), None)
     src = f'{ws}/wip/out/{name}.c'
     if not os.path.exists(src): skipped.append((name, 'no source')); continue
+    txt = open(src, errors='replace').read()
+    if txt in seen:
+        mf, ix, end = seen[txt]
+        if end == rom:                                   # next function of the same file: extend the first entry
+            f = add[mf][ix].split(); f[2] = str(int(f[2]) + n); add[mf][ix] = ' '.join(f)
+            seen[txt] = (mf, ix, rom + 4 * n); existing.append((rom, rom + 4 * n, name))
+        else: skipped.append((name, 'same file as an earlier entry, not contiguous'))
+        continue
     clash = [e for e in existing if e[0] < rom + 4 * n and rom < e[1]]
     if clash: skipped.append((name, 'overlaps ' + clash[0][2])); continue
     if ro:
@@ -44,6 +53,7 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     ovl = rom >= 0x16E000
     sub = 'ovl_a' if ovl else 'game'
     add['funcs_a.txt' if ovl else 'funcs.txt'].append(f'{name} 0x{rom:X} {n} {sub} mode={mode}' + (f' {ro}' if ro else ''))
+    seen[txt] = ('funcs_a.txt' if ovl else 'funcs.txt', len(add['funcs_a.txt' if ovl else 'funcs.txt']) - 1, rom + 4 * n)
     existing.append((rom, rom + 4 * n, name))
     if not dry: shutil.copy(src, f'src/{sub}/{name}.c')
 for fn, lines in add.items():

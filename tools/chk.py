@@ -31,6 +31,7 @@ def reloc_check(off, n, fw, rw, relnames):
     """verify that the symbol+addend of every relocation resolves to what the ROM encodes; returns list of word indexes"""
     badr = []
     hi = {}
+    hif = {}
     sx = lambda v: v - 0x10000 if v & 0x8000 else v
     for i in range(n):
         o = off + 4 * i
@@ -43,9 +44,10 @@ def reloc_check(off, n, fw, rw, relnames):
             if exp != (rw[i] & 0x3FFFFFF): badr.append(i)
         elif t == 'R_MIPS_HI16':
             hi[sym] = rw[i] & 0xFFFF
+            hif[sym] = fw[i] & 0xFFFF       # asn64 keeps part of the address in the lui immediate (addend)
         elif t == 'R_MIPS_LO16' and sym in hi:
             rom_addr = ((hi[sym] << 16) + sx(rw[i] & 0xFFFF)) & 0xFFFFFFFF
-            exp = (a + sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF
+            exp = (a + (hif[sym] << 16) + sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF
             if rom_addr != exp: badr.append(i)
     return badr
 

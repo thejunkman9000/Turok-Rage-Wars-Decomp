@@ -244,6 +244,8 @@ func_00201ACC sn+sa+epi
 func_00201B50 sn+sa+r4k+epi
 func_00201C80 sn+sa+r4k+epi
 func_00201DB0 sn+sa+r4k+epi
+func_0024ADC0 sn
+func_00249E18 sn
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu

@@ -3031,3 +3031,5 @@ func_00201ACC 0x26CC 33 game mode=sn+sa+epi
 func_00201B50 0x2750 76 game mode=sn+sa+r4k+epi
 func_00201C80 0x2880 76 game mode=sn+sa+r4k+epi
 func_00201DB0 0x29B0 57 game mode=sn+sa+r4k+epi
+func_0024ADC0 0x4B9C0 167 game mode=sn ro=0xC97A8:40
+func_00249E18 0x4AA18 234 game mode=sn
