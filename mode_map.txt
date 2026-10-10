@@ -119,6 +119,8 @@ func_00282304 lu3+nb
 func_002A453C lu3+nb
 func_0029E000 lu3+nb
 func_002A35C0 lu3+nb
+func_00234DD0 lu3+nb
+func_00240A88 lu3+nb
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
