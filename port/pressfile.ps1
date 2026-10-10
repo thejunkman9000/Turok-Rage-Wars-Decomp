@@ -57,6 +57,7 @@ foreach ($step in $Seq) {
         if (-not $hits) { "until: '$pat' not seen within $lim s (skip $skip, log now " + @(Get-Content port/build/run.log -ErrorAction SilentlyContinue).Count + " lines, matches anywhere " + @(Select-String -Path port/build/run.log -SimpleMatch $pat -ErrorAction SilentlyContinue).Count + ')' }
     }
     elseif ($p[0] -eq 'stick') { Hold 'port_input.txt' 0 ([int]$p[1]) ([int]$p[2]) ([double]$p[3]) }
+    elseif ($p[0] -eq 'mix') { Hold 'port_input.txt' $btn[$p[1]] ([int]$p[2]) ([int]$p[3]) ([double]$p[4]) }                      # mix:<button>:x:y:sec = a button held together with a stick position
     elseif ($p[0] -match '^p([2-4])stick$') { Hold ('port_input{0}.txt' -f $Matches[1]) 0 ([int]$p[1]) ([int]$p[2]) ([double]$p[3]) }   # pads 2..4: p2stick:x:y:sec (PF_ENV='TUROK_PADS=4')
     elseif ($p[0] -match '^p([2-4])(.+)$') { Hold ('port_input{0}.txt' -f $Matches[1]) $btn[$Matches[2]] 0 0 ([double]$p[1]) }          # p2C, p3Start, ...
     else { Hold 'port_input.txt' $btn[$p[0]] 0 0 ([double]$p[1]) }

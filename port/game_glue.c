@@ -198,6 +198,7 @@ static DWORD WINAPI stall_watch(LPVOID p) {
         if (g == lastg && f != last) { if (++quietg >= 10 && !dumped) { dumped = 1; { DWORD n; if (g_crash_log != INVALID_HANDLE_VALUE) WriteFile(g_crash_log, "STALL(game thread): frames continue but the state dispatcher stopped\r\n", 70, &n, NULL); } port_stall_dump(g_crash_log); } } else { quietg = 0; lastg = g; }
     }
 }
+extern int port_soft_fault(EXCEPTION_POINTERS *ep, HANDLE log);
 static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
     if (ep->ExceptionRecord->ExceptionCode == 0xC0000005 && ep->ExceptionRecord->NumberParameters >= 2) {
         unsigned a = (unsigned)ep->ExceptionRecord->ExceptionInformation[1];
@@ -219,6 +220,7 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep) {
             if (best >= 0 && a - port_fn_table[best].guest <= 8) { fprintf(stderr, "code pointer %08X -> function %08X\n", a, port_fn_table[best].guest); ep->ContextRecord->Eip = (DWORD)(size_t)port_fn_table[best].host; return EXCEPTION_CONTINUE_EXECUTION; }
         }
     }
+    if (port_soft_fault(ep, g_crash_log)) return EXCEPTION_CONTINUE_EXECUTION;      /* null-page access of the game code: skip / zero-fill (port/softfault.c) */
     return crash_filter2(ep);
 }
 static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep) {
