@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Decomp progress chart: python tools/progress_chart.py out.png [--no-history]
+"""Decomp progress chart: python tools/progress_chart.py out.png [--no-history] [--committed]
+   --committed  count the manifests of HEAD instead of the working tree (an integration that is still being verified does not count)
 
  1. US v1.1 (the build this repo reproduces byte for byte): matched game code by instructions (main image, overlay A, all)
  2. history: matched share of all game code at every commit that touched the function manifests
@@ -25,25 +26,45 @@ def font(size, bold=False, mono=False):
     return ImageFont.load_default()
 
 def manifests(text_of):
-    done = {}
+    """ROM ranges covered by matched C: one (start, end) per manifest entry (a span entry covers every function inside it, a stray head word may sit before the real entry)"""
+    cov = []
     for fn in ('funcs.txt', 'funcs_a.txt'):
         t = text_of(fn)
         for l in (t or '').splitlines():
             f = l.split('#')[0].split()
-            if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'): done[f[0]] = int(f[2])
-    return done
+            if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'):
+                try: a = int(f[1], 16); cov.append((a, a + 4 * int(f[2])))
+                except ValueError: pass
+    return sorted(cov)
 
 def universe():
     funcs = []
     for l in open('docs/game_funcs.txt'):
         f = l.split()
-        if len(f) >= 3 and f[1].startswith('func_'): funcs.append((f[1], int(f[2])))
+        if len(f) >= 3 and f[1].startswith('func_'): funcs.append((f[1], int(f[2]), int(f[0], 16)))      # name, instructions, ROM offset
     return funcs
 
-def current():
-    done = manifests(lambda fn: open(fn).read() if os.path.exists(fn) else '')
+def matched(cov, uni):
+    """names of the universe functions of which at least 3/4 of the bytes lie in a matched entry"""
+    out = set()
+    for n, i, rom in uni:
+        a, b = rom, rom + 4 * i
+        if sum(max(0, min(b, e) - max(a, s)) for s, e in cov if s < b and e > a) * 4 >= (b - a) * 3: out.add(n)
+    return out
+
+def matched_now(committed=False):
+    """names of the matched universe functions (working tree manifests, or those of HEAD)"""
+    def read(fn):
+        if committed:
+            r = subprocess.run(['git', 'show', f'HEAD:{fn}'], capture_output=True, text=True, errors='replace')
+            return r.stdout if r.returncode == 0 else ''
+        return open(fn).read() if os.path.exists(fn) else ''
+    return matched(manifests(read), universe())
+
+def current(committed=False):
+    uni = universe(); done = matched_now(committed)
     tot = {'main': [0, 0, 0, 0], 'ovl': [0, 0, 0, 0]}                      # matched functions, functions, matched insns, insns
-    for n, i in universe():
+    for n, i, _ in uni:
         k = 'ovl' if 0x400000 <= int(n[5:], 16) < 0x500000 else 'main'
         t = tot[k]; t[1] += 1; t[3] += i
         if n in done: t[0] += 1; t[2] += i
@@ -51,8 +72,8 @@ def current():
 
 def history():
     """[(commit time, matched insns of all game code)] over the commits that changed the manifests"""
-    uni = dict(universe()); total = sum(uni.values())
-    out = subprocess.run(['git', 'log', '--reverse', '--format=%H %ct', '--', 'funcs.txt', 'funcs_a.txt'], capture_output=True, text=True).stdout.split('\n')
+    uni = universe(); total = sum(i for _, i, _ in uni)
+    out = subprocess.run(['git', 'log', '--reverse', '--format=%H %ct', '--', 'funcs.txt', 'funcs_a.txt'], capture_output=True, text=True).stdout.splitlines()
     pts = []
     for l in out:
         f = l.split()
@@ -60,8 +81,8 @@ def history():
         def show(fn):
             r = subprocess.run(['git', 'show', f'{f[0]}:{fn}'], capture_output=True, text=True, errors='replace')
             return r.stdout if r.returncode == 0 else ''
-        done = manifests(show)
-        pts.append((int(f[1]), sum(uni[n] for n in done if n in uni)))
+        done = matched(manifests(show), uni)
+        pts.append((int(f[1]), sum(i for n, i, _ in uni if n in done)))
     return pts, total
 
 def bar(d, x, y, w, h, frac, color, label_in='', label_out='', f_in=None, f_out=None):
@@ -72,13 +93,13 @@ def bar(d, x, y, w, h, frac, color, label_in='', label_out='', f_in=None, f_out=
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else 'assets/progress.png'
-    tot = current()
+    tot = current(committed='--committed' in sys.argv)
     allt = [a + b for a, b in zip(tot['main'], tot['ovl'])]
     W, M = 1280, 40
     covers = None
     try:
         import ver_cover
-        covers = ver_cover.compute()
+        covers = ver_cover.compute(done_names=matched_now('--committed' in sys.argv))
     except Exception as e:
         print('release comparison skipped:', e)
     hist = None if '--no-history' in sys.argv else history()

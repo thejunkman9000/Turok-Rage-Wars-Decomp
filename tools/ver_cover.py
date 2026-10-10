@@ -54,8 +54,8 @@ def matched_names():
             if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'): done[f[0]] = int(f[2])
     return done
 
-def compute(vers=('us', 'eu', 'de')):
-    fs = our_functions(); done = matched_names()
+def compute(vers=('us', 'eu', 'de'), done_names=None):
+    fs = our_functions(); done = done_names if done_names is not None else matched_names()      # done_names: matched functions by ROM range (tools/progress_chart.py)
     base = open(ROMS['us-rev1'], 'rb').read()
     inv = {}
     for n, a in func_syms('us-rev1').items():
