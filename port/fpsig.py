@@ -59,6 +59,9 @@ def load():
             nf = sum(1 for t in types if t in ('f', 'd'))
             if name in sig and sum(1 for t in sig[name][1] if t in ('f', 'd')) >= nf: continue      # several prototypes: the one that sees most floating point parameters is the real one (matching drafts often type everything s32)
             sig[name] = (rr, types)
+    if os.path.exists('their_syms.ld'):                    # sources ported from the other decompilation define func_80XXXXXX_de names: record the signature under our func_00XXXXXX name too
+        for m in re.finditer(r'^PROVIDE\((\w+) = 0x(00[0-9A-Fa-f]{6})\);', open('their_syms.ld').read(), re.M):
+            if m.group(1) in sig: sig.setdefault('func_' + m.group(2).upper(), sig[m.group(1)])
     if os.path.exists('port/fpsig_override.txt'):
         for l in open('port/fpsig_override.txt'):
             f = l.split('#')[0].split()

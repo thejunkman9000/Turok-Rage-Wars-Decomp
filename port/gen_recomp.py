@@ -43,7 +43,9 @@ def known_functions(idx):
 
 def peephole(c, known):
     """function symbols that the recompiler substituted for address constants must be declared"""
-    used = set(re.findall(r'\(u32\)(func_[0-9A-F]{8}|os\w+|__os\w+|al\w+);', c))
+    used = set(re.findall(r'\(u32\)(func_[0-9A-F]{8}|os\w+|__os\w+|al\w+|_[A-Za-z]\w*);', c))
+    kn = set(known.values())
+    used |= {n for n in re.findall(r'\(u32\)([A-Za-z_]\w*);', c) if n in kn}      # any other known function name (proutSprintf, ...)
     return c, used
 
 def gen(names):

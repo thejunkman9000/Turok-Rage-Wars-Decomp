@@ -39,3 +39,6 @@ port/native/recomp/
 port/gen/
 port/build/
 port_*.txt
+port/c_skip.txt
+port/recomp_base.txt
+port/be_ir_old.py

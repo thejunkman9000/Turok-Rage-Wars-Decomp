@@ -301,6 +301,38 @@ _DEST_FIRST = {'addu', 'add', 'addi', 'addiu', 'subu', 'sub', 'and', 'or', 'xor'
                'slti', 'sltiu', 'mul', 'andi', 'ori', 'xori', 'lui', 'sll', 'srl', 'sra', 'lw', 'lh', 'lhu', 'lb', 'lbu', 'mflo', 'mfhi', 'mfc1', 'cfc1', 'mfc0'}
 def int_arg_count(items):
     """number of integer argument registers (a0-a3) the function reads before writing them"""
+    written = set(); n = 0; clobber = False
+    for it in items:
+        if it[0] != 'ins': continue
+        m, ops = it[1], it[2]
+        regs = [re.findall(r'\$(zero|at|v[01]|a[0-3]|t[0-9]|s[0-8]|k[01]|gp|sp|fp|ra)(?![\w])', o) for o in ops]
+        flat = [r for rs in regs for r in rs]
+        if clobber:                                  # the delay slot of a call runs BEFORE the callee clobbers a0-a3: a read there is still an incoming argument
+            clobber = False
+            pend = True
+        else: pend = False
+        try:
+            if m in ('jal', 'jalr'):
+                if m == 'jalr' and ops:
+                    for r in regs[0]:
+                        if r in ('a0', 'a1', 'a2', 'a3') and r not in written: n = max(n, int(r[1]) + 1)
+                clobber = True
+                continue
+            if m in _DEST_FIRST and ops:
+                srcs = [r for rs in regs[1:] for r in rs]; dest = regs[0]
+            elif m in ('mtc1', 'ctc1', 'mtc0'):
+                srcs = regs[0] if regs else []; dest = []
+            else:
+                srcs = flat; dest = []
+            for r in srcs:
+                if r in ('a0', 'a1', 'a2', 'a3') and r not in written: n = max(n, int(r[1]) + 1)
+            for r in dest: written.add(r)
+        finally:
+            if pend: written.update(('a0', 'a1', 'a2', 'a3'))
+        continue
+    return n
+
+def _int_arg_count_old(items):
     written = set(); n = 0
     for it in items:
         if it[0] != 'ins': continue
@@ -308,7 +340,7 @@ def int_arg_count(items):
         regs = [re.findall(r'\$(zero|at|v[01]|a[0-3]|t[0-9]|s[0-8]|k[01]|gp|sp|fp|ra)(?![\w])', o) for o in ops]
         flat = [r for rs in regs for r in rs]
         if m in ('jal', 'jalr'):
-            if m == 'jalr' and ops: 
+            if m == 'jalr' and ops:
                 for r in regs[0]:
                     if r in ('a0', 'a1', 'a2', 'a3') and r not in written: n = max(n, int(r[1]) + 1)
             written.update(('a0', 'a1', 'a2', 'a3'))

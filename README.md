@@ -31,7 +31,7 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
 ## Status (2026-10-10)
-- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. About 83% of all game-code instructions are matched C
+- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. About 86% of all game-code instructions are matched C
   (`src/game/` main image, `src/ovl_a/` overlay A; libultra/libaudio in `src/libultra/`, `-O3 -fforce-addr -fno-builtin`); the rest is
   still splat asm, including hand-written exception/cache/TLB/RNC stubs that no C reproduces.
 - **Toolchain** (the big finding): the other public decompilation of this game, [melalawi/ragewars-decomp](https://github.com/melalawi/ragewars-decomp)

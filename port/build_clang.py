@@ -12,20 +12,44 @@ import threading
 BE_LOCK = threading.Lock()
 sys.path.insert(0, os.path.dirname(__file__))
 import be_ir
+if os.environ.get('PORT_OLD_BE'): import be_ir_old      # experiment switch: the pre-2026-10-10 byte-order rewriter (module-wide bookkeeping) for everything but src/libultra
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 OUT = 'port/build/obj_c'; LL = 'port/build/ll'
 os.makedirs(OUT, exist_ok=True); os.makedirs(LL, exist_ok=True)
 COMMON = ['python', '-m', 'ziglang', 'cc', '-target', 'x86-windows-msvc', '-O1', '-g0', '-fno-vectorize', '-fno-slp-vectorize',
-          '-fno-strict-aliasing', '-fno-jump-tables', '-fno-math-errno', '-finstrument-functions', '-std=gnu89', '-w', '-Wno-error=int-conversion', '-Wno-error=incompatible-pointer-types', '-Wno-error=incompatible-function-pointer-types', '-Wno-error=incompatible-pointer-types-discards-qualifiers', '-Wno-error=implicit-function-declaration', '-D_LANGUAGE_C', '-DTARGET_PC', '-DM2CTX', '-include', 'port/compat_clang.h']
+          '-fno-strict-aliasing', '-fno-jump-tables', '-fno-math-errno', '-finstrument-functions', '-std=gnu89', '-w', '-Wno-error=int-conversion', '-Wno-error=incompatible-pointer-types', '-Wno-error=incompatible-function-pointer-types', '-Wno-error=incompatible-pointer-types-discards-qualifiers', '-Wno-error=implicit-function-declaration', '-D_LANGUAGE_C'] + ([] if os.environ.get('PORT_NO_DEFS') else ['-DF3DEX_GBI_2', '-DVERSION_US_REV1']) + ['-DTARGET_PC', '-DM2CTX', '-include', 'port/compat_clang.h']
 ws_inc = sorted(glob.glob('D:/Projects/ws/*/include'), key=os.path.getmtime, reverse=True)
 overrides = {os.path.basename(p)[:-2] for p in glob.glob('port/overrides/*.c')}
 
+
+_COVER = []; _NAMES = set()
+def _cskip(): return set(open('port/c_skip.txt').read().split()) if os.path.exists('port/c_skip.txt') else set()
+def draft_superseded(p):
+    """a behaviour-level draft (port/nonmatching/func_XXXXXXXX__N.c, __m2c.c) is only the fallback for a function that has neither matching C nor a recompiled
+    twin: a stale draft would otherwise shadow the real C (the linker keeps the first definition, objects sort nm_ < ov_) or the C's alias.  __ovr files are the
+    hand-written overrides of the port (their src file is skipped through port/overrides) and always stay."""
+    m = re.match(r'func_([0-9A-F]{8})__(?!ovr)', os.path.basename(p))
+    if not m: return False
+    if not _COVER:
+        for fn in ('funcs.txt', 'funcs_a.txt'):
+            for l in open(fn):
+                f = l.split('#')[0].split()
+                if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'):
+                    rom = int(f[1], 16); va = rom - 0x16E000 + 0x400000 if rom >= 0x16E000 else rom - 0x1000 + 0x200400
+                    if f[0] not in overrides and f[0] not in _cskip(): _COVER.append((va, va + 4 * int(f[2]))); _NAMES.add(f[0])      # an entry may start after its (stray head words) name; a source the port does not compile (c_skip.txt) covers nothing
+        _COVER.sort()
+        _COVER.append(set(open('port/recomp.txt').read().split()) if os.path.exists('port/recomp.txt') else set())
+    rc = _COVER[-1]; va = int(m.group(1), 16)
+    if 'func_' + m.group(1) in rc or 'func_' + m.group(1) in _NAMES: return True
+    return any(a <= va < b for a, b in _COVER[:-1])
+
 def sources():
     srcs = []
+    cskip = set(open('port/c_skip.txt').read().split()) if os.path.exists('port/c_skip.txt') else set()      # sources the port does not compile (their functions are statically recompiled instead): bisecting behaviour differences
     for p in sorted(glob.glob('src/game/*.c') + glob.glob('src/ovl_a/*.c')):
-        if os.path.basename(p)[:-2] not in overrides and os.path.basename(p)[:-2] not in ('memset', 'memcpy', 'memmove'): srcs.append(p)   # libc names: the host CRT provides them
+        if os.path.basename(p)[:-2] not in overrides and os.path.basename(p)[:-2] not in cskip and os.path.basename(p)[:-2] not in ('memset', 'memcpy', 'memmove'): srcs.append(p)   # libc names: the host CRT provides them
     for p in sorted(glob.glob('src/libultra/*.c')):
         b = os.path.basename(p)[:-2]
         if b in overrides: continue                                                                  # replaced by port/overrides/<name>.c (compiled from port/nonmatching)
@@ -33,13 +57,14 @@ def sources():
         if b == 'string': continue                                                                  # memcpy/strlen: host CRT
         if re.match(r'^(__os|os[A-Z]|dbg|__divdi3|__moddi3|__udivdi3|__umoddi3|__floatdi|__cmpdi|__ucmpdi)', b): continue          # hardware layer: port/os_shim.c
         srcs.append(p)
-    srcs += sorted(glob.glob('port/nonmatching/*.c')) + sorted(glob.glob('port/native/*.c')) + sorted(glob.glob('port/native/recomp/*.c')) + (sorted(glob.glob('port/native/difftest/*.c')) if os.environ.get('TUROK_BUILD_DIFFTEST') else [])
+    srcs += [d for d in sorted(glob.glob('port/nonmatching/*.c')) if not draft_superseded(d)] + sorted(glob.glob('port/native/*.c')) + sorted(glob.glob('port/native/recomp/*.c')) + (sorted(glob.glob('port/native/difftest/*.c')) if os.environ.get('TUROK_BUILD_DIFFTEST') else [])
     return srcs
 
 
 # ---- implicit register arguments: the MIPS code calls f() and the callee reads the caller's own $a0..$a3 unchanged; pass them explicitly ----
 FUNC_DEF = re.compile(r'^[\w][\w\s\*]*?\b(func_[0-9A-Fa-f]{8})\s*\(([^)]*)\)\s*\{', re.M)
-ZERO_CALL = re.compile(r'(?<![\w])(func_[0-9A-Fa-f]{8})\s*\(\s*\)\s*;')
+THEIR_DEF = re.compile(r'^[\w][\w\s\*]*?\b(func_[0-9A-Fa-f]{8}_\w+)\s*\(([^)]*)\)\s*\{', re.M)
+ZERO_CALL =re.compile(r'(?<![\w])(func_[0-9A-Fa-f]{8})\s*\(\s*\)\s*;')
 PARTIAL_CALL = re.compile(r'(?<![\w.])(func_[0-9A-Fa-f]{8})\s*\(([^()]*)\)')
 def _params(txt):
     txt = txt.strip()
@@ -56,10 +81,18 @@ def load_defs():
             f = l.split()
             if len(f) == 2: _ALLDEFS[f[0]] = int(f[1])         # statically recompiled functions: how many argument registers they read
     except OSError: pass
+    their = {}                                  # sources ported from the other decompilation define func_8027ED6C_de: the callers (our matching C) spell it func_0027ED40
+    try:
+        for m in re.finditer(r'^PROVIDE\((func_[0-9A-F]{8}_\w+) = 0x(00[0-9A-Fa-f]{6})\);', open('their_syms.ld').read(), re.M): their[m.group(1)] = 'func_' + m.group(2).upper()
+    except OSError: pass
     for p in glob.glob('src/game/*.c') + glob.glob('src/ovl_a/*.c') + glob.glob('port/nonmatching/*.c') + glob.glob('port/overrides/*.c'):
-        for m in FUNC_DEF.finditer(open(p, errors='replace').read()):
+        txt = open(p, errors='replace').read()
+        for m in FUNC_DEF.finditer(txt):
             ps = _params(m.group(2))
             if ps and not any(re.search(r'\b(f32|f64|float|double)\b', a) and '*' not in a for a, _ in ps): _ALLDEFS[m.group(1)] = len(ps)
+        for m in THEIR_DEF.finditer(txt):
+            our = their.get(m.group(1)); ps = _params(m.group(2))
+            if our and ps and not any(re.search(r'\b(f32|f64|float|double)\b', a) and '*' not in a for a, _ in ps): _ALLDEFS.setdefault(our, len(ps))
 TRAMPOLINE = re.compile(r'^((?:void|s32|u32|int)\s+func_[0-9A-F]{8})\(void\)\s*\{\s*(return\s+)?(\w+)\(\);\s*\}[ \t]*$', re.M)
 def patch_trampolines(text):
     """`void f(void) { target(); }` is a tail-call trampoline in the original (all argument registers pass through): forward them"""
@@ -106,15 +139,20 @@ def patch_implicit_args(text):
     return PARTIAL_CALL.sub(sub2, text)
 
 def compile_one(p, force):
+    if not os.path.exists(p): return (p, True, 'gone')                       # dropped / renamed while the build was running
     base = os.path.splitext(os.path.basename(p))[0]
     prefix = 'lu_' if p.startswith('src/libultra') else ('ov_' if p.startswith('src/ovl_a') else ('nm_' if p.startswith('port/nonmatching') else ('ar_' if p.startswith('port/native/recomp') else 'zd_' if p.startswith('port/native/difftest') else 'nt_' if p.startswith('port/native') else '')))
     obj = f'{OUT}/{prefix}{base}.obj'
     if not force and os.path.exists(obj) and os.path.getmtime(obj) >= os.path.getmtime(p): return (p, True, 'cached')
     ll1 = f'{LL}/{prefix}{base}.ll'; ll2 = f'{LL}/{prefix}{base}.be.ll'
-    incs = [['-Iinclude']] + ([[f'-I{d}', '-Iinclude'] for d in ws_inc[:12]] if prefix == 'nm_' else [])
+    incs = [['-Iinclude'] + ([] if os.environ.get('PORT_NO_THEIR_INC') else ['-Iinclude/their'])] + ([[f'-I{d}', '-Iinclude'] for d in ws_inc[:12]] if prefix == 'nm_' else [])
     err = ''
     src_text = open(p, errors='replace').read()
-    src_text = re.sub(r'\s*(?:__asm__|__asm|asm)\s*\(\s*"\$[0-9a-z]+"\s*\)', '', src_text)     # MIPS register pins from the matching drafts mean nothing to clang/x86
+    src_text = re.sub(r'\s*(?:__asm__|__asm|asm)\s*\(\s*"\$?(?:\d{1,2}|zero|at|v[01]|a[0-3]|t\d|s\d|k[01]|gp|sp|fp|ra|f\d{1,2})"\s*\)', '', src_text)     # MIPS register pins from the matching drafts mean nothing to clang/x86 ("$4", "s1", "a0", "f23"); asm labels (asm("memcpy"), asm("D_80121990")) stay
+    src_text = re.sub(r'(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(\s*"break[^"]*"\s*(?::[^;]*)?\)\s*;', ';', src_text)   # MIPS `break` traps: not x86 code
+    src_text = re.sub(r'(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(\s*""\s*:\s*"[+=]f"\s*\([^)]*\)\s*\)\s*;', ';', src_text)   # float register barrier: the x87 'f' constraint is not usable; other empty asm statements (barriers, "=r"(k) : "0"(const) value definitions) are valid x86 and keep their meaning
+    src_text = re.sub(r'(\bextern\s+[\w \t\*]+?\b\w+\s*)\(\s*[a-z_]\w*(?:\s*,\s*[a-z_]\w*)*\s*\)\s*;', lambda m: m.group(0) if re.search(r'\b(?:void|int|char|short|long|float|double|unsigned|signed|struct|union|enum|const|[su]\d+|f32|f64|u8|u16|u32|s8|s16|s32)\b', m.group(0)[m.group(0).index('('):]) else m.group(1) + '();', src_text)     # K&R `extern void f(arg0);` (name list without types) of the original toolchain: unprototyped for clang
+    src_text = re.sub(r'^[ \t]*(?:extern[ \t]+)?[A-Za-z_][\w \t\*]*?\b(?:strlen|strcpy|strncpy|strcmp|strncmp|strcat|strchr|strstr|memcmp|memchr)[ \t]*\([^;{}]*\)[ \t]*;[ \t]*$', '', src_text, flags=re.M)     # the sources' own libc prototypes (s32 strlen(u8 *)) clash with the compiler's builtins
     src_text = re.sub(r'(?<![\w])func_([0-9A-F]{6})(?![\w])', lambda m: 'func_00' + m.group(1), src_text)                 # short names (func_44AFC0) of the matching tree: the real function, so the implicit-argument patches apply
     variants = [patch_implicit_args(src_text), src_text]
     if base.endswith('__m2c'):
@@ -137,15 +175,16 @@ def compile_one(p, force):
         return (p, False, 'clang: ' + err.strip().split('\n')[0][:160])
     try:
         with BE_LOCK:      # be_ir keeps its temp counter and ALIGN1_RAW in module globals: one rewrite at a time
-            be_ir.n_tmp[0] = 0; be_ir.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
-            be_text = be_ir.rewrite(open(ll1, encoding='utf-8').read())
+            bm = be_ir_old if (os.environ.get('PORT_OLD_BE') and base not in os.environ.get('PORT_NEW_BE_ONLY', 'cseq,csplayer,seqplayer').split(',')) else be_ir
+            bm.n_tmp[0] = 0; bm.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
+            be_text = bm.rewrite(open(ll1, encoding='utf-8').read())
         open(ll2, 'w', encoding='utf-8', newline='\n').write(be_text)
     except Exception as e:
         return (p, False, f'rewrite: {e}')
     r = subprocess.run(['python', '-m', 'ziglang', 'cc', '-target', 'x86-windows-msvc', '-O1', '-c', ll2, '-o', obj], capture_output=True, text=True)
     if r.returncode != 0:
         return (p, False, 'llc: ' + r.stderr.strip().split('\n')[0][:160])
-    os.remove(ll1); os.remove(ll2)
+    if not os.environ.get('PORT_KEEP_LL'): os.remove(ll1); os.remove(ll2)      # PORT_KEEP_LL=1 keeps the IR (before / after the byte-order rewrite) for inspection
     return (p, True, 'ok')
 
 if __name__ == '__main__':

@@ -87,15 +87,15 @@ def native_pointer(ptr, tainted, defined):
     if ptr in tainted: return True
     return any(g in ptr for g in defined)
 
-def rewrite(text):
+def _rewrite_lines(text, defined=None, used=None):
     # MSVC-compatible clang turns volatile accesses into atomic acquire/release ones: plain volatile accesses are what the swapping below understands
     text = re.sub(r'(load|store) atomic volatile', r'\1 volatile', text)
     text = re.sub(r' (?:acquire|release|seq_cst|monotonic|unordered|acq_rel)(?=, align)', '', text)
     text = re.sub(r'(load|store) atomic ', r'\1 ', text)
     out = []
-    used = set()
+    if used is None: used = set()
     lines = text.split('\n')
-    defined = {m.group(1) for m in (DEF_GLOBAL.match(l) for l in lines) if m}
+    if defined is None: defined = {m.group(1) for m in (DEF_GLOBAL.match(l) for l in lines) if m}
     BSW = re.compile(r'(%[\w.\-$]+) = (?:tail )?call i(?:16|32|64) @llvm\.bswap\.i(?:16|32|64)\(i(?:16|32|64) (%[\w.\-$]+)\)')
     bswap_res, bswap_arg = set(), set()
     for l in lines:
@@ -203,6 +203,38 @@ def rewrite(text):
             out[i + 1:i + 1] = decl
             break
     return '\n'.join(out)
+
+def rewrite(text):
+    """SSA names (%5, %arrayidx ...) are only unique inside one function.  The bookkeeping of _rewrite_lines (stack objects, values derived
+    from module globals, byte-swapped values, use counts) is keyed by those names, so every function is rewritten on its own: with
+    several functions per module (the whole-object libaudio sources) a name from one function used to mark an unrelated value of the
+    next one as a stack address or a private table, and its loads / stores skipped the guest-pointer translation."""
+    text = re.sub(r'(load|store) atomic volatile', r'\1 volatile', text)
+    text = re.sub(r' (?:acquire|release|seq_cst|monotonic|unordered|acq_rel)(?=, align)', '', text)
+    text = re.sub(r'(load|store) atomic ', r'\1 ', text)
+    lines = text.split('\n')
+    defined = {m.group(1) for m in (DEF_GLOBAL.match(l) for l in lines) if m}
+    used = set()
+    segs, cur, infn = [], [], False
+    for l in lines:
+        if l.startswith('define ') and not infn:
+            if cur: segs.append(cur)
+            cur, infn = [], True
+        cur.append(l)
+        if infn and l == '}': segs.append(cur); cur, infn = [], False
+    if cur: segs.append(cur)
+    out = []
+    for seg in segs: out.append(_rewrite_lines('\n'.join(seg), defined, used))
+    res = '\n'.join(out).split('\n')
+    decl = []
+    for ty in sorted(used):
+        if re.search(r'^declare [^@]*@llvm\.bswap\.' + re.escape(ty) + r'\(', text, re.M): continue      # the source already uses __builtin_bswap
+        decl.append(f'declare {ty} @llvm.bswap.{ty}({ty})')
+    for i, l in enumerate(res):
+        if l.startswith('target triple'):
+            res[i + 1:i + 1] = decl
+            break
+    return '\n'.join(res)
 
 if __name__ == '__main__':
     src = open(sys.argv[1], encoding='utf-8').read()

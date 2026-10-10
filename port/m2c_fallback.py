@@ -11,8 +11,9 @@ CACHE = 'port/build/m2c_valid'
 
 def asm_index():
     """name -> asm file, exact per-function files generated from the ROM (port/asm_all.py)"""
-    subprocess.run([sys.executable, 'port/asm_tail.py'] + open('port/extra_starts.txt').read().split(), capture_output=True)
-    subprocess.run([sys.executable, 'port/asm_all.py'], capture_output=True)
+    if not os.environ.get('PORT_NO_ASM_REGEN'):            # PORT_NO_ASM_REGEN=1: reuse port/build/asm_func (slow to rebuild, depends only on the ROM)
+        subprocess.run([sys.executable, 'port/asm_tail.py'] + open('port/extra_starts.txt').read().split(), capture_output=True)
+        subprocess.run([sys.executable, 'port/asm_all.py'], capture_output=True)
     funcs = {}
     for p in glob.glob('port/build/asm_func/*.s'):
         funcs[os.path.basename(p)[:-2]] = p
