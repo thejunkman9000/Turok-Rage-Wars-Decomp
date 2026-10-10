@@ -1226,3 +1226,5 @@ pad_1B7968 0x1B7968 2 ovl_a
 func_00449970 0x1B7970 117 ovl_a
 func_00449B44 0x1B7B44 189 ovl_a
 func_00449E38 0x1B7E38 178 ovl_a
+func_00441764 0x1AF764 379 ovl_a mode=sn ro=0xE30E4:28
+func_00444024 0x1B2030 117 ovl_a mode=sn
