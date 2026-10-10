@@ -465,7 +465,7 @@ segments:
       - [0x1A090, c, game/func_00219490]
       - [0x1A288, c, game/func_00219688]
       - [0x1A640, c, game/func_00219A40]
-      - [0x1AED4, c, game/func_0021A2D4]
+      - [0x1AED4, asm]
       - [0x1B38C, c, game/func_0021A78C]
       - [0x1B5A4, c, game/func_0021A9A4]
       - [0x1BB6C, c, game/func_0021AF6C]

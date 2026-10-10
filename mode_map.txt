@@ -246,7 +246,6 @@ func_00201C80 sn+sa+r4k+epi
 func_00201DB0 sn+sa+r4k+epi
 func_0024ADC0 sn
 func_00249E18 sn
-func_0021A2D4 sn
 func_0020402C sn+nb
 func_00220EB0 sn
 func_0021B468 sn
