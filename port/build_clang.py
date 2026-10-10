@@ -172,7 +172,8 @@ def compile_one(p, force):
     obj = f'{OUT}/{prefix}{base}.obj'
     if not force and os.path.exists(obj) and os.path.getmtime(obj) >= os.path.getmtime(p): return (p, True, 'cached')
     ll1 = f'{LL}/{prefix}{base}.ll'; ll2 = f'{LL}/{prefix}{base}.be.ll'
-    incs = [['-Iinclude'] + ([] if os.environ.get('PORT_NO_THEIR_INC') else ['-Iinclude/their'])] + ([[f'-I{d}', '-Iinclude'] for d in ws_inc[:12]] if prefix == 'nm_' else [])
+    theirdir = 'include/their2' if 'their2' in ''.join(open(p, errors='replace').readlines()[:3]) else 'include/their'      # sources ported from the newer headers of the other decompilation name include/their2 in their first lines (tools/cc.sh does the same)
+    incs = [['-Iinclude'] + ([] if os.environ.get('PORT_NO_THEIR_INC') else ['-I' + theirdir])] + ([[f'-I{d}', '-Iinclude'] for d in ws_inc[:12]] if prefix == 'nm_' else [])
     err = ''
     src_text = open(p, errors='replace').read()
     src_text = re.sub(r'\s*(?:__asm__|__asm|asm)\s*\(\s*"\$?(?:\d{1,2}|zero|at|v[01]|a[0-3]|t\d|s\d|k[01]|gp|sp|fp|ra|f\d{1,2})"\s*\)', '', src_text)     # MIPS register pins from the matching drafts mean nothing to clang/x86 ("$4", "s1", "a0", "f23"); asm labels (asm("memcpy"), asm("D_80121990")) stay

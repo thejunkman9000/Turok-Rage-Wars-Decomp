@@ -33,7 +33,9 @@ export GAS_MULTFIX=1   # original toolchain never fills a branch delay slot with
 # n64link asn64 to normalise the SN64 assembly, then GNU as).  Programs are installed in ~/sn by tools/sn_setup.sh; their headers are in include/their.
 if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
   SN=${SN_DIR:-$HOME/sn}
-  cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I include -I include/their "$in" > "$tmp/s.i"
+  THEIR=include/their                                                 # a source whose first lines mention `their2` was ported from the newer headers of the other decompilation (include/their2)
+  if head -n 3 "$in" | grep -q their2; then THEIR=include/their2; fi
+  cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I include -I $THEIR "$in" > "$tmp/s.i"
   if [ "$mode" = sn272 ]; then
     "$SN/cc1_272" -quiet -G0 -mips3 -mgp32 -mfp32 -O2 $xflags "$tmp/s.i" -o "$tmp/s.s"
   else

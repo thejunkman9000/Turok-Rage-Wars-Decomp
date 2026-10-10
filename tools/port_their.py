@@ -61,7 +61,8 @@ for name, (n, ro) in sorted(ex.items(), key=lambda kv: byname.get(kv[0], 0)):
     add['funcs_a.txt' if ovl else 'funcs.txt'].append(f'{ours} 0x{rom:X} {n} {sub} mode={mode}' + (f' {ro}' if ro else ''))
     existing.append((rom, rom + 4 * n, ours))
     if not dry:
-        shutil.copy(f'D:/Projects/ext/ragewars-decomp/src/{name}.c' if os.path.exists(f'D:/Projects/ext/ragewars-decomp/src/{name}.c') else f'D:/Projects/ext/ragewars-decomp/src/fuzzy/{name}.c', f'src/{sub}/{ours}.c')
+        if '--their2' in sys.argv and os.path.exists(f'wip/their_new/{name}.c'): shutil.copy(f'wip/their_new/{name}.c', f'src/{sub}/{ours}.c')      # the prepared copy with the `their2` marker (tools/upstream_port.py): compiled against include/their2
+        else: shutil.copy(f'D:/Projects/ext/ragewars-decomp/src/{name}.c' if os.path.exists(f'D:/Projects/ext/ragewars-decomp/src/{name}.c') else f'D:/Projects/ext/ragewars-decomp/src/fuzzy/{name}.c', f'src/{sub}/{ours}.c')
 for fn, lines in add.items():
     if lines and not dry:
         t = open(fn).read()
