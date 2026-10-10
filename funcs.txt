@@ -3004,3 +3004,30 @@ func_0027D950 0x7E550 243 game mode=sn ro=0xCA928:44
 func_0028F524 0x90124 200 game mode=sn ro=0xCB058:28
 func_002A9F18 0xAAB18 1185 game mode=sn ro=0xCBED8:112
 func_002AC3F0 0xACFF0 351 game mode=sn
+func_00200500 0x1100 14 game mode=sn272
+func_00200538 0x1138 12 game mode=sn272
+func_00200568 0x1168 14 game mode=sn272
+func_002005A0 0x11A0 15 game mode=sn272
+func_002005DC 0x11DC 13 game mode=sn+sa+epi
+func_00200800 0x1400 16 game mode=sn272
+func_00200840 0x1440 16 game mode=sn272
+func_00200880 0x1480 55 game mode=sn272
+func_0020095C 0x155C 95 game mode=sn+sa+r4k+epi
+func_00200B14 0x1714 69 game mode=sn272
+func_00200C28 0x1828 30 game mode=sn272
+func_00200CA0 0x18A0 30 game mode=sn272
+func_00200D18 0x1918 59 game mode=sn+sa+r4k+epi
+func_00200E04 0x1A04 101 game mode=sn+sa+r4k+epi
+func_00200F98 0x1B98 51 game mode=sn272
+func_00201064 0x1C64 29 game mode=sn+sa+epi
+func_002010D8 0x1CD8 128 game mode=sn+sa+r4k+epi
+func_002012D8 0x1ED8 64 game mode=sn+sa+epi
+func_002013D8 0x1FD8 51 game mode=sn+sa+r4k+epi
+func_002016FC 0x22FC 59 game mode=sn+sa+epi
+func_002017E8 0x23E8 46 game mode=sn272
+func_002018A0 0x24A0 109 game mode=sn+sa+r4k+epi
+func_00201A74 0x2674 22 game mode=sn+sa+epi
+func_00201ACC 0x26CC 33 game mode=sn+sa+epi
+func_00201B50 0x2750 76 game mode=sn+sa+r4k+epi
+func_00201C80 0x2880 76 game mode=sn+sa+r4k+epi
+func_00201DB0 0x29B0 57 game mode=sn+sa+r4k+epi

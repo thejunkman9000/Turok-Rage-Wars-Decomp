@@ -34,8 +34,13 @@ if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
   if [ "$mode" = sn272 ]; then
     "$SN/cc1_272" -quiet -G0 -mips3 -mgp32 -mfp32 -O2 $xflags "$tmp/s.i" -o "$tmp/s.s"
   else
-    "$SN/cc1_281" -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300 $xflags "$tmp/s.i" -o "$tmp/s.s"
+    cpu=VR4300; saf=""
+    case "$toks" in *+r4k*) cpu=r4000;; esac            # +r4k: -mcpu=r4000 (low code region scheduling)
+    case "$toks" in *+sa*) saf="-msplit-addresses";; esac  # +sa : shared lui for global accesses
+    "$SN/cc1_281" -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=$cpu -mhard-float -mgp32 -mfp64 -mno-fix4300 $saf $xflags "$tmp/s.i" -o "$tmp/s.s"
   fi
+  case "$toks" in *+epi*) python3 tools/snepi.py "$tmp/s.s";; esac   # +epi : unfilled return epilogue (addiu sp; jr ra; nop)
+  sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' "$tmp/s.s"
   "$SN/n64link" asn64 "$tmp/s.s" > "$tmp/n.s"
   # rodata label references -> absolute addresses (the real rodata sits in KSEG0, the splat segment's VA does not match)
   sbase=$(basename "$in" .c); sro_va=""; sro_size=""
