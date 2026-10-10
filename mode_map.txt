@@ -342,8 +342,6 @@ func_0040067C sn
 func_004009F4 sn
 func_00416F4C sn
 func_004170B4 sn
-func_0041BF10 sn
-func_00429178 sn
 func_00405F48 sn
 func_00409AEC sn
 func_00416D74 sn
