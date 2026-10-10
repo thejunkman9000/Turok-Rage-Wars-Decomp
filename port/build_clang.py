@@ -154,6 +154,17 @@ def patch_implicit_args(text):
         return f'{name}({argtxt.strip() + ", " if argtxt.strip() else ""}{", ".join(extra)})'
     return PARTIAL_CALL.sub(sub2, text)
 
+def stage1_flags(base, prefix=''):
+    """clang flags of the first stage (C -> LLVM IR, before the big-endian rewrite).  Optimising here is unsafe for byte-order sensitive code: the passes fold
+    memory accesses with the host's little-endian layout (a halfword of a union read becomes `lshr word, 16`, adjacent accesses merge into wider ones), and the
+    rewrite of loads/stores to guest byte order then yields wrong values (func_0042A994: `D_800E4F64[i].a.h.h1` read 0 instead of 0x316 at -O1, the widget lookup
+    returned NULL).  Sources the port compiles unoptimised (-O0: mode=sn sources, PORT_O0=name,name) are safe; PORT_NOPASS=name,name or PORT_NOPASS_ALL=1 emit the IR of
+    -O1 without running any LLVM pass (the second stage, on the rewritten IR, optimises).  Default now: no pass for all guest code."""
+    if base in os.environ.get('PORT_O0', '').split(',') or base in sn_stems(): return ['-O0' if a == '-O1' else a for a in COMMON]
+    if prefix not in ('nt_', 'zd_') and not os.environ.get('PORT_O1_STAGE1') or base in os.environ.get('PORT_NOPASS', '').split(','): return COMMON + ['-Xclang', '-disable-llvm-passes']      # guest code: never fold memory accesses before the byte-order rewrite (native helpers such as the RNC decoder keep -O1; PORT_O1_STAGE1=1 restores -O1 for everything)
+    return COMMON
+
+
 def compile_one(p, force):
     if not os.path.exists(p): return (p, True, 'gone')                       # dropped / renamed while the build was running
     base = os.path.splitext(os.path.basename(p))[0]
@@ -181,7 +192,7 @@ def compile_one(p, force):
         pp = f'{LL}/{prefix}{base}.c'; open(pp, 'w', newline='\n').write(patched)
         done = False
         for inc in incs:
-            r = subprocess.run((['-O0' if a == '-O1' else a for a in COMMON] if (base in os.environ.get('PORT_O0', '').split(',') or base in sn_stems()) else COMMON) + inc + ['-S', '-emit-llvm', pp, '-o', ll1], capture_output=True, text=True)      # PORT_O0=name,name: more sources unoptimised
+            r = subprocess.run(stage1_flags(base, prefix) + inc + ['-S', '-emit-llvm', pp, '-o', ll1], capture_output=True, text=True)
             if r.returncode == 0: done = True; break
             err = r.stderr
         if done: break

@@ -16,6 +16,16 @@ log = open(sys.argv[1] if len(sys.argv) > 1 else 'port/build/run.log', errors='r
 crash = [i for i, l in enumerate(log) if 'CRASH(raw' in l or l.startswith('game thread exception')]
 states = [re.search(r'game state: g=\w+ st=(\d+)', l).group(1) for l in log if 'game state: g=' in l]
 print('last states:', ' '.join(states[-8:]) or '-', '| distinct:', ' '.join(sorted(set(states), key=int)))
+soft = [i for i, l in enumerate(log) if l.startswith('SOFTFAULT')]
+for i in soft[:8]:                              # null-page accesses the port recovered from (port/softfault.c): site and callers
+    m = re.search(r'SOFTFAULT (\w+) acc=(\d) addr=([0-9A-F]+) rva=([0-9A-F]+)', log[i])
+    fr = []
+    if i + 1 < len(log) and 'stack rvas:' in log[i + 1]:
+        for r in [t for t in log[i + 1].split(':', 1)[1].split() if re.fullmatch(r'[0-9A-F]{1,8}', t)][:6]:
+            w = where(int(r, 16))
+            if not fr or fr[-1] != w: fr.append(w)
+    if m: print('SOFTFAULT %s addr=%s at %s < %s' % (m.group(1), m.group(3), where(int(m.group(4), 16)), ' < '.join(fr)))
+if len(soft) > 8: print('  ... %d softfault sites in total' % len(soft))
 if not crash:
     print('no crash'); sys.exit(0)
 l = log[crash[0]]
@@ -26,7 +36,7 @@ for l in log[crash[0]:crash[0] + 8]:
     m = re.search(r'stack rvas:(.*)', l)
     if m:
         fr = []
-        for r in m.group(1).split()[:24]:
+        for r in [t for t in m.group(1).split() if re.fullmatch(r'[0-9A-F]{1,8}', t)][:24]:
             w = where(int(r, 16))
             if not fr or fr[-1] != w: fr.append(w)
         print('  stack:', ' < '.join(fr[:12]))

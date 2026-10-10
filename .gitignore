@@ -42,3 +42,16 @@ port_*.txt
 port/c_skip.txt
 port/recomp_base.txt
 port/be_ir_old.py
+mapdump/
+port_mem*.bin
+port/pressfile_x.ps1
+wip/hard_sn/
+wip/c/
+wip/c1/
+wip/c139/
+wip/*.log
+port_frame.tmp
+wip/push_*.txt
+wip/*.new
+wip/base_shots/
+wip/stage_r8a/

@@ -5,6 +5,7 @@ Set-Location D:\Projects\TurokRageWars
 .\.venv\Scripts\python.exe tools\gen_alias.py | Out-Null
 if (-not $NoSplat) {
   .\.venv\Scripts\python.exe tools\gen_yaml.py
+  if ($LASTEXITCODE -ne 0) { 'GEN_YAML FAILED (manifests inconsistent): stopping before splat/build'; exit 1 }
   Remove-Item -Recurse -Force asm -ErrorAction SilentlyContinue
   .\.venv\Scripts\python.exe -m splat split turok_ragewars.yaml 2>&1 | Select-String -Pattern 'rror|Traceback' | ForEach-Object { $_.Line }
   .\.venv\Scripts\python.exe tools\fix_asm.py | Select-Object -Last 1

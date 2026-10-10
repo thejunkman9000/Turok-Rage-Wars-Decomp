@@ -22,6 +22,15 @@ def run(args, env=None, quiet=False):
     if not quiet and out: print('   ' + out.split('\n')[-1][:200])
     return out
 
+def drop_stale_twins():
+    keep = set(open('port/recomp.txt').read().split())
+    for p in glob.glob('port/native/recomp/func_*.c'):
+        n = os.path.basename(p)[:-2]
+        if re.fullmatch(r'func_[0-9A-F]{8}', n) and n not in keep:
+            for q in (p, f'port/build/obj_c/ar_{n}.obj'):
+                try: os.remove(q)
+                except OSError: pass
+
 def main():
     asm = '--asm' in sys.argv
     env = {} if asm else {'PORT_NO_ASM_REGEN': '1'}
@@ -37,14 +46,16 @@ def main():
     pt = sorted(set(pt))
     print('  ', len(pt), 'sources run as recompiled twins')
     print('bisect_c set'); run([py, 'port/bisect_c.py', 'set'] + pt, {'PORT_NO_ASM_REGEN': '1'})
-    keep = set(open('port/recomp.txt').read().split())
-    for p in glob.glob('port/native/recomp/func_*.c'):
-        n = os.path.basename(p)[:-2]
-        if re.fullmatch(r'func_[0-9A-F]{8}', n) and n not in keep:
-            for q in (p, f'port/build/obj_c/ar_{n}.obj'):
-                try: os.remove(q)
-                except OSError: pass
-    print('build_clang'); run([py, 'port/build_clang.py'] + (['--all'] if '--all' in sys.argv else []))
+    drop_stale_twins()
+    print('build_clang'); out = run([py, 'port/build_clang.py'] + (['--all'] if '--all' in sys.argv else []), quiet=True)
+    print('   ' + out.split(chr(10))[-1][:200])
+    bad = sorted(set(re.findall(r'FAIL src[/\\](?:game|ovl_a)[/\\](func_[0-9A-F]{8})\.c', out)) - set(pt))
+    if bad:                                          # matched C the host compiler rejects (MIPS inline asm, register-class constraints): the recompiled twin takes over
+        print('   rejected by the host compiler, run as recompiled twins:', ' '.join(bad))
+        pt = sorted(set(pt) | set(bad))
+        run([py, 'port/bisect_c.py', 'set'] + pt, {'PORT_NO_ASM_REGEN': '1'})
+        drop_stale_twins()
+        print('build_clang (twins)'); run([py, 'port/build_clang.py'])
     if '--no-link' in sys.argv: return
     print('relink')
     r = subprocess.run(['powershell', '-NoProfile', '-File', 'port\\relink.ps1'], capture_output=True, text=True)

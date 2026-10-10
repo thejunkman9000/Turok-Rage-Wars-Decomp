@@ -31,6 +31,8 @@ dropped = []
 for it in range(LIM):
     p = subprocess.run(['powershell', '-NoProfile', '-File', 'tools/cycle.ps1'], capture_output=True, text=True)
     out = p.stdout + p.stderr
+    if 'rodata overlap' in out:                   # gen_yaml refused the manifests and cycle.ps1 went on with the OLD yaml: any "byte-identical" below would verify the old object set
+        print('MANIFEST ERROR (gen_yaml):', [l for l in out.split(chr(10)) if 'rodata overlap' in l][0].strip()); sys.exit(2)
     und = set(re.findall(r"undefined reference to `((?:func|D|jtbl)_[0-9A-Fa-f]{8})'", out))
     if und:                                        # symbols that used to be asm labels inside a range a ported function now covers
         open('wip/subsumed.txt', 'a').write(chr(10).join(sorted(und)) + chr(10)); print('aliasing', sorted(und)); continue

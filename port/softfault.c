@@ -99,6 +99,7 @@ static void set_gpr(CONTEXT *c, int r, DWORD v, DWORD mask) {
     *p = (*p & ~mask) | (v & mask);
 }
 
+static unsigned long imgsize;      /* SizeOfImage of the exe: the only range in which a word can be a return address (probing v - 5 outside it would fault inside the handler) */
 static int strict_mode(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_STRICT", e, sizeof e) ? 1 : 0; } return v; }
 
 static void log_once(HANDLE h, const char *what, EXCEPTION_POINTERS *ep, unsigned long eip_rva, unsigned long acc, unsigned long addr) {
@@ -108,15 +109,24 @@ static void log_once(HANDLE h, const char *what, EXCEPTION_POINTERS *ep, unsigne
     if (n >= 256) return;
     seen[n++] = eip_rva + acc * 0x10000000ul;
     if (h == INVALID_HANDLE_VALUE) return;
-    l = wsprintfA(b, "SOFTFAULT %s acc=%lu addr=%08lX rva=%lX eax=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX\r\n", what, acc, addr, eip_rva,
+    l = wsprintfA(b, "SOFTFAULT %s acc=%lu addr=%08lX rva=%lX eax=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX\r\n  stack rvas:", what, acc, addr, eip_rva,
                   ep->ContextRecord->Eax, ep->ContextRecord->Ecx, ep->ContextRecord->Edx, ep->ContextRecord->Esi, ep->ContextRecord->Edi);
     WriteFile(h, b, l, &w, NULL);
+    {   /* return addresses (words right after a call instruction) on the thread's stack: who was running */
+        unsigned long base = (unsigned long)GetModuleHandleA(NULL), *sp = (unsigned long *)ep->ContextRecord->Esp;
+        unsigned long *top = (unsigned long *)((NT_TIB *)NtCurrentTeb())->StackBase; int k = 0;
+        for (i = 0; i < 4096 && sp + i < top && k < 8; i++) {
+            unsigned long v = sp[i];
+            if (imgsize && v > base + 8 && v < base + imgsize && *(unsigned char *)(v - 5) == 0xE8) { l = wsprintfA(b, " %lX", v - base); WriteFile(h, b, l, &w, NULL); k++; }
+        }
+        WriteFile(h, "\r\n", 2, &w, NULL);
+    }
 }
 
 /* 1 = fault repaired, execution may continue */
 int port_soft_fault(EXCEPTION_POINTERS *ep, HANDLE log) {
     EXCEPTION_RECORD *er = ep->ExceptionRecord; CONTEXT *c = ep->ContextRecord;
-    unsigned long acc, addr, base = (unsigned long)GetModuleHandleA(NULL); static unsigned long imgsize;
+    unsigned long acc, addr, base = (unsigned long)GetModuleHandleA(NULL);
     if (er->ExceptionCode != 0xC0000005 || er->NumberParameters < 2 || strict_mode()) return 0;
     acc = (unsigned long)er->ExceptionInformation[0]; addr = (unsigned long)er->ExceptionInformation[1];
     if (!imgsize) { const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)(base + ((const IMAGE_DOS_HEADER *)base)->e_lfanew); imgsize = nt->OptionalHeader.SizeOfImage; }

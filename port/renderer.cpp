@@ -647,6 +647,8 @@ static void runDL(uint32_t addr, int depth) {
             Tile& t = S.tile[(w1 >> 24) & 7];
             t.fmt = (w0 >> 21) & 7; t.siz = (w0 >> 19) & 3; t.line = (w0 >> 9) & 0x1FF; t.tmem = w0 & 0x1FF;
             t.pal = (w1 >> 20) & 15; t.cmT = (w1 >> 18) & 3; t.maskT = (w1 >> 14) & 15; t.shiftT = (w1 >> 10) & 15; t.cmS = (w1 >> 8) & 3; t.maskS = (w1 >> 4) & 15; t.shiftS = w1 & 15;
+            { static int nl, on = -1; if (on < 0) on = getenv("TUROK_TILEDBG") ? 1 : 0;      // TUROK_TILEDBG=1: log tiles that use a coordinate shift (the renderer ignores it) or mirror/clamp with a mask
+              if (on && (t.shiftS || t.shiftT) && nl < 60) { nl++; fprintf(stderr, "SETTILE shift: tile %u fmt %d siz %d line %d tmem %d shiftS %d shiftT %d cmS %d cmT %d maskS %d maskT %d\n", (w1 >> 24) & 7, t.fmt, t.siz, t.line, t.tmem, t.shiftS, t.shiftT, t.cmS, t.cmT, t.maskS, t.maskT); } }
             break; }
         case 0xF2: { Tile& t = S.tile[(w1 >> 24) & 7]; t.uls = (w0 >> 12) & 0xFFF; t.ult = w0 & 0xFFF; t.lrs = (w1 >> 12) & 0xFFF; t.lrt = w1 & 0xFFF; break; }
         case 0xF3: loadBlock(w0, w1); break;

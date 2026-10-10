@@ -11,7 +11,9 @@ def main():
     for m in ('funcs.txt', 'funcs_a.txt'):
         for l in open(m):
             f = l.split('#')[0].split()
-            if len(f) >= 4 and not f[0].startswith('pad_') and os.path.exists('src/%s/%s.c' % (f[3], f[0])): man.add(f[0])      # listed AND has C: a listed function without C is still missing
+            if len(f) >= 4 and not f[0].startswith('pad_') and os.path.exists('src/%s/%s.c' % (f[3], f[0])):      # listed AND has C: a listed function without C is still missing
+                if 'INCLUDE_ASM' in open('src/%s/%s.c' % (f[3], f[0]), errors='replace').read(): continue          # a placeholder that includes the asm (ROM build only): no C for the port, keep the twin
+                man.add(f[0])
     absorbed = set(open('wip/absorbed.txt').read().split())
     import glob
     defd = set()                                   # an 'absorbed' function is only really covered when some C file defines it
