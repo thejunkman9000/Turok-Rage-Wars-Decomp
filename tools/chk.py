@@ -86,16 +86,17 @@ for line in open(list_file):
     pool = ''
     if ro:
         addrs = []
-        pend = {}
+        pend = {}; pfw = {}
         for i in range(n):
             o = off + 4 * i
             if o in relnames and relnames[o][1] in ('.rodata', '.rdata'):
                 t = relnames[o][0]
-                if t == 'R_MIPS_HI16': pend[i] = rw[i] & 0xFFFF
+                if t == 'R_MIPS_HI16': pend[i] = rw[i] & 0xFFFF; pfw[i] = fw[i] & 0xFFFF
                 elif t == 'R_MIPS_LO16' and pend:
                     hi = pend[max(pend)]; lo = rw[i] & 0xFFFF; lo = lo - 0x10000 if lo & 0x8000 else lo
-                    # addend (offset of the entry inside the pool) is in our own object's immediate
+                    # addend (offset of the entry inside the pool) is in our own object's immediate (asn64: also in the lui's)
                     own = fw[i] & 0xFFFF; own = own - 0x10000 if own & 0x8000 else own
+                    own += pfw[max(pend)] << 16
                     addrs.append(((hi << 16) + lo) - own)
         if addrs:
             base = min(addrs)

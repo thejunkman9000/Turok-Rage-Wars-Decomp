@@ -661,7 +661,6 @@ func_00434F4C 0x1A2F4C 49 ovl_a
 func_00435010 0x1A3010 48 ovl_a
 func_004350D0 0x1A30D0 48 ovl_a
 func_00435190 0x1A3190 4 ovl_a
-func_004351A0 0x1A31A0 66 ovl_a ro=0xE2AF8:16
 func_004352A8 0x1A32A8 23 ovl_a
 func_00435304 0x1A3304 23 ovl_a
 func_00435360 0x1A3360 24 ovl_a
@@ -888,7 +887,6 @@ func_00442CCC 0x1B0CCC 11 ovl_a
 func_00442CF8 0x1B0CF8 8 ovl_a
 func_00442E48 0x1B0E48 7 ovl_a
 func_00442E64 0x1B0E64 7 ovl_a
-func_00443030 0x1B1030 60 ovl_a ro=0xE32C8:48
 func_00443274 0x1B1274 9 ovl_a
 func_00443354 0x1B1354 18 ovl_a
 func_0044339C 0x1B139C 72 ovl_a
@@ -1204,3 +1202,7 @@ func_00439F38 0x1A7F38 91 ovl_a mode=sn ro=0xE2BA0:20
 func_0043B8C8 0x1A98C8 91 ovl_a mode=sn
 func_0043BB4C 0x1A9B4C 46 ovl_a mode=sn
 func_004438A4 0x1B18A4 68 ovl_a mode=sn
+func_0043B67C 0x1A967C 147 ovl_a mode=sn ro=0xE2C28:24
+func_0042E7CC 0x19C7CC 231 ovl_a mode=sn
+func_0042EB94 0x19CB94 87 ovl_a mode=sn
+func_00440F10 0x1AEF10 195 ovl_a mode=sn

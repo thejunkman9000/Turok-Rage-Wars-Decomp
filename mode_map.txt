@@ -310,3 +310,7 @@ func_00439F38 sn
 func_0043B8C8 sn
 func_0043BB4C sn
 func_004438A4 sn
+func_0043B67C sn
+func_0042E7CC sn
+func_0042EB94 sn
+func_00440F10 sn

@@ -3634,7 +3634,6 @@ segments:
       - [0xE2A98, .rodata, ovl_a/func_00433574]
       - [0xE2AA8, .rodata, ovl_a/func_004337EC]
       - {start: 0xE2AE0, type: bin, name: data_160, linker_section_order: .rodata, linker_section: .data}
-      - [0xE2AF8, .rodata, ovl_a/func_004351A0]
       - [0xE2B08, .rodata, ovl_a/func_00435958]
       - {start: 0xE2B1C, type: bin, name: data_161, linker_section_order: .rodata, linker_section: .data}
       - [0xE2B20, .rodata, ovl_a/func_00436224]
@@ -3652,29 +3651,28 @@ segments:
       - [0xE2BE0, .rodata, ovl_a/func_0043A7D8]
       - [0xE2BFC, .rodata, ovl_a/func_0043AA70]
       - [0xE2C10, .rodata, ovl_a/func_0043B03C]
-      - {start: 0xE2C28, type: bin, name: data_165, linker_section_order: .rodata, linker_section: .data}
+      - [0xE2C28, .rodata, ovl_a/func_0043B67C]
       - [0xE2C40, .rodata, ovl_a/func_0043BA34]
-      - {start: 0xE2C58, type: bin, name: data_166, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2C58, type: bin, name: data_165, linker_section_order: .rodata, linker_section: .data}
       - [0xE2C60, .rodata, ovl_a/func_0043C260]
-      - {start: 0xE2C7C, type: bin, name: data_167, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2C7C, type: bin, name: data_166, linker_section_order: .rodata, linker_section: .data}
       - [0xE2F30, .rodata, ovl_a/func_0043DD2C]
-      - {start: 0xE2F50, type: bin, name: data_168, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2F50, type: bin, name: data_167, linker_section_order: .rodata, linker_section: .data}
       - [0xE2FA0, .rodata, ovl_a/func_0043EFCC]
-      - {start: 0xE2FAC, type: bin, name: data_169, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2FAC, type: bin, name: data_168, linker_section_order: .rodata, linker_section: .data}
       - [0xE3090, .rodata, ovl_a/func_0043FFAC]
-      - {start: 0xE30AC, type: bin, name: data_170, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE30AC, type: bin, name: data_169, linker_section_order: .rodata, linker_section: .data}
       - [0xE30D4, .rodata, ovl_a/func_00441384]
-      - {start: 0xE30E4, type: bin, name: data_171, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE30E4, type: bin, name: data_170, linker_section_order: .rodata, linker_section: .data}
       - [0xE3130, .rodata, ovl_a/func_0044239C]
-      - {start: 0xE32A8, type: bin, name: data_172, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE32A8, type: bin, name: data_171, linker_section_order: .rodata, linker_section: .data}
       - [0xE32BC, .rodata, ovl_a/func_00442D18]
-      - {start: 0xE32C4, type: bin, name: data_173, linker_section_order: .rodata, linker_section: .data}
-      - [0xE32C8, .rodata, ovl_a/func_00443030]
+      - {start: 0xE32C4, type: bin, name: data_172, linker_section_order: .rodata, linker_section: .data}
       - [0xE32F8, .rodata, ovl_a/func_00443120]
       - [0xE3328, .rodata, ovl_a/func_00443298]
-      - {start: 0xE332C, type: bin, name: data_174, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE332C, type: bin, name: data_173, linker_section_order: .rodata, linker_section: .data}
       - [0xE33A0, .rodata, ovl_a/func_00444260]
-      - {start: 0xE33C0, type: bin, name: data_175, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE33C0, type: bin, name: data_174, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
@@ -4444,10 +4442,10 @@ segments:
       - [0x19C080, c, ovl_a/func_0042E080]
       - [0x19C3D0, asm]
       - [0x19C640, c, ovl_a/func_0042E640]
-      - [0x19C7CC, asm]
+      - [0x19C7CC, c, ovl_a/func_0042E7CC]
       - [0x19CB68, c, ovl_a/func_0042EB68]
       - [0x19CB80, c, ovl_a/func_0042EB80]
-      - [0x19CB94, asm]
+      - [0x19CB94, c, ovl_a/func_0042EB94]
       - [0x19CCF0, c, ovl_a/func_0042ECF0]
       - [0x19CD84, c, ovl_a/func_0042ED84]
       - [0x19CE18, c, ovl_a/func_0042EE18]
@@ -4485,7 +4483,7 @@ segments:
       - [0x1A3010, c, ovl_a/func_00435010]
       - [0x1A30D0, c, ovl_a/func_004350D0]
       - [0x1A3190, c, ovl_a/func_00435190]
-      - [0x1A31A0, c, ovl_a/func_004351A0]
+      - [0x1A31A0, asm]
       - [0x1A32A8, c, ovl_a/func_004352A8]
       - [0x1A3304, c, ovl_a/func_00435304]
       - [0x1A3360, c, ovl_a/func_00435360]
@@ -4640,7 +4638,7 @@ segments:
       - [0x1A8ED0, c, ovl_a/func_0043AED0]
       - [0x1A903C, c, ovl_a/func_0043B03C]
       - [0x1A92AC, c, ovl_a/func_0043B2AC]
-      - [0x1A967C, asm]
+      - [0x1A967C, c, ovl_a/func_0043B67C]
       - [0x1A98C8, c, ovl_a/func_0043B8C8]
       - [0x1A9A34, c, ovl_a/func_0043BA34]
       - [0x1A9B4C, c, ovl_a/func_0043BB4C]
@@ -4721,6 +4719,7 @@ segments:
       - [0x1AE44C, c, ovl_a/func_0044044C]
       - [0x1AE618, c, ovl_a/func_00440618]
       - [0x1AE9A8, asm]
+      - [0x1AEF10, c, ovl_a/func_00440F10]
       - [0x1AF21C, c, ovl_a/func_0044121C]
       - [0x1AF384, c, ovl_a/func_00441384]
       - [0x1AF764, asm]
@@ -4758,7 +4757,7 @@ segments:
       - [0x1B0E64, c, ovl_a/func_00442E64]
       - [0x1B0E80, asm]
       - [0x1B0F4C, c, ovl_a/func_00442F4C]
-      - [0x1B1030, c, ovl_a/func_00443030]
+      - [0x1B1030, asm]
       - [0x1B1120, c, ovl_a/func_00443120]
       - [0x1B1274, c, ovl_a/func_00443274]
       - [0x1B1298, c, ovl_a/func_00443298]
