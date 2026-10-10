@@ -273,6 +273,16 @@ func_002A2BE0 sn
 func_002A3478 sn
 func_002ABD04 sn+nb
 func_002ACBCC sn
+func_00274090 sn
+func_00274214 sn
+func_002742B4 sn
+func_002743F0 sn
+func_00276D20 sn
+func_0027DD1C sn
+func_002830A0 sn
+func_002849C4 sn+nb
+func_002856B0 sn+nb
+func_002651D0 sn
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
