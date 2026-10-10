@@ -15,7 +15,6 @@ osCreateThread     0xC0980  54  libultra
 osJamMesg          0xC0E50  77  libultra
 osRecvMesg         0xC0F90  73  libultra
 osSendMesg         0xC1110  76  libultra
-__osInsertTimer    0xC179C  66  libultra
 osGetThreadId      0xC0A70   7  libultra
 osGetThreadPri     0xC0A90   7  libultra
 osGetTime          0xC0AB0  31  libultra
@@ -32,7 +31,6 @@ osViSetSpecialFeatures 0xC03F0 89 libultra
 string             0xC3090  33  libultra mode=lu2
 osPiStartDma       0xBE9C0  43  libultra
 osPiRawStartDma    0xBF730  53  libultra
-osSpTaskYielded    0xBFE30  19  libultra
 __osTimerInterrupt 0xC15A0  82  libultra
 __osTimerServicesInit 0xC16E8 21 libultra
 __osSetTimerIntr   0xC173C  24  libultra
@@ -1879,7 +1877,6 @@ func_0020EF54 0xFB60 124 game ro=0xC7BE0:32
 func_00212D58 0x13960 13 game
 func_002131D8 0x13DE0 15 game
 func_00212E04 0x13A10 107 game
-func_00210178 0x10D80 42 game
 func_00213810 0x14410 54 game
 func_0021321C 0x13E1C 72 game
 func_00216108 0x16D08 96 game
@@ -2548,7 +2545,6 @@ pad_004C2C 0x4C2C 1 game
 func_00206DD4 0x79D4 191 game ro=0xC7800:24 mode=lu3+nb
 func_0020FA10 0x10610 232 game
 pad_011D1C 0x11D1C 1 game
-func_0021111C 0x11D20 212 game
 func_00212088 0x12C88 213 game
 func_00211470 0x12070 387 game
 func_00211A7C 0x1267C 387 game
@@ -2606,7 +2602,6 @@ func_00241090 0x41C90 56 game
 func_00241170 0x41D70 56 game
 
 pad_057308 0x57308 2 game
-func_00256708 0x57310 45 game
 func_00257BD4 0x587D4 136 game
 func_00259058 0x59C58 90 game
 func_002596D4 0x5A2D4 52 game
@@ -3059,3 +3054,10 @@ func_002ABD04 0xAC904 42 game mode=sn+nb
 func_002ACBCC 0xAD7CC 676 game mode=sn ro=0xCBFF0:84
 func_002651D0 0x65DD0 101 game mode=sn
 func_0025B1E8 0x5BDE8 266 game mode=sn
+func_00210180 0x10D80 42 game mode=sn ro=0xC7C30:4
+func_00211120 0x11D20 212 game mode=sn ro=0xC7D00:32
+func_0023C914 0x3D514 64 game mode=sn
+func_00256710 0x57310 45 game mode=sn
+func_00295B90 0x96790 265 game mode=sn
+func_002BF230 0xBFE30 19 game mode=sn
+func_002C0B9C 0xC179C 66 game mode=sn

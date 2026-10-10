@@ -29,3 +29,12 @@ func_004170B4
 func_00439FE4
 func_0043A014
 func_002AA724
+func_00210178
+func_0021111C
+func_00256708
+osSpTaskYielded
+__osInsertTimer
+func_00421B18
+func_00429C04
+func_004374E4
+__osCheckId

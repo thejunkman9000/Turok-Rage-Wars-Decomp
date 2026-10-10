@@ -30,7 +30,6 @@ __osGetId_b 0x1B7308 123 ovl_a
 __osPfsRWInode 0x1B74F4 184 ovl_a
 __osSumcalc 0x1B77D4 12 ovl_a
 __osIdCheckSum 0x1B7804 18 ovl_a
-__osCheckId 0x1B784C 50 ovl_a mode=lu
 __osPfsSelectBank 0x1B7914 21 ovl_a mode=lu
 pad_1B7968 0x1B7968 2 ovl_a
 func_00449970 0x1B7970 117 ovl_a
@@ -730,7 +729,6 @@ func_004372F4 0x1A52F4 44 ovl_a
 func_004373A4 0x1A53A4 44 ovl_a
 func_00437454 0x1A5454 36 ovl_a
 pad_1A54E4 0x1A54E4 3 ovl_a
-func_004374E4 0x1A54F0 53 ovl_a
 func_004375C4 0x1A55C4 12 ovl_a
 func_004375F4 0x1A55F4 12 ovl_a
 func_00437624 0x1A5624 76 ovl_a
@@ -1024,7 +1022,6 @@ pad_18AEA8 0x18AEA8 426 ovl_a
 func_0041E88C 0x18C88C 149 ovl_a
 func_00420E90 0x18EE90 178 ovl_a
 pad_18FB18 0x18FB18 2 ovl_a
-func_00421B18 0x18FB20 51 ovl_a
 func_004220D8 0x1900D8 50 ovl_a ro=0xE2240:8
 pad_190258 0x190258 2 ovl_a
 func_00422258 0x190260 18 ovl_a
@@ -1158,7 +1155,6 @@ func_004284E0 0x1964E0 67 ovl_a
 pad_1973AC 0x1973AC 1 ovl_a
 func_004293AC 0x1973B0 189 ovl_a
 pad_197C04 0x197C04 3 ovl_a
-func_00429C04 0x197C10 368 ovl_a ro=0xE26A0:28
 func_0042A1D0 0x1981D0 176 ovl_a ro=0xE26BC:16
 func_0042A994 0x198994 119 ovl_a
 func_0042ACB0 0x198CB0 130 ovl_a
@@ -1222,3 +1218,7 @@ func_00407290 0x175290 186 ovl_a mode=sn
 func_004351A0 0x1A31A0 66 ovl_a mode=sn ro=0xE2AF8:16
 func_00443030 0x1B1030 60 ovl_a mode=sn ro=0xE32C8:48
 func_00446330 0x1B4330 161 ovl_a mode=sn
+func_00421B20 0x18FB20 51 ovl_a mode=sn
+func_00429C10 0x197C10 368 ovl_a mode=sn
+func_004374F0 0x1A54F0 53 ovl_a mode=sn
+func_0044984C 0x1B784C 50 ovl_a mode=sn

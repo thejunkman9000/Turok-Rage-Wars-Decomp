@@ -61,7 +61,7 @@ for name, (n, ro) in sorted(ex.items(), key=lambda kv: byname.get(kv[0], 0)):
     add['funcs_a.txt' if ovl else 'funcs.txt'].append(f'{ours} 0x{rom:X} {n} {sub} mode={mode}' + (f' {ro}' if ro else ''))
     existing.append((rom, rom + 4 * n, ours))
     if not dry:
-        shutil.copy(f'D:/Projects/ext/ragewars-decomp/src/{name}.c', f'src/{sub}/{ours}.c')
+        shutil.copy(f'D:/Projects/ext/ragewars-decomp/src/{name}.c' if os.path.exists(f'D:/Projects/ext/ragewars-decomp/src/{name}.c') else f'D:/Projects/ext/ragewars-decomp/src/fuzzy/{name}.c', f'src/{sub}/{ours}.c')
 for fn, lines in add.items():
     if lines and not dry:
         t = open(fn).read()
@@ -76,9 +76,7 @@ for c in subsumed:
         f = f'src/{sub}/{c}.c'
         if os.path.exists(f) and not dry: os.remove(f)
 if subsumed and not dry:
-    open('wip/subsumed.txt', 'a').write('
-'.join(subsumed) + '
-')      # tools/gen_alias.py keeps these names as linker symbols
+    open('wip/subsumed.txt', 'a').write(chr(10).join(subsumed) + chr(10))      # tools/gen_alias.py keeps these names as linker symbols
 print('subsumed', len(subsumed))
 print('added', sum(len(v) for v in add.values()), 'skipped', len(skipped))
 for s in skipped[:30]: print('  skip', *s)

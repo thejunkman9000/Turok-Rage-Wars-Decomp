@@ -275,6 +275,13 @@ func_002ABD04 sn+nb
 func_002ACBCC sn
 func_002651D0 sn
 func_0025B1E8 sn
+func_00210180 sn
+func_00211120 sn
+func_0023C914 sn
+func_00256710 sn
+func_00295B90 sn
+func_002BF230 sn
+func_002C0B9C sn
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu
@@ -292,7 +299,6 @@ __osPfsGetInitData lu
 osPfsReadWriteFile lu
 __osGetId lu
 osPfsFindFile lu
-__osCheckId lu
 __osPfsSelectBank lu
 corrupted lu
 osPfsIsPlug lu
@@ -356,3 +362,7 @@ func_00407290 sn
 func_004351A0 sn
 func_00443030 sn
 func_00446330 sn
+func_00421B20 sn
+func_00429C10 sn
+func_004374F0 sn
+func_0044984C sn
