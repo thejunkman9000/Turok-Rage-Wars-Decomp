@@ -15,7 +15,7 @@ okf = open('chk_ok.txt', 'w')
 
 import re as _re
 _SYMS = {}
-for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld'):
+for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld') + ((os.environ['CHK_SYMS'],) if os.environ.get('CHK_SYMS') else ()):
     try:
         for _l in open(os.path.join(os.path.expanduser('~/trw') if False else '.', _f), encoding='utf-8', errors='replace'):
             _m = _re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)

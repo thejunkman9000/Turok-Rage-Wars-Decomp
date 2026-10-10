@@ -16,7 +16,7 @@ ROOT = os.getcwd()
 G = f"{ROOT}/tools/gcc/{ver}"
 LU = os.path.expanduser('~/libreultra')
 P = 'mips-linux-gnu'
-rom = open(f'{ROOT}/baserom.us.v11.z64', 'rb').read()
+rom = open(os.environ.get('CHK_ROM') or f'{ROOT}/baserom.us.v11.z64', 'rb').read()      # CHK_ROM=<path>: check against another version's ROM
 # code regions (ROM offsets): main, overlay A
 REGIONS = [(0x1000, 0xC7010, 'main'), (0x16E000, 0x1BCDA0, 'ovl_a')]
 
