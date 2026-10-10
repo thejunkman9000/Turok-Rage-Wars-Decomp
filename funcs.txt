@@ -3062,3 +3062,5 @@ func_00295B90 0x96790 265 game mode=sn
 func_002BF230 0xBFE30 19 game mode=sn
 func_002C0B9C 0xC179C 66 game mode=sn
 func_00236864 0x37464 426 game mode=sn
+func_0029E510 0x9F110 228 game mode=sn ro=0xCB894:8
+func_00288908 0x89508 348 game mode=sn+nb
