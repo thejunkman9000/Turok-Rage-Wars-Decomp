@@ -9551,6 +9551,7 @@ SECTIONS
         build/src/ovl_a/func_00433574.o(.rodata);
         build/src/ovl_a/func_004337EC.o(.rodata);
         build/assets/data_165.o(.data);
+        build/src/ovl_a/func_004351A0.o(.rodata);
         build/src/ovl_a/func_00435958.o(.rodata);
         build/assets/data_166.o(.data);
         build/src/ovl_a/func_00436224.o(.rodata);
@@ -9586,6 +9587,7 @@ SECTIONS
         build/assets/data_176.o(.data);
         build/src/ovl_a/func_00442D18.o(.rodata);
         build/assets/data_177.o(.data);
+        build/src/ovl_a/func_00443030.o(.rodata);
         build/src/ovl_a/func_00443120.o(.rodata);
         build/src/ovl_a/func_00443298.o(.rodata);
         build/assets/data_178.o(.data);
@@ -13527,7 +13529,7 @@ SECTIONS
         build/src/ovl_a/func_00435010.o(.text);
         build/src/ovl_a/func_004350D0.o(.text);
         build/src/ovl_a/func_00435190.o(.text);
-        build/asm/1A31A0.o(.text);
+        build/src/ovl_a/func_004351A0.o(.text);
         build/src/ovl_a/func_004352A8.o(.text);
         build/src/ovl_a/func_00435304.o(.text);
         build/src/ovl_a/func_00435360.o(.text);
@@ -13801,7 +13803,7 @@ SECTIONS
         build/src/ovl_a/func_00442E64.o(.text);
         build/asm/1B0E80.o(.text);
         build/src/ovl_a/func_00442F4C.o(.text);
-        build/asm/1B1030.o(.text);
+        build/src/ovl_a/func_00443030.o(.text);
         build/src/ovl_a/func_00443120.o(.text);
         build/src/ovl_a/func_00443274.o(.text);
         build/src/ovl_a/func_00443298.o(.text);
@@ -13921,6 +13923,7 @@ SECTIONS
         build/src/ovl_a/func_004462F4.o(.text);
         build/src/ovl_a/func_00446310.o(.text);
         build/asm/1B432C.o(.text);
+        build/src/ovl_a/func_00446330.o(.text);
         build/src/ovl_a/func_004465B4.o(.text);
         build/src/ovl_a/func_00446704.o(.text);
         build/src/ovl_a/func_004467D8.o(.text);
@@ -14780,7 +14783,7 @@ SECTIONS
         build/src/ovl_a/func_00435010.o(.data);
         build/src/ovl_a/func_004350D0.o(.data);
         build/src/ovl_a/func_00435190.o(.data);
-        build/asm/1A31A0.o(.data);
+        build/src/ovl_a/func_004351A0.o(.data);
         build/src/ovl_a/func_004352A8.o(.data);
         build/src/ovl_a/func_00435304.o(.data);
         build/src/ovl_a/func_00435360.o(.data);
@@ -15054,7 +15057,7 @@ SECTIONS
         build/src/ovl_a/func_00442E64.o(.data);
         build/asm/1B0E80.o(.data);
         build/src/ovl_a/func_00442F4C.o(.data);
-        build/asm/1B1030.o(.data);
+        build/src/ovl_a/func_00443030.o(.data);
         build/src/ovl_a/func_00443120.o(.data);
         build/src/ovl_a/func_00443274.o(.data);
         build/src/ovl_a/func_00443298.o(.data);
@@ -15174,6 +15177,7 @@ SECTIONS
         build/src/ovl_a/func_004462F4.o(.data);
         build/src/ovl_a/func_00446310.o(.data);
         build/asm/1B432C.o(.data);
+        build/src/ovl_a/func_00446330.o(.data);
         build/src/ovl_a/func_004465B4.o(.data);
         build/src/ovl_a/func_00446704.o(.data);
         build/src/ovl_a/func_004467D8.o(.data);
@@ -16034,7 +16038,7 @@ SECTIONS
         build/src/ovl_a/func_00435010.o(.rodata);
         build/src/ovl_a/func_004350D0.o(.rodata);
         build/src/ovl_a/func_00435190.o(.rodata);
-        build/asm/1A31A0.o(.rodata);
+        build/src/ovl_a/func_004351A0.o(.rodata);
         build/src/ovl_a/func_004352A8.o(.rodata);
         build/src/ovl_a/func_00435304.o(.rodata);
         build/src/ovl_a/func_00435360.o(.rodata);
@@ -16308,7 +16312,7 @@ SECTIONS
         build/src/ovl_a/func_00442E64.o(.rodata);
         build/asm/1B0E80.o(.rodata);
         build/src/ovl_a/func_00442F4C.o(.rodata);
-        build/asm/1B1030.o(.rodata);
+        build/src/ovl_a/func_00443030.o(.rodata);
         build/src/ovl_a/func_00443120.o(.rodata);
         build/src/ovl_a/func_00443274.o(.rodata);
         build/src/ovl_a/func_00443298.o(.rodata);
@@ -16428,6 +16432,7 @@ SECTIONS
         build/src/ovl_a/func_004462F4.o(.rodata);
         build/src/ovl_a/func_00446310.o(.rodata);
         build/asm/1B432C.o(.rodata);
+        build/src/ovl_a/func_00446330.o(.rodata);
         build/src/ovl_a/func_004465B4.o(.rodata);
         build/src/ovl_a/func_00446704.o(.rodata);
         build/src/ovl_a/func_004467D8.o(.rodata);
@@ -17292,7 +17297,7 @@ SECTIONS
         build/src/ovl_a/func_00435010.o(.bss);
         build/src/ovl_a/func_004350D0.o(.bss);
         build/src/ovl_a/func_00435190.o(.bss);
-        build/asm/1A31A0.o(.bss);
+        build/src/ovl_a/func_004351A0.o(.bss);
         build/src/ovl_a/func_004352A8.o(.bss);
         build/src/ovl_a/func_00435304.o(.bss);
         build/src/ovl_a/func_00435360.o(.bss);
@@ -17566,7 +17571,7 @@ SECTIONS
         build/src/ovl_a/func_00442E64.o(.bss);
         build/asm/1B0E80.o(.bss);
         build/src/ovl_a/func_00442F4C.o(.bss);
-        build/asm/1B1030.o(.bss);
+        build/src/ovl_a/func_00443030.o(.bss);
         build/src/ovl_a/func_00443120.o(.bss);
         build/src/ovl_a/func_00443274.o(.bss);
         build/src/ovl_a/func_00443298.o(.bss);
@@ -17686,6 +17691,7 @@ SECTIONS
         build/src/ovl_a/func_004462F4.o(.bss);
         build/src/ovl_a/func_00446310.o(.bss);
         build/asm/1B432C.o(.bss);
+        build/src/ovl_a/func_00446330.o(.bss);
         build/src/ovl_a/func_004465B4.o(.bss);
         build/src/ovl_a/func_00446704.o(.bss);
         build/src/ovl_a/func_004467D8.o(.bss);

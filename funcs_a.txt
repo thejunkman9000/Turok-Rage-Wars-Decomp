@@ -1219,3 +1219,6 @@ func_004245C0 0x1925C0 492 ovl_a mode=sn ro=0xE22B0:24
 func_004291A8 0x1971A8 75 ovl_a mode=sn ro=0xE2640:20
 func_00407578 0x175578 116 ovl_a mode=sn
 func_00407290 0x175290 186 ovl_a mode=sn
+func_004351A0 0x1A31A0 66 ovl_a mode=sn ro=0xE2AF8:16
+func_00443030 0x1B1030 60 ovl_a mode=sn ro=0xE32C8:48
+func_00446330 0x1B4330 161 ovl_a mode=sn

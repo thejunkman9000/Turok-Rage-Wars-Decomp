@@ -351,3 +351,6 @@ func_004245C0 sn
 func_004291A8 sn
 func_00407578 sn
 func_00407290 sn
+func_004351A0 sn
+func_00443030 sn
+func_00446330 sn

@@ -3662,6 +3662,7 @@ segments:
       - [0xE2A98, .rodata, ovl_a/func_00433574]
       - [0xE2AA8, .rodata, ovl_a/func_004337EC]
       - {start: 0xE2AE0, type: bin, name: data_165, linker_section_order: .rodata, linker_section: .data}
+      - [0xE2AF8, .rodata, ovl_a/func_004351A0]
       - [0xE2B08, .rodata, ovl_a/func_00435958]
       - {start: 0xE2B1C, type: bin, name: data_166, linker_section_order: .rodata, linker_section: .data}
       - [0xE2B20, .rodata, ovl_a/func_00436224]
@@ -3697,6 +3698,7 @@ segments:
       - {start: 0xE32A8, type: bin, name: data_176, linker_section_order: .rodata, linker_section: .data}
       - [0xE32BC, .rodata, ovl_a/func_00442D18]
       - {start: 0xE32C4, type: bin, name: data_177, linker_section_order: .rodata, linker_section: .data}
+      - [0xE32C8, .rodata, ovl_a/func_00443030]
       - [0xE32F8, .rodata, ovl_a/func_00443120]
       - [0xE3328, .rodata, ovl_a/func_00443298]
       - {start: 0xE332C, type: bin, name: data_178, linker_section_order: .rodata, linker_section: .data}
@@ -4522,7 +4524,7 @@ segments:
       - [0x1A3010, c, ovl_a/func_00435010]
       - [0x1A30D0, c, ovl_a/func_004350D0]
       - [0x1A3190, c, ovl_a/func_00435190]
-      - [0x1A31A0, asm]
+      - [0x1A31A0, c, ovl_a/func_004351A0]
       - [0x1A32A8, c, ovl_a/func_004352A8]
       - [0x1A3304, c, ovl_a/func_00435304]
       - [0x1A3360, c, ovl_a/func_00435360]
@@ -4796,7 +4798,7 @@ segments:
       - [0x1B0E64, c, ovl_a/func_00442E64]
       - [0x1B0E80, asm]
       - [0x1B0F4C, c, ovl_a/func_00442F4C]
-      - [0x1B1030, asm]
+      - [0x1B1030, c, ovl_a/func_00443030]
       - [0x1B1120, c, ovl_a/func_00443120]
       - [0x1B1274, c, ovl_a/func_00443274]
       - [0x1B1298, c, ovl_a/func_00443298]
@@ -4916,6 +4918,7 @@ segments:
       - [0x1B42F4, c, ovl_a/func_004462F4]
       - [0x1B4310, c, ovl_a/func_00446310]
       - [0x1B432C, asm]
+      - [0x1B4330, c, ovl_a/func_00446330]
       - [0x1B45B4, c, ovl_a/func_004465B4]
       - [0x1B4704, c, ovl_a/func_00446704]
       - [0x1B47D8, c, ovl_a/func_004467D8]
