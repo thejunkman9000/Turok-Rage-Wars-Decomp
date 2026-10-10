@@ -24,6 +24,9 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     body = l.split('#')[0].split()
     if len(body) < 4 or body[3] != 'EXACT' or not body[0].startswith('func_'): continue
     name, rom, n = body[0], int(body[1], 16), int(body[2]); rest = body[4:]
+    note = l.split('#', 1)[1] if '#' in l else ''
+    mm = re.search(r'flags:\s*((?:[@-]\S+[ 	]*)+)', note)
+    if mm: rest += [t.rstrip('.,;') for t in mm.group(1).split()]
     if not any(t in ('@SN', '@SN272') for t in rest): continue
     ro = next((t for t in rest if t.startswith('ro=')), None)
     src = f'{ws}/wip/out/{name}.c'
@@ -55,7 +58,10 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     add['funcs_a.txt' if ovl else 'funcs.txt'].append(f'{name} 0x{rom:X} {n} {sub} mode={mode}' + (f' {ro}' if ro else ''))
     seen[txt] = ('funcs_a.txt' if ovl else 'funcs.txt', len(add['funcs_a.txt' if ovl else 'funcs.txt']) - 1, rom + 4 * n)
     existing.append((rom, rom + 4 * n, name))
-    if not dry: shutil.copy(src, f'src/{sub}/{name}.c')
+    if not dry:
+        shutil.copy(src, f'src/{sub}/{name}.c')
+        for h in os.listdir(f'{ws}/include'):
+            if h.endswith('_types.h') and not os.path.exists(f'include/{h}') and h in open(src, errors='replace').read(): shutil.copy(f'{ws}/include/{h}', f'include/{h}')
 for fn, lines in add.items():
     if lines and not dry:
         t = open(fn).read()
