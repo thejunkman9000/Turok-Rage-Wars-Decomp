@@ -282,6 +282,7 @@ func_00256710 sn
 func_00295B90 sn
 func_002BF230 sn
 func_002C0B9C sn
+func_00236864 sn
 __osPfsDeclearPage lu
 __osClearPage lu
 osPfsDeleteFile lu

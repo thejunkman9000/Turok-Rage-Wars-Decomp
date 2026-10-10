@@ -42,6 +42,7 @@ if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
     case "$toks" in *+sa*) saf="-msplit-addresses";; esac  # +sa : shared lui for global accesses
     "$SN/cc1_281" -quiet -G0 -mips3 -O2 -mgas -meb -mcpu=$cpu -mhard-float -mgp32 -mfp64 -mno-fix4300 $saf $xflags "$tmp/s.i" -o "$tmp/s.s"
   fi
+  python3 tools/sn_expand.py "$tmp/s.s"   # lw/lh/lb sym macros -> explicit lui+load (the original assembler counted them as two insns for the mflo/mult hazard)
   case "$toks" in *+epi*) python3 tools/snepi.py "$tmp/s.s";; esac   # +epi : unfilled return epilogue (addiu sp; jr ra; nop)
   sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' "$tmp/s.s"
   "$SN/n64link" asn64 "$tmp/s.s" > "$tmp/n.s"
