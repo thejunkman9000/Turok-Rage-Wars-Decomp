@@ -35,6 +35,12 @@ if marks:
         pads[i] = (-offs['__B_']) % unit
     for i in marks:
         lines[i] = f'\t.space\t{pads[i]}' if pads[i] > 0 else ''
+        # a label written right before the `.align` belongs AFTER the padding (the SN assembler aligns the block, then defines the label)
+        j = i - 1; moved = []
+        while j >= 0 and (re.match(r'^[A-Za-z_.$][\w.$]*:\s*$', lines[j]) or not lines[j].strip()):
+            if lines[j].strip(): moved.append(lines[j]); lines[j] = ''
+            j -= 1
+        if moved: lines[i] = lines[i] + '\n' + '\n'.join(reversed(moved))
 text = '\n'.join(lines)
 if ro_va is None:
     sys.stdout.write(text)

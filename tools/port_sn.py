@@ -53,6 +53,10 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
         if '-mcpu=r4000' in rest: mode += '+r4k'
         if '@EPI' in rest: mode += '+epi'
     if '-fno-builtin' in rest: mode += '+nb'
+    if '-fno-thread-jumps' in rest: mode += '+ntj'
+    if '-fno-rerun-cse-after-loop' in rest: mode += '+nrc'
+    if '-fno-expensive-optimizations' in rest: mode += '+neo'
+    if '-fno-strength-reduce' in rest: mode += '+nsr'
     ovl = rom >= 0x16E000
     sub = 'ovl_a' if ovl else 'game'
     add['funcs_a.txt' if ovl else 'funcs.txt'].append(f'{name} 0x{rom:X} {n} {sub} mode={mode}' + (f' {ro}' if ro else ''))

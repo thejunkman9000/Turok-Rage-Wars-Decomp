@@ -3662,6 +3662,7 @@ segments:
       - {start: 0xE2FAC, type: bin, name: data_168, linker_section_order: .rodata, linker_section: .data}
       - [0xE3090, .rodata, ovl_a/func_0043FFAC]
       - {start: 0xE30AC, type: bin, name: data_169, linker_section_order: .rodata, linker_section: .data}
+      - [0xE30B0, .rodata, ovl_a/func_004409A8]
       - [0xE30D4, .rodata, ovl_a/func_00441384]
       - {start: 0xE30E4, type: bin, name: data_170, linker_section_order: .rodata, linker_section: .data}
       - [0xE3130, .rodata, ovl_a/func_0044239C]
@@ -4718,7 +4719,7 @@ segments:
       - [0x1ADFAC, c, ovl_a/func_0043FFAC]
       - [0x1AE44C, c, ovl_a/func_0044044C]
       - [0x1AE618, c, ovl_a/func_00440618]
-      - [0x1AE9A8, asm]
+      - [0x1AE9A8, c, ovl_a/func_004409A8]
       - [0x1AEF10, c, ovl_a/func_00440F10]
       - [0x1AF21C, c, ovl_a/func_0044121C]
       - [0x1AF384, c, ovl_a/func_00441384]

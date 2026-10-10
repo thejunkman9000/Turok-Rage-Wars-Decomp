@@ -22,6 +22,9 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 xflags=""; gasmode=$mode
 case "$toks" in *+nb*) xflags="$xflags -fno-builtin";; esac
 case "$toks" in *+ntj*) xflags="$xflags -fno-thread-jumps";; esac
+case "$toks" in *+nrc*) xflags="$xflags -fno-rerun-cse-after-loop";; esac
+case "$toks" in *+neo*) xflags="$xflags -fno-expensive-optimizations";; esac
+case "$toks" in *+nsr*) xflags="$xflags -fno-strength-reduce";; esac
 case "$toks" in *+luret*) gasmode=game;; esac
 export GAS_NOFILL=0; case "$toks" in *+nf*) export GAS_NOFILL=1;; esac
 case "$toks" in *+inl*) export GAS_INLINE=1;; esac   # li.s/li.d literals emitted at the point of use (csplayer, seqplayer)
