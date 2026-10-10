@@ -208,7 +208,18 @@ def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
 bigoff_re = re.compile(r'^([ \t]*)(l[bhw]u?|lwc1|ldc1|s[bhw]|swc1|sdc1|l\.s|l\.d|s\.s|s\.d)[ \t]+(\$\w+),[ \t]*(-?\d+)\((\$\w+)\)[ \t]*$')
 
 
+import os as _os
+_MULT_PAT = re.compile(r'(\t\.set\tnoreorder\n\t\.set\tnomacro\n)(\t(?:beq|bne|beqz|bnez|blez|bgtz|bltz|bgez|bc1t|bc1f|j)\t[^\n]*\n)(\t(?:mult|multu|div|divu)\t[^\n]*\n)(\t\.set\tmacro\n\t\.set\treorder\n)')
+
+
+def mult_unslot(s):
+    """(GAS_MULTFIX=1) the original toolchain never fills a branch delay slot with mult/div: `mult ; branch ; nop`"""
+    return _MULT_PAT.sub(lambda m: m.group(3) + m.group(1) + m.group(2) + '\tnop\n' + m.group(4), s)
+
+
 def fix(text, mode, ro_va=None, ro_size=None):
+    if _os.environ.get('GAS_MULTFIX') == '1':
+        text = mult_unslot(text)
     out = []
     pool = Pool()            # float/double literal pool for this object
     noreorder = False        # inside a `.set noreorder` region (GCC fills those delay slots itself)
