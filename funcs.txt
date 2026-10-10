@@ -3064,3 +3064,11 @@ func_002C0B9C 0xC179C 66 game mode=sn
 func_00236864 0x37464 426 game mode=sn
 func_0029E510 0x9F110 228 game mode=sn ro=0xCB894:8
 func_00288908 0x89508 348 game mode=sn+nb
+func_00236F0C 0x37B0C 1101 game mode=sn ro=0xC9014:212
+func_00226DAC 0x279AC 154 game mode=sn ro=0xC8864:8
+func_00242FD8 0x43BD8 253 game mode=sn
+func_00232394 0x32F94 143 game mode=sn
+func_002231B0 0x23DB0 135 game mode=sn ro=0xC856C:56
+func_0023AFE0 0x3BBE0 258 game mode=sn ro=0xC92C4:28
+func_00238304 0x38F04 215 game mode=sn ro=0xC9104:56
+func_002406C0 0x412C0 242 game mode=sn+nb ro=0xC9420:4

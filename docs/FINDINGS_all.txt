@@ -2570,3 +2570,415 @@ WIDGET (u16/s16) MATH BLOCK (func_0042F12C, 004264E4, 00429C04)
 INCLUDE NOTES
 - include/o04_types.h was replaced by the original o04 workspace's header (the previous q03 copy lacked O04W etc.); all previously EXACT functions still EXACT.
 - include/q03_types.h grew: Q03WdU (widget with u14/u16 + union u/s at 0x18), Q03Hdr/Q03Lob (lobby block 0x3474, same layout as O05Lobby), Q03F60.unk3C8.
+
+==================== ROUND 7 FINDINGS (workers s702, s704, s705, s706, s707; real toolchain @SN; helper tools in tools/agents/INDEX.txt) ====================
+--- s702 ---
+FINDINGS s702 (round 7, hard leftovers; @SN toolchain) - written incrementally
+
+TOOLING (all in tools/ of s702, WSL python3; no Windows python exists on this box)
+- tools/fk.sh <list> : fast chk (copies only the listed files + include/, ~1.5 s per call).  tools/rv.py <spec.py> : source variants as lists of (old,new)
+  replacements of a BASE file -> ONE chk call, prints words differ per variant (the quickest loop for shape searches).  tools/sd.sh <file> <fn> <rom> [@SN..]
+  side-by-side (FULL=1 shows everything).  tools/done.py : verify + copy to wip/out + results line.  tools/sndump.sh <file> "<cc1 dump flags>" + tools/rtlc.py
+  (one-line RTL per insn) + tools/sdorder.sh (sched1 result order); `-fsched-verbose=5 -dS` prints the ready lists WITH priorities (see lesson 1).
+- permuter @SN with zero relocation noise: tools/psetup.sh <fn> <wip/c/x.c> <rom> <ninsn> (= s601's perm_sn.sh) + tools/prun.sh <fn> <secs> <jobs>.
+- tools/lu_match.py now runs tools/sn_expand.py (s602 fix for the mflo/lw-macro/mult hazard nop) and knows the token -nogas (cc1 without -mgas).
+
+LESSONS
+1. SCHED1 PRIORITY BOOST = "birthing insn" (haifa-sched adjust_priority/birthing_insn_p): an insn that SETs a pseudo which is live at that point AND has
+   REG_N_SETS == 1 gets priority LAUNCH_PRIORITY (0x7f000001).  sched1 runs BACKWARDS, so such insns are placed as LATE as possible (close to their use);
+   a pseudo with 2+ sets (e.g. `s = a + b; s = s * k;` or one variable reused for several roles) keeps its normal critical-path priority and floats to the
+   TOP of the block (or above calls).  Consequence: when the ROM's load/add chain for a value sits where "source order" says, but ours floats up, the value
+   must be a single-set local (one variable per role / one per inline expansion).  func_00226DAC: three angles written as u1/h1, h2, h3 (single-set each,
+   no pins) -> EXACT; with one shared `s` (in-place `s = s * k`) the sum chain is hoisted to the top and the registers swap.  Verified with the dump
+   `-dS -fsched-verbose=5`: "ready list at T-2: 42 (7f000001)" for single-set pseudos vs "40 (2)" for the multi-set one.
+   Also: X = a+b and Y = X*k that are both block-local single-set pseudos get the SAME hard reg from local-alloc (in-place `mul.s f20,f20,f21`), including
+   across calls (callee-saved), which a multi-set variable or a pin cannot reproduce faithfully (a pinned register var makes the def a HARD reg set: priority not
+   boosted, deps with calls differ).
+2. jump.c "if (c) { x = a; goto l; } x = b;" -> "x = a; if (c) goto l; x = b;" (conditions: insn before the goto is a lone `x = a` SET without notes, the
+   next active insn after the goto is a single SET of the same x, the conditional jump targets the label right after the goto, test does not mention x).
+   It makes `x = a` unconditional BEFORE the branch, so the tested temp cannot share x's register (func_00232394: ROM has `lh v0 ; bnez v0 ; li v0,1`).
+3. loop.c runs BEFORE combine.  A byte read written as `((u8 *)p)[3]` is already a `(mem:QI (plus p 3))` at loop.c time = a DEST_ADDR giv, and loop.c combines it
+   into any reduced giv of the same biv family (`lbu 3(s1)` becomes `lbu -1(s3)` when s3 = reduced p+4).  Written as `(*(u32 *)p & 0xFF)` it is a
+   `(and (mem:SI p) 255)` for loop.c (not a giv, base stays the biv), and combine later turns lw+andi into `lbu 3(p)` (big endian low byte).  func_00242FD8
+   went from 1 word off (after months of pad/permuter work: asm("" ::"r"(p1)) etc.) to EXACT with no pads.  Rule: whenever the ROM has `lbu 3(reg)` /
+   `lhu 2(reg)` (low part of a word) next to an `lw 0(reg)` of the same pointer inside a loop, the source reads the WORD and masks.
+4. tools/rv2.py ranks variants by the ALIGNED diff (difflib on mnemonics, structural insn inserts/deletes vs operand diffs); chk's positional "N words differ"
+   is meaningless once an insn count shifts.  `python3 tools/adx.sh <file> <fn> <rom>` prints the aligned diff.  Use it for everything above ~100 insns.
+5. Inlined helper whose parameter copy `move a0,v1` survives in the ROM (func_002343B8 busy(q)): `__asm__("" : "+r"(q));` as the first statement of the static
+   inline helper (s505 lesson) fixed the first 100 words at once; then `u8 *pp = (u8 *)o + i; pv = pp[0x524]; pp[0x520] = c8;` stops loop.c from reducing the
+   o+i giv of a 4-iteration byte loop (ROM recomputes `addu a1,s0,a0` at the loop top).
+6. ORDER OF ARGUMENT-REGISTER SETUP vs a callee-saved init (func_0023D370: ROM `addiu s0,sp,48 ; move a0,s0 ; addiu a1,sp,16 ; addiu s2,s4,248 ; jal ; move a2,s2`).
+   In `f(pv, &v10, pn = &m->nrm)` the pre-evaluated `pn =` set has the LOWEST luid of the call setup (args are expanded first, the a0/a1/a2 moves are emitted in the
+   store phase), and both sched passes keep equal-priority insns in luid order, so s2 is initialised before a0/a1.  Fix = make the first two args real early
+   sets that stay alive: `register T *ra0 asm("$4"), *ra1 asm("$5"); ra0 = pv; ra1 = &v10; __asm__ volatile("" : : "r"(ra0), "r"(ra1)); pn = &m->nrm;
+   f(ra0, ra1, pn);`  The empty volatile asm USES the early sets (otherwise cse turns the call's self-moves `a0 = a0` into the real sets and deletes the early ones)
+   and the later pn init/`move a2,s2`/call stay in front of the reorg slot filler (the asm must NOT sit directly before the jal or the delay slot stays a nop).
+7. A literal that rounds to a different float than the ROM word is invisible to chk (relocs masked): 1.048576f -> 0x3F8637BD but the ROM pool has 0x3F8637BE (= 1.0485761f).
+   tools/rocheck.py <file> <fn> <rom> checks that every hi/lo pair of the function addresses the same pool base and compares the pool words; a 4-byte pad before a
+   jump table whose absolute address is 8-aligned (ROM pool at 0x..324) cannot be reproduced by a one-function object (ours has no pad), the rest of the pool must match.
+8. jump.c / reorg interplay in func_00232394 (details in results.txt): the last arm of a boolean ladder must NOT be `if ((x = f()) != 0) { ok = 1; goto done; } zero: ok = 0;`
+   (jump.c hoists `ok = 1` above the branch -> the lh temp can no longer share v0).  Test the value in the result variable itself and branch to a far `ok1:` block placed
+   after the default call: `ok = o->unk5F6; if (ok != 0) goto ok1; ... ok1: ok = 1;`.  A pseudo that is set only ONCE (xx = D_800D70E8 as a call argument) is boosted by sched1
+   and lands after the float arg load; a second (empty volatile asm "+r") set restores the ROM order.
+9. Semantic bug check: when a draft has the right structure but odd register numbers, compare WHICH variable is modified: func_002343B8's draft added the 1024.0f*unk5C term
+   to f2 but the ROM adds it to f1 (add.s f6,f6,f0 on the first loaded value); this changes the allocation priorities (refs of the modified variable).
+10. `i = 0;` placed inside each arm of an if/else (before the two identical do-while byte-copy loops) instead of before the test fixed the delay-slot structure of a 4-way `||` test
+    (func_002343B8: 12 structural -> 1).
+11. PERMUTER = STRUCTURE/TEMP FINDER, then hand-minimise (func_002231B0: 13 operand diffs -> 3 words in one 13 min run -> EXACT after 8 rv2 variants).  Splice the best
+    output back (tools/pharvest.sh), then try to REMOVE the junk it introduced (new_var temps, float instead of f32): usually only ONE of the mutations matters.  Here it was
+    "the product p->f69C * 80.0f * in->f0 * 0.017453294f written as ONE inline expression inside the call argument instead of via a temp": the temp changed which of the two
+    FP loads got the lower register (local-alloc numbers quantities in expression order; a temp splits the expression into two quantities with other priorities).
+12. REGISTER PINS ON PARAMETER COPIES ARE USUALLY WRONG under @SN.  func_00238304 carried `register T *o asm("$23") = o_;`; removing it fixed the prologue order
+    (`move s7,a0` before the call, `move s1,a1` in the jal delay slot) and 4 operand diffs.  Before keeping a pin, always run the variant without it (tools/unpinclimb.py does it).
+13. FP register numbering follows LIVE RANGE LENGTH (local-alloc/global-alloc priority = refs/length): in func_00238304 the ROM computes `fx = rx*0.5+rz` BEFORE
+    `fy = (ry*0.8+rw) - sy*18`; with the statements swapped rx's range was longer than ry's and the two pseudos swapped f1/f3 (12 operand diffs -> 0).  If two like-shaped
+    FP values have swapped registers, swap the order of the statements that consume them.
+14. TWO CONSECUTIVE `if (e != 0)` TESTS ON THE SAME POINTER ARE MERGED by jump.c thread_jumps (first branch is redirected to the end, second test deleted) while the ROM
+    (func_0023AFE0: `beqz s0,L; ...calls...; L: beqzl s0,end`) keeps both.  thread_jumps only looks at the INSN RIGHT AFTER the label, so a copy between the tests prevents it:
+        tt = sc->freeHead; if (tt != 0) { f(tt); g(tt); }  e = tt;  if (e != 0) { ... }
+    (the `e = tt` move disappears when both pseudos get the same hard reg).  8 structural diffs -> 0.
+15. `u16 mask16 = mask; if (mask16)` adds a register copy (`move s8,s4` + andi); `if (mask & 0xFFFF)` keeps it in the single pseudo (func_0023AFE0: 5 words).
+    Constant `-1` in a loop test `while (n != -1)` is shared with the guard test via loop.c hoist + cse2 (`li v0,-1 ... move s8,v0`); a guard written as a separate
+    `if (n != -1) { do {...} while (n != -1); }` also gives that.
+16. Delay-slot fill of a call: the filler is the closest PRECEDING eligible insn (not a load/mtc1).  In func_0023AFE0 `off = 0.0f; inside = 0;` written AFTER
+    `hh = func(id, o->w38, o->w40);` still end up before the jal but in the order the ROM wants (`move a0,s0` first, `move s7,zero` in the slot); written before the call
+    the slot got `move a0,s0`.  Statement order around a call changes the sched2 luid order of independent insns.
+17. Cubic smoothstep `tt*(tt*-2)*tt + tt*(tt*3)`: the ROM order of the two final multiplies is obtained with
+        kn = tt * (tt * -2.0f); kn = kn * tt; tt = tt * (tt * 3.0f); k = kn + tt;
+    (permuter result, func_002343B8): the register reuse of tt for the second product is the point.
+18. Open: remaining 1-word differences are delay-slot annul flags (bc1t vs bc1tl at the first test of a `255<x ? 255 : x<0 ? 0 : 255<x ? 255 : (u32)x` chain, func_002343B8) and
+    a duplicated `addiu a0` in a jal slot (func_00238304); both are decided inside reorg (mark_target_live_regs / redundant_insn) and no source variant tried changed them.
+19. reorg.c facts that explain bc1t/bc1tl (branch-likely) and duplicated delay-slot insns (from gcc's reorg.c, same logic as 2.8.1): fill_simple_delay_slots runs first over ALL
+    jumps/calls and only takes an insn from BEFORE the branch (for a call the closest preceding eligible non-load, non-mtc1 insn); fill_eager_delay_slots runs afterwards:
+    predicted-taken branch (mostly_true_jump: loop-back, ...) -> target thread first, else fall-through first; an insn is put into the slot WITHOUT annul when it sets nothing
+    that is live/needed on the opposite thread (mark_target_live_regs), otherwise the branch becomes the likely form (bc1tl).  The slot copy of a shared target is a COPY (own_thread=0),
+    an unshared target block is MOVED.  So the choice plain/likely depends on liveness at the START of the other successor block and on whether another branch already took the slot insn:
+    sources that only differ in value liveness (a variable assigned before vs after a test) can flip bc1t <-> bc1tl.  Not solved here (func_002343B8, func_00238304 are exactly this, 1 word each).
+20. Statement-order sensitivity of the first hoisted constant in a loop preheader (func_00233DEC, unsolved, 4 words): the ROM order is `i=0; K(0x80000000 for u32 conversions);
+    p=sym; idx=2` but ours is `i; idx; p; K` because loop.c moves invariant constants to the LOOP_BEG note, i.e. AFTER every explicit init.  A real outer loop would hoist K
+    in front of the inits (checked: do{}while(0)/while(1){break;} wrappers are not loops for loop.c); empty volatile asm barriers stop the FP constants from moving; "+r" asm
+    inits are worse.  The ROM source probably gets p/idx from a different construct (not found).
+21. perm_strip.py (permuter base builder) used to DROP `static inline` helpers: a permuter base calling an undefined helper scores garbage (func_002343B8 first run: base 2340 for a
+    1-word-off source).  Fixed in tools/perm_strip.py (keeps definitions that contain `inline`); check `base.o` vs target.o with objdump when the base score is much larger than expected.
+22. gp = D_801468A0 - 0x5D8 style address (func_0022804C): to get the ROM's hoisted reg-based `addiu t1,a2,-1496` compute the symbol-relative pointer in the loop body AFTER a load through the
+    same symbol (`lim = D_801468A0->unk18; gp = (T*)((u8*)D_801468A0 - 0x5D8);` at the top of the loop): cse1 then has &sym in a pseudo and keeps reg+const (cost 1) instead of folding to a
+    two-insn constant, and loop.c can hoist it (unconditional); written inside the conditional block it is folded into the load offset (`lbu -1483(a2)`) by combine instead.
+23. func_0023AFE0 (EXACT) FP numbering recipe: the same quantity allocation (local-alloc priority = refs/length, global t pseudo gets a free reg around the local temps) needs DIFFERENT
+    source shapes in the two arms: arm 1 `t = e->f208; t += c->f20 * D_800D2988;` (loads D->f0 first, c->f20->f1, as the ROM), arm 2 `cur = e->f208; ... t = cur - c->f20 * D_800D2988;`
+    with a separate pseudo `cur` (then t, the result, can take f0 while cur keeps f2).  Try each arm's expression shape independently (rv2 base = best file, one variant list per arm).
+24. cse replaces a constant operand by a register that is known to hold the same constant when the insn pattern accepts a register there: with `if (a->n != 1) { prev = &a->v[a->n - 1]; ...}`
+    the `li v0,1` of the compare was reused as shift count of the expanded `n*12` (sll v0,v1,1 became `sllv v0,v1,v0`, func_002406C0).  Writing the test as an early exit
+    `if (a->n == 1) return 1; { ... }` (compare constant not live in a register when the multiply is emitted) gives the ROM's `sll v0,v1,0x1`.  25 structural -> 4.
+26. func_00238304 (EXACT): a duplicated `addiu a0,...` in a jal delay slot (ours) vs `addiu a0` in the PRECEDING conditional branch's slot and a nop in the jal slot (ROM): the ROM
+    has the call argument set up BEFORE the branch that skips the call.  `register T **la asm("$4") = &b->listE40;` assigned before `if (p->unk14 == 0) goto remove;` then `f(la)` and
+    `g(la, p)` at the label reproduces it (the pinned hard-reg set stays before the beqz, reorg moves it into the beqz slot, nothing is left for the jal).  Same family as the
+    arg-register barrier trick of func_0023D370 (lesson 6): when ROM slots/arg setups sit on the wrong side of a branch, hold the argument in a register-asm variable.
+27. Dot-product temporaries (func_002406C0, 51 operand diffs -> 4): FP quantity allocation priority = refs/length, so how the three products of `c.x*d.x + c.y*d.y + c.z*d.z` are
+    numbered depends on where the sum is consumed.  (a) `if (sum > 0.0f)` inline gives the ROM's f2/f1/f0 (x,y,z) only when the sum is a FRESH single-use temp
+    (`sm = c.x*d.x + c.y*d.y + c.z*d.z; if (sm > 0.0f)`, one `sm` shared by both loops); reusing the variable `t` (which lives on) makes it a global pseudo (f20).
+    (b) `len2 = e.e; t = (e.d) / len2;` -> `t = e.d; len2 = e.e; t = t / len2;` moved the d.x/d.y/d.z registers of loop 2 from f8,f7,f6 to the ROM's f3,f5,f4.
+    Method that found both: let the permuter run 14 min on the structure-correct file, read WHICH mutation it kept (a `t = ...; if (t > 0)` temp), then hand-test that idea
+    at every site with rv2 (each site separately and together).
+28. `do { return 0; } while (0);` as the body of a late exit test (func_002406C0, EXACT): the do-while(0) creates LOOP_BEG/LOOP_END notes around the return, which changes loop.c's
+    LABEL_OUTSIDE_LOOP_P marking / reorg's mostly_true_jump decision and therefore whether the branch's delay slot is filled from the TARGET (`bc1t epilogue ; move v0,zero`, ROM) or from the
+    fall-through (`bc1t sharedblock ; move s0,s4`, ours).  Both loops needed it (4 structural -> 0).  Found by the permuter (it adds do{}while(0) wrappers); try it whenever a ROM
+    `return`/`break` arm has its delay slot filled from the target and ours is filled from the fall-through.
+29. A quotient that must land in the callee's result register (`neg.s f1,f22 ; div.s f0,f1,f0` where ours has div.s f1,f1,f0): `register f32 lim asm("$f0"); lim = -r / sqrtf(len2); if (t < lim)`
+    (pin the QUOTIENT to $f0; pinning the sqrt result or using $f2 did not work).
+--- s704 ---
+FINDINGS s704 (round 7, hard leftovers; @SN toolchain)  -- appended as work progresses
+
+TOOLING (workspace tools/, all run in WSL; see tools/*.sh header lines)
+- tools/qchk.sh <list>: chk without the slow src/ rsync (2 s instead of 10 s per call).
+- tools/ad.sh <file.c> <fn> <rom> <n> [xflags] [-v]  (tools/ad.py): ALIGNED diff of our @SN output vs the ROM at mnemonic level:
+  prints each structural hunk (inserted/deleted insns), the number of operand-different aligned insns and register-substitution
+  votes (ours->rom).  chk's "N words differ" is useless for big functions (one extra insn shifts everything); drive the work by
+  "structural diff insns" first, then register votes.  Use <n> = real ROM insn count (targets.txt may count trailing junk words).
+- tools/vf.py <fn> <rom> <n> - file1 file2 ...: structural + full metric for many full-file variants in one call (4 parallel compiles);
+  tools/vrun.py: @@{ a @@| b @@} cartesian expansion of one template (VM=struct for structural metric).
+- tools/sd.sh: side-by-side ours|ROM with '#' on differing words.  tools/dump.sh: cc1_281 with -dg -dl -dS -dR -dL -dd -dj -ds -dt dumps.
+- permuter for @SN: tools/psn_sync.sh <fn> <wip/c/x.c> "<xflags>" then run permuter.py ~/perm/s704_<fn> (tools/permcc_sn.sh).
+  For a 1-5 word residue it hits in minutes (func_0029E510: 5 -> 0 in 4 minutes); for >= 40 differing aligned lines it never converged.
+- asm/ is not present in a fresh ws (asmfn.py prints nothing): copy asm/ from another ws; tools/asm2.py also prints alabel functions.
+
+SOURCE-SHAPE LESSONS
+- func_0029E510 (4x4 Gauss-Jordan inverse, 228 insns) went 94 -> 0 structural diffs with these steps (generally useful):
+  * REUSE FEW INDEX VARIABLES: the original had only i, j, k (+ t, r): the pivot index `best` is the same variable as the inner loop
+    counter j (j = k; ... j = i;).  Extra named variables (best, r as search index) change cse copy canonicalisation and loop-iv layout.
+  * Hoist row indices into locals: `t = perm[k]; ... aug[t][j]`, `r = perm[i]; ... aug[r][j]` BEFORE the inner j loop.  Reading
+    perm[i] inside the loop is never hoisted by gcc (the float store to aug[] may alias the int load), the ROM hoists it.
+  * An input matrix indexed as `*(float *)((char *)src + (i * 16 + j * 4))` gives the ROM's `addu v0,a1,t1` with t1 = offset giv
+    (init i*16, += 4); `src[i][j]` on `float (*)[4]` or `((float *)src)[i*4+j]` give a pointer giv / no giv.  Same for the dst writer.
+  * abs value as `w = x; if (!(0.0f <= w)) big = -w; else big = w;` (if/else on a copy) reproduces `lwc1 f0 ; mov.s f2,f0 ; c.le.s ; bc1fl neg`.
+  * The 1-word residue `neg.s f0,f1` vs ROM `neg.s f0,f0` (cse2 propagated the raw load into the negation) was cured by a DEAD
+    store `w = 0.0f;` placed before the `return 1` exit (extends last_uid of w; permuter found the same effect with
+    `if (w) return 1; else return 1;`).  piv/big are ONE float variable (`big = aug[t][k]; if (big == 0.0f) ...; x / big`).
+
+MORE LESSONS (s704, @SN)
+- func_00288908 (level builder, 348 insns; now EXACT in wip/out with 2 register pins; the lessons below got it from 47 structural hunks to ~6, the pins fixed the last s4/s5/s6 permutation):
+  * `j = 0` at the top of the OUTER loop body must be `j = zero;` with a function-level `s32 zero = 0;` (set once, outside the loop):
+    cse1 then cannot fold the inner-loop entry test (ROM: `addu s7,zero,zero ; slt v0,lastA,s7`, we got `bltz lastA`); reload later
+    substitutes the constant (`addu s7,$0,$0`).  A literal 0 is folded by cse because the set is in the same EBB as the compare.
+  * A spilled running offset `row += cntA` in the ROM is NOT a source variable: it is the loop.c giv of `ci * cntA` (initialised after
+    the loop guard, `sw zero,row` right after the `bltz` of the guard).  Write `j + ci * cntA` at the use sites and delete `row`.
+  * `off2 = nBytesB + 7; off2 = off1 + (off2 & ~7);` (in-place on one variable, found by the permuter, 3135 -> 775 score) and
+    `off2 = X; off1 = off2; ... off2 = ...off1...` reproduce the ROM's `addu s6,s0,zero` copy.
+- func_0029AE80: `s8 flag = (m->e == 1)` (NARROW variable type) makes every `if (flag)` compile to `addu v0,s3,zero ; beqz v0` like the ROM
+  (promoted-subreg copy cse cannot propagate), `s32 c` must stay int (lh).  Table index as `*(tbl + (bit / 8 + (s16)ch * 4))`.
+  The `addu v1,s0,zero` copy of the `bit` inline argument was NOT reproduced (function-level temps/`b = c`/macros/narrow formals all fail or
+  make the temp callee-saved).
+- cse1 canonical-register rule (copy `p = w` is kept only if p outlives w and the cse block): explains why copies of user variables
+  vanish in inline expansions; `-fcse-skip-blocks` makes `if (c) x = y;` skip-blocks part of the same EBB (so values flow across them).
+- Reload register for a spilled pseudo is t2 ($10) in 278530; our struct member `L.ret` loads into v0 (not a spill).  A `register s32 rt asm("$10")`
+  pin turns `0` arguments in the else arm into `rt` (cse knows rt == 0 there) - not usable.
+- Pinning a loop-walked pointer (`register M5Grid *gp asm("$20")`) fixes a callee-saved swap but disables its strength reduction.
+- Tools: tools/prio.py (allocation order/priorities from dump.sh output), tools/fsweep.sh (single cc1 flag sweep), tools/mktgt.py +
+  tools/psn2.sh (permuter target for alabel functions such as func_002A2270 / func_0029AE80; psn.sh silently makes an EMPTY target).
+- func_00278530: the permuter's only useful find was REMOVING a variable (`cols = X; ... cp = cols;` -> use `cp` directly): 98 -> 65 words,
+  whole structure then matches.  Merge locals that are copies of each other before reaching for pins.  After that the remaining diffs are
+  allocation-priority (dst vs the walked gp pointer: gp 5 refs/len 34 = .294 beats dst 8 refs/len 92 = .261; priority = floor_log2(refs)*refs/len,
+  hoisting gp's set or adding refs to dst did not flip it) and the clamp-loop temps.
+--- s705 ---
+FINDINGS s705 (round 7, hard leftovers; @SN toolchain)
+
+TOOLING (new, all in tools/ of workspace s705; copy if useful)
+- tools/ad.py <file.c> <fn> <rom> @SN : ALIGNED diff (difflib on register/immediate-normalised insns) of ours vs ROM: prints structural hunks
+  and the register/operand diffs (AD_ALL=1).  chk's positional "N words differ" is useless for big functions (one extra insn shifts everything).
+- tools/score.py|score.ps1 <list>, tools/var2.py <spec.json>: score many source variants in ONE call (pos / aligned struct / operand diffs).
+  spec = {"base": file, "func":..., "rom":"0x..", "flags":"@SN", "vars": [[["old","new"],...], ...]}.
+- tools/side.py had a trap: `objdump -D` collapses runs of zero words ("..."): needs `-z` (patched).
+- Permuter for @SN (from s601: perm_sn.sh/permsn_cc.sh/permsn_link.py): perm_sn.sh built the link address as MAIN-IMAGE vram only; overlay A needs vram
+  = rom - 0x16E000 + 0x400000 and symbol names func_00xxxxxx must stay UNMASKED (overlay jal targets 0x002xxxxx/0x004xxxxx, not 0x80...).  Patched
+  perm_sn.sh / permsn_link.py (overlay mode when vram < 0x80000000).  perm_strip.py must keep `inline` functions (patched again here).
+  Background jobs: `nohup ... &` inside `wsl bash -c` dies when the wsl call exits; use Start-Process (tools/bgq.ps1) and write WSL helper
+  scripts (a `$(...)` inside a single-quoted bash -c string is expanded by the Windows-side shell).  tools/pgo2.sh = iterated permuter
+  (restarts from the best output each round).
+- ragewars-decomp (melalawi) `src/*.c`: func_80415C90_de.c is OUR func_00415D10 (their 100% match; 1049 insns) - the first function in that file;
+  rename it and compile with @SN: EXACT at once.  Their include/ headers (span_16E000/code_*.h) give the object layouts of the whole overlay-A
+  archive/texture module (Entry_func_80411518_de = 0x49C-byte archive object, Slot = 0x2C bytes, FileState, State_func_804101BC_de for D_801539B0).
+- Existing drafts from other workspaces that were EXACT under the old flags (b24/s506/s605: DrawText, atlas draw family, bevel box, ...) are also
+  EXACT under @SN unchanged; they are simply copied into wip/out with results lines.
+
+CODEGEN LESSONS
+- Register pin fixes a pure allocation-priority swap without touching scheduling (func_00406178): the natural no-copy form has exactly the ROM
+  schedule but gives st=s1,own=s2 (st has fewer live insns, so higher global-alloc priority); `register s32 st __asm__("$18");` makes it EXACT.
+  The older draft that copied the params (own = own0 ...) fixed the allocation but changed prologue scheduling (3 words) - prefer the pin.
+- Struct-return temp slots (func_00403658): a block-local 12-byte struct that is declared AFTER a struct-returning call reuses that call's freed
+  temp slot (same size); declaring it as a 16-byte struct (`struct { Vec3 q; s32 pad; } v4;`) puts it in a fresh slot (0x60) while the second
+  call's temp reuses the first slot (0x50) - exactly the ROM frame.  (found by s605, confirmed)
+- Macro-expanded gSPScisTextureRectangle (func_002AA724): the ROM tests `(yl) < 0` on the RAW s32 register but sign-extends yl everywhere else:
+  declare yl's variable s32 (x0,x1,y1 stay s16) and give the macro `(s16)(yl)` casts in MAX(yl,0) and in the product yl*dtdy, plain `(yl) < 0`.
+  The dsdx/dtdy `<0` tests are on `(s16)` values.
+- `pp = p->f; <asm volatile or sink> plr = pp;` does NOT keep a separate temp for a callee-saved pointer: regmove/combine rename the load straight
+  into the s-reg (func_00406F7C still open).
+
+MORE CODEGEN LESSONS (all verified EXACT: func_0040D350, func_002AA724, func_00406F7C, func_00406178)
+- func_0040D350 (525 insns) matched with plain natural C after four source-shape insights (no pins):
+  * an array base kept in a LOCAL pointer (`tbl = D_80153820; e = &tbl[D_80153800]`) gives the hoisted `lui/addiu t1` base that the ROM
+    shares between the entry address and the search loop; indexing `D_80153820[i]` directly gives `lui at; addu at,at,a0` per field.
+  * a search loop that ends in `found = 1` is an inlined helper with early `return 1;` and final `return 0;`:
+    `static inline s32 O02Overlap(O02Ent *e, O02Ent *tbl)` whose for-condition reads the GLOBAL count (`i < D_80153800`, not a parameter):
+    loop.c then hoists the global into a fresh pseudo (`lw v0; blez v0; ...; move a3,v0`).  Pass `tbl[i].f` (index form) not `p++`.
+  * `if (a != x) changed = 1; else if (b != y) changed = 1; ... else changed = (d != w);` (if/else-if chain with `changed = 0` before)
+    gives `bne ; li v0,1` slots for every arm, the ternary chain `a ? 1 : b ? 1 : ..` gave `bnel` for the third.
+  * FP in-place accumulate for cross-jumped tails: `fy = (f32)base; fy -= term;` in each switch arm (the three `sub.s f20,f20,f0` merge).
+  * a record accessed as `font->e[g].d/.a/.b` with `Font = { s8 pad[4]; { s32 w; s8 a,b,c,d; } e[]; }` and `gl = &font->e[g]` computed once
+    gives base+4 / field offsets 4,5,7 (the ROM shape); a flat `{s8 pad[8]; {s8 a..h} e[]}` gives base+0 / 11,8,9.
+  * a stray store (`it->f16 = 0` in the old draft) can hide a different problem: the ROM has NO such store; with it removed the `f32 fc = fx;`
+    snapshot of the loop-carried float for the compare (`mov.s f1,f21; c.lt.s f1,f3`) matched.
+- func_002AA724: the 4th coordinate pinned to its ROM register (`register s16 y1 __asm__("$16")`) fixed the whole FP/GPR permutation at once; the pinned
+  variable then needs a later use (`__asm__("" : : "r"(y1))`) or gcc reuses its register as the shift temporary (`sll s0,s0,16; sra v0,s0,16`).
+- func_00406F7C: a pinned temp for a pointer that is only COPIED into a callee-saved variable at the start of one arm
+  (`register T *pp __asm__("$2"); pp = o->f; asm volatile(""); if (c) {...} else { plr = pp; asm volatile(""); ...}`) is the only way found to
+  keep ROM's `lw v0 ... beqz ; move s0,v0` (regmove otherwise renames the load into s0).  Pinning the two address temps of a later
+  `*(u32*)(A + B + off) = call()` (`register u8 *bb asm("$5"); register s32 oo asm("$3")`, `oo += (s32)bb`) fixed the last operand-order/regs words.
+- Spill-slot offsets follow the order of pseudo creation: declaring the (spilled) locals in the ROM's slot order (payload, payload2, meta, fmt,
+  r, saved, thr for func_00410FD4) reproduces sp+0x1DC.. exactly.  Global-alloc priority = refs*floor_log2(refs)/live_length: to flip s0/s1 between
+  a temp and a variable, lengthen the live range of the one that must lose (place `saved = s` copy AFTER the following statements): func_00410FD4.
+- A source statement that the ROM does not contain can still be needed by an old draft; always compare the number of stores to each struct field.
+- tools/gm.py (greedy mutation search: move line / asm barrier / do-while / register pin on declarations) solved func_002AA724's last 12 words in 8 s;
+  tools/hc.py = statement-order hill climb.  Both use the exact aligned-diff metric (tools/score.py) instead of the permuter score, which
+  under-weights stack offsets (a permuter 'score 10' for func_00403658 was a different frame layout).
+
+LATER LESSONS (func_0040FC14, 394 insns, EXACT with @SN from a 26-word/45-operand near-miss)
+- Declaring the hot globals as members of one struct (`extern struct { ... } D_80153C0C/C20/C40`) instead of separate externs/array parameters
+  changes load/store scheduling and cse enormously (struct diff 52 -> 6); do this before anything else when a pool-like set of globals is reused.
+- Callee-saved allocation = global-alloc priority (refs weighted by loop depth * floor_log2 / live_length).  A pointer that is both cse'd and used 20x
+  (`state = &D_801539B0...`) outranks a strength-reduced giv (stride 0x49C): cut ITS reference count by reading a field through another
+  live pointer (`*(s16 *)((u8 *)recordData - 0x10)` instead of `state->f25C`, `*(s16 *)((u8 *)var_a1 - 4)` instead of `header->objects.unk0`);
+  ROM does exactly this (`lh v0,-16(s3)`, `lh v0,-4(a1)`).  This swapped s4/s5 without any register pin; a pin on `state` DOES work for the
+  allocation but a hard-reg base loses the alias info and the scheduler stops moving loads above stores (do not pin pointers to globals).
+- Do not share one variable between a short loop temp (shift offset) and a long-lived running counter: sharing raises the counter's priority
+  (it got s4, ROM s6) and also forces the temp into a callee-saved register.  Separate variables -> temp lands in a0 (local-alloc) as in ROM.
+- Commutative `addu` operand/destination order (`addu a0,a0,v1` vs `addu v1,v1,a0`) follows the order the operands were evaluated: write
+  `p = (void **)((i << 2) + (s32)base)` (index first) instead of `&base[i]` to get dest == the shifted index.
+- hc.py (statement-order hill climb, ~5 min for 11 lines) fixed the preheader order of two strength-reduction inits (`addiu s1,s1,18` vs `move s2,s0`)
+  by moving the biv increment `var_s1++` after `var_s2 += 1`: loop.c emits giv inits in biv-list order, so biv increment order = init order.
+- `x = call(); st->f = x; ...; use(x)` stores x from the call-return register only if the later uses go through a DIFFERENT variable:
+  `x = call(); y = x; st->f = x; ...; use(y)` gives `move s1,v0 ... sw v0,off(s5)` (store in the jal delay slot reads v0); using x everywhere gives `sw s1`.
+
+func_00410FD4 (PARTIAL, 1 swap left): lessons that did transfer
+- `extern s32 D_801539B0;` (scalar) -> `lui at; sw zero,0(at)` per access; ROM has `lui s0; addiu s0,s0,lo; lw a0,0(s0) ... sw zero,0(s0)`: declare the global as an ARRAY
+  (`extern s32 D_801539B0[]`, use `[0]`) to get one materialised address register for several accesses in a block.
+- To keep `addiu v0,s0,-544 ; lw v0,592(v0)` (cse folds `(g-0x88)+0x250` to `48(s0)` otherwise, even through a named pointer variable) make the base
+  pointer opaque: `register u8 *st __asm__("$2"); st = (u8 *)(g - 0x88); __asm__("" : "+r"(st));` (pin alone or asm alone does not work, both together do).
+- decomp-permuter (not the greedy tools) found the remaining scheduling of the 13-argument call's stack stores: the winning mutation was only
+  `t = (sizes[i] = o2->rec[i].c * o2->rec[i].h);` in an earlier loop (chain assignment instead of `t = ..; sizes[i] = t;`) - it changes pseudo creation order, which
+  shifts sched1 tie-breaks 150 insns later.  Always let the permuter try after the source is within ~10 hunks; its score 160 here = 3 differing words.
+- SOLVED (func_00410FD4 now EXACT): the asm+pin trick above produced the right insns but perturbed sched2 (`move a2,s2` landed after the addiu).  The clean way to stop cse
+  folding `(g-0x88)+0x250` into `48(s0)` is a VOLATILE read through a plain local pointer: `u8 *st = (u8 *)(g - 0x88); ... *(volatile s32 *)(st + 0x250) ...`
+  -> `addiu v0,s0,-544 ; lw v0,592(v0)` and the ROM's schedule, no pin, no asm.  Try `volatile` on the access before any asm/pin when cse folds a reg+const address.
+--- s706 ---
+FINDINGS s706 (round 7, hard leftovers, @SN toolchain; overlay A 0x18A680..0x1B22EC)
+
+STATUS NOTE: of the 28 targets, 20 had already been solved by earlier workspaces (s508/s607/s411/o03/o04/o05/q03/q04); all re-verified EXACT here
+under @SN (lines in results.txt).  Of the 8 genuinely open ones, SIX are now EXACT: 41CB48, 41F298, 41C680, 427430, 427690, 42EF50 (recipes/hacks in their results
+lines and in the sections below).  Still PARTIAL: func_0042C8AC (structure right, 29 register-operand diffs; wip/hard/func_0042C8AC.pin9.c) and func_00444024
+(4 structural diffs, scheduling of one move + one lbu; wip/hard/func_00444024.c).  26 of 28 targets EXACT.
+ORDER OF WORK THAT PAID OFF: (1) fix structure first (statement orientation, one shared increment, pointer locals), measured with tools/vm.py/sbsm; (2) brute-force
+the order of the few statements around a 2-slot scheduling difference; (3) register pins (`register T v __asm__("$N")`) + ONE empty asm barrier for the rest;
+(4) permuter last, from a base that is already within a handful of diffs (it solved 427690 in minutes from 2 structural, and did nothing for far-off bases).
+
+TOOLING (new, tools/ of this workspace; run through WSL like the s507 tools)
+- tools/sbsm.py <list> : aligned-diff metric (difflib on normalised mnemonics) for MANY list lines in one call; prints structural/operand counts plus
+  firststruct/firstop and, with env WIN=lo,hi, the counts restricted to ROM insn window [lo,hi].
+- tools/vm.py <variants.txt> <fn> <rom> [flags] : variants separated by //==== lines -> wip/vx_N.c -> ONE sbsm call -> sorted by structural*10+operand
+  (WIN=lo,hi ranks by the window first; the best variant is copied to wip/vm_best.c).  Much better than chk's positional "N words differ" for big functions.
+- tools/mvgen.py <file.c> <fn> <rom> <first_line> <last_line> [-m i,j] [-- flags] : statement-move search (each line = one statement; move statement i to every
+  other position; one sbsm call; best -> wip/mv_best.c).  Brute-force statement order search in ~1 s per variant.
+- tools/lst.py <list> <fn> [lo hi] : our insns | ROM insns by index, NO alignment (use when difflib is fooled by two similar chains).
+- tools/sndump.sh <file.c> <dump letters> [cc1 flags] (WSL) -> /tmp/s706dump/s.c.<pass>; tools/rtlbrief.py <dump> prints the RTL stream compactly
+  (uid, dest <- src) -> shows the stream order cse/loop/combine produced BEFORE sched1 (luid order) and the sched1/sched2 results.
+- wip/pq.sh <secs> <jobs> fn:rom[:flag] ... : sequential decomp-permuter queue (own copy ~/permuter_s706/s706perm.py so nobody's pkill hits it); after each run the
+  best output is copied to wip/c/pbest_<fn>.c and its sbsm metric printed.  Use the aligned metric to judge permuter output, not the permuter score.
+
+SCHEDULER FACTS (gcc 2.8.1 sched.c, verified with the -dS dumps)
+- haifa sched1/sched2 schedule BACKWARDS (log lines "ready list at T-n"): the insn with the highest priority (longest dependence path from the block START)
+  is picked first and ends up LAST; ties go to the larger luid (later in the original stream).  An insn that becomes ready late and has low rank is picked last and
+  therefore lands at the very TOP of its block.  This is why a 'move v1,a2' / a reload / an 'lbu' can sit at the block top in the ROM although the source uses it late:
+  its LUID (stream position after cse/loop/reload) is early.  The luid of a constant load is the position of the FIRST use of that constant (cse creates the pseudo there).
+- A load followed by a non-memory insn only: sched avoids placing a load directly before another memory insn (unit conflict); lbu/lwc1 end up before the next ALU insn.
+- Because the order of insns inside one block is mostly stream order for equal priorities, moving statements in the SOURCE changes nothing for insns that have a
+  dependent chain (loads feeding stores / FP chains); only an extra copy / different live range (INSN_REG_WEIGHT) changes their placement.
+
+LOOP.C FACTS
+- bivs are recorded in stream order and the iv_class list is built by PREPENDING, so the class discovered LAST is reduced FIRST; the giv-init insns are emitted
+  before the loop in that order after the hoisted invariants (movables).  For func_00427430 the ROM emits the n-class (list+n*4) BEFORE the j-class (j*28):
+  no natural source shape makes the n increments come after the j increment in the stream (checked: for/while/do, continue/explicit j++ arms, declaration order: all give
+  j-class first).  Open.
+- A loop pointer (`O3Pl4 *pp = &D[i]` declared INSIDE the loop body) turns an 'lui; addu $1,$1,off; lbu 120($1)' offset giv into the ROM's walking pointer
+  (func_0041F298 last loop).
+
+CODEGEN LESSONS
+- func_0042C8AC:
+  * `mode = f(); if (mode == 0) { switch (D_80154028[0]) { case 1: mode = 2; break; case 0: mode = 3; break; case 2: default: mode = 1; break; } }`
+    reproduces the ROM's tree `beq g,1 ; slti g,2 ; beqz ; beql g,0` with `li` copies in the delay slots (the ROM tests ==1, <2, ==0): an if-chain gives another layout.
+    The empty `case 2:` label (merged with default) is needed to get the median root.  D_80154028 must be an extern ARRAY (reloaded at every use).
+  * sorting by key with two array elements: load the index, compare key by key IN SOURCE ORDER (q1,r1,ka then q2,r2,kb), not all four loads first.
+  * the early 'lh f4' loads (hoisted above the f92 test) mean the source reads `a4 = e1->f4; b4 = e2->f4;` BEFORE the `if (e1->f92 != k || e2->f92 != k) continue;`
+    and the tie-break compares those copies `(ka == kb && a4 < b4)`.
+  * the 3-way mode test order/arm layout of the ROM (f8 arm first, f6 arm later, common f4 arm last, tests ==2, <3, !=3 not folded) only comes from a goto
+    transcription: `if (mode == 2) goto m6; if (mode < 3) goto m4; if (mode != 3) goto m4; ka = f8..; goto cmp; m6: ..; goto cmp; m4: ..; cmp:`.
+    `mode < 3 || mode != 3` is folded by fold_range_test into `mode != 3`; separate tests keep the hoisted `slti` invariant.
+- func_00444024 / func_0041C680: the remaining diffs are 'hoisted to the block top' insns (see scheduler facts); putting the first const-1 store first moves the
+  'move v1,a2' to the top (s607) but also moves the store.  Not solved.
+
+NEW LESSONS (second half)
+- SCHEDULING BARRIER + PRE-HOISTED TEMP (func_0041CB48 EXACT): an empty `__asm__("")` (or `__asm__ volatile("")`, `__asm__("" : : : "memory")`) right after a store splits the
+  sched1/sched2 region.  Loads after it can no longer be hoisted above the stores before it (here lwc1 668(s3) stayed behind the `swc1 fC` store, as in the ROM), and a value
+  that the ROM loads/converts EARLY (lui/lwc1 D_800E28D0 + cvt.s.w hoisted above the struct tail copy) must be computed into a temp BEFORE the barrier
+  (`d28 = (f32)D_800E28D0; ...; a->fC = 10240.0f; __asm__(""); sc = base_f / d28;`).  A permuter-found `new_var = a` copy gave the same effect by a side route (it makes the store
+  use another base register, so sched1 assumes a memory dependency); the barrier version leaves no extra insn.  A volatile store does NOT work, `do{}while(0)` does not either.
+  The barrier also forces every loop-preheader insn that loop.c emits AFTER it below it, so it cannot be used inside a block whose preheader insns the ROM keeps at the block top (func_00444024).
+- LOOP PREHEADER ORDER (func_00427430, structure now 0 words off): the constants 1 and -1 that loop.c normally hoists as MOVABLES (emitted first) can be made PLAIN code by
+  naming them (`one = 1; neg = -1;` assigned right after `i = 0`, used inside the loop): then the order [i=0][li][li][sll;addu last][giv init of the j*28 class] follows source order
+  (plain code first, loop.c giv inits last).  This is the pointer form `last = &sequence[count]` with the constants as locals; the remaining diff is the s0/s1 role swap
+  (counter vs pointer) and `addu s1,v0,s6` operand order.
+- Redundant `if (x > 0) { for (i = 0; i < x; ...) }` guards are NOT in the original when the ROM has one blez: the for's own entry test is enough (func_0042C8AC: removing the three
+  `if (unkEC > 0)` and three `if (unkEC - 1 > 0)` wrappers cut 16 structural diffs).
+- Two array elements fetched for a compare: load BOTH indices first (`q1 = d->unkF0[n]; q2 = d->unkF0[n+1]; e1 = &ent[q1]; e2 = &ent[q2];`), not e1 then e2 (func_0042C8AC).
+- A `for (i = 0; i < 4; i++) if (D[i].f78 == 1) f(i);` turns into the ROM's walking-pointer loop only with `O3Pl4 *pp = &D_80146398[i];` declared INSIDE the body (func_0041F298).
+- `t = x / 4; D->ta = t;` (not `ta = (x<0 ? x+3 : x); t = ta >> 2`): the ROM stores the quotient (func_0041F298).
+- A permuter output can be semantically WRONG while scoring well: func_0042EF50 got 4 structural words by moving `G->unk14 = a * m` inside the `if` arm (the 900.0f path then never stores).
+  Always diff the permuter's source against the base before adopting it.
+
+LATE LESSONS (third batch)
+- SCHED UNIT HAZARD (verified with -fsched-verbose=5 -dS/-dR, func_0042EF50): in the dump "blocking insn N for 1 cycles" means a LOAD (lbu/lw/lwc1) cannot be placed
+  directly before a store in program order, so while the backward scheduler is still picking stores, every ready load is skipped and the loads end up at the very TOP of the
+  block (lwc1 `m = 900.0f` before the six `G->unk.. = ` stores).  The ROM instead has that lwc1 right before the beq, i.e. its sched1 priority/luid was above the stores' (or the
+  stores were not adjacent).  sched2 never repairs this: it re-numbers luids from the sched1 output, so what sched1 put at the top stays at the top.  A hand-written
+  `register f32 m __asm__("$f0")` pin is not needed for the register (without it only $f0/$f2 operands differ), but the empty `__asm__("")` after `G->unk14 = a * m` IS needed
+  (without it the lbu of the condition drifts: 8 structural diffs instead of 4).
+- ALIGNED METRIC beats positional diffs: chk's "words differ" counts every word after one inserted insn; tools/sbsm.py (difflib on mnemonics) reports 4/0 for a function chk
+  calls "13 words differ" (func_0042EF50) and 4/2 for one chk calls "113 words differ" (func_0041C680).
+- REG COPY OF AN ARGUMENT (func_0041F298, open): the ROM keeps `key` (loaded once, stored to p->f10, passed to func_0041F248) in $v1 and copies it to $a0 in the jal delay slot
+  (`lw $3,17108($1); ...; sw $3,16($2); jal; move $4,$3`).  Our cc1 always allocates the pseudo to $a0 directly (local-alloc copy suggestion), so the `move` disappears.  A
+  `register s32 key __asm__("$3")` pin makes the move reappear but costs one extra insn elsewhere (295 vs 294) - not a solution.  Duplicating a store (`p->state = 0; ...;
+  p->state = 0;`) found by the permuter shifts the ranks enough for the surrounding order but is not what the ROM has (ROM: a single `sw $0,20($2)`).
+- INLINE FIND-LOOP LAYOUT (func_00427690, open): when the loop body ends with a "found" block that is followed by a later unconditional jump in the same loop, jump.c relocates
+  the found block and the delay-slot filler produces `bnel ... ; j` where our source forms give `beql`.  Micro-tests wip/c/mf1..mf13.c reproduce both layouts but none of
+  the natural source forms of the ROM's loop selects the bnel one.  Unifying the counter with the induction variable (`cnt` merged into `i`) removed 47 of 63 operand diffs.
+- A permuter base should be kept CLEAN: wip/c/pbest_*.c files are preprocessed (3000+ lines); diff the permuter output against base.c with `diff -b -B <(sed 's/ *$//' ...)` and
+  re-apply the 2-5 semantic changes to the clean source (done for 41F298 -> wip/hard/func_0041F298.c, 41C680 and 444024), then check the metric is unchanged.
+
+SOLVED LATE (func_0042EF50 and func_0041F298 are EXACT @SN) - the recipes
+- func_0042EF50: (1) A TERNARY INSIDE THE MULTIPLICATION `pr = a * ((C2D5 == 2 || C2D5 == 3) ? 15.0f : 900.0f);` is distributed by fold into the arms
+  (`c ? a*15 : a*900`); each arm gets its own constant-load pseudo and sched1's INTERBLOCK (speculative) motion then hoists the 900.0f lwc1 into the branch block at the END
+  (right before the beq), exactly like the ROM.  The `m = 900.0f; if (c) m = 15.0f;` and `m = c ? 15.0f : 900.0f;` forms keep the load in the branch block where it becomes the
+  lowest-ranked load and is pushed to the block TOP (that was the 4 structural diffs of every earlier attempt).  (2) With the ternary inside the store RHS the store address is
+  evaluated FIRST, so `G->unk14 = ...` creates a second pseudo `r95 = &D_801468A0` (copy of the first stores' base) living in another register
+  (`lui $2;addiu;addu $8,$2,$0`).  Fix: hold the base in a LOCAL POINTER `O04GFlags *pg = G;` and use `pg->` everywhere including the lbu `((u8 *)pg)[-0x5CB]`.
+  (3) The product lands in $f12 (the dying `a`, local-alloc tie) instead of the ROM's $f0: pin it `register f32 pr __asm__("$f0"); pr = a * (...); pg->unk14 = pr;`.
+  (4) the single empty `__asm__("")` after the store is still needed (without it 2 structural diffs).
+- func_0041F298: the ROM keeps `key` in $v1 and copies it in the jal delay slot.  `register s32 key __asm__("$3")` brings the `move $4,$3` back, but then sched1 places
+  the move BEFORE the `p->f10 = key` store and reorg puts the store into the delay slot (`move; jal; sw $4`).  ONE empty `__asm__("")` between `p->f10 = key;` and
+  `ch = func_0041F248(key);` keeps the store before the move (`sw $3; jal; move $4,$3`).  Pin + barrier = register choice + order fixes; each alone is not enough.
+- GENERAL: when the ROM shows `move $a0,$vN` in a delay slot where our cc1 allocates the pseudo straight to $a0, use a register pin on the pseudo; then check the
+  order of the surrounding stores and, if sched put the move first, add an empty asm between the store and the call.  Pins are visible to sched1 as hard-reg
+  sets, so an anti-dependence can reorder things: always re-measure.
+- A permuter output must be checked for TYPE changes: the 444024 run produced `unsigned char new_var` reused for the f32 `fv` (wrong code, scored 2/2).
+
+LOOP / BRANCH LAYOUT LESSONS (func_00427690: 28 -> 2 structural diffs with these)
+- loop.c RELOCATES a "found/break" block (`idx = i; goto done`) out of an inner loop to just after the next UNCONDITIONAL jump of the enclosing loop body
+  (visible in the .loop dump as a new label after `jump N`; the cond jump becomes `beq ..., found`).  Then reorg emits `beq $2,$4,Lcall` with `move idx,i` in
+  the delay slot instead of the ROM's `bnel $2,$4,cont ; i++ (annulled slot) ; j done ; move idx,i`.  The ROM layout appears when the enclosing loop body has NO
+  unconditional jump after the inner loop: i.e. write the enclosing body with ONE shared increment at the end (`if (r == 1) { ... } i++; off += 12;`) instead of
+  `if (r != 1) { i++; } else { ...; i++; ... }` (the duplicated i++ creates `jump end` barriers).  Doing this in both big loops removed 18 structural diffs at once.
+- Orientation of an if/else decides `beql ... j` vs `bnel`: for `h->unk10 = 0xAA` (one insn) vs `{ h->unk10 = 0x46; c = 0x46; }` the ROM has
+  `bnel $2,$22,Lend ; sb 170 (annulled slot) ; sb 70 ; li c,70 ; Lend:` = source `if (r == 1) { 0x46; c = 0x46; } else { 0xAA; }` (the one-insn else arm is copied into the
+  slot of the inverted branch).  The `!= 1 ... else` spelling gives `beql ... ; j` + extra insn.
+- A micro test that shows the find-loop shapes: with an inline `find()` whose result is NOT used again after the call, idx and the loop counter coalesce into one
+  register and the found block is empty (`beq` layout, no bnel); if idx is used after the call (g6/h1 in wip/c/mf21.c, mf22.c) they stay in different registers and the
+  `bnel/j` layout appears.  In func_00427690 idx is a single function-wide pseudo living in $17, so the register part was already right.
+- A separately named offset variable per loop (`off` for the first big loop, `off2` for the last) was needed to get the ROM's different registers ($19 vs $20).
+- PLAIN-CONSTANT LOCALS control the preheader order again: `one = 1; twenty = 0x14;` assigned between `i = 0;` and `off = 0;` and used inside the loop make the
+  ROM order [i][c1][c20][off copy] (loop.c emits hoisted movables AFTER `i = 0` but before giv/biv copies only if they are already plain code).  The same trick on the last loop
+  (70/170 consts) changed register pressure (an extra callee-saved register was no longer needed) and failed.
+
+MORE RECIPES (func_0041C680 EXACT, func_00427690 EXACT, func_0042C8AC structure now 0)
+- func_0041C680: a pointer that the ROM computes with `addiu $v0,$v0,8` in the blez DELAY SLOT and later copies (`addu $s4,$v0,$0`) is a value computed UNCONDITIONALLY before the
+  `if (n > 0)` into its own local (`t2 = D_8011FE88->tab->ids;`) and only copied inside the branch (`e = t2;`).  When the computation sits inside the if-block, combine merges
+  the add into the copy and the delay slot is filled with something else.  The relative statement order matters at the 2-slot level; a brute-force over the 120 orders of the 5
+  prologue statements plus the 6 orders of the 3 statements in the if-block (tools/vm.py, ~1 min) found the exact order (`found = i = 0; n = ..->cnt; b = a + 0x190;
+  new_var2 = 1; t2 = ..->ids;` and inside `lv = ..; one = new_var2; e = t2;`).  Do this brute force EARLY for any 2-slot scheduling difference in a short prologue.
+- func_0042C8AC: for `kb = (r2 < 5) ? (D == 0 ? A : B) : -1` the ROM's `beq $2,$0 ; addiu $2,$0,-1` (plain slot, value computed into the same register as the condition) comes from
+  `if (r2 >= 5) { kb = -1; } else if (D == 0) { kb = A; } else { kb = B; }` (the ka copy of this shape already was that); the `if (r2 < 5) { ... } else kb = -1` spelling puts the -1 block after the join
+  and gives `beql ... ; j ; slt` duplicates.  Together with pins on the block-local ka/kb/q1/q2 (`register s32 bkb __asm__("$2")` etc.) this took the function from 7 structural to 0 (only registers left).
+  The ROM's `lh $7,212($4)` / `lbu $2,354($4)` (field displacement = 0xD0 + field, base = the bare symbol in a register) needs the cfg pointer in a LOCAL VARIABLE (`cfg3 = D_801462C8;` then `cfg3->ent[q].f4`
+  without an `e1 = &cfg->ent[q]` temp): D_801462C8->ent[q] directly gives `lui/addiu (sym+208)` as base and displacement = field only.
+- `wip/pq.sh`-style permuter runs are most effective AFTER the structure is right: func_00427690 went from 2 structural to EXACT in a few minutes (the permuter found `twenty = off2;`
+  as a dead-variable reuse that moves one copy by two slots), after 28 -> 2 had been done by hand.
+- REGISTER-CASCADE DEBUGGING (func_0042C8AC; method that took 136 -> 6 operand diffs): (1) fix all structural diffs first; (2) read the aligned diff top to bottom and fix the FIRST register
+  mismatch only, then re-run (each fix usually removes dozens of later diffs because global-alloc hands out registers in priority order); (3) the usual fixes were: give each loop FAMILY its own
+  variable name (the ROM reuses one register for the variables the original source reused: here i for 3 loops, j/n for 2 groups, a different pair in the third group - allocating one function-wide
+  `i` for everything gave $12 where the ROM has $10 in the first loops); (4) pin non-induction variables with `register s32 v __asm__("$N")` (induction variables must NOT be pinned: loop.c
+  does not strength-reduce hard-register bivs and the loop code changes completely); (5) address temporaries that the ROM keeps in $v0 while our cc1 ties them to the dying index register need
+  an explicit pinned temp (`register s32 *ap __asm__("$2"); ap = (s32 *)((u8 *)GA + x * 4); ka = ap[16];`); (6) a compare result that ties to a pinned dying operand register (`slt $7,$7,$5`) needs
+  an explicit pinned result (`(ka == kb && (cc = a4 < b4))` with `register s32 cc __asm__("$2")`).  tools/vm.py runs ~100 variants in 2-3 minutes, so a greedy pin search over (variable x register) is cheap (wip/greedy.py).
+- Hoisted loop movables are emitted in ENCOUNTER order of the loop body scan (cfg pointer assigned in the body before the inner loop => emitted before the D_800E53C0 pointer that is hoisted from the
+  inner loop), so a pointer local assigned at the top of an outer loop lands BEFORE the other invariant loads in the preheader; the ROM sometimes has it after (func_0042C8AC group 2, open).
+--- s707 ---
+FINDINGS s707 (targets: func_00444320, func_0044632C; both already solved by earlier workers, re-verified here with chk @SN)
+- func_00444320 is not a function: it is the case-3 loop body of func_00444260 (jump-table label split into a fake symbol); chk on the fake name says "not found in object", but func_00444260 (61 insns, 0x1B2260..0x1B2354) is EXACT @SN and covers it.
+- func_0044632C is EXACT @SN from the s607 source (void return, inlined func_004467D8 as do{c=*a++;d=*b++;n--;}while(c==d&&c!=0&&n==0); return c==d;). All earlier PARTIALs (o06, q04, s411, s508) returned 8-cnt; the ROM function returns void, which fixes the li/subu tail scheduling. The old-flags version needed an `asm("$6")` pin for the inlined helper; the SN version needs none.
+- Machine load was ~37 (WSL load average); a single fchk call took >2 minutes.

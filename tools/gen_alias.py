@@ -9,7 +9,13 @@ for fn in ('funcs.txt', 'funcs_a.txt'):
             out.append(f'PROVIDE({f[0]} = 0x{int(f[0][5:], 16):08X});')
 import os
 if os.path.exists('wip/subsumed.txt'):                 # old fragment entries swallowed by a bigger ported function: other code still calls them
+    sym = {}                                            # names that are not func_XXXXXXXX (libultra, ...): address from our symbol file
+    for sf in ('symbol_addrs.txt', 'c_syms.ld'):
+        if os.path.exists(sf):
+            for m in re.finditer(r'^\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+);', open(sf).read(), re.M): sym.setdefault(m.group(1), int(m.group(2), 16))
     for n in sorted(set(open('wip/subsumed.txt').read().split())):
-        out.append(f'PROVIDE({n} = 0x{int(n.split('_')[1], 16):08X});')
+        m = re.fullmatch(r'(?:func|D|jtbl)_([0-9A-Fa-f]{8})', n)
+        a = int(m.group(1), 16) if m else sym.get(n)
+        if a is not None: out.append(f'PROVIDE({n} = 0x{a:08X});')
 open('their_alias.ld', 'w', newline='\n').write('\n'.join(out) + '\n')
 print(len(out) - 1, 'aliases')

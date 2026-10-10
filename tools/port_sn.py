@@ -28,6 +28,8 @@ for l in open(f'{ws}/wip/out/results.txt', errors='replace'):
     note = l.split('#', 1)[1] if '#' in l else ''
     mm = re.search(r'flags:\s*((?:[@-]\S+[ 	]*)+)', note)
     if mm: rest += [t.rstrip('.,;') for t in mm.group(1).split()]
+    rest = [t.strip('[]') for t in rest]                                                                  # `[flags: @SN -fno-builtin]` spelling of some workers
+    rest = [u for t in rest for u in ((t, t.split('=', 1)[1]) if t.startswith('flags=') else (t,))]       # `flags=@SN` spelling of some workers
     if not any(t in ('@SN', '@SN272') for t in rest): continue
     if name in SKIP: skipped.append((name, 'port_skip')); continue
     ro = next((t for t in rest if t.startswith('ro=')), None)

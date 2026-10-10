@@ -38,3 +38,6 @@ func_00421B18
 func_00429C04
 func_004374E4
 __osCheckId
+func_002AA354
+func_002AA724
+func_0043A014

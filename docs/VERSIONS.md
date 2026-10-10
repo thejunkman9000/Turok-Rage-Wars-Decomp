@@ -1,5 +1,9 @@
 # Other versions of the game
 
+**Status: on hold.**  Building the other releases from our code (US v1.0, Europe, Germany) waits until US v1.1 is completely done; only the
+analysis below exists (`tools/ver_diff.py`, `tools/ver_cover.py`, the "other releases" panel of `tools/progress_chart.py`).  The prompt for the
+per-release workers is `docs/VERSION_PROMPT.txt`.
+
 ROMs (project root, gitignored, never commit them):
 
 | file | game | sha1 | melalawi name |

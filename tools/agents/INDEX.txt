@@ -1,0 +1,103 @@
+# helper tools written by the round-7 workers (workspace paths inside may need adjusting): name, origin, first comment line
+ad.py                    (from s702) ad.py <file.c> <fn> <rom hex> [tokens]  (WSL, from ~/trw_s702 after fk.sh copied the file): ALIGNED diff of ours vs ROM.
+ad.sh                    (from s704) ad.sh <file rel ws> <fn> <rom> <n> [xflags] [-v]  (WSL)
+adall.py                 (from s702) adall.py <listfile> : aligned diff (structural, operand) for every line of a chk list
+adlib.py                 (from s702) import sys, os, subprocess, re, difflib
+adx.sh                   (from s702) adx.sh <file.c> <fn> <rom> [tokens] : sync file then aligned diff
+asm2.py                  (from s704) asm2.py <fn> ... : print asm of function (glabel or alabel), until next glabel/alabel/endlabel; shows ROM/VRAM address columns
+asmx.py                  (from s705) import sys,re
+bgq.ps1                  (from s705) usage: tools/bgq.ps1 <bash script rel to ws> args...   (launches the script in WSL detached)
+cc1s.sh                  (from s702) usage: cc1s.sh file.c [cc1 flags]  -> prints n64link-normalised asm of a standalone test file
+d.sh                     (from s705) usage: tools/d.sh path func rom flags...   -> only differing lines with 2 lines context
+dlook.sh                 (from s703) dlook.sh pass pattern ctx
+done.py                  (from s702) done.py <fn> <file.c> "<flags e.g. @SN -fno-builtin>" "<note>" [name=xxx] [--partial] : verify with chk; EXACT -> copy to wip/out/<fn>.c + results lin
+dpass.sh                 (from s703) dpass.sh file.c : run dump.sh then print count of lines per pass file
+dump.sh                  (from s705) dump.sh <file.c> [outdir]  -> runs cc1 with -dr -ds -dg -dl -dS -dR into /tmp/dd_<name>/ ; prints dir
+dupgen.py                (from s703) dupgen.py <base.c> <fn> <rom> <conds comma sep> [maxvariants]: for every simple statement line of function <fn>, generate the variant
+evalsn.py                (from s704) evalsn.py <fn> <rom hex> <nrom insns> <xflags|-> file[::extra flags] ...   (run in WSL)
+fc.sh                    (from s703) usage: tools/fc.sh listfile  (runs fchk with CHKSIDE) ; then python tools/sd.py <fn>
+fk.sh                    (from s702) fast chk: copy only the files named in the list (+include/), then run chk.py.  usage (WSL): bash tools/fk.sh <listfile>
+frame.sh                 (from s703) frame.sh file.c [xflags] : compile with the @SN toolchain; print frame size and the sp-relative offsets used
+fsweep.sh                (from s704) fsweep.sh <file.c rel> <fn> <rom hex> <n> : try single cc1 flags (WSL); prints struct/full metric per flag
+gm.ps1                   (from s705) Set-Location D:\Projects\ws\s705
+gm.py                    (from s705) gm.py <base.c> <func> <rom hex> <first_line> <last_line> <out.c> [--pins "name:type:reg,name2:type:reg,..."] [--decls "l1-l2"] [flags...]
+harvest.py               (from s702) python tools/harvest.py <fn> <work.c> <rom> <flags...>   splice permuter outputs (best scores first) into work.c and chk them
+hc.ps1                   (from s705) usage: tools/hc.ps1 <base.c> <func> <rom> <l1> <l2> <out.c> [flags]
+hc.py                    (from s703) hc.py <base.c> <fn> <rom> <flags...> : greedy hill climb with mutations wrap/swap/dup (see mutgen.py, dupgen.py); objective (S,R) from rvfull.
+hcgen.py                 (from s706) declre=re.compile(r'^\s*(const |static |struct |register )?[A-Za-z_][A-Za-z0-9_ ]*[ *]+\**[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?( = [^;{}]*)?;\s*$')
+hcw.py                   (from s706) WSL-side batch scorer.  usage: hcw.py <listfile>   (chk list lines) -> prints 'idx structural operand ours rom' per line, aligned-diff metric
+killperm.sh              (from s705) kill all s705 permuter/queue processes (only those started from the s705 workspace / perm dirs)
+lregs.sh                 (from s705) lregs.sh <file.c>  : dump + print allocation order, dispositions and per-pseudo stats (first 14)
+lst.py                   (from s706) usage: lst.py <listfile> <fn> [LO_ HI_] : print our compiled insns (objdump, numbered) for the list line of fn, ROM insns side by side by index (no al
+m2c_jt2.py               (from s703) m2c for a function with several jump tables: python tools/m2c_jt2.py <fn> <va>:<count> [<va>:<count> ...]  (output to stdout, tmp file wip/m2c_jt_tmp.
+mktgt.py                 (from s704) mktgt.py <fn> : permuter target .s (glabel/alabel function body from asm/*.s) on stdout
+mut3.py                  (from s706) import re
+mutgen.py                (from s703) mutgen.py <base.c> <fn> <rom> <kind> [flags...]
+mvgen.py                 (from s706) Line-move variant search.  usage: mvgen.py <file.c> <fn> <rom> <first_line> <last_line> [-m i,j,...] [-- flags]
+pbest.sh                 (from s703) pbest.sh fn : copy best permuter output source to /mnt/d/.../wip/perm_<fn>.c and print its score dir
+pbg.ps1                  (from s705) usage: tools/pbg.ps1 <fn> <seconds> <jobs>
+pchain.sh                (from s704) pchain.sh mins jobs fn1 fn2 ... : run permuters sequentially (setup must exist) in the background
+perm_sn.sh               (from s705) usage (WSL, from workspace root): bash tools/perm_sn.sh <fn> <cfile rel. to ~/trw_s705> <rom hex> <ninsns> [sn flags e.g. -fno-builtin] ; env PS_272=1
+permcc_sn.sh             (from s703) permuter compile script for the @SN toolchain: permcc_sn.sh input.c -o output.o  (input already preprocessed). Env PERM_XF extra cc1 flags
+permsn_cc.sh             (from s702) permuter compile for @SN: permsn_cc.sh in.c -o out.elf   env: PS_VRAM (hex), PS_FLAGS (extra cc1 flags), PS_272=1 for gcc 2.7.2
+permsn_link.py           (from s705) import sys,re,subprocess,os
+permsn_setup.py          (from s706) Set up a decomp-permuter dir for an @SN function (run in WSL).  usage: permsn_setup.py <src.c> <fn> <rom hex> [flags like -fno-builtin | @SN272]
+pgo2.sh                  (from s705) pgo2.sh <fn> <rounds> <secs per round> <jobs> : iterated permuter (restart from the best output each round); run in WSL
+pharvest.sh              (from s702) pharvest.sh <fn> <work.c> <rom> [flags]  (WSL): splice each permuter output (best first) into work.c, aligned-diff it; leaves wip/_rv/ph<k>.c
+pk.sh                    (from s703) pk.sh fn : kill permuter runs for fn
+pl.sh                    (from s704) d=$HOME/perm/s704_$1
+pq.sh                    (from s702) permuter queue (WSL): bash tools/pq.sh <jobs> <secs> fn:file:rom:ninsn [...]   (runs strictly one permuter at a time)
+prio.py                  (from s703) prio.py [dir]: table of global-alloc order for the RTL dumps in ~/dmp703 (t.c.flow + t.c.greg): pseudo, refs, live length, calls crossed, priority, fi
+prun.sh                  (from s702) usage in WSL: bash tools/prun.sh <fn> <seconds> <jobs> ; logs to ~/perm/<fn>/run.log
+ps.ps1                   (from s705) Set-Location D:\Projects\ws\s705
+psetup.sh                (from s702) usage (WSL): bash tools/psetup.sh <fn> <wip/c/x.c> <rom hex> <ninsns> [cc1 flags]
+psn.sh                   (from s703) psn.sh <fn> <file.c rel to ~/trw_s703 e.g. wip/c/x.c> [xflags] : set up permuter dir ~/perm/s703_<fn> for @SN
+psn2.sh                  (from s704) psn2.sh <fn> <file.c rel ~/trw_s704> [xflags] : like psn.sh but target built by tools/mktgt.py (handles alabel functions)
+psn_sync.sh              (from s703) psn_sync.sh fn file [xf] : sync wip/include to ~/trw_s703 then set up the permuter dir
+psplice.py               (from s703) import sys,re
+pst.sh                   (from s703) for d in $HOME/perm/s703_func_*; do f=$(basename $d); [ -f $d/run.log ] || continue
+pstart.sh                (from s705) usage: tools/pstart.sh <fn> <workfile> <rom> <ninsns> <secs> <jobs> [flags]
+pstat.sh                 (from s705) for f in "$@"; do echo "== $f"; wsl -d Ubuntu-24.04 -- bash -c "tr '\r' '\n' < ~/perm/s705_$f/run.log | grep -E 'base score|new best|Found|zero' | tai
+q.sh                     (from s705) usage: tools/q.sh path func rom flags...
+qchk.sh                  (from s704) quick chk: refresh include/ + wip/ only.  usage (WSL): bash /mnt/d/Projects/ws/s704/tools/qchk.sh <listfile>
+rb.sh                    (from s706) usage (WSL): bash tools/rb.sh <suffix> [lines]  -> compact RTL of /tmp/s706dump/s.c.<suffix>
+regmap.py                (from s703) import os,glob
+regmap.sh                (from s705) regmap.sh <file.c> : after dump.sh, show for each pseudo: hard reg (first greg pass), refs/length stats
+regvote.py               (from s706) regvote.py <listfile> <fn>: align ours vs ROM and print votes of register substitutions ours->rom (GPR and FPR)
+rf.py                    (from s703) rf.py <file.c> <fn> <rom> [extra tokens e.g. -fno-builtin] : try single cc1 flags (and some pairs) from a menu in ONE chk call, rank by S/R.
+rocheck.py               (from s702) rocheck.py <file.c> <fn> <rom hex of fn> [tokens]: verify literal-pool usage of a function against the ROM:
+rtlbrief.py              (from s706) usage: rtlbrief.py <dumpfile> : compact view of insn stream in file order: uid  dest <- src
+rtlc.py                  (from s702) rtlc.py <dumpfile> [uid_lo uid_hi] : condense gcc RTL dump to one line per insn (uid + compact pattern)
+runq.sh                  (from s705) runq.sh <fn:rounds:secs:jobs> ...   run pgo2 sequentially (after any running s705 permuter finishes)
+rv.py                    (from s703) rv.py <spec.py> : try many source variants in ONE chk call, rank by chk words and by aligned structural diff.
+rv2.py                   (from s702) rv2.py <spec.py> : like rv.py but ranks variants by ALIGNED diff (structural*3+operand). Run in WSL from the workspace root.
+rvfull.py                (from s703) rvfull.py <spec.py> : like rv.py but spec.FULL is a list of complete file texts.
+sa.sh                    (from s703) sa.sh file.c : compile with the @SN toolchain (cc1 + asn64) and print the disassembly of .text
+sbs.py                   (from s706) side-by-side / aligned diff.  usage: sbs.py <listfile> <func> [full]   (list line for func as for chk.py)
+sbsm.py                  (from s706) aligned-diff metrics for many list lines.  usage: sbsm.py <listfile> ; prints per line: structural operand ours rom (one line per list line, in order)
+scanoff.py               (from s706) scanoff.py <listfile>: for each line, compile once and print aligned-diff metric for rom offsets -24..+24 bytes
+score.ps1                (from s705) param([string]$List)
+score.py                 (from s705) score.py <listfile>  (run in WSL from /mnt/d/Projects/ws/s705 after rsync, see tools/score.ps1)
+sd.py                    (from s703) import os,glob
+sd.sh                    (from s702) side-by-side: bash tools/sd.sh <file.c> <fn> <rom hex> [tokens...]   (shows only differing lines +-2 ctx unless FULL=1)
+sd2.py                   (from s703) import os,glob
+sdmk.py                  (from s704) import sys,re,subprocess
+sdorder.sh               (from s702) sdorder.sh <file.c> [n] : print the sched1 result order (uid:dest<-src) for the first n insns using sndump
+side.ps1                 (from s705) Set-Location D:\Projects\ws\s705
+side.py                  (from s705) side-by-side diff in WSL: python3 tools/side.py <list-line-style args: path func rom flags...>  (run from workspace root, after fchk.sh rsync)
+side.py.bak              (from s702) side-by-side diff in WSL: python3 tools/side.py <list-line-style args: path func rom flags...>  (run from workspace root, after fchk.sh rsync)
+side.sh                  (from s704) side.sh <file.c rel> <fn> <rom hex> [n=count] : side-by-side (ours @SN | ROM), mark differing lines with '|' ; xflags via env XF (e.g. -fno-builtin)
+snc.sh                   (from s706) usage (WSL): bash tools/snc.sh file.c [cc1 flags]  -> normalised asm (n64link asn64 output)
+sndump.sh                (from s702) sndump.sh <src.c> <dumpflags e.g. -dg> : run cc1 with RTL dump flags in a tmp dir, print the dump files list
+snfix.py                 (from s701) Post-processors for the cc1 -S output in the SN pipeline (called by lu_match.py before n64link asn64).
+splice.py                (from s702) splice.py <work.c> <perm output source.c> <fn> <out.c>: replace fn's definition in work.c by the one in the permuter output
+unpinclimb.py            (from s702) unpinclimb.py <src.c> <fn> <rom> <flags...> : greedily remove register-asm pins while the aligned diff score (3*struct+oper) does not get worse; write
+var.py                   (from s702) python tools/var.py <spec.json>   spec: {"base":"wip/w/x.c","func":"..","rom":"0x..","flags":"@SN -fno-builtin","vars":[[["old","new"],...], ...]}
+var2.py                  (from s705) python tools/var2.py <spec.json>   spec: {"base":"wip/w/x.c","func":"..","rom":"0x..","flags":"@SN","vars":[[["old","new"],...], ...]}
+vf.py                    (from s704) vf.py (WSL) <fn> <rom> <n> [xflags|-] file1 file2 ...   score whole files (rel to ~/trw_s704) with structural (VM=struct) or full metric
+vm.py                    (from s706) usage: python tools/vm.py <variants.txt> <fn> <rom> [flags...]   variants separated by lines starting with //====
+vrun.py                  (from s704) vrun.py (run in WSL) <template.c> <fn> <rom hex> <nrom insns> [xflags|-]
+vrun_metrics.py          (from s704) import re, difflib
+vv.py                    (from s706) usage: python tools/vv.py <variants.txt> <fn> <rom> [flags...]   variants separated by lines starting with //====
+waitlog.sh               (from s705) waitlog.sh <logfile> <pattern> <max seconds>
+waitperm.sh              (from s703) waitperm.sh <fn> <maxsecs> : wait until the permuter for <fn> finishes (or maxsecs), then print its best scores
