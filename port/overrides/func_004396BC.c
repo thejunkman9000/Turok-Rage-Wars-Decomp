@@ -27,7 +27,7 @@ s32 func_004396BC(void *cfg) {
     D_800E5950 = func_00252FFC(8);
     func_0044AFC0(D_80145088, 0);
     func_0044A600(D_80145088 - 0x48, 0, 0);
-    func_00286A78(D_8011FE88, 0, 0);
+    { extern char *getenv(const char *); extern int atoi(const char *); char *e = getenv("TUROK_LEVEL"); func_00286A78(D_8011FE88, e ? atoi(e) : 0, 0); }   /* TUROK_LEVEL=<map index 0..35>: start the custom match on that map (docs/ROM_MAPS.md) */
     if (func_0025471C() == 0) {
         func_0025470C(1);
     }

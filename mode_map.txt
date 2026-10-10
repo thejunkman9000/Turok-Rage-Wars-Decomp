@@ -151,3 +151,5 @@ func_00439EBC lu3+nf
 func_00439EE0 lu3+nf
 func_004002D8 lu3+nb
 func_004042F0 lu3+nb
+func_00404958 lu3+nb
+func_00405DC0 lu3+nb

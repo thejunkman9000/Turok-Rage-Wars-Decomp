@@ -384,6 +384,23 @@ static void capWrite(const char* name) {
     fprintf(stderr, "mapdump: wrote %s (%d static triangles of %d seen, %d textures)\n", name, (int)n, (int)capTris.size(), (int)byTex.size()); fflush(stderr);
 }
 
+
+// TUROK_MAPDUMP helper: port_vis.bin holds the arena's visibility matrix (map part 11 payload, K*K bytes of 0/1). The game copies it into RAM at level
+// load; every 16 frames the copy is located (once) and overwritten with 1s so every sector is drawn and a capture sees the whole arena.
+static void capVisAll(int nframes) {
+    static std::vector<uint8_t> pat; static uint8_t* where = nullptr; static int tried = 0;
+    if (pat.empty() && !tried) { tried = 1; FILE* f = fopen("port_vis.bin", "rb"); if (f) { uint8_t b[16384]; size_t n = fread(b, 1, sizeof b, f); fclose(f); pat.assign(b, b + n); } }
+    if (pat.empty()) return;
+    uint8_t* ram = (uint8_t*)0x80000000u; const size_t RAMSZ = 0x800000;
+    if (where && memcmp(where, pat.data(), pat.size()) != 0 && memcmp(where, std::vector<uint8_t>(pat.size(), 1).data(), pat.size()) != 0) where = nullptr;
+    if (!where && pat.size() >= 64) {
+        const uint8_t* hit = nullptr;
+        for (size_t i = 0; i + pat.size() <= RAMSZ; i += 4) { if (ram[i] == pat[0] && memcmp(ram + i, pat.data(), 64) == 0) { hit = ram + i; break; } }
+        if (hit) { where = (uint8_t*)hit; fprintf(stderr, "visall: matrix at guest 0x%08x (%d bytes)\n", (unsigned)(0x80000000u + (where - ram)), (int)pat.size()); fflush(stderr); }
+    }
+    if (where) memset(where, 1, pat.size());
+}
+
 static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool noPersp = false) {
     float invw = 1.f / v.cw;
     float nx = v.cx * invw, ny = v.cy * invw, nz = v.cz * invw;
@@ -585,7 +602,7 @@ static void runDL(uint32_t addr, int depth) {
             emitTri(((w1 >> 16) & 0xFF) / 2, ((w1 >> 8) & 0xFF) / 2, (w1 & 0xFF) / 2); break;
         case 0xDA: {   // MTX
             int f = (w0 & 0xFF) ^ 1; float m[16]; loadMtx(res(w1), m); if (g_dump) { fprintf(g_dump, "      [mtx f=%d:"); for (int q = 0; q < 16; q++) fprintf(g_dump, " %.3f", m[q]); fprintf(g_dump, "]"); fprintf(g_dump, "%c", 10); } { static int nl; if (nl < 6 && g_nfpub >= 590 && vtxlog_on()) { nl++; fprintf(stderr, "mtx f=%d @%p:", f, (const void*)res(w1)); for (int i = 0; i < 16; i++) fprintf(stderr, " %.3g", m[i]); fprintf(stderr, "\n"); } }
-            if (f & 4) { if (f & 2) { memcpy(S.proj, m, 64); S.camSet = false; } else matMul(m, S.proj, S.proj); }
+            if (f & 4) { if (f & 2) { memcpy(S.proj, m, 64); S.camSet = false; if (capOn() && !g_frameCamSet) { const float* C = m; double A[3][4] = { { C[0], C[4], C[8], -C[12] }, { C[1], C[5], C[9], -C[13] }, { C[3], C[7], C[11], -C[15] } }; bool ok = true; for (int c = 0; c < 3 && ok; c++) { int pv = c; for (int r = c + 1; r < 3; r++) if (fabs(A[r][c]) > fabs(A[pv][c])) pv = r; if (fabs(A[pv][c]) < 1e-9) { ok = false; break; } for (int j = 0; j < 4; j++) std::swap(A[c][j], A[pv][j]); for (int r = 0; r < 3; r++) if (r != c) { double fct = A[r][c] / A[c][c]; for (int j = 0; j < 4; j++) A[r][j] -= fct * A[c][j]; } } if (ok) { g_frameCamSet = true; for (int c = 0; c < 3; c++) g_frameCam[c] = (float)(A[c][3] / A[c][c]); } } } else matMul(m, S.proj, S.proj); }
             else {
                 if ((f & 1) && S.mvTop < 9) { memcpy(S.mv[S.mvTop + 1], S.mv[S.mvTop], 64); S.mvTop++; }
                 if (f & 2) memcpy(S.mv[S.mvTop], m, 64); else matMul(m, S.mv[S.mvTop], S.mv[S.mvTop]);
@@ -672,8 +689,10 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         g_dlBudget = 4000000; runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (capOn() && (nframes & 3) == 0) { FILE* cf = fopen("port_cam.tmp", "w"); if (cf) { fprintf(cf, "%.3f %.3f %.3f\n", g_frameCam[0], g_frameCam[1], g_frameCam[2]); fclose(cf); MoveFileExA("port_cam.tmp", "port_cam.txt", MOVEFILE_REPLACE_EXISTING); } }
+        if (capOn() && GetFileAttributesA("port_poke.txt") != INVALID_FILE_ATTRIBUTES) { FILE* pf = fopen("port_poke.txt", "r"); if (pf) { unsigned ad; float v[3]; if (fscanf(pf, "%x %f %f %f", &ad, &v[0], &v[1], &v[2]) == 4) { for (int k = 0; k < 3; k++) { uint32_t u; memcpy(&u, &v[k], 4); u = _byteswap_ulong(u); memcpy((void*)(size_t)(ad + 4 * k), &u, 4); } } fclose(pf); DeleteFileA("port_poke.txt"); } }
         if (capOn() && GetFileAttributesA("port_ramdump.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_ramdump.txt"); FILE* rf = fopen("port_ram.bin", "wb"); if (rf) { fwrite((void*)0x80000000u, 1, 0x800000, rf); fclose(rf); } }
         if (capOn() && (nframes & 15) == 0) { FILE* tf = fopen("port_mapdump.txt", "r"); if (tf) { char nm[100] = "map"; if (fscanf(tf, "%99s", nm) != 1) strcpy(nm, "map"); fclose(tf); DeleteFileA("port_mapdump.txt"); capWrite(nm); } if (GetFileAttributesA("port_mapreset.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_mapreset.txt"); capTris.clear(); } }
+        if (capOn() && (nframes & 15) == 8) capVisAll(nframes);
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
         if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size()); fflush(stderr); }
     }

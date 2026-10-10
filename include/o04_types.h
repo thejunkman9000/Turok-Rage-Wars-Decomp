@@ -7,7 +7,7 @@
 typedef struct O04Sub10 { u8 pad0[0x10]; u8 unk10; } O04Sub10;
 
 /* object pointed to by D_800E4F60 (mode state) */
-typedef struct O04Sub14 { u8 pad0[0x14]; s16 unk14; } O04Sub14;
+typedef struct O04Sub14 { u8 pad0[0x10]; u8 unk10; u8 pad11[3]; u16 unk14; u8 pad16[2]; s16 unk18; } O04Sub14;
 typedef struct O04Sub38 { u8 pad0[0x38]; void *unk38; } O04Sub38;
 
 typedef struct O04ModeF60 {
@@ -74,23 +74,32 @@ typedef struct O04GFlags {
 } O04GFlags;
 
 /* D_800E4690 (mode state of ovl A "menu" mode) */
+typedef union O04W { s32 w; struct { u16 h0; u16 h1; } h; } O04W;
+
 typedef struct O04ModeS4690 {
     /* 0x0 */ u8 pad0[0x20 - 0x0];
     /* 0x20 */ u8 unk20[0x970 - 0x20];
     /* 0x970 */ s32 unk970;
-    /* 0x974 */ u8 pad974[0x988 - 0x974];
+    /* 0x974 */ s32 unk974;
+    /* 0x978 */ O04Sub14 * unk978;
+    /* 0x97C */ O04W u97C;
+    /* 0x980 */ O04Sub14 * unk980;
+    /* 0x984 */ O04W u984;
     /* 0x988 */ s32 unk988;
-    /* 0x98C */ u8 pad98C[0x998 - 0x98C];
+    /* 0x98C */ s32 unk98C;
+    /* 0x990 */ void * unk990;
+    /* 0x994 */ void * unk994;
     /* 0x998 */ O04Sub38 * unk998;
-    /* 0x99C */ u8 pad99C[0x9A0 - 0x99C];
+    /* 0x99C */ void * unk99C;
     /* 0x9A0 */ char unk9A0[0x32];
     /* 0x9D2 */ char unk9D2[0x32];
     /* 0xA04 */ char unkA04[0x40];
     /* 0xA44 */ s32 unkA44;
     /* 0xA48 */ O04Sub10 * unkA48;
-    /* 0xA4C */ u8 padA4C[0xA50 - 0xA4C];
+    /* 0xA4C */ s32 unkA4C;
     /* 0xA50 */ O04Sub10 * unkA50;
-    /* 0xA54 */ u8 padA54[0xA5C - 0xA54];
+    /* 0xA54 */ s32 unkA54;
+    /* 0xA58 */ s32 unkA58;
     /* 0xA5C */ s32 unkA5C;
     /* 0xA60 */ O04Sub10 * unkA60;
     /* 0xA64 */ O04Sub10 * unkA64;
@@ -149,7 +158,7 @@ typedef struct O04ModeS5430 {
 /* D_800E4600 */
 typedef struct O04ModeS4600 {
     /* 0x00 */ s32 unk0;
-    /* 0x04 */ u8 pad4[4];
+    /* 0x04 */ s32 unk4;
     /* 0x08 */ O04Hdr16 *unk8;
     /* 0x0C */ s32 unkC;
     /* 0x10 */ u8 pad10[4];

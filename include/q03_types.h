@@ -1,6 +1,7 @@
 #ifndef Q03_TYPES_H
 #define Q03_TYPES_H
 #include "common.h"
+#include "o05_types.h"
 
 /* round-3 overlay A types (workspace q03). */
 
@@ -66,7 +67,8 @@ typedef struct Q03F60 {
     /* 0x000 */ void *unk0;
     /* 0x004 */ u8 pad4[0x308 - 0x4];
     /* 0x308 */ u8 unk308[0x4C];
-    /* 0x354 */ u8 pad354[0x3CC - 0x354];
+    /* 0x354 */ u8 pad354[0x3C8 - 0x354];
+    /* 0x3C8 */ void *unk3C8;
     /* 0x3CC */ Q03H14 *unk3CC;
     /* 0x3D0 */ Q03W u3D0;
     /* 0x3D4 */ Q03H14 *unk3D4;
@@ -130,5 +132,34 @@ typedef struct Q03Slot {
     /* 0x20 */ u16 id20; u16 p22;
     /* 0x24 */ u16 id24; u16 p26;
 } Q03Slot;
+
+
+/* lobby constructor (func_0042F12C): widget seen through unsigned halfword fields / signed halfword fields */
+typedef struct Q03WdU { u8 pad0[0x10]; u8 b10; u8 pad11[3]; u16 u14; u16 pad16; union { u16 u; s16 s; } w18; } Q03WdU;
+typedef Q03WdU Q03WdS;
+
+typedef struct Q03Hdr {
+    /* 0x00 */ void *f0;
+    /* 0x04 */ void *f4;
+    /* 0x08 */ u8 blk8[0x24 - 8];
+    /* 0x24 */ void *f24;
+    /* 0x28 */ void *f28;
+    /* 0x2C */ s32 w2C[4];
+    /* 0x3C */ Q03WdS *f3C;
+    /* 0x40 */ s32 f40;
+    /* 0x44 */ Q03WdS *f44;
+    /* 0x48 */ s32 f48;
+    /* 0x4C */ s32 f4C;
+    /* 0x50 */ s32 f50;
+    /* 0x54 */ s32 f54;
+} Q03Hdr;
+/* D_800E54A4 as used by the lobby constructor (same block as O05Lobby) */
+typedef struct Q03Lob {
+    Q03Hdr h;
+    O05Plr plr[4];
+    O05Slot slot[4];
+    u8 pad2E28[0x3470 - 0x2E28];
+    s32 f3470;
+} Q03Lob;
 
 #endif
