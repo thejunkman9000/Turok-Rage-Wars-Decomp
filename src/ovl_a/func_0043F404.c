@@ -6,7 +6,7 @@ typedef struct O06A { u8 pad[0x14]; O06D *unk14; } O06A;
 typedef struct { u8 pad[0x20]; void *unk20; } O06B;
 extern s32 func_002643A8(void *a);
 extern s32 func_002643C0(void *a);
-inline f32 func_00443030(O06A *a) {
+static inline f32 func_00443030(O06A *a) {
     O06D *d = a->unk14;
     void *p = d->unk18(a);
     switch (d->unk4) {
@@ -20,7 +20,7 @@ inline f32 func_00443030(O06A *a) {
     case 8: return (f32)*(u32 *)p;
     }
 }
-inline void func_00443120(O06A *a, f32 v) {
+static inline void func_00443120(O06A *a, f32 v) {
     O06D *d = a->unk14;
     void *p = d->unk18(a);
     switch (d->unk4) {

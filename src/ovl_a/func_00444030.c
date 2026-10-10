@@ -1,4 +1,4 @@
-/* GROUP: func_00444024 (real entry 0x444030; the 3 words before it are stray padding) inlines func_00444204 -> verify both from this file */
+/* GROUP: func_00444030 (real entry 0x444030; the 3 words before it are stray padding) inlines func_00444204 -> verify both from this file */
 #include "o06_types.h"
 typedef struct { u8 pad[0x78]; u8 unk78; u8 unk79; u8 unk7A; u8 unk7B; u8 unk7C; u8 unk7D; u8 unk7E; u8 unk7F; u8 unk80; u8 unk81; u8 unk82; u8 unk83; u8 pad2[0x10]; u8 unk94; u8 unk95; } O06A;
 typedef struct {
@@ -14,7 +14,7 @@ static inline void func_00444204(O06A *a, u8 b) {
     a->unk7F = b; a->unk80 = 0; a->unk82 = 0; a->unk83 = 0; a->unk81 = 0; a->unk94 = 0; a->unk95 = 0;
     func_00444260(a);
 }
-void func_00444024(O06B *a) {
+void func_00444030(O06B *a) {
     s32 i;
     a->unk17 = 1;
     a->unk18 = 0x80;

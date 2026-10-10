@@ -8,7 +8,7 @@ extern char D_80154060[];
 extern char D_800E23B0[];
 extern char D_800E23B8[];
 extern char D_800E23C0[];
-inline f32 func_00443030(O06A *a) {
+static inline f32 func_00443030(O06A *a) {
     O06D *d = a->unk14;
     void *p = d->unk18(a);
     switch (d->unk4) {

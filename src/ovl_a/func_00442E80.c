@@ -4,8 +4,8 @@ typedef struct { u8 b[4]; } O06C4;
 typedef struct { u8 pad[0x478]; s32 unk478; } O06A;
 typedef struct { s32 unk0; s16 unk4; s16 pad6; u32 unk8; s16 unkC; s16 unkE; u8 unk10; u8 unk11; u8 unk12; u8 unk13; s32 unk14; s32 unk18; s32 unk1C; O06A *unk20; s32 unk24; } O06E;
 typedef struct { s16 unk0; s16 pad2; s32 unk4; s16 unk8; s16 unkA; u8 unkC; u8 unkD; u8 unkE; u8 unkF; s32 unk10; } O06S;
-inline s32 func_00442E48(s16 *a) { if (*a == 3) return 0x480; return 0; }
-inline void func_00442E64(s16 *a, O06A *b) { if (*a == 3) b->unk478 = 1; }
+static inline s32 func_00442E48(s16 *a) { if (*a == 3) return 0x480; return 0; }
+static inline void func_00442E64(s16 *a, O06A *b) { if (*a == 3) b->unk478 = 1; }
 void func_00442E80(O06E *a, O06S *b, O06A **c, s32 d, s32 e) {
     s32 sz;
     a->unk0 = d;
