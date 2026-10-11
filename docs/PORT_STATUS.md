@@ -177,3 +177,10 @@ The matched C of the real toolchain (`mode=sn` in the manifests: sources of mela
 zmode draws opaque/interpenetrating/translucent/decal = 138/9/0/0 (frame 300), 10/26/1/0 (frame 600): **no decal-mode draws**, so the missing depth bias for decals is not an issue there; texgen vertices 0 (environment mapping is unused);
 **fog**: 1649 vertices per frame carry the fog bit (frame 600) and the renderer implements no fog at all: `G_SETFOGCOLOR` and `G_MW_FOG` are ignored and the vertex alpha is not replaced by the fog factor (a blend mode that mixes with `G_BL_CLR_FOG`
 is drawn as a plain alpha blend against the frame buffer); texture tile `shiftS/shiftT` is ignored (`TUROK_TILEDBG=1` logs tiles that use it: none in the trial level or the attract demo).
+
+### Texture coordinates: G_TEXTURE scale vs G_MODIFYVTX (fixed 2026-10-10)
+The RSP multiplies a vertex's s/t by the `G_TEXTURE` scale when the vertex is LOADED; `G_MODIFYVTX` (G_MWO_POINT_ST, offset 0x14) overwrites s/t with FINAL values. The renderer used to keep raw s/t and multiply by the scale at draw time, so every
+vertex set with `G_MODIFYVTX` (pillars and boxes in the arenas, the weapon models) got the scale applied twice: a 32x64 pillar texture showed 2x8 texels (long vertical streaks), the first-person weapons looked flat black.
+Now `loadVtx` stores `s * scale` (and remembers the scale in `V.ts/tt` for diagnostics), `pushVtx` / the map export use s/t as final S10.5 values, `G_MODIFYVTX` is unchanged.
+Tools that found it: `TUROK_MODVTXLOG=1` (values written by G_MODIFYVTX with the scale in effect: s,t = 1023,2046 for a 32x64 texture), `pressfile` step `pick:x:y;x:y` + `port\picktest.ps1` (the clipped triangles under 480x360 pixels of the next frame: source positions, s/t, scale, tile, texture key into `run.log`),
+`TUROK_TEXDUMPKEY=<key>[:<key>]` (writes `port\build\key_<key>.ppm`), `TUROK_UVLOG=1|2` (clamped axes with UVs outside the texture / every textured draw of one frame), `TUROK_SCALELOG=1`, `TUROK_TEX1LOG=1`, `TUROK_UVRAW=1`.
