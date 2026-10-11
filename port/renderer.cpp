@@ -290,6 +290,8 @@ static void flush() {
                 (int)batch.size() / 3, x0, y0, x1, y1, r / n, g / n, b / n, a / n, cur.texOn ? 1 : 0, (cur.texOn && !cur.srv) ? "(nosrv)" : "", cw0, cw1, cur.omL, cur.omH, cur.geom, cycle,
                 cur.prim[0], cur.prim[1], cur.prim[2], cur.prim[3], cur.env[0], cur.env[1], cur.env[2], cur.env[3], zb, zcmp, zupd, blend, thr);
     }
+    { static int fl = -1, nfl; if (fl < 0) fl = getenv("TUROK_FOGLOG") ? 1 : 0;      // TUROK_FOGLOG=1: log the render modes of the first draws that have the fog geometry bit set (the renderer has no fog)
+      if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); } }
     ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
     batch.clear();
 }
