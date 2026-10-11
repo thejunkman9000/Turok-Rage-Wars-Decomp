@@ -3929,3 +3929,162 @@ Mechanisms verified in the gcc 2.8.1 sources (D:/Projects/ext/gcc281src):
   * `&`-backgrounded permuter jobs die when the wsl call returns; run them with run_in_background and `timeout`.
   * Dump recipe used for all loop/sched questions: `EXTRA='-fno-builtin -fsched-verbose=5' bash tools/dump.sh <file.c> /tmp/dd_x` (a.i.loop = loop.c log + RTL after loop,
     a.i.sched / a.i.sched2 = sched logs with "ready list" priorities), `python3 tools/prio2.py /tmp/dd_x` = global-alloc order/registers per pseudo.
+
+=== ROUND 9c FINDINGS (s902: func_00418224 loop.c hoisting vs pins, parameter preferences, SDK shift order) (workspace s902) ===
+ROUND 9 / s902 FINDINGS (new lessons only)
+==========================================
+
+1. func_00403658 (EXACT): a float LITERAL stored into a frame local of a `static inline` helper keeps the inline-frame pseudo alive.
+   integrate.c gives the inlined callee frame a pseudo (force_reg(loc), const_equiv = loc) and try_constants/subst_constants substitute
+   it into every copied insn only if apply_change_group accepts the WHOLE insn.  A store whose source is a register with a known constant
+   value (a float literal 10.0f from the pool) becomes `(set (mem frame) (const_double))` after substitution = unrecognisable = the whole
+   substitution of that insn is rejected, so the pseudo survives and the ROM keeps `addiu s0,sp,80` + P-relative stores/`move a0,s0`.
+   With `extern f32 D_800E0CA8` (a memory source) everything folds to sp-relative addressing and the draft is 4 words off.
+   => when the ROM keeps a frame pointer pseudo in an inlined struct-returning helper, check whether a constant is stored into the
+      helper's local: it must be a LITERAL in the source (this also fixes the pool order), never an extern.
+   `do { res.z = 0; } while (0)` (loop notes = scheduling barrier) was needed for the `move v0,s1` placement.
+
+2. func_00290A68 (EXACT, needs 2 hacks): how a DEAD load ends up above `addiu sp,sp,-N` (sched2 mechanics, verified with
+   -fsched-verbose=5 / tools/sverb.sh and cc1 `-fno-delayed-branch` to see the pre-reorg order).
+   a) sched2 (reload_completed) is a REVERSE list scheduler: it picks from the end of the block.  Prologue stores (sw ra/s0..sN) are
+      in block 0 (only if the first block does not start with a label), all of them ready right after the last call/branch.
+      Pick rules (schedule_select): highest priority group first (priority = longest dependence chain from the block start, load edges
+      cost 2, everything else 1 -> almost always all 1); inside the group a load that follows a STORE pick is blocked for 1 cycle; among
+      the unblocked the largest potential hazard wins (store > load > ALU); ties by luid (later insn first).
+   b) Consequence: a load that is ready from the beginning of the pre-call phase is picked at the first free ALU slot (right after
+      the `li a1` of the call), i.e. it lands next to the argument moves.  It reaches the TOP of the block (above addiu sp) only if it is
+      released at the same moment as a store: the stores `sw s3,..` / `sw s4,..` of the prologue are released when the insn that writes
+      s3 / s4 (the `la s3,sym` / `move s4,a0`) is picked; if the load's LAST dependent is that same insn, the store preempts it and the
+      load is blocked in the next cycle; the alternation store/ALU/store/ALU then starves the load to the very top.
+      A dead load has no dependents, so it needs an artificial consumer: edges to an asm are FREE (INSN_CODE < 0 -> cost 1),
+      edges to a recognised insn cost 2 (the producer is queued 2 cycles).
+   c) The working source: `extern volatile s32 D_801536B8;` (the read must survive flow) + a NON-volatile asm that consumes the loaded
+      value and is the writer of the callee-saved register:  p = (f32 *)D_801536B8; __asm__("la %0,D_8011FE88" : "=r"(tb) : "r"(p));
+      (tb pinned `register u8 *tb __asm__("$19")` only fixes the s2/s3 order of tb vs the -1 constant).  An EMPTY template with
+      "=r"(tb) : "0"(D_8011FE88), "r"(p) does NOT work: the compiler emits a separate `la` before the asm, the load and the `la` are
+      released together and the load wins the next slot.  A volatile asm is a full barrier (depends on every earlier insn incl. all
+      prologue saves) and puts the argument move after the saves - the opposite of the ROM.
+      The plain `tb = D_8011FE88;` before the asm is dead on the MIPS build (flow deletes it) and keeps a TARGET_PC build valid.
+   d) Things that look related but are NOT the cause: a dead if/else on the same volatile (jump2 deletes branch + feeder with
+      delete_computation, but the diamond splits the basic block so the argument move `move a0,s3` ends up in the join block,
+      AFTER the four register saves); `do { } while (0)` (LOOP notes make the first insn after them depend on EVERY earlier insn,
+      saves included); an orphan volatile read alone (lands after `move a0,s3`).
+   e) Other sched facts found on the way: no-op moves (`move a2,a2`) are turned into notes at the START of sched2 (they do not take
+      part in it); sched1 dependence links (LOG_LINKS) stay on the insns and are reused by sched2 (stale edges, e.g. OUTPUT edge between
+      two sets of the same pseudo); a call is a barrier only for call-used hard registers (a load into v1 can not move below it);
+      jump_optimize delete_computation removes a dead branch's feeder only if SET_DEST is pointer-equal to the REG_DEAD note's reg and
+      only walking back over plain INSNs.
+   f) Tools: wip/sh/noslot.sh <file> [n] shows the pre-reorg (sched2) order via -fno-delayed-branch; tools/sverb.sh <file> -dR sched2 the
+      pick log; `bash tools/rs.sh greg` the RTL with the dependence lists of the insns; wip/sh/sdv.sh <n> files... side-by-side of variants.
+
+3. func_00418224 (EXACT, no pins, no asm): a 767-insn display-list loop.  What got it from 287/292 (aligned structural/operand) to 0/0:
+   a) loop.c NEVER hoists anything computed from a hard register (scan_loop: `for i < FIRST_PSEUDO_REGISTER: may_not_optimize[i] = 1, n_times_set[i] = 1`).
+      My register pins on tw / tsz (the SDK macro inputs) therefore killed the ROM structure: in the ROM the pre-loop block is loop.c output (constants,
+      &D_80110634, the F540 line word, (tw-1)*4 tile-size word, tw*stripRows, (tsz+3)>>2, (tsz+1)>>1, stripRows-1) and the sp20/sp24/sp28/sp2C stack slots are
+      those hoisted temporaries SPILLED (slot offsets follow pseudo-creation order).  Write the invariant SDK-macro arguments INLINE in the loop body
+      (#define'd expressions, no variables) and let loop.c hoist; a plain pre-loop `sp24 = ...;` statement gives a different block order / pseudo numbers.
+      Only pin values that do not feed invariants.  The loop dump (`-dL`, wip/sh/... `Loop from..: Insn N: regno R (life L), savings S moved/not desirable`)
+      tells which constants/insns were hoisted (savings >= 3..4 moves a constant; identical insns "match" and add up).
+   b) Parameters that the ROM modifies in place (`y1 <<= 10`) must stay the PARAMETER pseudos.  The incoming-register move gives the pseudo a hard register
+      preference (y1 -> a3, x1 -> a2); global-alloc find_reg pass 0 makes every HIGHER-priority conflicting pseudo avoid the registers preferred by LOWER-priority
+      conflicting ones (prune_preferences/regs_someone_prefers), unless that register is in the preferring pseudo's own hard_reg_conflicts.  With `Y1 = y1` copied
+      into a pinned local the preference disappears and the whole low-register assignment shifts by one (hoisted &D_80110634 took a3 instead of t0, tw t1 instead
+      of t2, img pointer/0x07080200 swapped a2/a3): that was the entire remaining 52-operand diff.  Tools: regdump.py (conflicts, order, hard reg per pseudo),
+      wip/sh/prio2.py (global-alloc order table: refs, live length, priority guess, hard reg), wip/sh/rdump.sh <file> <pseudo...>.
+   c) Copies feeding later float conversions: `hCopy = h;` BEFORE the first use of h (cse then uses the copy in the first conversion too and reload_cse rewrites
+      the register back: the ROM's `addu a2,a0,zero` right before `mtc1 a0`), `wCopy = w;` likewise; both give the ROM's a3/a2 live ranges (a2/a3 are free after
+      the param moves).  Placement after the first use leaves the copy at the end of the block (wrong register, wrong place).
+   d) Anything that must be computed first (here `(s32)srcH` for the zero test, before `(s32)(srcH * K)`) goes into its own variable assigned earlier:
+      `srcHi = (s32)srcH;` orders the two trunc.w.s/mfc1 like the ROM (sched1 keeps source order for equal-latency insns).
+   e) The SDK `_SHIFTL(G_TEXRECT,24,8) | _SHIFTL(lrx,12,12) | _SHIFTL(lry,0,12)` order must be kept in the source: `(0xE4000000 | lrx_part) | lry_part`
+      reproduces the ROM tail (constant `lui a0,0xe400` early, `or v0,v0,a0` on the lry part first); `E4 | (lrx | lry)` schedules differently and that changes
+      which low registers the local pseudos of the tail use, which in turn changes every global allocation (local-alloc registers are hard-reg conflicts of globals).
+   f) switch cases that store a table value and divide by the same loaded value: `stripRows = (K / D_800E32A4->w) & ~1;` BEFORE `rowBytes = ...` keeps the loaded
+      value in a register (the other order spills it: store + reload before the div).
+   g) Dead ends worth knowing: volatile locals instead of spills (much worse), named pinned constants instead of loop.c hoisting (wrong order), pins on the loop
+      temporaries (t3/t4/t7/img: no gain once the allocation is right), clobber asms on $6 (made things worse).
+   Method for big functions: aligned listing (wip/sh/aln.py <file> <fn> <rom> [lo hi]), windowed score (wip/sh/vbw.py --win lo hi), per-window scan (winscan.sh),
+   generators for variants (wip/sh/gen_*.py) + vbrun.sh to rank them; fix the first window with structural diffs, then the next.
+
+4. General: `wip/sh/noslot.sh <file.c> [n]` = cc1 with -fno-delayed-branch (the order sched2 produced before reorg filled delay slots);
+   a call's argument moves (`move a0,s3`, `li a1,..`) belong to the same basic block as the call: a (dead) branch before the call puts them
+   in the block AFTER the prologue saves, a straight line keeps them before the saves (the ROM's case).
+
+ROUND 9 / s902 FINDINGS (new lessons only)
+==========================================
+
+1. func_00403658 (EXACT): a float LITERAL stored into a frame local of a `static inline` helper keeps the inline-frame pseudo alive.
+   integrate.c gives the inlined callee frame a pseudo (force_reg(loc), const_equiv = loc) and try_constants/subst_constants substitute
+   it into every copied insn only if apply_change_group accepts the WHOLE insn.  A store whose source is a register with a known constant
+   value (a float literal 10.0f from the pool) becomes `(set (mem frame) (const_double))` after substitution = unrecognisable = the whole
+   substitution of that insn is rejected, so the pseudo survives and the ROM keeps `addiu s0,sp,80` + P-relative stores/`move a0,s0`.
+   With `extern f32 D_800E0CA8` (a memory source) everything folds to sp-relative addressing and the draft is 4 words off.
+   => when the ROM keeps a frame pointer pseudo in an inlined struct-returning helper, check whether a constant is stored into the
+      helper's local: it must be a LITERAL in the source (this also fixes the pool order), never an extern.
+   `do { res.z = 0; } while (0)` (loop notes = scheduling barrier) was needed for the `move v0,s1` placement.
+
+2. func_00290A68 (EXACT, needs 2 hacks): how a DEAD load ends up above `addiu sp,sp,-N` (sched2 mechanics, verified with
+   -fsched-verbose=5 / tools/sverb.sh and cc1 `-fno-delayed-branch` to see the pre-reorg order).
+   a) sched2 (reload_completed) is a REVERSE list scheduler: it picks from the end of the block.  Prologue stores (sw ra/s0..sN) are
+      in block 0 (only if the first block does not start with a label), all of them ready right after the last call/branch.
+      Pick rules (schedule_select): highest priority group first (priority = longest dependence chain from the block start, load edges
+      cost 2, everything else 1 -> almost always all 1); inside the group a load that follows a STORE pick is blocked for 1 cycle; among
+      the unblocked the largest potential hazard wins (store > load > ALU); ties by luid (later insn first).
+   b) Consequence: a load that is ready from the beginning of the pre-call phase is picked at the first free ALU slot (right after
+      the `li a1` of the call), i.e. it lands next to the argument moves.  It reaches the TOP of the block (above addiu sp) only if it is
+      released at the same moment as a store: the stores `sw s3,..` / `sw s4,..` of the prologue are released when the insn that writes
+      s3 / s4 (the `la s3,sym` / `move s4,a0`) is picked; if the load's LAST dependent is that same insn, the store preempts it and the
+      load is blocked in the next cycle; the alternation store/ALU/store/ALU then starves the load to the very top.
+      A dead load has no dependents, so it needs an artificial consumer: edges to an asm are FREE (INSN_CODE < 0 -> cost 1),
+      edges to a recognised insn cost 2 (the producer is queued 2 cycles).
+   c) The working source: `extern volatile s32 D_801536B8;` (the read must survive flow) + a NON-volatile asm that consumes the loaded
+      value and is the writer of the callee-saved register:  p = (f32 *)D_801536B8; __asm__("la %0,D_8011FE88" : "=r"(tb) : "r"(p));
+      (tb pinned `register u8 *tb __asm__("$19")` only fixes the s2/s3 order of tb vs the -1 constant).  An EMPTY template with
+      "=r"(tb) : "0"(D_8011FE88), "r"(p) does NOT work: the compiler emits a separate `la` before the asm, the load and the `la` are
+      released together and the load wins the next slot.  A volatile asm is a full barrier (depends on every earlier insn incl. all
+      prologue saves) and puts the argument move after the saves - the opposite of the ROM.
+      The plain `tb = D_8011FE88;` before the asm is dead on the MIPS build (flow deletes it) and keeps a TARGET_PC build valid.
+   d) Things that look related but are NOT the cause: a dead if/else on the same volatile (jump2 deletes branch + feeder with
+      delete_computation, but the diamond splits the basic block so the argument move `move a0,s3` ends up in the join block,
+      AFTER the four register saves); `do { } while (0)` (LOOP notes make the first insn after them depend on EVERY earlier insn,
+      saves included); an orphan volatile read alone (lands after `move a0,s3`).
+   e) Other sched facts found on the way: no-op moves (`move a2,a2`) are turned into notes at the START of sched2 (they do not take
+      part in it); sched1 dependence links (LOG_LINKS) stay on the insns and are reused by sched2 (stale edges, e.g. OUTPUT edge between
+      two sets of the same pseudo); a call is a barrier only for call-used hard registers (a load into v1 can not move below it);
+      jump_optimize delete_computation removes a dead branch's feeder only if SET_DEST is pointer-equal to the REG_DEAD note's reg and
+      only walking back over plain INSNs.
+   f) Tools: wip/sh/noslot.sh <file> [n] shows the pre-reorg (sched2) order via -fno-delayed-branch; tools/sverb.sh <file> -dR sched2 the
+      pick log; `bash tools/rs.sh greg` the RTL with the dependence lists of the insns; wip/sh/sdv.sh <n> files... side-by-side of variants.
+
+3. func_00418224 (EXACT, no pins, no asm): a 767-insn display-list loop.  What got it from 287/292 (aligned structural/operand) to 0/0:
+   a) loop.c NEVER hoists anything computed from a hard register (scan_loop: `for i < FIRST_PSEUDO_REGISTER: may_not_optimize[i] = 1, n_times_set[i] = 1`).
+      My register pins on tw / tsz (the SDK macro inputs) therefore killed the ROM structure: in the ROM the pre-loop block is loop.c output (constants,
+      &D_80110634, the F540 line word, (tw-1)*4 tile-size word, tw*stripRows, (tsz+3)>>2, (tsz+1)>>1, stripRows-1) and the sp20/sp24/sp28/sp2C stack slots are
+      those hoisted temporaries SPILLED (slot offsets follow pseudo-creation order).  Write the invariant SDK-macro arguments INLINE in the loop body
+      (#define'd expressions, no variables) and let loop.c hoist; a plain pre-loop `sp24 = ...;` statement gives a different block order / pseudo numbers.
+      Only pin values that do not feed invariants.  The loop dump (`-dL`, wip/sh/... `Loop from..: Insn N: regno R (life L), savings S moved/not desirable`)
+      tells which constants/insns were hoisted (savings >= 3..4 moves a constant; identical insns "match" and add up).
+   b) Parameters that the ROM modifies in place (`y1 <<= 10`) must stay the PARAMETER pseudos.  The incoming-register move gives the pseudo a hard register
+      preference (y1 -> a3, x1 -> a2); global-alloc find_reg pass 0 makes every HIGHER-priority conflicting pseudo avoid the registers preferred by LOWER-priority
+      conflicting ones (prune_preferences/regs_someone_prefers), unless that register is in the preferring pseudo's own hard_reg_conflicts.  With `Y1 = y1` copied
+      into a pinned local the preference disappears and the whole low-register assignment shifts by one (hoisted &D_80110634 took a3 instead of t0, tw t1 instead
+      of t2, img pointer/0x07080200 swapped a2/a3): that was the entire remaining 52-operand diff.  Tools: regdump.py (conflicts, order, hard reg per pseudo),
+      wip/sh/prio2.py (global-alloc order table: refs, live length, priority guess, hard reg), wip/sh/rdump.sh <file> <pseudo...>.
+   c) Copies feeding later float conversions: `hCopy = h;` BEFORE the first use of h (cse then uses the copy in the first conversion too and reload_cse rewrites
+      the register back: the ROM's `addu a2,a0,zero` right before `mtc1 a0`), `wCopy = w;` likewise; both give the ROM's a3/a2 live ranges (a2/a3 are free after
+      the param moves).  Placement after the first use leaves the copy at the end of the block (wrong register, wrong place).
+   d) Anything that must be computed first (here `(s32)srcH` for the zero test, before `(s32)(srcH * K)`) goes into its own variable assigned earlier:
+      `srcHi = (s32)srcH;` orders the two trunc.w.s/mfc1 like the ROM (sched1 keeps source order for equal-latency insns).
+   e) The SDK `_SHIFTL(G_TEXRECT,24,8) | _SHIFTL(lrx,12,12) | _SHIFTL(lry,0,12)` order must be kept in the source: `(0xE4000000 | lrx_part) | lry_part`
+      reproduces the ROM tail (constant `lui a0,0xe400` early, `or v0,v0,a0` on the lry part first); `E4 | (lrx | lry)` schedules differently and that changes
+      which low registers the local pseudos of the tail use, which in turn changes every global allocation (local-alloc registers are hard-reg conflicts of globals).
+   f) switch cases that store a table value and divide by the same loaded value: `stripRows = (K / D_800E32A4->w) & ~1;` BEFORE `rowBytes = ...` keeps the loaded
+      value in a register (the other order spills it: store + reload before the div).
+   g) Dead ends worth knowing: volatile locals instead of spills (much worse), named pinned constants instead of loop.c hoisting (wrong order), pins on the loop
+      temporaries (t3/t4/t7/img: no gain once the allocation is right), clobber asms on $6 (made things worse).
+   Method for big functions: aligned listing (wip/sh/aln.py <file> <fn> <rom> [lo hi]), windowed score (wip/sh/vbw.py --win lo hi), per-window scan (winscan.sh),
+   generators for variants (wip/sh/gen_*.py) + vbrun.sh to rank them; fix the first window with structural diffs, then the next.
+
+4. General: `wip/sh/noslot.sh <file.c> [n]` = cc1 with -fno-delayed-branch (the order sched2 produced before reorg filled delay slots);
+   a call's argument moves (`move a0,s3`, `li a1,..`) belong to the same basic block as the call: a (dead) branch before the call puts them
+   in the block AFTER the prologue saves, a straight line keeps them before the saves (the ROM's case).
