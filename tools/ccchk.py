@@ -51,8 +51,14 @@ for fn in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.
         for l in open(fn, errors='replace'):
             m = re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', l)
             if m: SY.setdefault(m.group(1), int(m.group(2), 16))
+OVL_START = 0x16E000                       # overlay A's ROM start: 1.1, or the release's (ver_layout.txt of a release workspace)
+try:
+    for l in open('ver_layout.txt'):
+        mm = re.match(r'\s*OVL_START\s*=\s*(0x[0-9A-Fa-f]+)', l)
+        if mm: OVL_START = int(mm.group(1), 16)
+except OSError: pass
 CS = {}                                    # our own linker symbols (c_syms.ld / their_alias.ld): in a release workspace they hold the release addresses of the identity names
-for fn in ('c_syms.ld', 'their_alias.ld'):
+for fn in ('extra_syms.ld', 'c_syms.ld', 'their_alias.ld'):     # later files win (c_syms.ld over extra_syms.ld)
     try:
         for l in open(fn, errors='replace'):
             mm = re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', l)
@@ -71,7 +77,7 @@ for i in range(n):
     typ, sym = t
     a = addr_of(sym)
     if sym == '.text':                                   # jump inside the object: absolute target = VRAM of the object's first word + offset
-        a = (0x400000 + rom_off - 0x16E000) if rom_off >= 0x16E000 else (rom_off + 0x1FF400)
+        a = (0x400000 + rom_off - OVL_START) if rom_off >= OVL_START else (rom_off + 0x1FF400)
     if a is None: rbad.append((i, sym, 'unknown symbol')); continue
     nreloc += 1
     if typ == 'R_MIPS_26':

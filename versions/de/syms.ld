@@ -14,3 +14,4 @@ D_auto_800C922C = 0x800C922C;
 D_auto_800CD894 = 0x800CD894;
 D_auto_800E20AC = 0x800E20AC;
 func_auto_00294C90 = 0x00294C90;   /* real entry behind two stray words (same as EU 0x294DB0), called by the cascaded func_auto_00295EAC */
+func_auto_002BA180 = 0x002BA180;   /* jal target 0x40 into func_002BF230 from asm BAD3C.s */

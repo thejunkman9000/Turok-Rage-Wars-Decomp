@@ -34,6 +34,24 @@ def main():
         if l.startswith('#') or not l.strip(): continue
         f = l.split()
         funcs.append((int(f[0], 16), f[1], int(f[2])))
+    # docs/game_funcs.txt can lag behind the manifests (an old 928-insn span where funcs_a.txt has 45 units since): drop an entry whose span contains the start of
+    # another manifest unit, and add every game / ovl_a unit of the manifests that it lacks (a unit missing from the map has "no counterpart" in every release)
+    mu = []
+    for fn in ('funcs.txt', 'funcs_a.txt'):
+        for l in open(fn):
+            f = l.split('#')[0].split()
+            if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'): mu.append((int(f[1], 16), f[0], int(f[2])))
+    ustarts = sorted(r for r, _, _ in mu)
+    def swallows(r, n):
+        i = bisect.bisect_right(ustarts, r)
+        return i < len(ustarts) and ustarts[i] < r + 4 * n
+    names = {nm for _, nm, _ in funcs}
+    stale = [x for x in funcs if swallows(x[0], x[2]) and x[1] in {nm for _, nm, _ in mu} and not any(u[1] == x[1] and u[2] == x[2] for u in mu)]
+    funcs = [x for x in funcs if x not in stale]
+    names = {nm for _, nm, _ in funcs}
+    add = [u for u in mu if u[1] not in names]
+    funcs += add
+    print('game_funcs entries replaced by manifest units:', len(stale), 'manifest units added:', len(add))
     # the libultra / libaudio units of funcs.txt (named by their SDK names, they are not in docs/game_funcs.txt) are looked up the same way: the SDK code is the same in
     # every release, so the units that our 1.1 C reproduces can be reused (a unit that overlaps a listed function is skipped)
     spans = sorted((r, r + 4 * n) for r, _, n in funcs)
