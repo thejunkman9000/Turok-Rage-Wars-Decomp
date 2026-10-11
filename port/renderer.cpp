@@ -366,12 +366,14 @@ static void capTexture(uint64_t key, const std::vector<uint8_t>& px, int w, int 
     for (size_t i = 0; i < px.size(); i += 4) { uint8_t q[4] = { px[i + 2], px[i + 1], px[i], px[i + 3] }; fwrite(q, 1, 4, f); }
     fclose(f);
 }
+static float g_uvFs = 1.f, g_uvFt = 1.f;      // tile shift fields as coordinate scales (RDP: s >> shift for shift 0..10, s << (16 - shift) for 11..15); set before the vertices / the rectangle of a draw are pushed
+static float shiftFactor(int sh) { return sh == 0 ? 1.f : sh <= 10 ? 1.f / (float)(1 << sh) : (float)(1 << (16 - sh)); }
 static void capRecord(const V* v[3], ID3D11ShaderResourceView* srv, float tw, float th, float uls, float ult, int frame) {
     CapTri t; memset(&t, 0, sizeof t);
     uint64_t h = 1469598103934665603ull;
     for (int i = 0; i < 3; i++) {
         t.p[i][0] = v[i]->wx; t.p[i][1] = v[i]->wy; t.p[i][2] = v[i]->wz;
-        t.uv[i][0] = (v[i]->s / 32.f - uls / 4.f) / tw; t.uv[i][1] = (v[i]->t / 32.f - ult / 4.f) / th;      // v->s/t are final S10.5 (scaled at vertex load)
+        t.uv[i][0] = (v[i]->s / 32.f * g_uvFs - uls / 4.f) / tw; t.uv[i][1] = (v[i]->t / 32.f * g_uvFt - ult / 4.f) / th;      // v->s/t are final S10.5 (scaled at vertex load)
         t.c[i][0] = (uint8_t)(v[i]->r * 255.f + .5f); t.c[i][1] = (uint8_t)(v[i]->g * 255.f + .5f); t.c[i][2] = (uint8_t)(v[i]->b * 255.f + .5f); t.c[i][3] = (uint8_t)(v[i]->a * 255.f + .5f);
         for (int k = 0; k < 3; k++) h = (h ^ (uint64_t)(int64_t)lroundf(t.p[i][k] * 4.f)) * 1099511628211ull;
     }
@@ -428,7 +430,7 @@ static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool n
     if (zs < 0) zs = 0; if (zs > 1) zs = 1;
     Vtx o; o.x = (px / SCREEN_W * 2.f - 1.f) * v.cw; o.y = (1.f - py / SCREEN_H * 2.f) * v.cw; o.z = zs * v.cw; o.w = v.cw;
     o.r = v.r; o.g = v.g; o.b = v.b; o.a = v.a;
-    o.u = (v.s / 32.f - uls / 4.f) / tw; o.v = (v.t / 32.f - ult / 4.f) / th;      // v.s / v.t are final S10.5: scaled by G_TEXTURE when the vertex was loaded (the RSP does it at load time), or written as final values by G_MODIFYVTX
+    o.u = (v.s / 32.f * g_uvFs - uls / 4.f) / tw; o.v = (v.t / 32.f * g_uvFt - ult / 4.f) / th;      // v.s / v.t are final S10.5: scaled by G_TEXTURE when the vertex was loaded (the RSP does it at load time), or written as final values by G_MODIFYVTX
     batch.push_back(o);
 }
 
@@ -479,6 +481,7 @@ static void emitTri(int i0, int i1, int i2) {
       if (ml && cur.texOn) { tot++; if (v[0]->ts != S.texScaleS || v[0]->tt != S.texScaleT || v[1]->ts != S.texScaleS || v[1]->tt != S.texScaleT || v[2]->ts != S.texScaleS || v[2]->tt != S.texScaleT) { bad++; if (nml++ < 12) fprintf(stderr, "SCALEMISMATCH vertex scales %04X/%04X %04X/%04X %04X/%04X now %04X/%04X (textured triangles so far %d, mismatching %d)\n", v[0]->ts, v[0]->tt, v[1]->ts, v[1]->tt, v[2]->ts, v[2]->tt, S.texScaleS, S.texScaleT, tot, bad); } } }
     { static int dl = -1, ndl; if (dl < 0) dl = getenv("TUROK_UVRAW") ? 1 : 0;      // TUROK_UVRAW=1: raw vertex s/t, G_TEXTURE scales and tile size of the first triangles that use a tiny 16x9 texture
       if (dl && cur.texOn && curTexW == 16 && curTexH == 9 && ndl < 12) { ndl++; fprintf(stderr, "UVRAW s,t (%d,%d) (%d,%d) (%d,%d) scale %04X/%04X tile %d size uls %d ult %d lrs %d lrt %d line %d fmt %d siz %d\n", (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, S.texScaleS, S.texScaleT, S.texTile & 7, t.uls, t.ult, t.lrs, t.lrt, t.line, t.fmt, t.siz); } }
+    g_uvFs = shiftFactor(t.shiftS); g_uvFt = shiftFactor(t.shiftT);
     if (capOn()) { const V* cv[3] = { v[0], v[1], v[2] }; capRecord(cv, cur.texOn ? cur.srv : nullptr, (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult, g_nfpub); }
     if (batch.size() + 12 > 3 * 6000) flush();
     for (int k = 1; k + 1 < n; k++) { pushVtx(poly[0], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k + 1], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); g_tris++; }
@@ -558,7 +561,8 @@ static void texRect(uint32_t w0, uint32_t w1, uint32_t h1w1, uint32_t h2w1) {
     float x0 = xl / 4.f, y0 = yl / 4.f, x1 = xh / 4.f, y1 = yh / 4.f;
     if (cycle >= 2) { x1 += 1; y1 += 1; }
     float s1 = s0 + (x1 - x0) * dsdx * sp / 1024.f * 32.f, t1 = t0 + (y1 - y0) * dtdy / 1024.f * 32.f;
-    auto uvx = [&](float s) { return (s / 32.f - t.uls / 4.f) / curTexW; }; auto uvy = [&](float tt) { return (tt / 32.f - t.ult / 4.f) / curTexH; };
+    const float fS = shiftFactor(t.shiftS), fT = shiftFactor(t.shiftT);
+    auto uvx = [&](float s) { return (s / 32.f * fS - t.uls / 4.f) / curTexW; }; auto uvy = [&](float tt) { return (tt / 32.f * fT - t.ult / 4.f) / curTexH; };
     float X0 = x0 / SCREEN_W * 2 - 1, X1 = x1 / SCREEN_W * 2 - 1, Y0 = 1 - y0 / SCREEN_H * 2, Y1 = 1 - y1 / SCREEN_H * 2;
     Vtx q[4]; for (int i = 0; i < 4; i++) { q[i].z = 0; q[i].w = 1; q[i].r = q[i].g = q[i].b = q[i].a = 1; }
     q[0].x = X0; q[0].y = Y0; q[0].u = uvx(s0); q[0].v = uvy(t0);
