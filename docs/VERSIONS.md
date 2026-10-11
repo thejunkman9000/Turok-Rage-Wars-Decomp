@@ -83,3 +83,20 @@ byte-identical.  Lessons of the integration:
   maps to) must name that object in its own source (`D_auto_800E0D5C`), never by moving the shared identity name.
 - A literal piece must not be widened past the next piece: __osViSwapContext keeps `ro=0xC84F0:12` (a worker's 16 overwrote the first word of the next piece).
 - The v1.0 matches of __osContAddressCrc / __osContDataCrc are byte-identical code in 1.1: they replaced the asm placeholders of the 1.1 tree.
+
+## Europe and Germany: sweeps redone, first worker integration (2026-10-11 evening)
+- `tools/ver_sweep.py eu|de` re-run with the flag fix (the first sweeps compiled old-gcc units with the wrong flags): EU 3,684 EXACT units (was 3,655), DE 3,708 (was 3,576).
+- `versions/eu` (51 units: veun01 pad words, veun02 / veun03 new functions) and `versions/de` (25 units: vden01 new functions, the two real code changes func_00421D18 -
+  German message ids 0x39C..0x3A1 instead of 0x3A2..0x3A7, jump table ro=0xDE1E0:24 - and func_00423370 - other table indices, `@SN`).  Both workspaces rebuild their ROM
+  byte-identical: EU from 3,708 C units, DE from 3,722 (were 3,575 / 3,496).  Most of vded01's 225 rows were v1.1 sources that only the old sweep flags had rejected: the new
+  sweep covers them.
+- Integration traps (handled by `wip/prep_ver_specs.py` and tools/mkver.py now):
+  - worker names: `func_auto_` units must be named after their release VRAM entry (one worker used the ROM offset, another the address of the stray pad word in front).
+  - `pad_` names are `pad_%06X` (integrate.py asserts it).
+  - a 1.1 literal piece can run into the next piece of the release (no trailing alignment word there): mkver trims overlaps of up to 8 bytes, and never takes a piece
+    larger than the 1.1 manifest's (ROM-verified) size (chk measures the padded .rodata: __osViSwapContext 16 vs 12).
+  - a release-only function with float literals needs its `ro=` piece (func_auto_0044EF30: ro=0xC6260:12, the pool lives in the main image's rodata).
+  - `wip/ver/eu/syms_inferred.ld` had three overlay data names shifted by one (D_00451AF0, D_004500F4, D_004503E8); the sweep's syms.ld values are right: pinned in
+    versions/eu/syms.ld.  A jal into the middle of a function from mis-split asm (DE 0x2BB5E0) and a real entry behind two stray words (EU 0x294DB0) need explicit
+    `func_auto_` addresses once the neighbouring code became C.
+  - an identity name the release maps elsewhere (DE `D_800E4518`): the release source uses its own `D_auto_800E04C0` instead of moving the shared name.

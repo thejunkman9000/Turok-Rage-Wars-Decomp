@@ -1,0 +1,51 @@
+pad_004C2C 0x4C2C 1 game
+pad_00548C 0x548C 1 game
+pad_005CB4 0x5CB4 3 game
+pad_0A17E4 0xA17E4 1 game
+pad_03FB0C 0x3FB0C 1 game
+pad_04255C 0x4255C 1 game
+pad_08F63C 0x8F63C 1 game
+pad_0A32DC 0xA32DC 1 game
+pad_0AE7DC 0xAE7DC 1 game
+pad_0AF94C 0xAF94C 1 game
+pad_0B0CCC 0xB0CCC 1 game
+pad_0B33AC 0xB33AC 1 game
+pad_0B4DAC 0xB4DAC 1 game
+pad_0B629C 0xB629C 1 game
+pad_0B7C8C 0xB7C8C 1 game
+func_auto_00208004 0x8C04 5 game
+func_auto_0041B9FC 0x1919FC 8 ovl_a
+func_auto_0043E9D0 0x1B49D0 9 ovl_a
+pad_1B49CC 0x1B49CC 1 ovl_a
+func_auto_0043AC00 0x1B0C00 10 ovl_a
+pad_1B0BFC 0x1B0BFC 1 ovl_a
+func_auto_0043FC50 0x1B5C50 11 ovl_a
+func_auto_00263670 0x64270 14 game
+func_auto_00442F6C 0x1B8F6C 14 ovl_a
+func_auto_00442FA4 0x1B8FA4 14 ovl_a
+func_auto_00212D80 0x13980 13 game
+pad_013978 0x13978 2 game
+func_auto_00213200 0x13E00 15 game
+pad_013DF8 0x13DF8 2 game
+func_auto_00422730 0x198730 18 ovl_a
+pad_198728 0x198728 2 ovl_a
+func_auto_00263114 0x63D14 21 game
+func_auto_00445F60 0x1BBF60 21 ovl_a
+func_auto_002A0BF0 0xA17F0 20 game
+pad_0A17E8 0xA17E8 2 game
+func_auto_0044EF30 0x1C4F30 21 ovl_a ro=0xC6260:12
+pad_1C4F2C 0x1C4F2C 1 ovl_a
+func_auto_0022A5AC 0x2B1AC 24 game
+func_auto_00255240 0x55E40 22 game
+func_auto_00296034 0x96C34 25 game
+func_auto_00295FCC 0x96BCC 26 game
+func_auto_0022A53C 0x2B13C 28 game mode=sn
+func_auto_0029426C 0x94E6C 28 game mode=sn
+func_auto_0040A85C 0x18085C 27 ovl_a mode=sn
+func_auto_0040ADC0 0x180DC0 26 ovl_a mode=sn
+pad_18C05C 0x18C05C 1 ovl_a
+func_auto_0041D258 0x193258 8 ovl_a mode=sn
+func_auto_00429B00 0x19FB00 10 ovl_a mode=sn
+func_auto_00442EE0 0x1B8EE0 35 ovl_a mode=sn
+func_auto_00443A04 0x1B9A04 26 ovl_a mode=sn
+func_auto_00416060 0x18C060 25 ovl_a mode=sn

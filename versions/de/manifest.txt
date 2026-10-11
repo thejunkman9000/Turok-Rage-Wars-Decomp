@@ -1,0 +1,25 @@
+func_auto_00207FE4 0x8BE4 5 game
+func_auto_004377E8 0x19D7E8 10 ovl_a
+func_auto_00439D30 0x19FD30 10 ovl_a
+func_auto_00437414 0x19D414 12 ovl_a
+func_auto_002636B0 0x642B0 14 game
+pad_013958 0x13958 2 game
+func_auto_00212D60 0x13960 13 game
+pad_013DD8 0x13DD8 2 game
+func_auto_002131E0 0x13DE0 15 game
+func_auto_00439128 0x19F128 19 ovl_a
+pad_188228 0x188228 2 ovl_a
+func_auto_00422230 0x188230 18 ovl_a
+func_auto_00263154 0x63D54 21 game
+func_auto_0042177C 0x18777C 22 ovl_a
+func_auto_004393A8 0x19F3A8 23 ovl_a
+func_auto_00204808 0x5408 24 game ro=0xC2674:8
+func_auto_00423274 0x189274 14 ovl_a
+pad_1A93B8 0x1A93B8 2 ovl_a
+func_auto_004433C0 0x1A93C0 14 ovl_a
+pad_1A3ADC 0x1A3ADC 1 ovl_a
+func_auto_0043DAE0 0x1A3AE0 9 ovl_a
+pad_19BB08 0x19BB08 2 ovl_a
+func_auto_00435B10 0x19BB10 9 ovl_a
+func_00421D18 0x187CE8 43 ovl_a ro=0xDE1E0:24
+func_00423370 0x188FC0 27 ovl_a mode=sn

@@ -113,7 +113,11 @@ def main():
             if any(e.startswith('ro=') for e in f[4:]) and not m:      # the 1.1 function has a literal pool of its own that the sweep did not find in this ROM: its object's .rodata would land at the wrong address
                 dropped[fn] += 1; continue
             if m:
-                n_ro = int(m.group(2)); r_ro = (n_ro + 3) & ~3          # a piece is a whole number of words: the tail up to the word boundary comes from the ROM (ro=off:size:real)
+                n_ro = int(m.group(2))
+                for e in f[4:]:                                         # chk measures the object's padded .rodata (it can overshoot); the 1.1 manifest's piece size is ROM-verified:
+                    m11 = re.fullmatch(r'ro=0x[0-9A-Fa-f]+:(\d+)(?::\d+)?', e)   # never claim more (__osViSwapContext: 16 from the sweep, 12 in the ROM, the next piece starts right after)
+                    if m11 and n_ro > int(m11.group(1)): n_ro = int(m11.group(1))
+                r_ro = (n_ro + 3) & ~3         # a piece is a whole number of words: the tail up to the word boundary comes from the ROM (ro=off:size:real)
                 real = n_ro if r_ro != n_ro else None
                 for e in f[4:]:                                         # the 1.1 entry may say that only `real` bytes of the piece are the object's own data (the rest is a tail the ROM supplies): the same object, the same data
                     mm = re.fullmatch(r'ro=0x[0-9A-Fa-f]+:(\d+):(\d+)', e)
@@ -160,6 +164,25 @@ def main():
                 cur.append(' '.join(f)); nver += 1
             open(p, 'w', newline='\n').write('\n'.join(cur) + '\n')
         print('version-specific units merged from', vman, ':', nver)
+    # a literal piece whose 1.1 size includes a trailing alignment word can run into the next piece in this release (the release has no padding there):
+    # trim it to end where the next piece starts (overlaps of up to 8 bytes only; anything bigger is a real conflict that gen_yaml reports)
+    pieces = []
+    for fn in ('funcs.txt', 'funcs_a.txt'):
+        p = os.path.join(out, fn)
+        ls = [l.rstrip('\n') for l in open(p)]
+        for i, l in enumerate(ls):
+            m = re.search(r'ro=0x([0-9A-Fa-f]+):(\d+)(?::(\d+))?', l)
+            if m: pieces.append((int(m.group(1), 16), int(m.group(2)), fn, i))
+    pieces.sort(); trims = {}
+    for (a, n, fn, i), (b, _, _, _) in zip(pieces, pieces[1:]):
+        if a < b < a + n and a + n - b <= 8: trims[(fn, i)] = b - a
+    for fn in ('funcs.txt', 'funcs_a.txt'):
+        p = os.path.join(out, fn); ls = [l.rstrip('\n') for l in open(p)]; ch = 0
+        for (f2, i), sz in trims.items():
+            if f2 != fn: continue
+            ls[i] = re.sub(r'ro=0x([0-9A-Fa-f]+):\d+(?::\d+)?', lambda m: f'ro=0x{m.group(1)}:{sz}', ls[i]); ch += 1
+            print('literal piece trimmed to the next piece:', ls[i].split()[0], f'{sz} bytes')
+        if ch: open(p, 'w', newline='\n').write('\n'.join(ls) + '\n')
     # the Makefile compiles every file under src/: remove the sources of units that are not in this release's manifests (they stay asm: splat covers them)
     names = set()
     for fn in ('funcs.txt', 'funcs_a.txt'):

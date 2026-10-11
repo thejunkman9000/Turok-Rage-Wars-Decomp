@@ -1,0 +1,24 @@
+/* symbols used only by the Europe sources of versions/eu/src (release addresses) */
+D_auto_800C5774 = 0x800C5774;
+D_auto_800C5778 = 0x800C5778;
+D_auto_800C5790 = 0x800C5790;
+D_auto_800C9E1C = 0x800C9E1C;
+D_auto_800CE308 = 0x800CE308;
+D_auto_800CE474 = 0x800CE474;
+D_auto_800CE4F8 = 0x800CE4F8;
+D_auto_800E0B34 = 0x800E0B34;
+D_auto_800ED3F4 = 0x800ED3F4;
+D_auto_800ED414 = 0x800ED414;
+D_auto_800EE9E0 = 0x800EE9E0;
+D_auto_800EEEDC = 0x800EEEDC;
+D_auto_800EEEF0 = 0x800EEEF0;
+D_auto_800F0AC0 = 0x800F0AC0;
+D_auto_80152208 = 0x80152208;
+D_auto_80152789 = 0x80152789;
+D_auto_801527F0 = 0x801527F0;
+D_auto_80156E50 = 0x80156E50;
+D_auto_8015D48C = 0x8015D48C;
+func_auto_00294DB0 = 0x00294DB0;   /* real entry of the function splat starts at 0x294DA8 (two stray words) */
+D_00451AF0 = 0x00452194;   /* syms_inferred.ld had these three shifted by one (the units are EXACT with the sweep's syms.ld values) */
+D_004500F4 = 0x00450774;
+D_004503E8 = 0x00450A68;
