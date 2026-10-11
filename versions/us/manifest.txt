@@ -1,0 +1,165 @@
+func_auto_00291334 0x91F34 239 game mode=sn
+func_auto_00293A14 0x94614 67 game
+func_auto_00293BD0 0x947D0 65 game
+func_auto_00294500 0x95100 36 game
+func_auto_00294590 0x95190 65 game
+func_auto_0029499C 0x9559C 67 game
+func_002014A4 0x20A4 142 game mode=sn+sa+r4k+epi+snk ro=0xC24F0:40
+func_00201E94 0x2A94 97 game mode=sn+sa+r4k+epi+snl
+func_00202018 0x2C18 96 game mode=sn+sa+r4k+epi+snl
+pad_003898 0x3898 2 game
+func_00202CA0 0x38A0 107 game mode=lu3+nb
+func_00202E4C 0x3A4C 100 game mode=lu3+nb ro=0xC2540:4
+func_00202FDC 0x3BDC 167 game mode=lu3+nb
+func_00203278 0x3E78 139 game mode=lu3+nb
+func_00206DD4 0x79D4 191 game mode=lu3+nb ro=0xC2640:24
+func_002070D0 0x7CD0 408 game mode=lu3+nb
+func_00214310 0x14F10 197 game mode=lu3+nb
+func_00215B90 0x16790 350 game mode=lu3+nb ro=0xC2CCC:24
+func_002172C4 0x17EC4 3 game
+func_00234DD0 0x359C0 131 game mode=lu3+nb ro=0xC3D30:12
+func_002390C0 0x39CB0 9 game mode=lu3+nf
+func_0023C8C4 0x3D4B4 20 game mode=lu3+luret
+func_0023D148 0x3DD38 138 game mode=lu3+nb
+func_0023E168 0x3ED58 185 game mode=lu3+nb
+func_0023E6DC 0x3F2CC 83 game mode=lu3+nb
+func_0023E8A4 0x3F494 8 game mode=lu3+luret
+func_00240A88 0x41678 125 game mode=lu3+nb ro=0xC4264:8
+func_002417B4 0x423A4 31 game mode=lu3+nb
+func_00241830 0x42420 67 game mode=lu3+nb
+func_0024AA08 0x4B5F8 238 game mode=lu3+nb ro=0xC45AC:60
+func_0024BECC 0x4CABC 18 game mode=lu3+nb
+func_0024E854 0x4F444 3 game mode=lu3+nf
+func_00260EEC 0x61A6C 11 game mode=lu3+nf
+func_00262D00 0x63880 106 game mode=lu3+ntj
+func_002675E0 0x68160 71 game mode=lu3+nb
+pad_04252C 0x4252C 1 game
+func_002769D8 0x77558 119 game mode=lu3+nf ro=0xC5558:24
+func_00276BB4 0x77734 88 game mode=lu3+nf ro=0xC5570:24
+pad_077894 0x77894 3 game
+func_00278900 0x79480 39 game mode=lu3+nf
+func_0027A0F4 0x7AC74 275 game mode=lu3+nb
+func_0027A540 0x7B0C0 286 game mode=lu3+nb
+func_0027ADBC 0x7B93C 439 game mode=lu3+nb
+func_00282304 0x82E84 294 game mode=lu3+nb ro=0xC5984:8
+func_00285150 0x85CD0 78 game mode=lu3+nb
+func_0028C810 0x8D384 64 game mode=lu3+nb
+func_0028D35C 0x8DED0 61 game mode=lu3+nb
+func_0028FEEC 0x90A1C 49 game mode=lu3+nb
+func_00294428 0x94F20 21 game mode=lu3+o2
+func_00299368 0x98EA8 729 game mode=sn+ntj+nrc ro=0xC61A0:8
+func_0029BEA4 0x9B9E4 245 game ro=0xC6270:264
+func_0029CDEC 0x9C92C 150 game ro=0xC6470:208
+func_0029DAB4 0x9D5F4 111 game mode=lu3+nb ro=0xC65D8:40
+func_0029DC70 0x9D7B0 115 game mode=lu3+nb ro=0xC6600:36
+func_0029E000 0x9DB40 146 game mode=lu3+nb ro=0xC6624:8
+func_0029E8BC 0x9E3FC 11 game mode=lu3+nb
+func_0029E8E8 0x9E428 15 game mode=lu3+nb ro=0xC663C:4
+func_0029EB9C 0x9E6DC 69 game ro=0xC6698:96
+func_0029F3C0 0x9EF00 26 game mode=lu3+nb
+func_0029F4DC 0x9F01C 20 game mode=lu3+nb
+func_0029F52C 0x9F06C 37 game mode=lu3+nb ro=0xC67D4:4
+func_0029F77C 0x9F2BC 37 game mode=lu3+nb
+func_0029F810 0x9F350 39 game mode=lu3+nb
+pad_0A30FC 0xA30FC 1 game
+func_002A35C0 0xA3100 95 game mode=lu3+nb
+func_002A453C 0xA407C 115 game mode=lu3+nb
+func_002A6010 0xA5B50 88 game mode=lu3+nb
+func_002AB8DC 0xAB41C 25 game mode=lu3+nb
+func_002AB940 0xAB480 41 game mode=lu3+nb
+func_004002D8 0x1642D8 233 ovl_a mode=lu3+nb
+func_004042F0 0x1682F0 167 ovl_a mode=lu3+nb
+func_0040458C 0x16858C 179 ovl_a mode=lu3+nb
+func_00404958 0x168958 164 ovl_a mode=lu3+nb
+func_00404F58 0x168F58 93 ovl_a mode=lu3+nb
+func_00405DC0 0x169DC0 98 ovl_a mode=lu3+nb
+func_00419B5C 0x17DB5C 4 ovl_a
+func_0041A0AC 0x17E0AC 4 ovl_a
+func_0041A5A0 0x17E5A0 4 ovl_a
+func_00425E50 0x189E50 41 ovl_a mode=lu3+nb
+func_00439DC0 0x19DDC0 11 ovl_a mode=lu3+nf
+func_00439DEC 0x19DDEC 9 ovl_a mode=lu3+nf
+func_00439E10 0x19DE10 11 ovl_a mode=lu3+nf
+func_00439E3C 0x19DE3C 9 ovl_a mode=lu3+nf
+func_00439EBC 0x19DEBC 9 ovl_a mode=lu3+nf
+func_00439EE0 0x19DEE0 11 ovl_a mode=lu3+nf
+func_00446A54 0x1A9F74 60 ovl_a mode=sn
+func_00449B44 0x1AD064 189 ovl_a mode=sn
+pad_0AF5DC 0xAF5DC 1 libultra
+csplayer 0xAF5E0 1247 libultra mode=lu+inl ro=0xC7E70:224:220
+pad_0B095C 0xB095C 1 libultra
+pad_0B0EF4 0xB0EF4 3 libultra
+seqplayer 0xB0F00 1708 libultra mode=lu+inl ro=0xC7F60:152:148
+alInit 0xB2FD0 12 libultra mode=lu
+alClose 0xB3000 15 libultra mode=lu
+pad_0B303C 0xB303C 1 libultra
+pad_0B7084 0xB7084 3 libultra
+cosf 0xB7090 65 libultra mode=lu ro=0xC8330:96
+pad_0B7194 0xB7194 3 libultra
+guLookAt 0xB71A0 322 libultra mode=lu ro=0xC8390:16
+pad_0B76A8 0xB76A8 2 libultra
+pad_0B791C 0xB791C 1 libultra
+guPerspective 0xB7920 206 libultra mode=lu ro=0xC83C0:48
+pad_0B7C58 0xB7C58 2 libultra
+pad_0B7F28 0xB7F28 2 libultra
+osAiSetNextBuffer 0xB7F30 35 libultra mode=lu
+pad_0B7FBC 0xB7FBC 1 libultra
+pad_0B7FD4 0xB7FD4 3 libultra
+osContStartQuery 0xB7FE0 34 libultra mode=lu
+pad_0B8088 0xB8088 2 libultra
+osContStartReadData 0xB8090 37 libultra mode=lu
+osContGetReadData 0xB8124 38 libultra mode=lu
+__osPackReadData 0xB81BC 45 libultra mode=lu
+osContReset 0xB8270 67 libultra mode=lu
+osContInit 0xB83B0 104 libultra mode=lu
+__osPackRequestData 0xB8550 46 libultra mode=lu
+__osContGetInitData 0xB8608 45 libultra mode=lu
+pad_0B86BC 0xB86BC 1 libultra
+osMotorInit 0xB8B08 311 libultra
+__osContAddressCrc 0xB9770 18 libultra
+__osContDataCrc 0xB97B8 24 libultra
+osCartRomInit 0xB9A80 48 libultra
+osDriveRomInit 0xBA3A0 53 libultra
+piacs 0xBA480 58 libultra
+siacs 0xBA6F0 58 libultra
+_VirtualToPhysicalTask 0xBA8C0 58 libultra
+__osViInit 0xBAD40 63 libultra
+__osViSwapContext 0xBB440 207 libultra ro=0xC84F0:12
+osCreateThread 0xBB7C0 54 libultra
+pad_0BB96C 0xBB96C 1 libultra
+osInitialize 0xBB970 136 libultra
+pad_0BBEF4 0xBBEF4 3 libultra
+__osResetGlobalIntMask 0xBBF00 18 libultra
+pad_0BBF48 0xBBF48 2 libultra
+osSetEventMesg 0xBC080 23 libultra
+pad_0BC0DC 0xBC0DC 1 libultra
+__osSetGlobalIntMask 0xBC0E0 16 libultra
+osSetThreadPri 0xBC120 49 libultra
+pad_0BC1E4 0xBC1E4 3 libultra
+pad_0BC27C 0xBC27C 1 libultra
+osStartThread 0xBC280 69 libultra
+pad_0BC394 0xBC394 3 libultra
+pad_0BC3D4 0xBC3D4 3 libultra
+__osTimerInterrupt 0xBC3E0 82 libultra
+__osLeoInterrupt 0xBD2B0 423 libultra
+pad_0BD94C 0xBD94C 1 libultra
+osDestroyThread 0xBD950 54 libultra
+pad_0BDA28 0xBDA28 2 libultra
+string 0xBDED0 33 libultra mode=lu2
+pad_0BDF54 0xBDF54 3 libultra
+xprintf 0xBDF60 620 libultra ro=0xC8610:376
+xlitob 0xBE910 182 libultra
+pad_0BEBE8 0xBEBE8 2 libultra
+pad_0C0D5C 0xC0D5C 1 libultra
+__divdi3 0xC0D60 379 libultra mode=lu4 ro=0xC8820:256
+pad_0C134C 0xC134C 1 libultra
+__moddi3 0xC1350 350 libultra mode=lu4 ro=0xC8920:256
+pad_0C18C8 0xC18C8 2 libultra
+__udivdi3 0xC18D0 353 libultra mode=lu4 ro=0xC8A20:256
+pad_0C1E54 0xC1E54 3 libultra
+__umoddi3 0xC1E60 317 libultra mode=lu4 ro=0xC8B20:256
+pad_0C2354 0xC2354 3 libultra
+pad_0C23A8 0xC23A8 2 libultra
+__floatdidf 0xC23B0 34 libultra mode=lu4 ro=0xC8C20:24
+pad_0C2438 0xC2438 2 libultra
+__floatdisf 0xC2440 44 libultra mode=lu4 ro=0xC8C40:24

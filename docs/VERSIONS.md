@@ -71,3 +71,15 @@ Europe from 3,575 units of the unchanged 1.1 C (2,548 main image + 1,027 overlay
 - Two symbols at one address (translated names that collide in a release) make splat reject the symbol file: `mkver` keeps the first and comments out the rest; libultra units are named by the SDK, not by an identity name, so asm that calls them uses the auto name: `PROVIDE(func_auto_<addr>)` aliases for them as well.
 - Rerunning `mkver` on an existing workspace restores the sources of the units that are kept now from the project (a unit that was dropped in an earlier run had its source removed and splat wrote an `INCLUDE_ASM` stub that then shadowed the real C).
 Work list per release: `tools/mkvtargets.py` (units that differ, libultra units, release-only functions); the function-matching agents use `docs/VERSION_MATCH_PROMPT.txt`.
+
+## US v1.0: first integration of the matching workers (2026-10-11)
+`versions/us/manifest.txt` holds 165 release-specific units (workers u10d01..09, u10l01..07, u10n04: game, overlay A and libultra units whose 1.1 C
+needed a change or only other flags, the new functions, linker-pad units); `tools/mkver.py` merges them and the workspace still rebuilds `baserom.us.v10.z64`
+byte-identical.  Lessons of the integration:
+- Symbols only the release's sources use (`D_auto_<vram>`, or identity names the address map leaves at the 1.1 address, e.g. `D_00450830` of overlay A) go
+  into `versions/<ver>/syms.ld` (release addresses): mkver appends it to the workspace's extra_syms.ld AND lets it override c_syms.ld (a worker that fixed such
+  a symbol only in its own workspace's .ld files gets a match that the regenerated workspace does not reproduce).
+- A release function that references ANOTHER object than its 1.1 counterpart (func_00446A54 reads the table at 0x800E0D5C in v1.0, not the one D_800E20AC
+  maps to) must name that object in its own source (`D_auto_800E0D5C`), never by moving the shared identity name.
+- A literal piece must not be widened past the next piece: __osViSwapContext keeps `ro=0xC84F0:12` (a worker's 16 overwrote the first word of the next piece).
+- The v1.0 matches of __osContAddressCrc / __osContDataCrc are byte-identical code in 1.1: they replaced the asm placeholders of the 1.1 tree.

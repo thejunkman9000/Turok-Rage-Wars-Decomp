@@ -262,6 +262,11 @@ def main():
             m = re.match(r'\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+);', l)
             if m: names[m.group(1)] = int(m.group(2), 16)
     cs = []; unm = []
+    vsyms = {}
+    if os.path.exists(f'versions/{ver}/syms.ld'):
+        for l in open(f'versions/{ver}/syms.ld'):
+            m = re.match(r'\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+);', l)
+            if m: vsyms[m.group(1)] = int(m.group(2), 16)
     for n, a in sorted(names.items()):
         b = None
         mf = re.fullmatch(r'func_[0-9A-Fa-f]{8}', n)
@@ -269,6 +274,7 @@ def main():
             rom = fmap[n][1]; b = rom + MAIN_VMA_OFF if rom < lay['OVL_START'] else rom - lay['OVL_START'] + 0x400000
         if b is None: b = amap.name(n)
         if b is None: b = amap.addr(a)
+        if n in vsyms: b = vsyms[n]                                 # versions/<ver>/syms.ld is authoritative (hand-verified addresses)
         if b is None: unm.append(n); b = a
         cs.append(f'{n} = 0x{b:08X};')
     open(os.path.join(out, 'c_syms.ld'), 'w', newline='\n').write('\n'.join(cs) + '\n')
@@ -318,6 +324,10 @@ def main():
             if b is None: continue
             ex.append(f'{m.group(1)} = 0x{b:08X};' if int(m.group(2), 16) >= 0x00800000 else f'{m.group(1)} = 0x{b:X};'); nu += 1
     print('extra_syms: %d translated undefined symbols of the 1.1 sources' % nu)
+    vs = f'versions/{ver}/syms.ld'                                     # symbols only the release-specific sources use (D_auto_<vram>, names the address map lacks)
+    if os.path.exists(vs):
+        ex += [l.rstrip('\n') for l in open(vs) if l.strip()]
+        print('extra_syms: appended', vs)
     open(os.path.join(out, 'extra_syms.ld'), 'w', newline='\n').write('\n'.join(ex) + '\n')
     # ---- workspace cycle.ps1: layout env, no regeneration of the 1.1 symbol files
     cp = os.path.join(out, 'tools', 'cycle.ps1')
