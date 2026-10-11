@@ -61,36 +61,55 @@ def matched_now(committed=False):
         return open(fn).read() if os.path.exists(fn) else ''
     return matched(manifests(read), universe())
 
-def hasm_names(committed=False):
-    """names of the universe functions that a hand-written asm source (a non-pad `.s` unit of the manifests: boot code, exception handler, cache / SR routines) covers:
-    they reproduce the bytes but are not C and never will be (the original authors wrote them in assembler)"""
-    if committed:
-        files = set(subprocess.run(['git', 'ls-tree', '-r', '--name-only', 'HEAD', 'src'], capture_output=True, text=True).stdout.split())
+def hand_names():
+    """docs/hand_asm.txt: the units the original authors wrote in assembler"""
+    out = set()
+    if os.path.exists('docs/hand_asm.txt'):
+        for l in open('docs/hand_asm.txt'):
+            f = l.split('#')[0].split()
+            if f: out.add(f[0])
+    return out
+
+def unit_ranges(committed=False):
+    """{kind: [(rom start, rom end)]} of the non-pad manifest units by what their source is: 'c' (a .c file), 'hand' (a .s file of docs/hand_asm.txt: written in assembler by the original
+    authors), 'asm' (any other .s: C-origin code that is still assembler); and the libultra / libaudio units separately with their instruction counts"""
+    if committed:                                   # True = HEAD, else a revision
+        rev = 'HEAD' if committed is True else committed
+        files = set(subprocess.run(['git', 'ls-tree', '-r', '--name-only', rev, 'src'], capture_output=True, text=True).stdout.split())
         exists = lambda p: p in files
         def read(fn):
-            r = subprocess.run(['git', 'show', f'HEAD:{fn}'], capture_output=True, text=True, errors='replace')
+            r = subprocess.run(['git', 'show', f'{rev}:{fn}'], capture_output=True, text=True, errors='replace')
             return r.stdout if r.returncode == 0 else ''
     else:
         exists = os.path.exists
         read = lambda fn: open(fn).read() if os.path.exists(fn) else ''
-    cov = []
+    hand = hand_names()
+    kinds = {'c': [], 'hand': [], 'asm': []}; lu = {'c': 0, 'hand': 0, 'asm': 0}
     for fn in ('funcs.txt', 'funcs_a.txt'):
         for l in read(fn).splitlines():
             f = l.split('#')[0].split()
-            if len(f) >= 4 and f[3] in ('game', 'ovl_a', 'libultra') and not f[0].startswith('pad_') and exists(f'src/{f[3]}/{f[0]}.s'):
-                try: a = int(f[1], 16); cov.append((a, a + 4 * int(f[2])))
-                except ValueError: pass
-    return matched(sorted(cov), universe())
+            if len(f) < 4 or f[0].startswith('pad_'): continue
+            try: a = int(f[1], 16); n = int(f[2])
+            except ValueError: continue
+            if exists(f'src/{f[3]}/{f[0]}.c'): k = 'c'
+            elif exists(f'src/{f[3]}/{f[0]}.s'): k = 'hand' if f[0] in hand else 'asm'
+            else: continue
+            if f[3] == 'libultra': lu[k] += n
+            elif f[3] in ('game', 'ovl_a'): kinds[k].append((a, a + 4 * n))
+    return {k: sorted(v) for k, v in kinds.items()}, lu
 
 def current(committed=False):
-    uni = universe(); done = matched_now(committed); hasm = hasm_names(committed)
-    tot = {'main': [0, 0, 0, 0, 0], 'ovl': [0, 0, 0, 0, 0]}                # matched functions, functions, matched insns, insns, of the matched: hand-written asm insns
+    """per region [functions, insns, C functions, C insns, hand-written asm insns, asm placeholder insns]; and the libultra / libaudio instruction counts by kind"""
+    uni = universe(); kinds, lu = unit_ranges(committed)
+    cset = matched(kinds['c'], uni); hset = matched(kinds['hand'], uni) - cset; aset = matched(kinds['asm'], uni) - cset - hset
+    tot = {'main': [0, 0, 0, 0, 0, 0], 'ovl': [0, 0, 0, 0, 0, 0]}
     for n, i, _ in uni:
         k = 'ovl' if 0x400000 <= int(n[5:], 16) < 0x500000 else 'main'
-        t = tot[k]; t[1] += 1; t[3] += i
-        if n in done:
-            t[0] += 1; t[2] += i
-            if n in hasm: t[4] += i
+        t = tot[k]; t[0] += 1; t[1] += i
+        if n in cset: t[2] += 1; t[3] += i
+        elif n in hset: t[4] += i
+        elif n in aset: t[5] += i
+    tot['lu'] = lu
     return tot
 
 def history():
@@ -101,10 +120,8 @@ def history():
     for l in out:
         f = l.split()
         if len(f) != 2: continue
-        def show(fn):
-            r = subprocess.run(['git', 'show', f'{f[0]}:{fn}'], capture_output=True, text=True, errors='replace')
-            return r.stdout if r.returncode == 0 else ''
-        done = matched(manifests(show), uni)
+        kinds, _ = unit_ranges(f[0])
+        done = matched(kinds['c'], uni) | matched(kinds['hand'], uni)
         pts.append((int(f[1]), sum(i for n, i, _ in uni if n in done)))
     return pts, total
 
@@ -117,31 +134,60 @@ def bar(d, x, y, w, h, frac, color, label_in='', label_out='', f_in=None, f_out=
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else 'assets/progress.png'
     tot = current(committed='--committed' in sys.argv)
-    allt = [a + b for a, b in zip(tot['main'], tot['ovl'])]
+    lu = tot['lu']; allt = [a + b for a, b in zip(tot['main'], tot['ovl'])]
     W, M = 1280, 40
     covers = None
     try:
         import ver_cover
-        covers = ver_cover.compute(done_names=matched_now('--committed' in sys.argv))
+        kinds, _lu = unit_ranges('--committed' in sys.argv); covers = ver_cover.compute(done_names=matched(kinds['c'], universe()))      # (C only: asm placeholders and pads are not matched code)
     except Exception as e:
         print('release comparison skipped:', e)
     hist = None if '--no-history' in sys.argv else history()
-    H = 112 + 3 * 74 + 56 + (300 if hist else 0) + ((72 + 4 * 66 + 90) if covers else 0) + 40
+    H = 112 + 3 * 74 + 56 + 110 + (300 if hist else 0) + ((72 + 4 * 66 + 90) if covers else 0) + 40
     im = Image.new('RGB', (W, H), BG); d = ImageDraw.Draw(im)
     d.text((M, 22), 'Turok: Rage Wars - matching decompilation', fill=TXT, font=font(32, True))
     d.text((M, 66), f'game code of the N64 cartridge, by instructions  -  {time.strftime("%Y-%m-%d")}', fill=DIM, font=font(17))
     y = 112
     d.text((M, y), 'US v1.1 - the build this repository reproduces byte for byte', fill=TXT, font=font(21, True)); y += 40
     rows = [('Main image', tot['main']), ('Overlay A', tot['ovl']), ('All game code', allt)]
+    TEAL_ = (64, 164, 190); AMBER = (230, 150, 70)
     for nm, t in rows:
-        pct = 100 * t[2] / t[3]
+        done = t[3] + t[4]; pct = 100 * done / t[1]
         d.text((M, y + 18), nm, fill=DIM, font=font(18), anchor='lm')
-        bar(d, M + 170, y, W - 2 * M - 170 - 120, 36, t[2] / t[3], GREEN, f'{t[2]:,} of {t[3]:,} instructions   -   {t[0]:,} of {t[1]:,} functions' + (f'   ({t[4]:,} insns hand-written asm)' if t[4] else ''), f'{pct:.1f}%', font(16), font(26, True))
+        bx, bw = M + 170, W - 2 * M - 170 - 120
+        d.rounded_rectangle((bx, y, bx + bw, y + 36), 6, fill=GRID)
+        xx = bx
+        for v, col in ((t[3], GREEN), (t[4], TEAL_), (t[5], AMBER)):
+            w = bw * v / t[1]
+            if w > 0: d.rounded_rectangle((xx, y, xx + max(6, w), y + 36), 6, fill=col)
+            xx += w
+        txt = f'{t[3]:,} of {t[1]:,} instructions in C   -   {t[2]:,} of {t[0]:,} functions'
+        d.text((bx + 12, y + 18), txt, fill=(8, 22, 14), font=font(16), anchor='lm')
+        d.text((bx + bw + 14, y + 18), f'{pct:.1f}%', fill=TXT, font=font(26, True), anchor='lm')
+        y += 54
+    # hand-written assembly / placeholders of the game code, and the SDK libraries
+    note = []
+    if allt[4]: note.append(f'{allt[4]:,} insns are hand-written assembly of the original game (boot, exception handler, cache / TLB routines: kept as .s, counted as done)')
+    if allt[5]: note.append(f'{allt[5]:,} insns are C-origin code that is still assembler (Controller Pak library): counted as not done')
+    for s in note: d.text((M + 170, y - 6), s, fill=DIM, font=font(14), anchor='lm'); y += 20
+    lut = lu['c'] + lu['hand'] + lu['asm']
+    if lut:
+        y += 6
+        d.text((M, y + 18), 'libultra / libaudio', fill=DIM, font=font(18), anchor='lm')
+        bx, bw = M + 170, W - 2 * M - 170 - 120
+        d.rounded_rectangle((bx, y, bx + bw, y + 36), 6, fill=GRID)
+        xx = bx
+        for v, col in ((lu['c'], GREEN), (lu['hand'], TEAL_), (lu['asm'], AMBER)):
+            w = bw * v / lut
+            if w > 0: d.rounded_rectangle((xx, y, xx + max(6, w), y + 36), 6, fill=col)
+            xx += w
+        d.text((bx + 12, y + 18), f"{lu['c']:,} of {lut:,} instructions in C   -   {lu['hand']:,} SDK assembly, {lu['asm']:,} still assembler", fill=(8, 22, 14), font=font(16), anchor='lm')
+        d.text((bx + bw + 14, y + 18), f"{100 * (lu['c'] + lu['hand']) / lut:.1f}%", fill=TXT, font=font(26, True), anchor='lm')
         y += 54
     y += 22
     if hist:
         pts, total = hist
-        d.text((M, y), 'Progress over time (share of all game code that is matched: C, plus the original hand-written asm once its units exist)', fill=TXT, font=font(21, True)); y += 38
+        d.text((M, y), 'Progress over time (share of all game code that is matched C, or assembly written by the original authors)', fill=TXT, font=font(21, True)); y += 38
         x0, x1, y0, y1 = M + 56, W - M - 90, y, y + 210
         d.rounded_rectangle((M, y0 - 8, W - M, y1 + 44), 8, fill=PANEL)
         for p in (0, 25, 50, 75, 100):
@@ -192,7 +238,7 @@ def main():
             d.rounded_rectangle((lx, y + 8, lx + 18, y + 26), 4, fill=col); d.text((lx + 26, y + 17), label, fill=DIM, font=font(14), anchor='lm'); lx += 36 + int(d.textlength(label, font=font(14))) + 24
         y += 40
     im.crop((0, 0, W, y + 16)).save(out)
-    print([(n, round(100 * t[2] / t[3], 1)) for n, t in rows], out)
+    print([(n, round(100 * (t[3] + t[4]) / t[1], 1), round(100 * t[3] / t[1], 1)) for n, t in rows], 'libultra', lu, out)
 
 if __name__ == '__main__':
     main()

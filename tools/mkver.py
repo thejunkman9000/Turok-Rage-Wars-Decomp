@@ -95,7 +95,11 @@ def main():
                 dropped[fn] += 1; continue
             if m:
                 n_ro = int(m.group(2)); r_ro = (n_ro + 3) & ~3          # a piece is a whole number of words: the tail up to the word boundary comes from the ROM (ro=off:size:real)
-                opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{n_ro}' if r_ro != n_ro else ''))
+                real = n_ro if r_ro != n_ro else None
+                for e in f[4:]:                                         # the 1.1 entry may say that only `real` bytes of the piece are the object's own data (the rest is a tail the ROM supplies): the same object, the same data
+                    mm = re.fullmatch(r'ro=0x[0-9A-Fa-f]+:(\d+):(\d+)', e)
+                    if mm and int(mm.group(1)) == n_ro: real = int(mm.group(2))
+                opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{real}' if real is not None else ''))
             lines.append(f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts))
             kept[fn] += 1
         open(os.path.join(out, fn), 'w', newline='\n').write('\n'.join(lines) + '\n')

@@ -1,0 +1,36 @@
+# Units that the ORIGINAL authors wrote in assembler (so they are `.s` sources in src/ for good, not "not matched yet").  One name per line; '#' starts a comment.
+# tools/progress_chart.py counts these as done but not as C; every other `.s` unit is C-origin code that is still assembler (counted as not matched).
+# game code: the boot code and the exception / TLB / cache / status-register routines at the start of the main image
+func_00200400   # boot code
+func_00202268   # exception vector stubs
+func_002022E0   # stub installer
+func_0020238C   # cache loop
+func_002023A8   # cache loop
+func_002023C4   # __osGetSR
+func_002023D0   # __osSetSR
+func_002023DC   # TLB dump + main exception handler
+func_002028D0   # vector install loop + eret tail
+func_00202994   # context save
+# libultra: routines of the N64 SDK that are assembler there (cop0 / cache / TLB / interrupt-mask access, the exception handler)
+exceptasm
+__osEnqueueAndYield
+osSetIntMask
+__osDisableInt
+__osRestoreInt
+__osGetSR
+__osSetSR
+__osGetFpcCsr
+__osSetFpcCsr
+osGetCount
+__osSetCompare
+osInvalDCache
+osInvalICache
+osWritebackDCache
+osWritebackDCacheAll
+osMapTLB
+osUnmapTLB
+osUnmapTLBAll
+osReadAllTLBEntries
+__osProbeTLB
+__osSpSetStatus
+sqrtf

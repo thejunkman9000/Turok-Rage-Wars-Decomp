@@ -121,6 +121,7 @@ def main():
     for name, rom, n, sub, mode in units():
         if only and name not in only: continue
         if sub_only and sub != sub_only: continue
+        if not os.path.exists(f'src/{sub}/{name}.c'): continue          # hand-written asm and padding units (.s) are not compiled: they stay asm in another release
         i = bisect.bisect_left(gfrom, rom); fns = []
         while i < len(gf) and gf[i][0] < rom + 4 * n: fns.append(gf[i]); i += 1
         if not fns: fns = [(rom, name, n)]
