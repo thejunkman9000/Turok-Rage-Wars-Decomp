@@ -3127,3 +3127,6 @@ func_00262ABC 0x636BC 123 game mode=sn
 func_00200610 0x1210 124 game mode=sn+sa+r4k+epi
 func_0027CCD0 0x7D8D0 491 game mode=sn
 func_0028A924 0x8B524 425 game mode=sn+nb
+func_00290A68 0x91668 103 game mode=sn ro=0xCB0B0:16
+func_002529E4 0x535E4 390 game mode=sn
+func_00278530 0x79130 244 game mode=sn+nb
