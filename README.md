@@ -6,7 +6,7 @@ Base ROM: `baserom.us.v11.z64`, SHA1 `037fb397cee2669048ed6b762a64698de4a4d88a` 
 ## Playing the PC port (Windows)
 The port (`port/`, see docs/PORT_STATUS.md) runs the game natively: Direct3D 11 renderer, keyboard / mouse / gamepad input (`turok_controls.exe` edits the mapping), virtual Controller Pak memory cards (Project64-compatible `.mpk` files in `saves\`).
 On the first start it asks for your own ROM of Turok: Rage Wars (USA, version 1.1; `.z64`, `.n64` or `.v64`), checks it and keeps a copy in `%LOCALAPPDATA%\TurokRageWars`; nothing of the original game is shipped.
-**Ctrl+Enter** (or Alt+Enter) switches between window and full screen; F1 captures / releases the mouse, F2 reloads `controls.ini`, Esc twice quits.
+**Ctrl+Enter** (or Alt+Enter) switches between window and full screen; F1 captures / releases the mouse, F2 reloads `controls.ini`, Esc twice quits.  Build with `powershell -File port\linkgame.ps1`, start with `port\play.cmd`.
 
 ## Workflow
 Windows side (needs the venv: `python -m venv .venv; .venv\Scripts\pip install splat64[mips]`):

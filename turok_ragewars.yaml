@@ -59,7 +59,7 @@ segments:
     vram: 0x200400
     subsegments:
       # BEGIN GENERATED main subsegments (tools/gen_yaml.py)
-      - [0x1000, asm, entry]
+      - [0x1000, c, game/func_00200400]
       - [0x1100, c, game/func_00200500]
       - [0x1138, c, game/func_00200538]
       - [0x1168, c, game/func_00200568]
@@ -86,7 +86,6 @@ segments:
       - [0x22FC, c, game/func_002016FC]
       - [0x23E8, c, game/func_002017E8]
       - [0x24A0, c, game/func_002018A0]
-      - [0x2654, asm]
       - [0x2674, c, game/func_00201A74]
       - [0x26CC, c, game/func_00201ACC]
       - [0x2750, c, game/func_00201B50]
@@ -95,7 +94,16 @@ segments:
       - [0x2A94, c, game/func_00201E94]
       - [0x2C18, c, game/func_00202018]
       - [0x2D98, c, game/func_00202198]
-      - [0x2E68, asm]
+      - [0x2E68, c, game/func_00202268]
+      - [0x2EE0, c, game/func_002022E0]
+      - [0x2F8C, c, game/func_0020238C]
+      - [0x2FA8, c, game/func_002023A8]
+      - [0x2FC4, c, game/func_002023C4]
+      - [0x2FD0, c, game/func_002023D0]
+      - [0x2FDC, c, game/func_002023DC]
+      - [0x34D0, c, game/func_002028D0]
+      - [0x3594, c, game/func_00202994]
+      - [0x3898, c, game/pad_003898]
       - [0x38A0, c, game/func_00202CA0]
       - [0x3A4C, c, game/func_00202E4C]
       - [0x3BDC, c, game/func_00202FDC]
@@ -231,7 +239,7 @@ segments:
       - [0x8BC4, c, game/func_00207FC4]
       - [0x8BE4, c, game/func_00207FE4]
       - [0x8BF8, c, game/pad_008BF8]
-      - [0x8BFC, asm]
+      - [0x8BFC, c, game/pad_008BFC]
       - [0x8C00, c, game/func_00208000]
       - [0x8D58, c, game/func_00208158]
       - [0x9010, c, game/func_00208410]
@@ -306,14 +314,15 @@ segments:
       - [0xE2E4, c, game/func_0020D6E4]
       - [0xE5C0, c, game/func_0020D9C0]
       - [0xE714, c, game/func_0020DB14]
-      - [0xE804, asm]
+      - [0xE804, c, game/pad_00E804]
       - [0xE810, c, game/func_0020DC10]
       - [0xE860, c, game/func_0020DC60]
       - [0xE8A0, c, game/func_0020DCA0]
       - [0xE904, c, game/func_0020DD04]
-      - [0xE9D4, asm]
+      - [0xE9D4, c, game/pad_00E9D4]
+      - [0xE9E0, c, game/func_0020DDE0]
       - [0xF274, c, game/func_0020E674]
-      - [0xF604, asm]
+      - [0xF604, c, game/pad_00F604]
       - [0xF610, c, game/func_0020EA10]
       - [0xF6B4, c, game/func_0020EAB4]
       - [0xF6E0, c, game/func_0020EAE0]
@@ -351,7 +360,7 @@ segments:
       - [0x10E28, c, game/pad_010E28]
       - [0x10E30, c, game/func_00210228]
       - [0x10F5C, c, game/func_0021035C]
-      - [0x112DC, asm]
+      - [0x112DC, c, game/pad_0112DC]
       - [0x112E0, c, game/func_002106E0]
       - [0x11564, c, game/func_00210964]
       - [0x11814, c, game/func_00210C14]
@@ -359,7 +368,7 @@ segments:
       - [0x11AFC, c, game/func_00210EFC]
       - [0x11BE8, c, game/func_00210FE8]
       - [0x11C00, c, game/func_00211000]
-      - [0x11C14, asm]
+      - [0x11C14, c, game/pad_011C14]
       - [0x11C20, c, game/func_00211020]
       - [0x11CC4, c, game/func_002110C4]
       - [0x11D1C, c, game/pad_011D1C]
@@ -371,7 +380,7 @@ segments:
       - [0x13050, c, game/func_00212450]
       - [0x13124, c, game/func_00212524]
       - [0x131F0, c, game/func_002125F0]
-      - [0x13264, asm]
+      - [0x13264, c, game/pad_013264]
       - [0x13270, c, game/func_00212670]
       - [0x133F4, c, game/func_002127F4]
       - [0x13428, c, game/func_00212828]
@@ -395,12 +404,12 @@ segments:
       - [0x13DD8, c, game/pad_013DD8]
       - [0x13DE0, c, game/func_002131D8]
       - [0x13E1C, c, game/func_0021321C]
-      - [0x13F3C, asm]
+      - [0x13F3C, c, game/pad_013F3C]
       - [0x13F40, c, game/func_00213340]
       - [0x14100, c, game/func_00213500]
       - [0x142EC, c, game/func_002136EC]
       - [0x14410, c, game/func_00213810]
-      - [0x144E8, asm]
+      - [0x144E8, c, game/pad_0144E8]
       - [0x144F0, c, game/func_002138F0]
       - [0x146AC, c, game/func_00213AAC]
       - [0x148F8, c, game/func_00213CF8]
@@ -440,7 +449,7 @@ segments:
       - [0x1800C, c, game/func_0021740C]
       - [0x180E4, c, game/func_002174E4]
       - [0x18194, c, game/func_00217594]
-      - [0x1822C, asm]
+      - [0x1822C, c, game/pad_01822C]
       - [0x18230, c, game/func_00217630]
       - [0x18528, c, game/func_00217928]
       - [0x1873C, c, game/func_00217B3C]
@@ -462,7 +471,7 @@ segments:
       - [0x19D24, c, game/func_00219124]
       - [0x19D7C, c, game/func_0021917C]
       - [0x19DB8, c, game/func_002191B8]
-      - [0x19EB4, asm]
+      - [0x19EB4, c, game/pad_019EB4]
       - [0x19EC0, c, game/func_002192C0]
       - [0x19FC8, c, game/func_002193C8]
       - [0x1A008, c, game/func_00219408]
@@ -838,7 +847,7 @@ segments:
       - [0x341DC, c, game/func_002335DC]
       - [0x3430C, c, game/func_0023370C]
       - [0x3437C, c, game/func_0023377C]
-      - [0x343B8, asm]
+      - [0x343B8, c, game/pad_0343B8]
       - [0x343C0, c, game/func_002337C0]
       - [0x34520, c, game/func_00233920]
       - [0x34704, c, game/func_00233B04]
@@ -906,7 +915,7 @@ segments:
       - [0x3AE3C, c, game/func_0023A23C]
       - [0x3AE84, c, game/func_0023A284]
       - [0x3AF34, c, game/func_0023A334]
-      - [0x3B0CC, asm]
+      - [0x3B0CC, c, game/pad_03B0CC]
       - [0x3B0D0, c, game/func_0023A4D0]
       - [0x3BBE0, c, game/func_0023AFE0]
       - [0x3BFE8, c, game/func_0023B3E8]
@@ -917,7 +926,7 @@ segments:
       - [0x3C528, c, game/func_0023B928]
       - [0x3C53C, c, game/func_0023B93C]
       - [0x3C568, c, game/func_0023B968]
-      - [0x3C594, asm]
+      - [0x3C594, c, game/pad_03C594]
       - [0x3C5A0, c, game/func_0023B9A0]
       - [0x3C864, c, game/func_0023BC64]
       - [0x3C924, c, game/func_0023BD24]
@@ -938,7 +947,9 @@ segments:
       - [0x3D8C4, c, game/func_0023CCC4]
       - [0x3D9C4, c, game/func_0023CDC4]
       - [0x3DA8C, c, game/func_0023CE8C]
-      - [0x3DBB8, asm]
+      - [0x3DBB8, c, game/pad_03DBB8]
+      - [0x3DBC0, c, game/func_0023CFC0]
+      - [0x3DBC8, c, game/pad_03DBC8]
       - [0x3DBD0, c, game/func_0023CFD0]
       - [0x3DD48, c, game/func_0023D148]
       - [0x3DF70, c, game/func_0023D370]
@@ -961,7 +972,7 @@ segments:
       - [0x3F844, c, game/func_0023EC44]
       - [0x3F8AC, c, game/func_0023ECAC]
       - [0x3F954, c, game/func_0023ED54]
-      - [0x3F9E8, asm]
+      - [0x3F9E8, c, game/pad_03F9E8]
       - [0x3F9F0, c, game/func_0023EDF0]
       - [0x3FA24, c, game/func_0023EE24]
       - [0x3FA50, c, game/func_0023EE50]
@@ -969,17 +980,17 @@ segments:
       - [0x3FAF0, c, game/func_0023EEF0]
       - [0x4002C, c, game/func_0023F42C]
       - [0x40234, c, game/func_0023F634]
-      - [0x40334, asm]
+      - [0x40334, c, game/pad_040334]
       - [0x40340, c, game/func_0023F740]
       - [0x40908, c, game/func_0023FD08]
       - [0x40E50, c, game/func_00240250]
       - [0x41128, c, game/func_00240528]
       - [0x411EC, c, game/func_002405EC]
       - [0x41228, c, game/func_00240628]
-      - [0x4124C, asm]
+      - [0x4124C, c, game/pad_04124C]
       - [0x41250, c, game/func_00240650]
       - [0x41288, c, game/func_00240688]
-      - [0x412BC, asm]
+      - [0x412BC, c, game/pad_0412BC]
       - [0x412C0, c, game/func_002406C0]
       - [0x41688, c, game/func_00240A88]
       - [0x4187C, c, game/func_00240C7C]
@@ -999,7 +1010,7 @@ segments:
       - [0x42318, c, game/func_00241718]
       - [0x423B4, c, game/func_002417B4]
       - [0x42430, c, game/func_00241830]
-      - [0x4253C, asm]
+      - [0x4253C, c, game/pad_04253C]
       - [0x42540, c, game/func_00241940]
       - [0x4279C, c, game/func_00241B9C]
       - [0x42B14, c, game/func_00241F14]
@@ -1017,10 +1028,10 @@ segments:
       - [0x44440, c, game/func_00243840]
       - [0x44464, c, game/func_00243864]
       - [0x44510, c, game/func_00243910]
-      - [0x44678, asm]
+      - [0x44678, c, game/pad_044678]
       - [0x44680, c, game/func_00243A80]
       - [0x45094, c, game/func_00244494]
-      - [0x45954, asm]
+      - [0x45954, c, game/pad_045954]
       - [0x45960, c, game/func_00244D60]
       - [0x45A48, c, game/func_00244E48]
       - [0x45BA4, c, game/func_00244FA4]
@@ -1063,7 +1074,7 @@ segments:
       - [0x467B0, c, game/func_00245BB0]
       - [0x46828, c, game/func_00245C28]
       - [0x46904, c, game/func_00245D04]
-      - [0x46918, asm]
+      - [0x46918, c, game/pad_046918]
       - [0x46920, c, game/func_00245D20]
       - [0x46D74, c, game/func_00246174]
       - [0x46DD8, c, game/func_002461D8]
@@ -1198,7 +1209,7 @@ segments:
       - [0x4F4F0, c, game/func_0024E8F0]
       - [0x4F514, c, game/func_0024E914]
       - [0x4F558, c, game/func_0024E958]
-      - [0x4F574, asm]
+      - [0x4F574, c, game/pad_04F574]
       - [0x4F580, c, game/func_0024E980]
       - [0x4F780, c, game/func_0024EB80]
       - [0x4F980, c, game/func_0024ED80]
@@ -1214,7 +1225,7 @@ segments:
       - [0x502DC, c, game/func_0024F6DC]
       - [0x50448, c, game/func_0024F848]
       - [0x504CC, c, game/func_0024F8CC]
-      - [0x50534, asm]
+      - [0x50534, c, game/pad_050534]
       - [0x50540, c, game/func_0024F940]
       - [0x5094C, c, game/func_0024FD4C]
       - [0x50CA4, c, game/func_002500A4]
@@ -1304,15 +1315,15 @@ segments:
       - [0x56028, c, game/func_00255428]
       - [0x560E0, c, game/func_002554E0]
       - [0x5612C, c, game/func_0025552C]
-      - [0x561C8, asm]
+      - [0x561C8, c, game/pad_0561C8]
       - [0x561D0, c, game/func_002555D0]
       - [0x56320, c, game/func_00255720]
       - [0x567EC, c, game/func_00255BEC]
-      - [0x5683C, asm]
+      - [0x5683C, c, game/pad_05683C]
       - [0x56840, c, game/func_00255C40]
       - [0x56858, c, game/func_00255C58]
       - [0x568B4, c, game/func_00255CB4]
-      - [0x56E14, asm]
+      - [0x56E14, c, game/pad_056E14]
       - [0x56E20, c, game/func_00256220]
       - [0x56F1C, c, game/func_0025631C]
       - [0x56FF4, c, game/func_002563F4]
@@ -1322,7 +1333,7 @@ segments:
       - [0x57308, c, game/pad_057308]
       - [0x57310, c, game/func_00256710]
       - [0x573C4, c, game/func_002567C4]
-      - [0x573E8, asm]
+      - [0x573E8, c, game/pad_0573E8]
       - [0x573F0, c, game/func_002567F0]
       - [0x574A0, c, game/func_002568A0]
       - [0x578B0, c, game/func_00256CB0]
@@ -1377,7 +1388,7 @@ segments:
       - [0x59DC0, c, game/func_002591C0]
       - [0x59DF0, c, game/func_002591F0]
       - [0x59E20, c, game/func_00259220]
-      - [0x59E78, asm]
+      - [0x59E78, c, game/pad_059E78]
       - [0x59E80, c, game/func_00259280]
       - [0x5A060, c, game/func_00259460]
       - [0x5A28C, c, game/func_0025968C]
@@ -1391,7 +1402,7 @@ segments:
       - [0x5A670, c, game/func_00259A70]
       - [0x5A6D8, c, game/func_00259AD8]
       - [0x5A710, c, game/func_00259B10]
-      - [0x5A72C, asm]
+      - [0x5A72C, c, game/pad_05A72C]
       - [0x5A730, c, game/func_00259B30]
       - [0x5A87C, c, game/func_00259C7C]
       - [0x5AB88, c, game/func_00259F88]
@@ -1445,7 +1456,7 @@ segments:
       - [0x5D80C, c, game/func_0025CC0C]
       - [0x5D88C, c, game/func_0025CC8C]
       - [0x5D89C, c, game/func_0025CC9C]
-      - [0x5D8A4, asm]
+      - [0x5D8A4, c, game/pad_05D8A4]
       - [0x5D8B0, c, game/func_0025CCB0]
       - [0x5DAF0, c, game/func_0025CEF0]
       - [0x5DD78, c, game/func_0025D178]
@@ -1453,7 +1464,7 @@ segments:
       - [0x5DE58, c, game/func_0025D258]
       - [0x5DF70, c, game/func_0025D370]
       - [0x5E004, c, game/func_0025D404]
-      - [0x5E068, asm]
+      - [0x5E068, c, game/pad_05E068]
       - [0x5E070, c, game/func_0025D470]
       - [0x5E464, c, game/func_0025D864]
       - [0x5E548, c, game/func_0025D948]
@@ -1466,7 +1477,7 @@ segments:
       - [0x5E854, c, game/func_0025DC54]
       - [0x5E8A8, c, game/func_0025DCA8]
       - [0x5E980, c, game/func_0025DD80]
-      - [0x5EA4C, asm]
+      - [0x5EA4C, c, game/pad_05EA4C]
       - [0x5EA50, c, game/func_0025DE50]
       - [0x5EA74, c, game/func_0025DE74]
       - [0x5EAE0, c, game/func_0025DEE0]
@@ -1499,7 +1510,7 @@ segments:
       - [0x5F0AC, c, game/func_0025E4AC]
       - [0x5F0D0, c, game/func_0025E4D0]
       - [0x5F0F4, c, game/func_0025E4F4]
-      - [0x5F11C, asm]
+      - [0x5F11C, c, game/pad_05F11C]
       - [0x5F120, c, game/func_0025E520]
       - [0x5F12C, c, game/func_0025E52C]
       - [0x5F138, c, game/func_0025E538]
@@ -1514,7 +1525,7 @@ segments:
       - [0x5F1A4, c, game/func_0025E5A4]
       - [0x5F1B0, c, game/func_0025E5B0]
       - [0x5F1BC, c, game/func_0025E5BC]
-      - [0x5F1C8, asm]
+      - [0x5F1C8, c, game/pad_05F1C8]
       - [0x5F1D0, c, game/func_0025E5D0]
       - [0x5F63C, c, game/func_0025EA3C]
       - [0x5FB54, c, game/func_0025EF54]
@@ -1564,7 +1575,7 @@ segments:
       - [0x621D4, c, game/func_002615D4]
       - [0x6222C, c, game/func_0026162C]
       - [0x62234, c, game/func_00261634]
-      - [0x62288, asm]
+      - [0x62288, c, game/pad_062288]
       - [0x62290, c, game/func_00261690]
       - [0x6255C, c, game/func_0026195C]
       - [0x62AB8, c, game/func_00261EB8]
@@ -1577,7 +1588,7 @@ segments:
       - [0x631E4, c, game/func_002625E4]
       - [0x63210, c, game/func_00262610]
       - [0x632BC, c, game/func_002626BC]
-      - [0x633B4, asm]
+      - [0x633B4, c, game/pad_0633B4]
       - [0x633C0, c, game/func_002627C0]
       - [0x636BC, c, game/func_00262ABC]
       - [0x638A8, c, game/func_00262CA8]
@@ -1643,10 +1654,10 @@ segments:
       - [0x65A00, c, game/func_00264E00]
       - [0x65A10, c, game/func_00264E10]
       - [0x65B00, c, game/func_00264F00]
-      - [0x65B7C, asm]
+      - [0x65B7C, c, game/pad_065B7C]
       - [0x65B80, c, game/func_00264F80]
       - [0x65DD0, c, game/func_002651D0]
-      - [0x65F64, asm]
+      - [0x65F64, c, game/pad_065F64]
       - [0x65F70, c, game/func_00265370]
       - [0x65F98, c, game/func_00265398]
       - [0x66064, c, game/func_00265464]
@@ -1668,7 +1679,7 @@ segments:
       - [0x66584, c, game/func_00265984]
       - [0x66600, c, game/func_00265A00]
       - [0x669F0, c, game/func_00265DF0]
-      - [0x66A28, asm]
+      - [0x66A28, c, game/pad_066A28]
       - [0x66A30, c, game/func_00265E30]
       - [0x66DFC, c, game/func_002661FC]
       - [0x6703C, c, game/func_0026643C]
@@ -1724,7 +1735,7 @@ segments:
       - [0x6987C, c, game/func_00268C7C]
       - [0x698BC, c, game/func_00268CBC]
       - [0x698C8, c, game/func_00268CC8]
-      - [0x698D4, asm]
+      - [0x698D4, c, game/pad_0698D4]
       - [0x698E0, c, game/func_00268CE0]
       - [0x69E5C, c, game/func_0026925C]
       - [0x6A52C, c, game/func_0026992C]
@@ -1773,7 +1784,7 @@ segments:
       - [0x6F0D0, c, game/func_0026E4D0]
       - [0x6F0F8, c, game/func_0026E4F8]
       - [0x6F140, c, game/func_0026E540]
-      - [0x6F1DC, asm]
+      - [0x6F1DC, c, game/pad_06F1DC]
       - [0x6F1E0, c, game/func_0026E5E0]
       - [0x6FA90, c, game/func_0026EE90]
       - [0x6FBC8, c, game/func_0026EFC8]
@@ -1901,11 +1912,11 @@ segments:
       - [0x7707C, c, game/func_0027647C]
       - [0x77144, c, game/func_00276544]
       - [0x77180, c, game/func_00276580]
-      - [0x77218, asm]
+      - [0x77218, c, game/pad_077218]
       - [0x77220, c, game/func_00276620]
       - [0x775D8, c, game/func_002769D8]
       - [0x777B4, c, game/func_00276BB4]
-      - [0x77914, asm]
+      - [0x77914, c, game/pad_077914]
       - [0x77920, c, game/func_00276D20]
       - [0x77D98, c, game/func_00277198]
       - [0x78044, c, game/func_00277444]
@@ -1920,7 +1931,7 @@ segments:
       - [0x79678, c, game/func_00278A78]
       - [0x7972C, c, game/func_00278B2C]
       - [0x797AC, c, game/func_00278BAC]
-      - [0x7987C, asm]
+      - [0x7987C, c, game/pad_07987C]
       - [0x79880, c, game/func_00278C80]
       - [0x799E8, c, game/func_00278DE8]
       - [0x79A74, c, game/func_00278E74]
@@ -1942,7 +1953,7 @@ segments:
       - [0x79E60, c, game/func_00279260]
       - [0x79E74, c, game/func_00279274]
       - [0x7A090, c, game/func_00279490]
-      - [0x7A114, asm]
+      - [0x7A114, c, game/pad_07A114]
       - [0x7A120, c, game/func_00279520]
       - [0x7A130, c, game/func_00279530]
       - [0x7A178, c, game/func_00279578]
@@ -1956,7 +1967,7 @@ segments:
       - [0x7A518, c, game/func_00279918]
       - [0x7A600, c, game/func_00279A00]
       - [0x7A630, c, game/func_00279A30]
-      - [0x7A664, asm]
+      - [0x7A664, c, game/pad_07A664]
       - [0x7A670, c, game/func_00279A70]
       - [0x7A7B0, c, game/func_00279BB0]
       - [0x7AA40, c, game/func_00279E40]
@@ -2035,13 +2046,13 @@ segments:
       - [0x85C9C, c, game/func_0028509C]
       - [0x85D30, c, game/func_00285130]
       - [0x85D50, c, game/func_00285150]
-      - [0x85E88, asm]
+      - [0x85E88, c, game/pad_085E88]
       - [0x85E90, c, game/func_00285290]
       - [0x86084, c, game/func_00285484]
-      - [0x8613C, asm]
+      - [0x8613C, c, game/pad_08613C]
       - [0x86140, c, game/func_00285540]
       - [0x86200, c, game/func_00285600]
-      - [0x862AC, asm]
+      - [0x862AC, c, game/pad_0862AC]
       - [0x862B0, c, game/func_002856B0]
       - [0x86480, c, game/func_00285880]
       - [0x86530, c, game/func_00285930]
@@ -2052,7 +2063,7 @@ segments:
       - [0x86734, c, game/func_00285B34]
       - [0x86848, c, game/func_00285C48]
       - [0x86900, c, game/func_00285D00]
-      - [0x8697C, asm]
+      - [0x8697C, c, game/pad_08697C]
       - [0x86980, c, game/func_00285D80]
       - [0x86B28, c, game/func_00285F28]
       - [0x86C50, c, game/func_00286050]
@@ -2182,7 +2193,7 @@ segments:
       - [0x907F0, c, game/func_0028FBF0]
       - [0x90924, c, game/func_0028FD24]
       - [0x9092C, c, game/func_0028FD2C]
-      - [0x90968, asm]
+      - [0x90968, c, game/pad_090968]
       - [0x90970, c, game/func_0028FD70]
       - [0x90994, c, game/func_0028FD94]
       - [0x909A8, c, game/func_0028FDA8]
@@ -2204,9 +2215,9 @@ segments:
       - [0x9134C, c, game/func_0029074C]
       - [0x914A0, c, game/func_002908A0]
       - [0x91530, c, game/func_00290930]
-      - [0x915C4, asm]
+      - [0x915C4, c, game/pad_0915C4]
       - [0x915D0, c, game/func_002909D0]
-      - [0x915D8, asm]
+      - [0x915D8, c, game/pad_0915D8]
       - [0x915E0, c, game/func_002909E0]
       - [0x915EC, c, game/func_002909EC]
       - [0x915F4, c, game/func_002909F4]
@@ -2313,7 +2324,7 @@ segments:
       - [0x957A8, c, game/func_00294BA8]
       - [0x957B0, c, game/func_00294BB0]
       - [0x95864, c, game/func_00294C64]
-      - [0x95898, asm]
+      - [0x95898, c, game/pad_095898]
       - [0x958A0, c, game/func_00294CA0]
       - [0x95B1C, c, game/func_00294F1C]
       - [0x95FFC, c, game/func_002953FC]
@@ -2335,7 +2346,7 @@ segments:
       - [0x96700, c, game/func_00295B00]
       - [0x96718, c, game/func_00295B18]
       - [0x96730, c, game/func_00295B30]
-      - [0x96784, asm]
+      - [0x96784, c, game/pad_096784]
       - [0x96790, c, game/func_00295B90]
       - [0x96BB4, c, game/func_00295FB4]
       - [0x979D0, c, game/func_00296DD0]
@@ -2345,7 +2356,7 @@ segments:
       - [0x97B7C, c, game/func_00296F7C]
       - [0x97BF8, c, game/func_00296FF8]
       - [0x97C08, c, game/func_00297008]
-      - [0x97C18, asm]
+      - [0x97C18, c, game/pad_097C18]
       - [0x97C20, c, game/func_00297020]
       - [0x97EA8, c, game/func_002972A8]
       - [0x97F90, c, game/func_00297390]
@@ -2360,7 +2371,7 @@ segments:
       - [0x986D4, c, game/func_00297AD4]
       - [0x98774, c, game/func_00297B74]
       - [0x98830, c, game/func_00297C30]
-      - [0x988C8, asm]
+      - [0x988C8, c, game/pad_0988C8]
       - [0x988D0, c, game/func_00297CD0]
       - [0x98A3C, c, game/func_00297E3C]
       - [0x98F10, c, game/func_00298310]
@@ -2406,7 +2417,7 @@ segments:
       - [0x9B8C4, c, game/func_0029ACC4]
       - [0x9B8F0, c, game/func_0029ACF0]
       - [0x9BA64, c, game/func_0029AE64]
-      - [0x9BA74, asm]
+      - [0x9BA74, c, game/pad_09BA74]
       - [0x9BA80, c, game/func_0029AE80]
       - [0x9BF24, c, game/func_0029B324]
       - [0x9C158, c, game/func_0029B558]
@@ -2417,7 +2428,7 @@ segments:
       - [0x9C6AC, c, game/func_0029BAAC]
       - [0x9C6D8, c, game/func_0029BAD8]
       - [0x9C724, c, game/func_0029BB24]
-      - [0x9C798, asm]
+      - [0x9C798, c, game/pad_09C798]
       - [0x9C7A0, c, game/func_0029BBA0]
       - [0x9C938, c, game/func_0029BD38]
       - [0x9CAA4, c, game/func_0029BEA4]
@@ -2509,7 +2520,7 @@ segments:
       - [0xA0DA0, c, game/func_002A01A0]
       - [0xA0E54, c, game/func_002A0254]
       - [0xA0F68, c, game/func_002A0368]
-      - [0xA1068, asm]
+      - [0xA1068, c, game/pad_0A1068]
       - [0xA1070, c, game/func_002A0470]
       - [0xA11E0, c, game/func_002A05E0]
       - [0xA1488, c, game/func_002A0888]
@@ -2574,7 +2585,7 @@ segments:
       - [0xA2E20, c, game/func_002A2220]
       - [0xA2E30, c, game/func_002A2230]
       - [0xA2E4C, c, game/func_002A224C]
-      - [0xA2E64, asm]
+      - [0xA2E64, c, game/pad_0A2E64]
       - [0xA2E70, c, game/func_002A2270]
       - [0xA2FA4, c, game/func_002A23A4]
       - [0xA30B8, c, game/func_002A24B8]
@@ -2584,7 +2595,7 @@ segments:
       - [0xA33C4, c, game/func_002A27C4]
       - [0xA33F8, c, game/func_002A27F8]
       - [0xA342C, c, game/func_002A282C]
-      - [0xA346C, asm]
+      - [0xA346C, c, game/pad_0A346C]
       - [0xA3470, c, game/func_002A2870]
       - [0xA3498, c, game/func_002A2898]
       - [0xA34CC, c, game/func_002A28CC]
@@ -2609,7 +2620,7 @@ segments:
       - [0xA3BB8, c, game/func_002A2FB8]
       - [0xA3BE8, c, game/func_002A2FE8]
       - [0xA3C6C, c, game/func_002A306C]
-      - [0xA3C8C, asm]
+      - [0xA3C8C, c, game/pad_0A3C8C]
       - [0xA3C90, c, game/func_002A3090]
       - [0xA3DF4, c, game/func_002A31F4]
       - [0xA3E24, c, game/func_002A3224]
@@ -2625,7 +2636,7 @@ segments:
       - [0xA4010, c, game/func_002A3410]
       - [0xA402C, c, game/func_002A342C]
       - [0xA4078, c, game/func_002A3478]
-      - [0xA41BC, asm]
+      - [0xA41BC, c, game/pad_0A41BC]
       - [0xA41C0, c, game/func_002A35C0]
       - [0xA433C, c, game/func_002A373C]
       - [0xA4748, c, game/func_002A3B48]
@@ -2675,7 +2686,7 @@ segments:
       - [0xA81D0, c, game/func_002A75D0]
       - [0xA84F0, c, game/func_002A78F0]
       - [0xA8B58, c, game/func_002A7F58]
-      - [0xA924C, asm]
+      - [0xA924C, c, game/pad_0A924C]
       - [0xA9250, c, game/func_002A8650]
       - [0xA9694, c, game/func_002A8A94]
       - [0xA99D4, c, game/func_002A8DD4]
@@ -2710,7 +2721,7 @@ segments:
       - [0xACDA0, c, game/func_002AC1A0]
       - [0xACF4C, c, game/func_002AC34C]
       - [0xACF98, c, game/func_002AC398]
-      - [0xACFEC, asm]
+      - [0xACFEC, c, game/pad_0ACFEC]
       - [0xACFF0, c, game/func_002AC3F0]
       - [0xAD56C, c, game/func_002AC96C]
       - [0xAD7CC, c, game/func_002ACBCC]
@@ -3125,7 +3136,7 @@ segments:
       - [0xC3114, c, libultra/pad_0C3114]
       - [0xC3120, c, libultra/xprintf]
       - [0xC3AD0, c, libultra/xlitob]
-      - [0xC3DA8, asm]
+      - [0xC3DA8, c, libultra/pad_0C3DA8]
       - [0xC3DB0, c, libultra/_Ldtob]
       - [0xC3DB8, c, libultra/pad_0C3DB8]
       - [0xC3DC0, c, libultra/alAdpcmPull]
@@ -3199,96 +3210,99 @@ segments:
       - {start: 0xC79E8, type: bin, name: data_12, linker_section_order: .rodata, linker_section: .data}
       - [0xC7A44, .rodata, game/func_0020AF9C]
       - {start: 0xC7A58, type: bin, name: data_13, linker_section_order: .rodata, linker_section: .data}
+      - [0xC7AB0, .rodata, game/func_0020DDE0]
+      - {start: 0xC7B30, type: bin, name: data_14, linker_section_order: .rodata, linker_section: .data}
       - [0xC7B58, .rodata, game/func_0020EC14]
-      - {start: 0xC7BD0, type: bin, name: data_14, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7BD0, type: bin, name: data_15, linker_section_order: .rodata, linker_section: .data}
       - [0xC7BE0, .rodata, game/func_0020EF54]
-      - {start: 0xC7C00, type: bin, name: data_15, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7C00, type: bin, name: data_16, linker_section_order: .rodata, linker_section: .data}
       - [0xC7C30, .rodata, game/func_00210180]
-      - {start: 0xC7C34, type: bin, name: data_16, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7C34, type: bin, name: data_17, linker_section_order: .rodata, linker_section: .data}
       - [0xC7C80, .rodata, game/func_002106E0]
-      - {start: 0xC7C88, type: bin, name: data_17, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7C88, type: bin, name: data_18, linker_section_order: .rodata, linker_section: .data}
       - [0xC7CA0, .rodata, game/func_00210C14]
-      - {start: 0xC7CC8, type: bin, name: data_18, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7CC8, type: bin, name: data_19, linker_section_order: .rodata, linker_section: .data}
       - [0xC7D00, .rodata, game/func_00211120]
-      - {start: 0xC7D20, type: bin, name: data_19, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7D20, type: bin, name: data_20, linker_section_order: .rodata, linker_section: .data}
       - [0xC7DB0, .rodata, game/func_00212670]
-      - {start: 0xC7DB4, type: bin, name: data_20, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7DB4, type: bin, name: data_21, linker_section_order: .rodata, linker_section: .data}
       - [0xC7DF8, .rodata, game/func_002138F0]
-      - {start: 0xC7E08, type: bin, name: data_21, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7E08, type: bin, name: data_22, linker_section_order: .rodata, linker_section: .data}
       - [0xC7E18, .rodata, game/func_00213AAC]
-      - {start: 0xC7E1C, type: bin, name: data_22, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7E1C, type: bin, name: data_23, linker_section_order: .rodata, linker_section: .data}
       - [0xC7E20, .rodata, game/func_00213ED4]
-      - {start: 0xC7E28, type: bin, name: data_23, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7E28, type: bin, name: data_24, linker_section_order: .rodata, linker_section: .data}
       - [0xC7E30, .rodata, game/func_00214624]
-      - {start: 0xC7E4C, type: bin, name: data_24, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7E4C, type: bin, name: data_25, linker_section_order: .rodata, linker_section: .data}
       - [0xC7E6C, .rodata, game/func_00215410]
       - [0xC7E70, .rodata, game/func_00215868]
-      - {start: 0xC7E88, type: bin, name: data_25, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7E88, type: bin, name: data_26, linker_section_order: .rodata, linker_section: .data}
       - [0xC7E8C, .rodata, game/func_00215B90]
-      - {start: 0xC7EA4, type: bin, name: data_26, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7EA4, type: bin, name: data_27, linker_section_order: .rodata, linker_section: .data}
       - [0xC7EC0, .rodata, game/func_00216F44]
-      - {start: 0xC7EC8, type: bin, name: data_27, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7EC8, type: bin, name: data_28, linker_section_order: .rodata, linker_section: .data}
       - [0xC7EF0, .rodata, game/func_00217630]
       - [0xC7F10, .rodata, game/func_00217928]
-      - {start: 0xC7F24, type: bin, name: data_28, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7F24, type: bin, name: data_29, linker_section_order: .rodata, linker_section: .data}
       - [0xC7F5C, .rodata, game/func_002185D0]
-      - {start: 0xC7F88, type: bin, name: data_29, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7F88, type: bin, name: data_30, linker_section_order: .rodata, linker_section: .data}
       - [0xC7FA0, .rodata, game/func_00218F9C]
-      - {start: 0xC7FB4, type: bin, name: data_30, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC7FB4, type: bin, name: data_31, linker_section_order: .rodata, linker_section: .data}
       - [0xC8038, .rodata, game/func_0021B468]
-      - {start: 0xC8058, type: bin, name: data_31, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8058, type: bin, name: data_32, linker_section_order: .rodata, linker_section: .data}
       - [0xC8078, .rodata, game/func_0021CF04]
-      - {start: 0xC8094, type: bin, name: data_32, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8094, type: bin, name: data_33, linker_section_order: .rodata, linker_section: .data}
       - [0xC80C4, .rodata, game/func_0021E068]
-      - {start: 0xC80D0, type: bin, name: data_33, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC80D0, type: bin, name: data_34, linker_section_order: .rodata, linker_section: .data}
       - [0xC80E8, .rodata, game/func_0021E27C]
-      - {start: 0xC8280, type: bin, name: data_34, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8280, type: bin, name: data_35, linker_section_order: .rodata, linker_section: .data}
       - [0xC828C, .rodata, game/func_0021E5D4]
       - [0xC82B4, .rodata, game/func_0021EA30]
-      - {start: 0xC82EC, type: bin, name: data_35, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC82EC, type: bin, name: data_36, linker_section_order: .rodata, linker_section: .data}
       - [0xC82F0, .rodata, game/func_0021EED8]
-      - {start: 0xC84B4, type: bin, name: data_36, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC84B4, type: bin, name: data_37, linker_section_order: .rodata, linker_section: .data}
       - [0xC84CC, .rodata, game/func_00220EB0]
-      - {start: 0xC8538, type: bin, name: data_37, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8538, type: bin, name: data_38, linker_section_order: .rodata, linker_section: .data}
       - [0xC8550, .rodata, game/func_00222FBC]
       - [0xC856C, .rodata, game/func_002231B0]
-      - {start: 0xC85A4, type: bin, name: data_38, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC85A4, type: bin, name: data_39, linker_section_order: .rodata, linker_section: .data}
       - [0xC86F0, .rodata, game/func_00224C28]
       - [0xC8720, .rodata, game/func_00224F38]
       - [0xC8748, .rodata, game/func_002251B8]
       - [0xC87D0, .rodata, game/func_00225D10]
       - [0xC87E4, .rodata, game/func_00225F20]
       - [0xC8824, .rodata, game/func_0022631C]
-      - {start: 0xC8838, type: bin, name: data_39, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8838, type: bin, name: data_40, linker_section_order: .rodata, linker_section: .data}
       - [0xC8864, .rodata, game/func_00226DAC]
-      - {start: 0xC886C, type: bin, name: data_40, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC886C, type: bin, name: data_41, linker_section_order: .rodata, linker_section: .data}
       - [0xC8870, .rodata, game/func_00227014]
-      - {start: 0xC8890, type: bin, name: data_41, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8890, type: bin, name: data_42, linker_section_order: .rodata, linker_section: .data}
       - [0xC8914, .rodata, game/func_00228F94]
-      - {start: 0xC8934, type: bin, name: data_42, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8934, type: bin, name: data_43, linker_section_order: .rodata, linker_section: .data}
       - [0xC8948, .rodata, game/func_002297F0]
       - [0xC8970, .rodata, game/func_00229BE0]
-      - {start: 0xC89B8, type: bin, name: data_43, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC89B8, type: bin, name: data_44, linker_section_order: .rodata, linker_section: .data}
       - [0xC8B0C, .rodata, game/func_0022E77C]
-      - {start: 0xC8B14, type: bin, name: data_44, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8B14, type: bin, name: data_45, linker_section_order: .rodata, linker_section: .data}
       - [0xC8B20, .rodata, game/func_0022EAFC]
-      - {start: 0xC8B78, type: bin, name: data_45, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8B78, type: bin, name: data_46, linker_section_order: .rodata, linker_section: .data}
       - [0xC8B88, .rodata, game/func_00230048]
       - [0xC8BD0, .rodata, game/func_002301E4]
-      - {start: 0xC8BD8, type: bin, name: data_46, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8BD8, type: bin, name: data_47, linker_section_order: .rodata, linker_section: .data}
       - [0xC8C08, .rodata, game/func_00230BB8]
       - [0xC8C18, .rodata, game/func_00230D94]
-      - {start: 0xC8C40, type: bin, name: data_47, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8C40, type: bin, name: data_48, linker_section_order: .rodata, linker_section: .data}
       - [0xC8C4C, .rodata, game/func_002312B8]
       - [0xC8C58, .rodata, game/func_00231464]
       - [0xC8C88, .rodata, game/func_00231654]
-      - {start: 0xC8CA0, type: bin, name: data_48, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8CA0, type: bin, name: data_49, linker_section_order: .rodata, linker_section: .data}
       - [0xC8CA8, .rodata, game/func_00231BA0]
-      - {start: 0xC8CAC, type: bin, name: data_49, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8CAC, type: bin, name: data_50, linker_section_order: .rodata, linker_section: .data}
       - [0xC8CC8, .rodata, game/func_00232790]
-      - {start: 0xC8D00, type: bin, name: data_50, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8D00, type: bin, name: data_51, linker_section_order: .rodata, linker_section: .data}
+      - [0xC8D90, .rodata, ovl_a/func_0044ADC0]
       - [0xC8D9C, .rodata, game/func_00233B04]
-      - {start: 0xC8DA4, type: bin, name: data_51, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8DA4, type: bin, name: data_52, linker_section_order: .rodata, linker_section: .data}
       - [0xC8DA8, .rodata, game/func_00233DEC]
       - [0xC8E50, .rodata, game/func_002343B8]
       - [0xC8EE8, .rodata, game/func_002349B0]
@@ -3296,112 +3310,114 @@ segments:
       - [0xC8EFC, .rodata, game/func_00234FDC]
       - [0xC8FA8, .rodata, game/func_00235AD0]
       - [0xC8FB4, .rodata, game/func_002362D8]
-      - {start: 0xC8FC4, type: bin, name: data_52, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC8FC4, type: bin, name: data_53, linker_section_order: .rodata, linker_section: .data}
       - [0xC8FE0, .rodata, game/func_002365FC]
-      - {start: 0xC9010, type: bin, name: data_53, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9010, type: bin, name: data_54, linker_section_order: .rodata, linker_section: .data}
       - [0xC9014, .rodata, game/func_00236F0C]
       - [0xC90E8, .rodata, game/func_00238040]
       - [0xC9104, .rodata, game/func_00238304]
       - [0xC913C, .rodata, game/func_00238660]
-      - {start: 0xC9204, type: bin, name: data_54, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9204, type: bin, name: data_55, linker_section_order: .rodata, linker_section: .data}
       - [0xC9240, .rodata, game/func_00239668]
       - [0xC9248, .rodata, game/func_00239760]
       - [0xC9250, .rodata, game/func_002398F8]
-      - {start: 0xC9258, type: bin, name: data_55, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9258, type: bin, name: data_56, linker_section_order: .rodata, linker_section: .data}
       - [0xC9294, .rodata, game/func_0023A334]
-      - {start: 0xC929C, type: bin, name: data_56, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC929C, type: bin, name: data_57, linker_section_order: .rodata, linker_section: .data}
       - [0xC92A0, .rodata, game/func_0023A4D0]
       - [0xC92C4, .rodata, game/func_0023AFE0]
-      - {start: 0xC92E0, type: bin, name: data_57, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC92E0, type: bin, name: data_58, linker_section_order: .rodata, linker_section: .data}
       - [0xC9300, .rodata, game/func_0023C1E0]
-      - {start: 0xC9310, type: bin, name: data_58, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9310, type: bin, name: data_59, linker_section_order: .rodata, linker_section: .data}
       - [0xC9324, .rodata, game/func_0023D370]
-      - {start: 0xC9380, type: bin, name: data_59, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9380, type: bin, name: data_60, linker_section_order: .rodata, linker_section: .data}
       - [0xC9390, .rodata, game/func_0023E44C]
-      - {start: 0xC93B8, type: bin, name: data_60, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC93B8, type: bin, name: data_61, linker_section_order: .rodata, linker_section: .data}
       - [0xC93D0, .rodata, game/func_0023EEF0]
-      - {start: 0xC93D8, type: bin, name: data_61, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC93D8, type: bin, name: data_62, linker_section_order: .rodata, linker_section: .data}
       - [0xC93E0, .rodata, game/func_0023F740]
-      - {start: 0xC93F8, type: bin, name: data_62, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC93F8, type: bin, name: data_63, linker_section_order: .rodata, linker_section: .data}
       - [0xC940C, .rodata, game/func_0023FD08]
-      - {start: 0xC9414, type: bin, name: data_63, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9414, type: bin, name: data_64, linker_section_order: .rodata, linker_section: .data}
       - [0xC9420, .rodata, game/func_002406C0]
       - [0xC9424, .rodata, game/func_00240A88]
-      - {start: 0xC942C, type: bin, name: data_64, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC942C, type: bin, name: data_65, linker_section_order: .rodata, linker_section: .data}
       - [0xC9440, .rodata, game/func_00241940]
-      - {start: 0xC9448, type: bin, name: data_65, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9448, type: bin, name: data_66, linker_section_order: .rodata, linker_section: .data}
       - [0xC9460, .rodata, game/func_00242BE0]
-      - {start: 0xC9464, type: bin, name: data_66, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9464, type: bin, name: data_67, linker_section_order: .rodata, linker_section: .data}
       - [0xC94E0, .rodata, game/func_00245D20]
-      - {start: 0xC9514, type: bin, name: data_67, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9514, type: bin, name: data_68, linker_section_order: .rodata, linker_section: .data}
       - [0xC9690, .rodata, game/func_002484A0]
-      - {start: 0xC96D4, type: bin, name: data_68, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC96D4, type: bin, name: data_69, linker_section_order: .rodata, linker_section: .data}
       - [0xC976C, .rodata, game/func_0024AA08]
       - [0xC97A8, .rodata, game/func_0024ADC0]
-      - {start: 0xC97D0, type: bin, name: data_69, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC97D0, type: bin, name: data_70, linker_section_order: .rodata, linker_section: .data}
       - [0xC9870, .rodata, game/func_0024CC20]
-      - {start: 0xC98A0, type: bin, name: data_70, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC98A0, type: bin, name: data_71, linker_section_order: .rodata, linker_section: .data}
       - [0xC98B0, .rodata, game/func_0024D150]
       - [0xC98E8, .rodata, game/func_0024D274]
-      - {start: 0xC9928, type: bin, name: data_71, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9928, type: bin, name: data_72, linker_section_order: .rodata, linker_section: .data}
       - [0xC9930, .rodata, game/func_0024D388]
-      - {start: 0xC9970, type: bin, name: data_72, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9970, type: bin, name: data_73, linker_section_order: .rodata, linker_section: .data}
       - [0xC9994, .rodata, game/func_0024D860]
-      - {start: 0xC99C4, type: bin, name: data_73, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC99C4, type: bin, name: data_74, linker_section_order: .rodata, linker_section: .data}
       - [0xC99C8, .rodata, game/func_0024E148]
       - [0xC99F0, .rodata, game/func_0024E2B4]
       - [0xC9A30, .rodata, game/func_0024E2EC]
-      - {start: 0xC9A60, type: bin, name: data_74, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9A60, type: bin, name: data_75, linker_section_order: .rodata, linker_section: .data}
       - [0xC9B00, .rodata, game/func_0024F940]
       - [0xC9B20, .rodata, game/func_0024FD4C]
-      - {start: 0xC9B30, type: bin, name: data_75, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9B30, type: bin, name: data_76, linker_section_order: .rodata, linker_section: .data}
       - [0xC9B40, .rodata, game/func_002500A4]
       - [0xC9B44, .rodata, game/func_0025021C]
-      - {start: 0xC9B4C, type: bin, name: data_76, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9B4C, type: bin, name: data_77, linker_section_order: .rodata, linker_section: .data}
       - [0xC9BA0, .rodata, game/func_002568A0]
-      - {start: 0xC9BB8, type: bin, name: data_77, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9BB8, type: bin, name: data_78, linker_section_order: .rodata, linker_section: .data}
       - [0xC9BD8, .rodata, game/func_00258BB4]
-      - {start: 0xC9BE0, type: bin, name: data_78, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9BE0, type: bin, name: data_79, linker_section_order: .rodata, linker_section: .data}
       - [0xC9C90, .rodata, game/func_0025CCB0]
-      - {start: 0xC9CA4, type: bin, name: data_79, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9CA4, type: bin, name: data_80, linker_section_order: .rodata, linker_section: .data}
       - [0xC9CA8, .rodata, game/func_0025D370]
-      - {start: 0xC9CB0, type: bin, name: data_80, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9CB0, type: bin, name: data_81, linker_section_order: .rodata, linker_section: .data}
       - [0xC9D30, .rodata, game/func_0025E5D0]
-      - {start: 0xC9D84, type: bin, name: data_81, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9D84, type: bin, name: data_82, linker_section_order: .rodata, linker_section: .data}
       - [0xC9D88, .rodata, game/func_0025EA3C]
       - [0xC9DE8, .rodata, game/func_0025EF54]
-      - {start: 0xC9DF8, type: bin, name: data_82, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9DF8, type: bin, name: data_83, linker_section_order: .rodata, linker_section: .data}
       - [0xC9E28, .rodata, game/func_0025FD94]
-      - {start: 0xC9E30, type: bin, name: data_83, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9E30, type: bin, name: data_84, linker_section_order: .rodata, linker_section: .data}
       - [0xC9E38, .rodata, game/func_0025FFD0]
       - [0xC9E48, .rodata, game/func_00260158]
-      - {start: 0xC9E58, type: bin, name: data_84, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9E58, type: bin, name: data_85, linker_section_order: .rodata, linker_section: .data}
       - [0xC9E60, .rodata, game/func_002609CC]
-      - {start: 0xC9E68, type: bin, name: data_85, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9E68, type: bin, name: data_86, linker_section_order: .rodata, linker_section: .data}
       - [0xC9E70, .rodata, game/func_00260BA0]
       - [0xC9E78, .rodata, game/func_00260CBC]
       - [0xC9E80, .rodata, game/func_00260F18]
-      - {start: 0xC9E88, type: bin, name: data_86, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9E88, type: bin, name: data_87, linker_section_order: .rodata, linker_section: .data}
       - [0xC9EAC, .rodata, game/func_0026195C]
-      - {start: 0xC9EE0, type: bin, name: data_87, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9EE0, type: bin, name: data_88, linker_section_order: .rodata, linker_section: .data}
       - [0xC9EE8, .rodata, game/func_00261EB8]
-      - {start: 0xC9F48, type: bin, name: data_88, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9F48, type: bin, name: data_89, linker_section_order: .rodata, linker_section: .data}
       - [0xC9FE4, .rodata, game/func_00263E1C]
-      - {start: 0xC9FF8, type: bin, name: data_89, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xC9FF8, type: bin, name: data_90, linker_section_order: .rodata, linker_section: .data}
       - [0xCA000, .rodata, game/func_00264E10]
-      - {start: 0xCA00C, type: bin, name: data_90, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA00C, type: bin, name: data_91, linker_section_order: .rodata, linker_section: .data}
       - [0xCA0A0, .rodata, game/func_00265A00]
-      - {start: 0xCA0A4, type: bin, name: data_91, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA0A4, type: bin, name: data_92, linker_section_order: .rodata, linker_section: .data}
+      - [0xCA188, .rodata, ovl_a/func_0044BD30]
+      - {start: 0xCA18C, type: bin, name: data_93, linker_section_order: .rodata, linker_section: .data}
       - [0xCA190, .rodata, game/func_00268CE0]
       - [0xCA238, .rodata, game/func_0026925C]
       - [0xCA2B4, .rodata, game/func_00269A80]
-      - {start: 0xCA358, type: bin, name: data_92, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA358, type: bin, name: data_94, linker_section_order: .rodata, linker_section: .data}
       - [0xCA398, .rodata, game/func_0026D27C]
       - [0xCA39C, .rodata, game/func_0026D844]
       - [0xCA3A0, .rodata, game/func_0026E5E0]
-      - {start: 0xCA3AC, type: bin, name: data_93, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA3AC, type: bin, name: data_95, linker_section_order: .rodata, linker_section: .data}
       - [0xCA3B0, .rodata, game/func_0026EFC8]
-      - {start: 0xCA3B4, type: bin, name: data_94, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA3B4, type: bin, name: data_96, linker_section_order: .rodata, linker_section: .data}
       - [0xCA3C0, .rodata, game/func_0026F3D8]
       - [0xCA3DC, .rodata, game/func_0026F690]
       - [0xCA3E0, .rodata, game/func_0026FD0C]
@@ -3425,7 +3441,7 @@ segments:
       - [0xCA5BC, .rodata, game/func_00272A80]
       - [0xCA5C0, .rodata, game/func_00272CD0]
       - [0xCA5C4, .rodata, game/func_00272D20]
-      - {start: 0xCA5C8, type: bin, name: data_95, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA5C8, type: bin, name: data_97, linker_section_order: .rodata, linker_section: .data}
       - [0xCA5CC, .rodata, game/func_00272EAC]
       - [0xCA5D0, .rodata, game/func_0027317C]
       - [0xCA5D4, .rodata, game/func_00273208]
@@ -3437,92 +3453,93 @@ segments:
       - [0xCA5F8, .rodata, game/func_00273ED4]
       - [0xCA5FC, .rodata, game/func_00273F54]
       - [0xCA604, .rodata, game/func_00274004]
-      - {start: 0xCA60C, type: bin, name: data_96, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA60C, type: bin, name: data_98, linker_section_order: .rodata, linker_section: .data}
       - [0xCA620, .rodata, game/func_002742B4]
       - [0xCA624, .rodata, game/func_002743F0]
       - [0xCA630, .rodata, game/func_002745D4]
-      - {start: 0xCA638, type: bin, name: data_97, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA638, type: bin, name: data_99, linker_section_order: .rodata, linker_section: .data}
       - [0xCA698, .rodata, game/func_00274E6C]
-      - {start: 0xCA6A4, type: bin, name: data_98, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA6A4, type: bin, name: data_100, linker_section_order: .rodata, linker_section: .data}
       - [0xCA70C, .rodata, game/func_00276620]
       - [0xCA718, .rodata, game/func_002769D8]
       - [0xCA730, .rodata, game/func_00276BB4]
-      - {start: 0xCA748, type: bin, name: data_99, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA748, type: bin, name: data_101, linker_section_order: .rodata, linker_section: .data}
       - [0xCA780, .rodata, game/func_00276D20]
-      - {start: 0xCA7A0, type: bin, name: data_100, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA7A0, type: bin, name: data_102, linker_section_order: .rodata, linker_section: .data}
       - [0xCA7CC, .rodata, game/func_00277620]
       - [0xCA7DC, .rodata, game/func_00277B08]
       - [0xCA7E8, .rodata, game/func_002782E4]
-      - {start: 0xCA80C, type: bin, name: data_101, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA80C, type: bin, name: data_103, linker_section_order: .rodata, linker_section: .data}
       - [0xCA8E8, .rodata, game/func_0027B790]
       - [0xCA928, .rodata, game/func_0027D950]
-      - {start: 0xCA954, type: bin, name: data_102, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCA954, type: bin, name: data_104, linker_section_order: .rodata, linker_section: .data}
       - [0xCA978, .rodata, game/func_0027DD1C]
       - [0xCAA00, .rodata, game/func_0027E758]
-      - {start: 0xCAA28, type: bin, name: data_103, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCAA28, type: bin, name: data_105, linker_section_order: .rodata, linker_section: .data}
       - [0xCAA68, .rodata, game/func_0027ED40]
-      - {start: 0xCAAF4, type: bin, name: data_104, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCAAF4, type: bin, name: data_106, linker_section_order: .rodata, linker_section: .data}
       - [0xCAAF8, .rodata, game/func_00280094]
       - [0xCAB30, .rodata, game/func_00281A70]
       - [0xCAB3C, .rodata, game/func_00281C74]
       - [0xCAB44, .rodata, game/func_00282304]
-      - {start: 0xCAB4C, type: bin, name: data_105, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCAB4C, type: bin, name: data_107, linker_section_order: .rodata, linker_section: .data}
       - [0xCABA0, .rodata, game/func_00285600]
-      - {start: 0xCABA8, type: bin, name: data_106, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCABA8, type: bin, name: data_108, linker_section_order: .rodata, linker_section: .data}
       - [0xCABB0, .rodata, game/func_002856B0]
-      - {start: 0xCABBC, type: bin, name: data_107, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCABBC, type: bin, name: data_109, linker_section_order: .rodata, linker_section: .data}
       - [0xCADD8, .rodata, game/func_00286254]
-      - {start: 0xCADF0, type: bin, name: data_108, linker_section_order: .rodata, linker_section: .data}
+      - [0xCADF0, .rodata, ovl_a/func_0044CA54]
+      - {start: 0xCADF4, type: bin, name: data_110, linker_section_order: .rodata, linker_section: .data}
       - [0xCAF30, .rodata, game/func_0028994C]
-      - {start: 0xCAF74, type: bin, name: data_109, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCAF74, type: bin, name: data_111, linker_section_order: .rodata, linker_section: .data}
       - [0xCAFD8, .rodata, game/func_0028C544]
       - [0xCAFDC, .rodata, game/func_0028CABC]
       - [0xCAFE0, .rodata, game/func_0028CB8C]
       - [0xCAFE4, .rodata, game/func_0028D0E4]
-      - {start: 0xCAFEC, type: bin, name: data_110, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCAFEC, type: bin, name: data_112, linker_section_order: .rodata, linker_section: .data}
       - [0xCAFF0, .rodata, game/func_0028D268]
-      - {start: 0xCAFF4, type: bin, name: data_111, linker_section_order: .rodata, linker_section: .data}
+      - [0xCAFF4, .rodata, ovl_a/func_0044E2B8]
       - [0xCB028, .rodata, game/func_0028D8E8]
       - [0xCB02C, .rodata, game/func_0028E768]
       - [0xCB030, .rodata, game/func_0028E83C]
-      - {start: 0xCB034, type: bin, name: data_112, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB034, type: bin, name: data_113, linker_section_order: .rodata, linker_section: .data}
       - [0xCB040, .rodata, game/func_0028E910]
       - [0xCB044, .rodata, game/func_0028ED80]
       - [0xCB054, .rodata, game/func_0028F258]
       - [0xCB058, .rodata, game/func_0028F524]
-      - {start: 0xCB074, type: bin, name: data_113, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB074, type: bin, name: data_114, linker_section_order: .rodata, linker_section: .data}
       - [0xCB084, .rodata, game/func_0028FFB0]
       - [0xCB094, .rodata, game/func_00290404]
       - [0xCB098, .rodata, game/func_002905D4]
-      - {start: 0xCB0A0, type: bin, name: data_114, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB0A0, type: bin, name: data_115, linker_section_order: .rodata, linker_section: .data}
       - [0xCB0B0, .rodata, game/func_00290A68]
       - [0xCB0C0, .rodata, game/func_00290C04]
       - [0xCB0C4, .rodata, game/func_00290E4C]
       - [0xCB0E0, .rodata, game/func_00291054]
-      - {start: 0xCB0F0, type: bin, name: data_115, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB0F0, type: bin, name: data_116, linker_section_order: .rodata, linker_section: .data}
       - [0xCB118, .rodata, game/func_002917E8]
       - [0xCB11C, .rodata, game/func_00291FE8]
       - [0xCB138, .rodata, game/func_00292318]
       - [0xCB15C, .rodata, game/func_00292910]
-      - {start: 0xCB164, type: bin, name: data_116, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB164, type: bin, name: data_117, linker_section_order: .rodata, linker_section: .data}
       - [0xCB16C, .rodata, game/func_002935A4]
-      - {start: 0xCB184, type: bin, name: data_117, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB184, type: bin, name: data_118, linker_section_order: .rodata, linker_section: .data}
       - [0xCB238, .rodata, game/func_002953FC]
       - [0xCB268, .rodata, game/func_00295B30]
-      - {start: 0xCB280, type: bin, name: data_118, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB280, type: bin, name: data_119, linker_section_order: .rodata, linker_section: .data}
       - [0xCB288, .rodata, game/func_00295FB4]
-      - {start: 0xCB2A0, type: bin, name: data_119, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB2A0, type: bin, name: data_120, linker_section_order: .rodata, linker_section: .data}
       - [0xCB2B0, .rodata, game/func_00297E3C]
       - [0xCB330, .rodata, game/func_00298310]
       - [0xCB370, .rodata, game/func_0029864C]
-      - {start: 0xCB3B0, type: bin, name: data_120, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB3B0, type: bin, name: data_121, linker_section_order: .rodata, linker_section: .data}
       - [0xCB3B8, .rodata, game/func_00298A34]
-      - {start: 0xCB3F8, type: bin, name: data_121, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB3F8, type: bin, name: data_122, linker_section_order: .rodata, linker_section: .data}
       - [0xCB400, .rodata, game/func_00299368]
       - [0xCB408, .rodata, game/func_00299FE8]
-      - {start: 0xCB40C, type: bin, name: data_122, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB40C, type: bin, name: data_123, linker_section_order: .rodata, linker_section: .data}
       - [0xCB420, .rodata, game/func_0029AE80]
-      - {start: 0xCB444, type: bin, name: data_123, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB444, type: bin, name: data_124, linker_section_order: .rodata, linker_section: .data}
       - [0xCB458, .rodata, game/func_0029BBA0]
       - [0xCB468, .rodata, game/func_0029BD38]
       - [0xCB4D0, .rodata, game/func_0029BEA4]
@@ -3535,7 +3552,7 @@ segments:
       - [0xCB688, .rodata, game/func_0029CBB0]
       - [0xCB6D0, .rodata, game/func_0029CDEC]
       - [0xCB7A0, .rodata, game/func_0029D044]
-      - {start: 0xCB7E8, type: bin, name: data_124, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB7E8, type: bin, name: data_125, linker_section_order: .rodata, linker_section: .data}
       - [0xCB7F8, .rodata, game/func_0029D288]
       - [0xCB814, .rodata, game/func_0029D4A0]
       - [0xCB820, .rodata, game/func_0029D6A8]
@@ -3547,122 +3564,122 @@ segments:
       - [0xCB894, .rodata, game/func_0029E510]
       - [0xCB89C, .rodata, game/func_0029E8E8]
       - [0xCB8A0, .rodata, game/func_0029E964]
-      - {start: 0xCB8B8, type: bin, name: data_125, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB8B8, type: bin, name: data_126, linker_section_order: .rodata, linker_section: .data}
       - [0xCB8F0, .rodata, game/func_0029EB74]
       - [0xCB8F8, .rodata, game/func_0029EB9C]
       - [0xCB958, .rodata, game/func_0029ECB0]
-      - {start: 0xCB960, type: bin, name: data_126, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB960, type: bin, name: data_127, linker_section_order: .rodata, linker_section: .data}
       - [0xCB968, .rodata, game/func_0029ED78]
-      - {start: 0xCB990, type: bin, name: data_127, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB990, type: bin, name: data_128, linker_section_order: .rodata, linker_section: .data}
       - [0xCB9BC, .rodata, game/func_0029EF48]
-      - {start: 0xCB9C0, type: bin, name: data_128, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB9C0, type: bin, name: data_129, linker_section_order: .rodata, linker_section: .data}
       - [0xCB9D8, .rodata, game/func_0029F04C]
-      - {start: 0xCB9F0, type: bin, name: data_129, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCB9F0, type: bin, name: data_130, linker_section_order: .rodata, linker_section: .data}
       - [0xCBA34, .rodata, game/func_0029F52C]
-      - {start: 0xCBA38, type: bin, name: data_130, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBA38, type: bin, name: data_131, linker_section_order: .rodata, linker_section: .data}
       - [0xCBA3C, .rodata, game/func_0029F93C]
       - [0xCBA48, .rodata, game/func_0029FB14]
-      - {start: 0xCBA4C, type: bin, name: data_131, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBA4C, type: bin, name: data_132, linker_section_order: .rodata, linker_section: .data}
       - [0xCBA60, .rodata, game/func_002A05E0]
-      - {start: 0xCBAE8, type: bin, name: data_132, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBAE8, type: bin, name: data_133, linker_section_order: .rodata, linker_section: .data}
       - [0xCBB54, .rodata, game/func_002A373C]
       - [0xCBB64, .rodata, game/func_002A3B48]
       - [0xCBB74, .rodata, game/func_002A3F94]
-      - {start: 0xCBB7C, type: bin, name: data_133, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBB7C, type: bin, name: data_134, linker_section_order: .rodata, linker_section: .data}
       - [0xCBBA0, .rodata, game/func_002A5124]
       - [0xCBBB8, .rodata, game/func_002A52E4]
       - [0xCBBC8, .rodata, game/func_002A5A50]
       - [0xCBBF4, .rodata, game/func_002A5DD8]
-      - {start: 0xCBC18, type: bin, name: data_134, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBC18, type: bin, name: data_135, linker_section_order: .rodata, linker_section: .data}
       - [0xCBC60, .rodata, game/func_002A78F0]
-      - {start: 0xCBCA0, type: bin, name: data_135, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBCA0, type: bin, name: data_136, linker_section_order: .rodata, linker_section: .data}
       - [0xCBCB0, .rodata, game/func_002A8650]
       - [0xCBCD8, .rodata, game/func_002A8A94]
       - [0xCBD24, .rodata, game/func_002A921C]
-      - {start: 0xCBD40, type: bin, name: data_136, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBD40, type: bin, name: data_137, linker_section_order: .rodata, linker_section: .data}
       - [0xCBD48, .rodata, game/func_002A98E0]
-      - {start: 0xCBED4, type: bin, name: data_137, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBED4, type: bin, name: data_138, linker_section_order: .rodata, linker_section: .data}
       - [0xCBED8, .rodata, game/func_002A9F18]
-      - {start: 0xCBF48, type: bin, name: data_138, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBF48, type: bin, name: data_139, linker_section_order: .rodata, linker_section: .data}
       - [0xCBF50, .rodata, game/func_002AB19C]
-      - {start: 0xCBF80, type: bin, name: data_139, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBF80, type: bin, name: data_140, linker_section_order: .rodata, linker_section: .data}
       - [0xCBF88, .rodata, game/func_002AB854]
-      - {start: 0xCBFA4, type: bin, name: data_140, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBFA4, type: bin, name: data_141, linker_section_order: .rodata, linker_section: .data}
       - [0xCBFBC, .rodata, game/func_002ABED4]
       - [0xCBFD0, .rodata, game/func_002AC1A0]
-      - {start: 0xCBFE8, type: bin, name: data_141, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCBFE8, type: bin, name: data_142, linker_section_order: .rodata, linker_section: .data}
       - [0xCBFF0, .rodata, game/func_002ACBCC]
-      - {start: 0xCC044, type: bin, name: data_142, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCC044, type: bin, name: data_143, linker_section_order: .rodata, linker_section: .data}
       - [0xCC048, .rodata, game/func_002ADE28]
-      - {start: 0xCC068, type: bin, name: data_143, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCC068, type: bin, name: data_144, linker_section_order: .rodata, linker_section: .data}
       - [0xCC070, .rodata, game/func_002AE1A4]
-      - {start: 0xCC078, type: bin, name: data_144, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCC078, type: bin, name: data_145, linker_section_order: .rodata, linker_section: .data}
       - [0xCC090, .rodata, libultra/dbgLinkServerLoop]
-      - {start: 0xCC150, type: bin, name: data_145, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCC150, type: bin, name: data_146, linker_section_order: .rodata, linker_section: .data}
       - [0xCD140, .rodata, libultra/cseq]
-      - {start: 0xCD198, type: bin, name: data_146, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD198, type: bin, name: data_147, linker_section_order: .rodata, linker_section: .data}
       - [0xCD1A0, .rodata, libultra/csplayer]
       - [0xCD280, .rodata, libultra/alCents2Ratio]
-      - {start: 0xCD28C, type: bin, name: data_147, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD28C, type: bin, name: data_148, linker_section_order: .rodata, linker_section: .data}
       - [0xCD290, .rodata, libultra/seqplayer]
-      - {start: 0xCD328, type: bin, name: data_148, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD328, type: bin, name: data_149, linker_section_order: .rodata, linker_section: .data}
       - [0xCD330, .rodata, libultra/seq]
-      - {start: 0xCD358, type: bin, name: data_149, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD358, type: bin, name: data_150, linker_section_order: .rodata, linker_section: .data}
       - [0xCD360, .rodata, libultra/alSndpAllocate]
-      - {start: 0xCD364, type: bin, name: data_150, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD364, type: bin, name: data_151, linker_section_order: .rodata, linker_section: .data}
       - [0xCD370, .rodata, libultra/_handleEvent]
       - [0xCD398, .rodata, libultra/__sndpTimeAtPitch]
-      - {start: 0xCD3B8, type: bin, name: data_151, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD3B8, type: bin, name: data_152, linker_section_order: .rodata, linker_section: .data}
       - [0xCD3C0, .rodata, libultra/__nextSampleTime]
       - [0xCD3D8, .rodata, libultra/_timeToSamplesNoRound]
       - [0xCD3E0, .rodata, libultra/_timeToSamplesNoRound_2]
-      - {start: 0xCD3E8, type: bin, name: data_152, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD3E8, type: bin, name: data_153, linker_section_order: .rodata, linker_section: .data}
       - [0xCD430, .rodata, libultra/alResampleNew]
-      - {start: 0xCD434, type: bin, name: data_153, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD434, type: bin, name: data_154, linker_section_order: .rodata, linker_section: .data}
       - [0xCD660, .rodata, libultra/cosf]
       - [0xCD6C0, .rodata, libultra/guLookAt]
       - [0xCD6D0, .rodata, libultra/guMtxIdent]
       - [0xCD6D8, .rodata, libultra/guMtxIdentF]
       - [0xCD6DC, .rodata, libultra/guMtxF2L]
       - [0xCD6E0, .rodata, libultra/guMtxL2F]
-      - {start: 0xCD6E4, type: bin, name: data_154, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD6E4, type: bin, name: data_155, linker_section_order: .rodata, linker_section: .data}
       - [0xCD6F0, .rodata, libultra/guPerspective]
-      - {start: 0xCD720, type: bin, name: data_155, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD720, type: bin, name: data_156, linker_section_order: .rodata, linker_section: .data}
       - [0xCD770, .rodata, libultra/osAiSetFrequency]
-      - {start: 0xCD780, type: bin, name: data_156, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD780, type: bin, name: data_157, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7A0, .rodata, libultra/osEPiRawReadIo]
-      - {start: 0xCD7B4, type: bin, name: data_157, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7B4, type: bin, name: data_158, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7C0, .rodata, libultra/osPiRawReadIo]
-      - {start: 0xCD7D4, type: bin, name: data_158, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7D4, type: bin, name: data_159, linker_section_order: .rodata, linker_section: .data}
       - [0xCD7E0, .rodata, libultra/__osSiRawStartDma]
-      - {start: 0xCD7F4, type: bin, name: data_159, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD7F4, type: bin, name: data_160, linker_section_order: .rodata, linker_section: .data}
       - [0xCD800, .rodata, libultra/__osSpRawStartDma]
-      - {start: 0xCD814, type: bin, name: data_160, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD814, type: bin, name: data_161, linker_section_order: .rodata, linker_section: .data}
       - [0xCD820, .rodata, libultra/__osViSwapContext]
-      - {start: 0xCD82C, type: bin, name: data_161, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD82C, type: bin, name: data_162, linker_section_order: .rodata, linker_section: .data}
       - [0xCD830, .rodata, libultra/__osSiRawReadIo]
-      - {start: 0xCD844, type: bin, name: data_162, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD844, type: bin, name: data_163, linker_section_order: .rodata, linker_section: .data}
       - [0xCD850, .rodata, libultra/__osSiRawWriteIo]
-      - {start: 0xCD864, type: bin, name: data_163, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCD864, type: bin, name: data_164, linker_section_order: .rodata, linker_section: .data}
       - [0xCD940, .rodata, libultra/xprintf]
-      - {start: 0xCDAB8, type: bin, name: data_164, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDAB8, type: bin, name: data_165, linker_section_order: .rodata, linker_section: .data}
       - [0xCDB50, .rodata, libultra/__divdi3]
       - [0xCDC50, .rodata, libultra/__moddi3]
       - [0xCDD50, .rodata, libultra/__udivdi3]
       - [0xCDE50, .rodata, libultra/__umoddi3]
       - [0xCDF50, .rodata, libultra/__floatdidf]
-      - {start: 0xCDF68, type: bin, name: data_165, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDF68, type: bin, name: data_166, linker_section_order: .rodata, linker_section: .data}
       - [0xCDF70, .rodata, libultra/__floatdisf]
-      - {start: 0xCDF88, type: bin, name: data_166, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xCDF88, type: bin, name: data_167, linker_section_order: .rodata, linker_section: .data}
       - [0xE1778, .rodata, ovl_a/func_00401D74]
-      - {start: 0xE183C, type: bin, name: data_167, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE183C, type: bin, name: data_168, linker_section_order: .rodata, linker_section: .data}
       - [0xE1850, .rodata, ovl_a/func_0040293C]
       - [0xE1854, .rodata, ovl_a/func_00402BA0]
-      - {start: 0xE18A0, type: bin, name: data_168, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE18A0, type: bin, name: data_169, linker_section_order: .rodata, linker_section: .data}
       - [0xE18A8, .rodata, ovl_a/func_00403658]
-      - {start: 0xE18AC, type: bin, name: data_169, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE18AC, type: bin, name: data_170, linker_section_order: .rodata, linker_section: .data}
       - [0xE18C0, .rodata, ovl_a/func_00404018]
-      - {start: 0xE18F0, type: bin, name: data_170, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE18F0, type: bin, name: data_171, linker_section_order: .rodata, linker_section: .data}
       - [0xE19D8, .rodata, ovl_a/func_00409170]
       - [0xE19F0, .rodata, ovl_a/func_00409474]
       - [0xE1A08, .rodata, ovl_a/func_0040A928]
@@ -3682,39 +3699,39 @@ segments:
       - [0xE1C98, .rodata, ovl_a/func_0040BBC0]
       - [0xE1CB0, .rodata, ovl_a/func_0040DB84]
       - [0xE1CD0, .rodata, ovl_a/func_0040E154]
-      - {start: 0xE1CE0, type: bin, name: data_171, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE1CE0, type: bin, name: data_172, linker_section_order: .rodata, linker_section: .data}
       - [0xE1D18, .rodata, ovl_a/func_00414480]
-      - {start: 0xE1DF8, type: bin, name: data_172, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE1DF8, type: bin, name: data_173, linker_section_order: .rodata, linker_section: .data}
       - [0xE1E28, .rodata, ovl_a/func_00414D4C]
-      - {start: 0xE1F8C, type: bin, name: data_173, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE1F8C, type: bin, name: data_174, linker_section_order: .rodata, linker_section: .data}
       - [0xE1F90, .rodata, ovl_a/func_00415D10]
       - [0xE2018, .rodata, ovl_a/func_00416D74]
-      - {start: 0xE202C, type: bin, name: data_174, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE202C, type: bin, name: data_175, linker_section_order: .rodata, linker_section: .data}
       - [0xE2040, .rodata, ovl_a/func_00418E20]
-      - {start: 0xE2044, type: bin, name: data_175, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2044, type: bin, name: data_176, linker_section_order: .rodata, linker_section: .data}
       - [0xE2050, .rodata, ovl_a/func_0041A0DC]
       - [0xE2070, .rodata, ovl_a/func_0041A300]
-      - {start: 0xE2078, type: bin, name: data_176, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2078, type: bin, name: data_177, linker_section_order: .rodata, linker_section: .data}
       - [0xE20B8, .rodata, ovl_a/func_0041C864]
       - [0xE20C0, .rodata, ovl_a/func_0041CB48]
-      - {start: 0xE20C8, type: bin, name: data_177, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE20C8, type: bin, name: data_178, linker_section_order: .rodata, linker_section: .data}
       - [0xE2100, .rodata, ovl_a/func_0041D550]
       - [0xE2138, .rodata, ovl_a/func_0041D718]
       - [0xE2140, .rodata, ovl_a/func_0041DC3C]
       - [0xE2154, .rodata, ovl_a/func_0041DD30]
       - [0xE2160, .rodata, ovl_a/func_0041ED24]
-      - {start: 0xE2170, type: bin, name: data_178, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2170, type: bin, name: data_179, linker_section_order: .rodata, linker_section: .data}
       - [0xE2178, .rodata, ovl_a/func_0041F738]
       - [0xE21A4, .rodata, ovl_a/func_0041FCC0]
-      - {start: 0xE21BC, type: bin, name: data_179, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE21BC, type: bin, name: data_180, linker_section_order: .rodata, linker_section: .data}
       - [0xE21C0, .rodata, ovl_a/func_0042144C]
       - [0xE21E8, .rodata, ovl_a/func_004215D8]
       - [0xE2210, .rodata, ovl_a/func_00421D18]
-      - {start: 0xE2228, type: bin, name: data_180, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2228, type: bin, name: data_181, linker_section_order: .rodata, linker_section: .data}
       - [0xE2230, .rodata, ovl_a/func_00421ECC]
       - [0xE2240, .rodata, ovl_a/func_004220D8]
       - [0xE2248, .rodata, ovl_a/func_00422218]
-      - {start: 0xE224C, type: bin, name: data_181, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE224C, type: bin, name: data_182, linker_section_order: .rodata, linker_section: .data}
       - [0xE2250, .rodata, ovl_a/func_00422E54]
       - [0xE2268, .rodata, ovl_a/func_00423A00]
       - [0xE2290, .rodata, ovl_a/func_00424128]
@@ -3725,20 +3742,20 @@ segments:
       - [0xE2560, .rodata, ovl_a/func_00425854]
       - [0xE25B0, .rodata, ovl_a/func_00426AF8]
       - [0xE25E4, .rodata, ovl_a/func_00426EC4]
-      - {start: 0xE25EC, type: bin, name: data_182, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE25EC, type: bin, name: data_183, linker_section_order: .rodata, linker_section: .data}
       - [0xE2608, .rodata, ovl_a/func_0042872C]
       - [0xE2620, .rodata, ovl_a/func_004288E0]
-      - {start: 0xE2638, type: bin, name: data_183, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2638, type: bin, name: data_184, linker_section_order: .rodata, linker_section: .data}
       - [0xE2640, .rodata, ovl_a/func_004291A8]
-      - {start: 0xE2654, type: bin, name: data_184, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2654, type: bin, name: data_185, linker_section_order: .rodata, linker_section: .data}
       - [0xE2660, .rodata, ovl_a/func_0042990C]
-      - {start: 0xE2698, type: bin, name: data_185, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2698, type: bin, name: data_186, linker_section_order: .rodata, linker_section: .data}
       - [0xE26BC, .rodata, ovl_a/func_0042A1D0]
-      - {start: 0xE26CC, type: bin, name: data_186, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE26CC, type: bin, name: data_187, linker_section_order: .rodata, linker_section: .data}
       - [0xE26D0, .rodata, ovl_a/func_0042A490]
-      - {start: 0xE2714, type: bin, name: data_187, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2714, type: bin, name: data_188, linker_section_order: .rodata, linker_section: .data}
       - [0xE2748, .rodata, ovl_a/func_0042D4E4]
-      - {start: 0xE2760, type: bin, name: data_188, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2760, type: bin, name: data_189, linker_section_order: .rodata, linker_section: .data}
       - [0xE2770, .rodata, ovl_a/func_0042E3D0]
       - [0xE2784, .rodata, ovl_a/func_0042EF50]
       - [0xE2790, .rodata, ovl_a/func_0042F12C]
@@ -3748,25 +3765,25 @@ segments:
       - [0xE2800, .rodata, ovl_a/func_004302F8]
       - [0xE2860, .rodata, ovl_a/func_004305D8]
       - [0xE28C0, .rodata, ovl_a/func_004308B8]
-      - {start: 0xE29F8, type: bin, name: data_189, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE29F8, type: bin, name: data_190, linker_section_order: .rodata, linker_section: .data}
       - [0xE2A00, .rodata, ovl_a/func_00432488]
       - [0xE2A98, .rodata, ovl_a/func_00433574]
       - [0xE2AA8, .rodata, ovl_a/func_004337EC]
       - [0xE2AE0, .rodata, ovl_a/func_0043407C]
       - [0xE2AF8, .rodata, ovl_a/func_004351A0]
       - [0xE2B08, .rodata, ovl_a/func_00435958]
-      - {start: 0xE2B1C, type: bin, name: data_190, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2B1C, type: bin, name: data_191, linker_section_order: .rodata, linker_section: .data}
       - [0xE2B20, .rodata, ovl_a/func_00436224]
-      - {start: 0xE2B34, type: bin, name: data_191, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2B34, type: bin, name: data_192, linker_section_order: .rodata, linker_section: .data}
       - [0xE2B40, .rodata, ovl_a/func_00437C30]
       - [0xE2B44, .rodata, ovl_a/func_0043847C]
       - [0xE2B50, .rodata, ovl_a/func_004387F4]
       - [0xE2B6C, .rodata, ovl_a/func_00438A08]
       - [0xE2B70, .rodata, ovl_a/func_00439808]
       - [0xE2B80, .rodata, ovl_a/func_004399D0]
-      - {start: 0xE2B98, type: bin, name: data_192, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2B98, type: bin, name: data_193, linker_section_order: .rodata, linker_section: .data}
       - [0xE2BA0, .rodata, ovl_a/func_00439F38]
-      - {start: 0xE2BB4, type: bin, name: data_193, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2BB4, type: bin, name: data_194, linker_section_order: .rodata, linker_section: .data}
       - [0xE2BC0, .rodata, ovl_a/func_0043A0A4]
       - [0xE2BC4, .rodata, ovl_a/func_0043A510]
       - [0xE2BE0, .rodata, ovl_a/func_0043A7D8]
@@ -3774,39 +3791,39 @@ segments:
       - [0xE2C10, .rodata, ovl_a/func_0043B03C]
       - [0xE2C28, .rodata, ovl_a/func_0043B67C]
       - [0xE2C40, .rodata, ovl_a/func_0043BA34]
-      - {start: 0xE2C58, type: bin, name: data_194, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2C58, type: bin, name: data_195, linker_section_order: .rodata, linker_section: .data}
       - [0xE2C60, .rodata, ovl_a/func_0043C260]
-      - {start: 0xE2C7C, type: bin, name: data_195, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2C7C, type: bin, name: data_196, linker_section_order: .rodata, linker_section: .data}
       - [0xE2C80, .rodata, ovl_a/func_0043C500]
-      - {start: 0xE2D04, type: bin, name: data_196, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2D04, type: bin, name: data_197, linker_section_order: .rodata, linker_section: .data}
       - [0xE2DB8, .rodata, ovl_a/func_0043C730]
-      - {start: 0xE2F14, type: bin, name: data_197, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2F14, type: bin, name: data_198, linker_section_order: .rodata, linker_section: .data}
       - [0xE2F30, .rodata, ovl_a/func_0043DD2C]
-      - {start: 0xE2F50, type: bin, name: data_198, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2F50, type: bin, name: data_199, linker_section_order: .rodata, linker_section: .data}
       - [0xE2FA0, .rodata, ovl_a/func_0043EFCC]
-      - {start: 0xE2FAC, type: bin, name: data_199, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE2FAC, type: bin, name: data_200, linker_section_order: .rodata, linker_section: .data}
       - [0xE2FC8, .rodata, ovl_a/func_0043F290]
       - [0xE2FF8, .rodata, ovl_a/func_0043F404]
       - [0xE3058, .rodata, ovl_a/func_0043F69C]
       - [0xE3090, .rodata, ovl_a/func_0043FFAC]
-      - {start: 0xE30AC, type: bin, name: data_200, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE30AC, type: bin, name: data_201, linker_section_order: .rodata, linker_section: .data}
       - [0xE30B0, .rodata, ovl_a/func_004409A8]
       - [0xE30D4, .rodata, ovl_a/func_00441384]
       - [0xE30E4, .rodata, ovl_a/func_00441764]
       - [0xE3104, .rodata, ovl_a/func_00441D50]
-      - {start: 0xE311C, type: bin, name: data_201, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE311C, type: bin, name: data_202, linker_section_order: .rodata, linker_section: .data}
       - [0xE3130, .rodata, ovl_a/func_0044239C]
-      - {start: 0xE32A8, type: bin, name: data_202, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE32A8, type: bin, name: data_203, linker_section_order: .rodata, linker_section: .data}
       - [0xE32BC, .rodata, ovl_a/func_00442D18]
-      - {start: 0xE32C4, type: bin, name: data_203, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE32C4, type: bin, name: data_204, linker_section_order: .rodata, linker_section: .data}
       - [0xE32C8, .rodata, ovl_a/func_00443030]
       - [0xE32F8, .rodata, ovl_a/func_00443120]
       - [0xE3328, .rodata, ovl_a/func_00443298]
-      - {start: 0xE332C, type: bin, name: data_204, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE332C, type: bin, name: data_205, linker_section_order: .rodata, linker_section: .data}
       - [0xE3338, .rodata, ovl_a/func_00443650]
-      - {start: 0xE3374, type: bin, name: data_205, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE3374, type: bin, name: data_206, linker_section_order: .rodata, linker_section: .data}
       - [0xE33A0, .rodata, ovl_a/func_00444260]
-      - {start: 0xE33C0, type: bin, name: data_206, linker_section_order: .rodata, linker_section: .data}
+      - {start: 0xE33C0, type: bin, name: data_207, linker_section_order: .rodata, linker_section: .data}
       # END GENERATED
 
   # 56 KB, structure unresolved: 14 x 0x1000-stride copies of one routine whose jumps
@@ -3862,7 +3879,7 @@ segments:
       - [0x171D9C, c, ovl_a/func_00403D9C]
       - [0x171DE8, c, ovl_a/func_00403DE8]
       - [0x171E10, c, ovl_a/func_00403E10]
-      - [0x171E88, asm]
+      - [0x171E88, c, ovl_a/pad_171E88]
       - [0x171E90, c, ovl_a/func_00403E90]
       - [0x172018, c, ovl_a/func_00404018]
       - [0x1722F0, c, ovl_a/func_004042F0]
@@ -3893,7 +3910,7 @@ segments:
       - [0x1738B0, c, ovl_a/func_004058B0]
       - [0x173CA8, c, ovl_a/func_00405CA8]
       - [0x173CDC, c, ovl_a/func_00405CDC]
-      - [0x173DB4, asm]
+      - [0x173DB4, c, ovl_a/pad_173DB4]
       - [0x173DC0, c, ovl_a/func_00405DC0]
       - [0x173F48, c, ovl_a/func_00405F48]
       - [0x174178, c, ovl_a/func_00406178]
@@ -4010,7 +4027,7 @@ segments:
       - [0x179AD8, c, ovl_a/func_0040BAD8]
       - [0x179B54, c, ovl_a/func_0040BB54]
       - [0x179BC0, c, ovl_a/func_0040BBC0]
-      - [0x179C2C, asm]
+      - [0x179C2C, c, ovl_a/pad_179C2C]
       - [0x179C30, c, ovl_a/func_0040BC30]
       - [0x179E38, c, ovl_a/func_0040BE38]
       - [0x17A11C, c, ovl_a/func_0040C11C]
@@ -4022,12 +4039,13 @@ segments:
       - [0x17A4F4, c, ovl_a/func_0040C4F4]
       - [0x17A504, c, ovl_a/func_0040C504]
       - [0x17A638, c, ovl_a/pad_17A638]
+      - [0x17A640, c, ovl_a/func_0040C640]
       - [0x17A648, c, ovl_a/func_0040C638]
       - [0x17A77C, c, ovl_a/pad_17A77C]
       - [0x17A780, c, ovl_a/func_0040C77C]
       - [0x17A9C8, c, ovl_a/func_0040C9C8]
       - [0x17A9D0, c, ovl_a/func_0040C9D0]
-      - [0x17AB24, asm]
+      - [0x17AB24, c, ovl_a/pad_17AB24]
       - [0x17AB30, c, ovl_a/func_0040CB30]
       - [0x17ADD0, c, ovl_a/func_0040CDD0]
       - [0x17B00C, c, ovl_a/func_0040D00C]
@@ -4178,12 +4196,17 @@ segments:
       - [0x18232C, c, ovl_a/pad_18232C]
       - [0x182330, c, ovl_a/func_0041432C]
       - [0x1823C8, c, ovl_a/func_004143C8]
-      - [0x1823D8, asm]
+      - [0x1823D8, c, ovl_a/pad_1823D8]
+      - [0x1823E0, c, ovl_a/func_004143E0]
+      - [0x182404, c, ovl_a/func_00414404]
+      - [0x182428, c, ovl_a/pad_182428]
+      - [0x182430, c, ovl_a/func_00414430]
+      - [0x18247C, c, ovl_a/pad_18247C]
       - [0x182480, c, ovl_a/func_00414480]
       - [0x182D4C, c, ovl_a/func_00414D4C]
       - [0x183C9C, c, ovl_a/pad_183C9C]
       - [0x183CA0, c, ovl_a/func_00415C9C]
-      - [0x183D04, asm]
+      - [0x183D04, c, ovl_a/pad_183D04]
       - [0x183D10, c, ovl_a/func_00415D10]
       - [0x184D74, c, ovl_a/func_00416D74]
       - [0x184F4C, c, ovl_a/func_00416F4C]
@@ -4202,14 +4225,14 @@ segments:
       - [0x187268, c, ovl_a/func_00419268]
       - [0x187278, c, ovl_a/func_00419278]
       - [0x1872F8, c, ovl_a/func_004192F8]
-      - [0x1874A8, asm]
+      - [0x1874A8, c, ovl_a/pad_1874A8]
       - [0x1874B0, c, ovl_a/func_004194B0]
       - [0x187510, c, ovl_a/func_00419510]
       - [0x187688, c, ovl_a/func_00419688]
       - [0x1876A4, c, ovl_a/func_004196A4]
       - [0x1876C0, c, ovl_a/func_004196C0]
       - [0x187748, c, ovl_a/func_00419748]
-      - [0x187758, asm]
+      - [0x187758, c, ovl_a/pad_187758]
       - [0x187760, c, ovl_a/func_00419760]
       - [0x18791C, c, ovl_a/func_0041991C]
       - [0x18794C, c, ovl_a/func_0041994C]
@@ -4316,7 +4339,7 @@ segments:
       - [0x18A4F4, c, ovl_a/func_0041C4F4]
       - [0x18A514, c, ovl_a/func_0041C514]
       - [0x18A5EC, c, ovl_a/func_0041C5EC]
-      - [0x18A67C, asm]
+      - [0x18A67C, c, ovl_a/pad_18A67C]
       - [0x18A680, c, ovl_a/func_0041C680]
       - [0x18A864, c, ovl_a/func_0041C864]
       - [0x18AB48, c, ovl_a/func_0041CB48]
@@ -4357,11 +4380,11 @@ segments:
       - [0x18D01C, c, ovl_a/func_0041F01C]
       - [0x18D118, c, ovl_a/func_0041F118]
       - [0x18D1A8, c, ovl_a/pad_18D1A8]
-      - [0x18D1AC, asm]
+      - [0x18D1AC, c, ovl_a/pad_18D1AC]
       - [0x18D1B0, c, ovl_a/func_0041F1B0]
       - [0x18D1FC, c, ovl_a/func_0041F1FC]
       - [0x18D248, c, ovl_a/func_0041F248]
-      - [0x18D298, asm]
+      - [0x18D298, c, ovl_a/pad_18D298]
       - [0x18D2A0, c, ovl_a/func_0041F2A0]
       - [0x18D738, c, ovl_a/func_0041F738]
       - [0x18DCC0, c, ovl_a/func_0041FCC0]
@@ -4405,7 +4428,7 @@ segments:
       - [0x18FE9C, c, ovl_a/func_00421E9C]
       - [0x18FECC, c, ovl_a/func_00421ECC]
       - [0x19001C, c, ovl_a/func_0042201C]
-      - [0x19004C, asm]
+      - [0x19004C, c, ovl_a/pad_19004C]
       - [0x190050, c, ovl_a/func_00422050]
       - [0x1900D8, c, ovl_a/func_004220D8]
       - [0x1901A0, c, ovl_a/func_004221A0]
@@ -4453,7 +4476,7 @@ segments:
       - [0x1924B4, c, ovl_a/func_004244B4]
       - [0x192508, c, ovl_a/func_00424508]
       - [0x192528, c, ovl_a/func_00424528]
-      - [0x1925B8, asm]
+      - [0x1925B8, c, ovl_a/pad_1925B8]
       - [0x1925C0, c, ovl_a/func_004245C0]
       - [0x192D70, c, ovl_a/func_00424D70]
       - [0x192E30, c, ovl_a/func_00424E30]
@@ -4724,7 +4747,7 @@ segments:
       - [0x1A5AD4, c, ovl_a/func_00437AD4]
       - [0x1A5B10, c, ovl_a/func_00437B10]
       - [0x1A5B98, c, ovl_a/func_00437B98]
-      - [0x1A5C28, asm]
+      - [0x1A5C28, c, ovl_a/pad_1A5C28]
       - [0x1A5C30, c, ovl_a/func_00437C30]
       - [0x1A647C, c, ovl_a/func_0043847C]
       - [0x1A67F4, c, ovl_a/func_004387F4]
@@ -4762,7 +4785,7 @@ segments:
       - [0x1A7910, c, ovl_a/func_00439910]
       - [0x1A7930, c, ovl_a/func_00439930]
       - [0x1A7938, c, ovl_a/func_00439938]
-      - [0x1A79C8, asm]
+      - [0x1A79C8, c, ovl_a/pad_1A79C8]
       - [0x1A79D0, c, ovl_a/func_004399D0]
       - [0x1A7D3C, c, ovl_a/func_00439D3C]
       - [0x1A7DC0, c, ovl_a/func_00439DC0]
@@ -4809,9 +4832,9 @@ segments:
       - [0x1AA4D0, c, ovl_a/func_0043C4D0]
       - [0x1AA4D8, c, ovl_a/func_0043C4D8]
       - [0x1AA4E8, c, ovl_a/func_0043C4E8]
-      - [0x1AA4F4, asm]
+      - [0x1AA4F4, c, ovl_a/pad_1AA4F4]
       - [0x1AA500, c, ovl_a/func_0043C500]
-      - [0x1AA72C, asm]
+      - [0x1AA72C, c, ovl_a/pad_1AA72C]
       - [0x1AA730, c, ovl_a/func_0043C730]
       - [0x1AB54C, c, ovl_a/func_0043D54C]
       - [0x1AB568, c, ovl_a/func_0043D568]
@@ -4865,7 +4888,7 @@ segments:
       - [0x1AD1B0, c, ovl_a/func_0043F1B0]
       - [0x1AD1B8, c, ovl_a/func_0043F1B8]
       - [0x1AD238, c, ovl_a/func_0043F238]
-      - [0x1AD284, asm]
+      - [0x1AD284, c, ovl_a/pad_1AD284]
       - [0x1AD290, c, ovl_a/func_0043F290]
       - [0x1AD404, c, ovl_a/func_0043F404]
       - [0x1AD69C, c, ovl_a/func_0043F69C]
@@ -4947,7 +4970,7 @@ segments:
       - [0x1B1D84, c, ovl_a/func_00443D84]
       - [0x1B1E44, c, ovl_a/func_00443E44]
       - [0x1B1F40, c, ovl_a/func_00443F40]
-      - [0x1B2024, asm]
+      - [0x1B2024, c, ovl_a/pad_1B2024]
       - [0x1B2030, c, ovl_a/func_00444030]
       - [0x1B2204, c, ovl_a/func_00444204]
       - [0x1B2260, c, ovl_a/func_00444260]
@@ -4980,7 +5003,7 @@ segments:
       - [0x1B2EC0, c, ovl_a/func_00444EC0]
       - [0x1B2F0C, c, ovl_a/func_00444F0C]
       - [0x1B2F98, c, ovl_a/pad_1B2F98]
-      - [0x1B2F9C, asm]
+      - [0x1B2F9C, c, ovl_a/pad_1B2F9C]
       - [0x1B2FA0, c, ovl_a/func_00444FA0]
       - [0x1B3200, c, ovl_a/func_00445200]
       - [0x1B3240, c, ovl_a/func_00445240]
@@ -5032,7 +5055,7 @@ segments:
       - [0x1B4264, c, ovl_a/func_00446264]
       - [0x1B42F4, c, ovl_a/func_004462F4]
       - [0x1B4310, c, ovl_a/func_00446310]
-      - [0x1B432C, asm]
+      - [0x1B432C, c, ovl_a/pad_1B432C]
       - [0x1B4330, c, ovl_a/func_00446330]
       - [0x1B45B4, c, ovl_a/func_004465B4]
       - [0x1B4704, c, ovl_a/func_00446704]
@@ -5083,6 +5106,41 @@ segments:
       - [0x1B7B44, c, ovl_a/func_00449B44]
       - [0x1B7E38, c, ovl_a/func_00449E38]
       - [0x1B8100, asm]
+      - [0x1B817C, c, ovl_a/func_0044A17C]
+      - [0x1B837C, c, ovl_a/func_0044A37C]
+      - [0x1B84C0, asm]
+      - [0x1B8600, c, ovl_a/func_0044A600]
+      - [0x1B8A00, c, ovl_a/func_0044AA00]
+      - [0x1B8A68, c, ovl_a/func_0044AA68]
+      - [0x1B8B34, c, ovl_a/func_0044AB34]
+      - [0x1B8C70, c, ovl_a/func_0044AC70]
+      - [0x1B8CCC, c, ovl_a/func_0044ACCC]
+      - [0x1B8DC0, c, ovl_a/func_0044ADC0]
+      - [0x1B8FC0, asm]
+      - [0x1B927C, c, ovl_a/func_0044B27C]
+      - [0x1B931C, c, ovl_a/func_0044B31C]
+      - [0x1B9388, c, ovl_a/func_0044B388]
+      - [0x1B93E0, c, ovl_a/func_0044B3E0]
+      - [0x1B9420, c, ovl_a/func_0044B420]
+      - [0x1B9498, asm]
+      - [0x1B9A40, c, ovl_a/func_0044BA40]
+      - [0x1B9AB4, asm]
+      - [0x1B9AC0, c, ovl_a/func_0044BAC0]
+      - [0x1B9C58, asm]
+      - [0x1B9D30, c, ovl_a/func_0044BD30]
+      - [0x1B9DC8, asm]
+      - [0x1BAA54, c, ovl_a/func_0044CA54]
+      - [0x1BB024, asm]
+      - [0x1BB9DC, c, ovl_a/func_0044D9DC]
+      - [0x1BBCA4, c, ovl_a/func_0044DCA4]
+      - [0x1BBD40, c, ovl_a/func_0044DD40]
+      - [0x1BC038, asm]
+      - [0x1BC178, c, ovl_a/func_0044E178]
+      - [0x1BC2B8, c, ovl_a/func_0044E2B8]
+      - [0x1BC7C0, asm]
+      - [0x1BC910, c, ovl_a/func_0044E910]
+      - [0x1BCA24, c, ovl_a/func_0044EA24]
+      - [0x1BCACC, asm]
       - [0x1BCDA0, bin, ovl_a_tail]
       # END GENERATED
 
