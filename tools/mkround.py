@@ -2,25 +2,29 @@
 """Build round-N worker workspaces for every game function that has no matching C yet.
 
 usage: python tools/mkround.py <round> <group size> [--dry]
- - remaining = docs/game_funcs.txt functions not in funcs.txt / funcs_a.txt (dropped ones included)
+ - remaining = docs/game_funcs.txt functions that no entry of funcs.txt / funcs_a.txt covers by ROM range (dropped ones included)
  - groups are consecutive in address order (so each worker sees neighbouring code), named s<round>01..; targets go to
    D:/Projects/ws/<name>/wip/targets.txt (`name rom insns`), the prompt to docs/BATCH_PROMPT.txt (from wip/ROUND_PROMPT.txt)
 """
 import os, re, subprocess, sys
 rnd, size = sys.argv[1], int(sys.argv[2])
 dry = '--dry' in sys.argv
-done = set()
+cover = []                                           # ROM ranges of the matched entries: a span entry covers every function inside it, a stray head word may sit before the real entry
 for fn in ('funcs.txt', 'funcs_a.txt'):
     for l in open(fn):
         f = l.split('#')[0].split()
-        if len(f) >= 4 and not f[0].startswith('pad_'): done.add(f[0])
+        if len(f) >= 3 and not f[0].startswith('pad_'):
+            try: s = int(f[1], 16); cover.append((s, s + 4 * int(f[2])))
+            except ValueError: pass
+def covered(a, b):
+    return sum(max(0, min(b, e) - max(a, s)) for s, e in cover if s < b and e > a) * 4 >= (b - a) * 3
 rem = []
 for l in open('docs/game_funcs.txt'):
     f = l.split()
-    if len(f) >= 3 and f[1].startswith('func_') and f[1] not in done:
+    if len(f) >= 3 and f[1].startswith('func_'):
         va = int(f[1][5:], 16)
         rom = va - 0x400000 + 0x16E000 if 0x400000 <= va < 0x500000 else va - 0x1FF400
-        rem.append((va, f[1], rom, int(f[2])))
+        if not covered(rom, rom + 4 * int(f[2])): rem.append((va, f[1], rom, int(f[2])))
 # functions another worker still has (workspaces named in EXCLUDE_WS env, comma separated) are left out
 for w in filter(None, os.environ.get('EXCLUDE_WS', '').split(',')):
     t = f'D:/Projects/ws/{w}/wip/targets.txt'

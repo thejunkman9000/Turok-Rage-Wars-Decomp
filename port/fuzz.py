@@ -70,7 +70,11 @@ def main():
     proc = subprocess.Popen([os.path.abspath(exe)], cwd=ROOT, env=env)
     t0 = time.time(); verdict = 'ok'; screens = set(); states = set(); last_frame = -1; last_move = time.time()
 
-    def alive(): return proc.poll() is None
+    exe_name = os.path.basename(exe)
+    def running():                                   # the exe relaunches itself when its fixed address ranges are taken (port_early_init): the process we started exits with 0, the game runs on as a new process
+        r = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq ' + exe_name, '/NH'], capture_output=True, text=True)
+        return exe_name.lower() in r.stdout.lower()
+    def alive(): return proc.poll() is None or running()
     def check():
         """returns a verdict string when the run is over"""
         nonlocal last_frame, last_move
@@ -119,7 +123,7 @@ def main():
         v = check()
         if v: verdict = v; break
     wall = int(time.time() - t0)
-    if alive(): proc.kill()
+    subprocess.run(['taskkill', '/F', '/IM', exe_name], capture_output=True)
     time.sleep(0.5)
     for f in ('port_input.txt', 'port_input2.txt', 'port_input3.txt', 'port_input4.txt'):
         try: os.remove(f)

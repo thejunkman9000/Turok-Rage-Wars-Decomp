@@ -13,18 +13,17 @@ void func_0022C480(Actor *actor)
 {
     u8 m[0x40];
     Vec3f v50;
-    Vec3f v60;
-    u8 unused[0x30];
+    f32 v60[16];           /* port: func_00226DAC writes a whole 4x4 matrix through this pointer (0x40 bytes); the matching source declares a Vec3f followed by 0x30 bytes of padding, which only the MIPS frame layout keeps behind it - on the host the write ran over the saved registers and the actor argument */
     Actor *pawn = AT(Actor *, actor, 0x5DC);
     if (pawn != NULL) {
         v50 = AT(Vec3f, pawn, 0x128);
     } else {
         if (D_800D297C != 0) {
-            func_00226DAC(actor, &v60);
+            func_00226DAC(actor, v60);
         } else {
-            func_00226DAC(actor, &v60);
+            func_00226DAC(actor, v60);
         }
-        func_00273340(&v60, &v50);
+        func_00273340(v60, &v50);
     }
     func_00272848(m);
     func_00273744(m, (f32)D_80145080 * D_800C7E30);
