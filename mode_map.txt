@@ -320,6 +320,16 @@ func_00274214 sn
 func_0028308C sn
 func_002839F0 sn
 func_002A7F58 sn
+func_00218988 sn
+func_00208410 sn+nb
+func_00205720 sn+nb
+func_00212670 sn
+func_002034A4 sn+nb
+func_00217630 sn
+func_00213AAC sn
+func_00210C14 sn
+func_00208EB0 sn+nb
+func_002095F8 sn+nb
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
