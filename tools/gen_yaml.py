@@ -49,6 +49,7 @@ if os.path.exists('funcs_a.txt'):
 funcs.sort(); ros.sort()
 
 lines = [f'      - [0x{MAIN_START:X}, asm, entry]']
+if funcs and funcs[0][0] == MAIN_START: lines = []         # the boot code itself is a unit (func_00200400): no asm `entry` chunk in front of it
 pos = MAIN_START
 first = True
 for rom, n, name, sub in funcs:

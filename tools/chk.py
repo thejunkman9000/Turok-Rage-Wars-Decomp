@@ -78,6 +78,8 @@ for line in open(list_file):
     if not line: continue
     f = line.split()
     path, func, rom_hex = f[0], f[1], int(f[2], 16)
+    allmode = func.startswith('@all=')                       # @all=<unit>: the whole .text of the object against the ROM from <rom> on, reported under <unit> (a source that defines several functions under other names: ported upstream files, `func_80XXXXXX_de`)
+    if allmode: func = func[5:]
     extra[:] = f[3:] if len(f) > 3 else ['-O3', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
     full = path if os.path.isabs(path) else f'{ROOTD}/src/libultra/{path}'
     if not os.path.exists(full): full = f'{ROOTD}/{path}'
@@ -92,7 +94,7 @@ for line in open(list_file):
         if res is None:
             fail = f'{func:28s} COMPILE FAIL: {err}'; break
         text, syms, relocs, relnames = res
-        cand = [s for s in syms if s[0] == func]
+        cand = [(func, 0, len(text))] if allmode else [s for s in syms if s[0] == func]
         if not cand:
             fail = f'{func:28s} not found in object (have: {[s[0] for s in syms]})'; break
         name, off, size = cand[0]

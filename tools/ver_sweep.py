@@ -85,6 +85,11 @@ def aggregate_inferred(ver, jobs):
         (a, n), = c.most_common(1)
         out.append((sym, a))
         if len(c) > 1: conflicts.append((sym, c.most_common(3)))
+    if '--merge' in sys.argv and os.path.exists(f'wip/ver/{ver}/syms_inferred.ld'):          # a partial run: keep the addresses an earlier run inferred for symbols it did not meet again
+        have = {s for s, _ in out}
+        for l in open(f'wip/ver/{ver}/syms_inferred.ld'):
+            m = re.match(r'(\w+) = (0x[0-9A-Fa-f]+);', l)
+            if m and m.group(1) not in have: out.append((m.group(1), int(m.group(2), 16)))
     with open(f'wip/ver/{ver}/syms_inferred.ld', 'w', newline='\n') as f:
         for sym, a in sorted(out): f.write(f'{sym} = 0x{a:08X};\n')
     print(f'inferred {len(out)} symbol addresses from the matching code; {len(conflicts)} symbols with conflicting votes')
@@ -96,6 +101,7 @@ def main():
     def opt(k, d):
         return sys.argv[sys.argv.index(k) + 1] if k in sys.argv else d
     limit = int(opt('--limit', 0)); jobs = int(opt('--jobs', 8)); only = set(opt('--only', '').split(',')) - {''}; sub_only = opt('--sub', '')
+    if '--only-file' in sys.argv: only |= set(open(opt('--only-file', '')).read().split())          # one unit name per line (with --merge: a partial re-run keeps the other verdicts)
     if not os.path.exists(f'wip/funcmap_{ver}.txt'): subprocess.run([sys.executable, 'tools/ver_funcmap.py', ver], check=True)
     if not os.path.exists(f'wip/symmap_{ver}.txt'): subprocess.run([sys.executable, 'tools/ver_symmap.py', ver], check=True)
     fmap = {}
@@ -134,7 +140,7 @@ def main():
         try: os.remove(f'wip/ver/{ver}/infer_{k}.txt')
         except OSError: pass
     def run(p):
-        k = os.path.basename(p)[5:-4]
+        k = re.search(r'_(\d+)\.txt$', p).group(1)
         cmd = f"cd /mnt/d/Projects/TurokRageWars && rsync -a include/ ~/trw/include/ && rsync -a src/ ~/trw/src/ && {env} CHK_INFER=wip/ver/{ver}/infer_{k}.txt python3 tools/chk.py {p} 2>&1"
         return subprocess.run(['wsl', '-d', 'Ubuntu-24.04', '--', 'bash', '-c', cmd], capture_output=True, text=True, env=dict(os.environ, MSYS_NO_PATHCONV='1')).stdout
     res = {}
@@ -143,23 +149,56 @@ def main():
             for l in out.split('\n'):
                 m = re.match(r'(\w+)\s+(\d+) insns\s+(.*)', l)
                 if m: res[m.group(1)] = m.group(3).strip()
+    # pass 2: a unit whose object defines other names than the game_funcs ones (ported upstream sources: func_80XXXXXX_de) gets no result by name: compare its whole object .text
+    # against the release's code from the unit's position on (@all=<unit>); the functions of a unit are contiguous in the object, so one comparison judges all of them
+    redo = [tt for tt in todo if any(res.get(fn) is None for fn, _, _, _ in tt[1])]
+    allok = set()
+    if redo:
+        ins = {nm: nn for nm, _, nn, _, _ in units()}
+        lists2 = []
+        for k, ch in enumerate([redo[i::jobs] for i in range(jobs)]):
+            p2 = f'wip/ver/{ver}/all_{k}.txt'
+            open(p2, 'w', newline='\n').write(''.join(f'{src} @all={name} 0x{fns[0][1]:X} {fl}\n' for name, fns, src, fl in ch))
+            lists2.append(p2)
+        sizes = {}
+        with concurrent.futures.ThreadPoolExecutor(jobs) as ex:
+            for out in ex.map(run, lists2):
+                for l in out.split('\n'):
+                    m = re.match(r'(\w+)\s+(\d+) insns\s+(.*)', l)
+                    if m: sizes[m.group(1)] = (int(m.group(2)), m.group(3).strip())
+        for name, fns, src, fl in redo:
+            r = sizes.get(name)
+            if r is None: continue
+            nn, st = r
+            if st.startswith('EXACT') and nn == ins.get(name):
+                for i, (fn, ro, r11, ni) in enumerate(fns): res[fn] = st if i == 0 else 'EXACT'
+                allok.add(name)
+            else:
+                res[fns[0][0]] = st if not st.startswith('EXACT') else f'SIZE (object {nn} insns, manifest {ins.get(name)})'
+        print('whole-object pass:', len(redo), 'units,', len(allok), 'EXACT')
     c = collections.Counter(); bad = []
+    lines_out = {}
+    if '--merge' in sys.argv and os.path.exists(f'wip/ver/{ver}/sweep.txt'):          # keep the verdicts of the units this run did not look at
+        for l in open(f'wip/ver/{ver}/sweep.txt'):
+            f0 = l.split(None, 1)
+            if f0: lines_out[f0[0]] = l.rstrip('\n')
     with open(f'wip/ver/{ver}/sweep.txt', 'w') as f:
         for name, fns, src, fl in todo:
             vs = [res.get(fn, 'NO RESULT') for fn, ro, r11, ni in fns]
             bad_fn = [(fn, v) for (fn, ro, r11, ni), v in zip(fns, vs) if not v.startswith('EXACT')]
             adj = True
-            for (fa, ra, a11, na), (fb, rb, b11, nb) in zip(fns, fns[1:]):
+            for (fa, ra, a11, na), (fb, rb, b11, nb) in (zip(fns, fns[1:]) if name not in allok else []):      # (a whole-object match has judged the contiguity already)
                 if rb - (ra + 4 * na) != b11 - (a11 + 4 * na): adj = False      # the gap between the functions of the unit differs in the other release
             if bad_fn: v = bad_fn[0][1]; k = 'CODE-EXACT' if v.startswith('CODE-EXACT') else 'diff' if 'differ' in v else 'other'
             elif not adj: v = 'LAYOUT (the functions of this unit are not adjacent in the release)'; k = 'other'
             else:
                 pools = sorted(set(re.findall(r'ro=0x[0-9A-Fa-f]+:\d+', ' '.join(vs))))
                 v = 'EXACT' + (' ' + pools[0] if pools else '') + (' MULTIPOOL ' + ' '.join(pools[1:]) if len(pools) > 1 else ''); k = 'EXACT'
-            f.write(f'{name} 0x{fns[0][1]:X} {v}' + (f' [{bad_fn[0][0]}]' if bad_fn else '') + '\n')
+            lines_out[name] = f'{name} 0x{fns[0][1]:X} {v}' + (f' [{bad_fn[0][0]}]' if bad_fn else '')
             c[k] += 1
             if k != 'EXACT': bad.append((name, v))
-        for name, n in none: f.write(f'{name} - NO COUNTERPART {n} insns\n')
+        for name, n in none: lines_out[name] = f'{name} - NO COUNTERPART {n} insns'
+        for ln in lines_out.values(): f.write(ln + '\n')
     print(dict(c))
     aggregate_inferred(ver, jobs)
     for name, v in bad[:25]: print(' ', name, v[:110])

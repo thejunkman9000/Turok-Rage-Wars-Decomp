@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 BG, PANEL, GRID = (22, 24, 32), (34, 37, 49), (58, 62, 78)
 TXT, DIM = (236, 238, 244), (150, 156, 172)
 GREEN, TEAL, ORANGE, GREY = (84, 196, 128), (64, 164, 190), (230, 150, 70), (86, 90, 106)
-STATUS = {'us-rev1': 'byte-identical', 'us': 'on hold', 'eu': 'on hold', 'de': 'on hold'}     # state of the per-release ROM builds (other releases wait until US v1.1 is completely done)
+STATUS = {'us-rev1': 'byte-identical', 'us': 'byte-identical (asm for the rest)', 'eu': 'next', 'de': 'next'}     # state of the per-release ROM builds
 
 def font(size, bold=False, mono=False):
     for name in (('consolab.ttf' if bold else 'consola.ttf') if mono else ('segoeuib.ttf' if bold else 'segoeui.ttf'), 'arial.ttf'):

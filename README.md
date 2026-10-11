@@ -36,9 +36,11 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
 ## Status (2026-10-11)
-- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. About 99.1% of all game-code instructions are matched C (one function, func_00418224, is left)
-  (`src/game/` main image, `src/ovl_a/` overlay A; libultra/libaudio in `src/libultra/`, `-O3 -fforce-addr -fno-builtin`); the rest is
-  still splat asm, including hand-written exception/cache/TLB/RNC stubs that no C reproduces.
+- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical.  The main image (`src/game/`) is complete: every function is matched C, except the original's
+  own hand-written assembly (boot code, exception handler, TLB / cache / status-register routines: 716 instructions, kept as readable `.s` sources `src/game/func_00200400.s` ... that reproduce the bytes) and
+  stray linker-padding words between objects (`pad_*.s` units).  Overlay A (`src/ovl_a/`) is complete except its last 56 functions (ROM 0x1B8100..0x1BCDA0, 4.9k instructions: 25 of them are being ported from the other
+  public decompilation, the rest are being matched).  By instructions that is 98.1% of all game code (`tools/progress_chart.py`).  libultra/libaudio live in `src/libultra/` (`-O3 -fforce-addr -fno-builtin`).
+- **Other releases**: US v1.0 builds byte-identical from the unchanged v1.1 C plus splat asm for the code that differs (`docs/VERSIONS.md`); Europe and Germany are next.
 - **Toolchain** (the big finding): the other public decompilation of this game, [melalawi/ragewars-decomp](https://github.com/melalawi/ragewars-decomp)
   (CC0), builds everything with the pmret gcc 2.8.1 `cc1` (`-O2 -mgas -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300`), the SN64
   assembler normaliser `n64link asn64` and GNU as (gcc 2.7.2 for a few low-region units).  Our older decompals-gcc + `tools/gas_compat.py`

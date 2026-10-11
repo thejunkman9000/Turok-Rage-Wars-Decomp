@@ -4088,3 +4088,132 @@ ROUND 9 / s902 FINDINGS (new lessons only)
 4. General: `wip/sh/noslot.sh <file.c> [n]` = cc1 with -fno-delayed-branch (the order sched2 produced before reorg filled delay slots);
    a call's argument moves (`move a0,s3`, `li a1,..`) belong to the same basic block as the call: a (dead) branch before the call puts them
    in the block AFTER the prologue saves, a straight line keeps them before the saves (the ROM's case).
+
+
+======================================================================
+ROUND 10 FINDINGS (workers s1001, s1002, 2026-10-11)
+======================================================================
+
+FINDINGS s1001 (round 10, @SN toolchain; target func_0020DDD4 = 3 stray words + func_0020DDE0, 549 insns) -- new lessons only
+
+RESULT: func_0020DDE0 EXACT (chk plain EXACT incl. relocs + pool; tools/rodoc.py "rodata IDENTICAL" with mode sn+nb; tools/rocheck.py: one pool base, only the 7 jump-table words differ = relocations).
+Flags: @SN -fno-builtin (sqrtf is a real call).  No register pins, no asm, no volatile, no do{}while(0): plain C.  Total effort ~1.5 h, ~25 compiles.
+Files: wip/out/func_0020DDE0.c, include/s1001_types.h (S1Ctl/S1Elem/S1Rec/S1Pair), results line with ro=0xC7AB0:128.
+
+0. THE TARGET IS NOT A 552-INSN FUNCTION.  ROM 0xE9D4..0xE9DF are 3 stray linker-padding words (lui s2,%hi(D_8013B364); addiu s2,s2,%lo; sw ra,0x1C(sp)), the real function starts at 0xE9E0
+   (VRAM 0x0020DDE0, the first `addiu sp,sp,-0x78`) and runs 549 insns up to func_0020E674 (0xF274).  Manifest: `pad_00E9D4 0xE9D4 3 game` + `func_0020DDE0 0xE9E0 549 game mode=sn+nb ro=0xC7AB0:128`.
+   Nobody references the name func_0020DDD4 / func_0020DDE0 in asm or C, and no `jal` targets it: the only references are 11 raw data words `0x0020DDE0` at ROM 0xCE75C 0xCE804 0xCE8A8 0xCE8F8 0xCE944
+   0xCE990 0xCE9E0 0xCEA34 0xCEA88 0xCEAD4 0xCEBC0 (a table of AI state records, callback slot), so the asm label func_0020DDD4 can simply vanish.
+   The ro= piece is ONE contiguous 128-byte object: 7-word jump table (0xC7AB0, switch on the controller mode 6..12) followed by the 25 float literals (0xC7ACC..0xC7B2F) = upstream's
+   rodata.func_8020DDF4_eu.800C6EB0.c + rw_tail_8020DDF4_eu_C7ACC_us_rev1.c.  rodoc must be run with sn+nb (plain sn inlines sqrtf and the jump table base constant comes out 0x28 bytes off).
+
+1. "HUGE" FUNCTIONS ARE NOT HARD PER SE: WRITE THE WHOLE THING FIRST, THEN DIFF.  No top-down prefix work was needed.  A straight transcription of the asm into C (with the idioms of the neighbouring
+   already-matched functions of the same module: func_002095F8 / func_00208EB0 / func_0020E674 in src/game: `b = ctl->v258; b.x -= a.x ...; ctl->unk264 = sqrtf(...); dy = b.y; b.y = 0.0f;
+   hd = sqrtf(b.x*b.x + b.z*b.z); atan2 * 57.2957764f`) was already 34 structural / 55 operand off (549 vs 553 insns); four one-spot source-shape fixes took it to 0/0 (see 2-5).
+   The loop that worked: tools/adf.sh (aligned diff, `bash tools/w.sh "bash tools/adf.sh f.c fn rom @SN -fno-builtin"`, 2 s) -> look at the FIRST hunk -> tools/vp.py with 5-9 hand-written
+   variants of exactly that hunk (all compiled in parallel, ranked by structural/operand count) -> adopt the best -> repeat.  Four rounds.  chk's positional "543 words differ" was useless.
+   Because every sibling already used the same idioms the first diff run had no register-allocation surprises: the FP register numbers (f20..f24 callee-saved: f21 = horizontal distance, f22 = height diff,
+   f23/f24 = speed/gravity) were off by one only because cosf() was called twice (one extra live FP temp, frame 0x80 instead of 0x78), see 2; with that fixed they all matched.
+
+2. CALL EACH LIBM FUNCTION ONCE, NAMED TEMPS IN ROM ORDER.  The ROM evaluates `cs = cosf(a*K); cs2 = cs*cs; tn = tan(a*K)` (K = pi/180 literal, c->unk278 re-read for each call because it is a memory
+   field) and then `h = tn*hd + grav*(hd*hd) / (speed*speed*2.0f*cs2)` (speed*speed first, `*2.0f` becomes add.s x,x; `grav*(hd*hd)` has hd*hd as the INNER product).  Writing cosf(...) inline twice (cos^2
+   as cosf()*cosf()) calls it twice (no builtin knowledge with -fno-builtin) and costs an extra callee-saved FP register (frame 0x80 vs 0x78).  The pool then has ONE 0.0174532942 entry
+   (CSE'd), as in the ROM; the pool order is simply the order of the surviving li.s in the code, so no further care was needed for the 25 literals.
+
+3. SWITCH TREES: SEPARATE LABELS KEEP SEPARATE TREE NODES.  The ROM has two small compare trees (no jump table: fewer than 5 labels) for {2,9,10,12} and {6,8,9}, roots 9 and 8.  Writing
+   `case 2: case 9: case 10: case 12: id = 0x12E; break;` makes gcc merge the consecutive values 9,10 into the RANGE [9,10] and the tree comes out with another root (slti 11 ...).
+   `case 2: id = 0x12E; break; case 9: id = 0x12E; break; case 10: ... case 12: ...` (one body per label, identical) gives exactly the ROM tree: the identical tails are cross-jumped back
+   to one `addiu s2,zero,0x12E` and the first branch gets the `beql s0,2` slot copy of that insn.  Measured (aligned diff): stacked labels in the first tree switch 8 structural / 2 operand,
+   in the second one 12/3, in both 17/6.  Same trick as FINDINGS b16 (hidden case labels) but the other way round: to PREVENT
+   range merging, give neighbouring case values different labels.  The first switch (labels 6,8,9,10,12 = 5 labels) uses the jump table; its bodies are emitted in SOURCE order (10/12, 6/8, 9, default)
+   and `break` jumps to the code after the switch, which sits behind the default body (which ends in `return 1`).  Two nested `switch (c->unk284) { case 0: A; break; case 1: case 2: case 3: B; break; }`
+   (one per arm of `if (h < dy - 1.0f)`, roles of A/B swapped) produce the odd `beqz/bltz/slti 4/beqz` + shared-tail layout of the ROM: cases 1..3 merge into the range [1,3] and the tails of the
+   two switches are cross-jumped.  If-chains (`if (n == 0) A; else if (n >= 1 && n <= 3) B;` or `n > 0 && n < 4`) are 8 structural words off.
+
+4. STORE THEN READ-BACK OF A FIELD (state-0 tail).  `c->unk27C = 90.0f - (f32)n*45.0f; c->unk280 = c->unk278; c->unk278 = (c->unk27C + c->unk280) * 0.5f;` -- the third statement reads
+   BACK the two fields stored just before, so cse forwards the stored registers and the ROM's single `lwc1 f2,0x278` feeds both the store to 0x280 and the add.  The natural-looking
+   `c->unk278 = (c->unk27C + c->unk278) * 0.5f` reloads c->unk278 after the in-struct stores (second lwc1 into another register; 10/13 -> 8/7 structural/operand with the read-back form).  A temp `t0 = c->unk278` variant and the
+   nested `(c->unk27C + (c->unk280 = c->unk278))` give the same code; I kept the read-back form.
+
+5. CALL ARGUMENT SETUP ORDER (jal delay slot) AND POINTER REASSOCIATION.
+   a) `t = func_0028FD94(p, 1); n = t[1]; if (func_00265570(t + 2, n, id, &idx, &last) == 0)`: with the count read in its own statement the ROM order
+      `addiu a0,v0,8 ; addu a2,s2,zero ; lw a1,4(v0) ; addiu v0,sp,0x3C ; addiu a3,sp,0x38 ; jal ; sw v0,0x10(sp)` appears (the stack-arg temp reuses v0 after the lw, the `sw` fills the delay
+      slot).  With `func_00265570(t + 2, t[1], id, &idx, &last)` the &last temp lands in v1, `sw` precedes the lw and the slot is `addiu a3` (8 -> 2 structural when fixed).  Five other spellings
+      (`k = t + 2` local, `lp = &last` / `ip = &idx` pointer locals before or after the table call) did nothing.
+   b) `e = (S1Elem *)((u8 *)tbl + 8); e += idx;` (two statements) gives `addiu s0,v0,8 ; ...idx*60... ; addu s0,s0,v0`; the one-expression form `(S1Elem *)((u8 *)tbl + 8) + idx` is reassociated
+      by cse/expand into `tbl + (idx*60 + 8)` (addiu on the scaled index, 7 words).  `ee = ...+8; e = ee + idx;`, `e = &ee[idx]` and `S1Tbl *t; e = t->elem; e += idx` are equivalent.
+
+6. SMALL FACTS SEEN IN THIS FUNCTION (all reproduced without hacks)
+   - (matched as written) `if (c == NULL) return 1;` AFTER the first dereferences (`mode = c->owner->unk62E; if (mode != c->unk26C) { c->unk268 = 0; c->unk26C = mode; }`) is what the ROM does (the load sits before the test).
+     `id = 0;` as the very first statement ends up in the delay slot of that first compare branch (`addu s2,zero,zero`).
+   - `c->unk254 = c->unk250 = 0.0f;` stores the zero through ONE FP reg (mtc1 zero,f0 ; swc1 250 ; swc1 254), the int fields use `sw zero`.
+   - The 4-sector classification `if (v > 45) n = 0; else if (v > 0) n = 1; else if (v > -45) n = 2; else n = 3;` followed by `90.0f - (f32)n*45.0f` and `45.0f - (f32)n*45.0f` is compiled with the int field
+     converted TWICE (lwc1 + cvt.s.w + mul.s each time): presumably the store to c->unk27C in between kills the cached load of c->unk284 (in-struct store invalidation), so the second
+     `(f32)c->unk284` is a second load/convert.  After a decrement `c->unk284 = c->unk284 - 1` the second conversion reads the register (store forwarding): `mtc1 v0` twice.  Write the statements in this
+     plain order; no temp.
+   - Float literal pool = one entry per surviving `li.s` in CODE order (45.0 appears 7 times, 90.0 6 times, -45.0 3 times, ...): equal constants that CSE merges inside a basic block share an entry (3 uses of 45.0
+     inside the "arc ok" block = 1 entry), constants reloaded after a join / in another arm are new entries.  Never use `extern f32 D_800C...` for them (chk would then show only a few ro bytes).
+   - A struct of two u16 passed BY VALUE (`func_00285600(S1Pair p)`, packed float {u16 hi; u16 lo}) is built as `lhu a0,0(v0) ; lhu v0,2(v0) ; sll a0,a0,16 ; or a0,a0,v0`.
+   - 12-byte struct copies `a = c->owner->pos; b = c->v258;` give the lw t0..t2 / sw triplets at sp+0x18 / sp+0x28 (16 bytes apart); address-taken `idx`, `last` come after them at 0x38 / 0x3C
+     in DECLARATION order; the in-place `b.x = b.x - a.x; ...` keeps the stores to sp+0x28.. behind the sqrtf arguments.
+
+7. TOOLING NOTES
+   - tools/agents/* scripts carry other workspace names; copy them once into tools/ with `sed -E 's#ws/s[0-9]{3,4}#ws/s1001#g; s#trw_(s1001_)?s[0-9]{3}([^0-9]|$)#trw_s1001\2#g'`
+     (three separate rules in sequence turn an already fixed `trw_s1001` into `trw_s10011`).  asm/ is missing in a fresh workspace: copy it from the main project before tools/asmfn.py works.
+   - From Git Bash, `wsl ... bash /mnt/d/...` needs `export MSYS_NO_PATHCONV=1` (tools/w.sh does it); tools/wsl_sync.sh needs ~60 s the first time (156 MB tree).
+
+
+----------------------------------------------------------------------
+
+FINDINGS s1002 (round 10: func_004143D8 split + audit of the 94 "skipped" names; new lessons only)
+
+1. LINKER PAD IS A STALE COPY OF THE ROM IMAGE 0x1000 HIGHER (objective pad-vs-code test).
+   Every stray word between two objects equals the ROM word 0x1000 bytes further on (word(r) == word(r + 0x1000)): 87 of the 89 uncovered
+   gaps of 1..8 words are 100% such copies, 161 of 165 existing small pad_* units are, while real (matched) code words match only 0.2% of the
+   time by accident (nop / jr ra aside).  So a word that is NOT a +0x1000 copy inside a gap is real code or data.  `python wip/out/padtest.py 0x3DBB8 6`
+   prints COPY/CODE per word, the alignment and every jal/j/pointer/lui-pair reference to the word's VRAM address.
+   Consequences found with it:
+   - 0x3DBB8..0x3DBCF (splat names func_0023CFB8 4 insns + func_0023CFC8 2 insns): words 0,1,4,5 are COPY, words 2,3 (`jr ra; nop` at the 16-aligned 0x3DBC0)
+     are CODE = a real empty function `void func_0023CFC0(void) {}` (upstream has it as C, func_8023D010_eu_x, with padding_3DBB8 before and func_8023D018 after).
+   - 0x1823D8..0x18247F (func_004143D8, 42 words) = pad 2 | A 9 | B 9 | pad 2 | C 19 | pad 1; every other word is CODE.
+   - the manifest unit pad_17A638 (4 words) is only half pad: words 0-1 COPY, words 2-3 (0x17A640: `jr ra; addu v0,zero,zero`) are the real function
+     `int func_0040C640(void) { return 0; }`, the class-9 handler passed by func_00298FA0 (`func_002992C4(9, D_0040C640, D_0040C648, 1)`, lui/addiu at ROM 0x99CFC).
+     wip/out/func_0040C640.c is EXACT (default flags and @SN).  Suggested lines: `pad_17A638 0x17A638 2 ovl_a` + `func_0040C640 0x17A640 2 ovl_a`.
+   - the +0x1000 relation does not hold for the libultra pads (pad_0B2C48 `jr ra; li v0,1`, pad_0BFA58, pad_0C0554): their pad source is another build; not examined further.
+   - ALL of the 80 one-to-three word fragments of the skip list (28 + 26 + 26 gaps) are pure pad: each ends at a 16-aligned object start, nothing in the ROM
+     references any address inside them (jal/j/pointer/lui pairs scanned over the whole ROM), none is a self-contained function (they read $s0.. that nothing sets,
+     jal without ra save, `jr ra` + `addiu sp,N` without a frame, branches into other functions).  Even func_0020EA04 (`addiu a0,a0,4; jr ra; addu v0,a1,zero`,
+     the one that looks like `return b`): gcc 2.8.1 deletes the dead a0+=4 under the default flags and under @SN for every natural source form tried, and no 16-aligned start fits in the gap.
+2. OBJECT LAYOUT RULES that follow (use them to split "functions" of the splitter): every object starts 16-aligned; the functions of one object follow each other with no gap
+   (of the 4102 non-pad manifest units 1287 start 16-aligned, 951/931/933 start at 4/8/12 mod 16); the object end is padded with 0..3 stray words up to the next 16-aligned start.  So a gap of 1..3 words before a 16-aligned
+   unit is pure pad, and a hidden real tiny function (typically `jr ra; nop` or `return 0/1`) can only sit (a) at the start of a gap as the last function of the previous object or
+   (b) at a 16-aligned address strictly inside a gap of >= 4 words (the 0x3DBC0 case, also func_002909D0 @0x915D0 with 3 pad words before and 2 after, func_0025CC9C).
+3. func_004143D8 = pad 2 words (0x1823D8) + A func_004143E0 (9 insns: `func_002A1D38(); func_0029E8A0();`) + B func_00414404 (9: `func_0029E8A8(); func_002A1E34();`)
+   + pad 2 (0x182428) + C func_00414430 (19: `return (double)osGetTime() / (double)osClockRate;`) + pad 1 (0x18247C).  A and B are one object (no pad between them; upstream
+   defines both in src/func_80414360_de.c; EXACT either as two files or as one file defining both).  C needs SIGNED 64-bit operands (`typedef long long s64; extern s64 osClockRate;
+   s64 osGetTime(void);`): the ROM calls plain __floatdidf for both, an unsigned (u64/OSTime) conversion would add the 2^64 fix-up branch.  osClockRate is read as two lw (the second
+   half is the symbol D_8014FD94 = osClockRate+4, chk's reloc check resolves it).  All three are EXACT under the default game flags (-O2 -mcpu=r4300) and under @SN, no pins,
+   no -fno-builtin, no literal pool.
+4. THE "HAND-WRITTEN" LOW REGION 0x2E68..0x38A0 (what is really in it): [0x2E68 pad 2] [0x2E70 exception-vector stub blob 28 words, addressed as func_00202268+0x08/0x1C/0x40/0x54]
+   [0x2EE0 stub installer 43] [0x2F8C D-cache loop 7] [0x2FA8 I-cache loop 7] [0x2FC4 __osGetSR 3] [0x2FD0 __osSetSR 3] [0x2FDC TLB dump 33] [0x3060 exception handler 237]
+   [0x3414 9-word jump table] [0x3438 handler continuation 38 + vector-install loop 27 + eret tail 22 (= our func_002023DC tail and func_002028D0)] [0x3594 context save 193]
+   [0x3898 pad 2].  The boot stub 0x1000..0x10FF (64 words) is all code.  melalawi's repo keeps func_80200400_de, func_8020238C_de, func_802023A8_de, func_802023C4_de,
+   func_802023D0_de as hand-written .s (kind hasm), everything else of the region as plain splat asm (versions/us-rev1/RageWars.yaml lines 50, 82-93), and the padding words as C data
+   arrays (src/*_padding_XXXX.c, offsets = our ROM offsets).  None of it is C.  `tools/mkhasm.py <spec> --subdir game` can turn the splat asm into .s units (spec: wip/out/hasm_spec.txt).
+5. FINDING OUTSIDE THE SKIP LIST: (a) the 8 words 0x2654..0x2673 are the unreachable epilogue of the infinite-loop thread func_002018A0 (`lw ra..; jr ra; nop`, 117 insns in
+   docs/game_funcs.txt, manifest says 109): not pad (not +0x1000 copies, inside an object, 4 mod 16 end).  The existing C source reproduces it with the dead-epilogue token: chk flags
+   `@SN -msplit-addresses -mcpu=r4000 @EPI @Z` = 117 insns EXACT, and tools/cc.sh with mode `sn+sa+r4k+epi+snz` gives 468 bytes / every non-relocated word equal to the ROM, so the manifest line
+   can become `func_002018A0 0x24A0 117 game mode=sn+sa+r4k+epi+snz` (then asm/2654.s disappears).  (b) 7 more uncovered pad gaps outside the skip list (all +0x1000 copies):
+   0xC3DA8 (2), 0x18D298 (2), 0x1A5C28 (2), 0x1AA4F4 (3), 0x1AA72C (1), 0x1B2024 (3), 0x1B432C (1), plus the first 3 words of the unmatched func_0020DDD4 (0xE9D4).  All are in wip/out/pad_lines.txt.
+   (c) tools/upstream_check.py has two blind spots: it lists a match only when a splat symbol of docs/game_funcs.txt STARTS inside the matched range (misses stray-head-word cases such as
+   func_80414360_de = A+B and func_8023D010_eu_x), and docs/game_funcs.txt ends at 0x1B47D8, so the 25 functions that ragewars-decomp matches at 100% in ROM 0x1B817C..0x1BCA24
+   (asm/1B8100.s, 2429 insns, all sources published) are never listed.  The list is in wip/out/upstream_uncovered.txt.
+6. TOOLING: asm/ is not copied into a fresh workspace (tools/asmfn.py then prints nothing): copy it from the main project.  Scripts written here (wip/tools/): gaps.py (uncovered manifest
+   gaps), allgaps.py, gapxrefs.py / xrefs.py (jal/j/pointer/lui-pair references for any ROM address), fragtab.py (context of a fragment: previous unit tail, words, next unit head),
+   validfn.py (is a fragment a self-contained function?), mkaudit2.py / mkpadlines.py (audit.txt / pad_lines.txt), plus wip/out/padtest.py and wip/out/mkpads.py
+   (writes the src/<subdir>/pad_<ROM>.s files of a pad line list in exactly the format of tools/apply_results.py; verified byte-identical against pad_17A638.s and pad_008BF8.s).
+   The .venv of the workspace has rabbitizer: `.venv/Scripts/python.exe` disassembles ROM words; the system python has no capstone/spimdisasm.
+7. EFFECT ON THE 'covered' CHART: with the 98 new manifest lines of wip/out/pad_lines.txt (pads + A/B/C + the empty function) 3871 of the 3882 splat functions of docs/game_funcs.txt count as
+   matched (3788 now); the 11 left are the ten hand-written low-region functions of audit class c (they become covered by wip/out/hasm_spec.txt via tools/mkhasm.py) and func_0020DDD4
+   (552 insns, asm/E9D4.s, a real unmatched function).  wip/tools/cccheck.py + cccheck_all.sh compile the deliverables with the real build wrapper (tools/cc.sh game|sn) and compare the
+   object's .text with the ROM: all five EXACT in both modes (size and every non-relocated word).

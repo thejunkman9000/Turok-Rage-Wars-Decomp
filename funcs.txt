@@ -3003,7 +3003,7 @@ func_002012D8 0x1ED8 64 game mode=sn+sa+epi
 func_002013D8 0x1FD8 51 game mode=sn+sa+r4k+epi
 func_002016FC 0x22FC 59 game mode=sn+sa+epi
 func_002017E8 0x23E8 46 game mode=sn272
-func_002018A0 0x24A0 109 game mode=sn+sa+r4k+epi
+func_002018A0 0x24A0 117 game mode=sn+sa+r4k+epi+snz
 func_00201A74 0x2674 22 game mode=sn+sa+epi
 func_00201ACC 0x26CC 33 game mode=sn+sa+epi
 func_00201B50 0x2750 76 game mode=sn+sa+r4k+epi
@@ -3133,3 +3133,86 @@ func_00278530 0x79130 244 game mode=sn+nb
 func_002A78F0 0xA84F0 410 game mode=sn ro=0xCBC60:64
 func_00269A80 0x6A680 1134 game mode=sn ro=0xCA2B4:164
 func_00235AD0 0x366D0 514 game mode=sn ro=0xC8FA8:12
+pad_008BFC 0x8BFC 1 game
+pad_00E804 0xE804 3 game
+pad_00F604 0xF604 3 game
+pad_0112DC 0x112DC 1 game
+pad_011C14 0x11C14 3 game
+pad_013264 0x13264 3 game
+pad_013F3C 0x13F3C 1 game
+pad_0144E8 0x144E8 2 game
+pad_01822C 0x1822C 1 game
+pad_019EB4 0x19EB4 3 game
+pad_0343B8 0x343B8 2 game
+pad_03B0CC 0x3B0CC 1 game
+pad_03C594 0x3C594 3 game
+pad_03F9E8 0x3F9E8 2 game
+pad_040334 0x40334 3 game
+pad_04124C 0x4124C 1 game
+pad_0412BC 0x412BC 1 game
+pad_04253C 0x4253C 1 game
+pad_044678 0x44678 2 game
+pad_045954 0x45954 3 game
+pad_046918 0x46918 2 game
+pad_04F574 0x4F574 3 game
+pad_050534 0x50534 3 game
+pad_0561C8 0x561C8 2 game
+pad_05683C 0x5683C 1 game
+pad_056E14 0x56E14 3 game
+pad_0573E8 0x573E8 2 game
+pad_059E78 0x59E78 2 game
+pad_05A72C 0x5A72C 1 game
+pad_05D8A4 0x5D8A4 3 game
+pad_05E068 0x5E068 2 game
+pad_05EA4C 0x5EA4C 1 game
+pad_05F11C 0x5F11C 1 game
+pad_05F1C8 0x5F1C8 2 game
+pad_062288 0x62288 2 game
+pad_0633B4 0x633B4 3 game
+pad_065B7C 0x65B7C 1 game
+pad_065F64 0x65F64 3 game
+pad_066A28 0x66A28 2 game
+pad_0698D4 0x698D4 3 game
+pad_06F1DC 0x6F1DC 1 game
+pad_077218 0x77218 2 game
+pad_077914 0x77914 3 game
+pad_07987C 0x7987C 1 game
+pad_07A114 0x7A114 3 game
+pad_07A664 0x7A664 3 game
+pad_085E88 0x85E88 2 game
+pad_08613C 0x8613C 1 game
+pad_0862AC 0x862AC 1 game
+pad_08697C 0x8697C 1 game
+pad_090968 0x90968 2 game
+pad_0915C4 0x915C4 3 game
+pad_0915D8 0x915D8 2 game
+pad_095898 0x95898 2 game
+pad_096784 0x96784 3 game
+pad_097C18 0x97C18 2 game
+pad_0988C8 0x988C8 2 game
+pad_09BA74 0x9BA74 3 game
+pad_09C798 0x9C798 2 game
+pad_0A1068 0xA1068 2 game
+pad_0A2E64 0xA2E64 3 game
+pad_0A346C 0xA346C 1 game
+pad_0A3C8C 0xA3C8C 1 game
+pad_0A41BC 0xA41BC 1 game
+pad_0A924C 0xA924C 1 game
+pad_0ACFEC 0xACFEC 1 game
+pad_003898 0x3898 2 game
+pad_03DBB8 0x3DBB8 2 game
+pad_03DBC8 0x3DBC8 2 game
+pad_0C3DA8 0xC3DA8 2 libultra
+pad_00E9D4 0xE9D4 3 game
+func_0020DDE0 0xE9E0 549 game mode=sn+nb ro=0xC7AB0:128
+func_0023CFC0 0x3DBC0 2 game
+func_00200400 0x1000 64 game
+func_00202268 0x2E68 30 game
+func_002022E0 0x2EE0 43 game
+func_0020238C 0x2F8C 7 game
+func_002023A8 0x2FA8 7 game
+func_002023C4 0x2FC4 3 game
+func_002023D0 0x2FD0 3 game
+func_002023DC 0x2FDC 317 game
+func_002028D0 0x34D0 49 game
+func_00202994 0x3594 193 game

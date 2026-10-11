@@ -34,6 +34,20 @@ def main():
         if l.startswith('#') or not l.strip(): continue
         f = l.split()
         funcs.append((int(f[0], 16), f[1], int(f[2])))
+    # the libultra / libaudio units of funcs.txt (named by their SDK names, they are not in docs/game_funcs.txt) are looked up the same way: the SDK code is the same in
+    # every release, so the units that our 1.1 C reproduces can be reused (a unit that overlaps a listed function is skipped)
+    spans = sorted((r, r + 4 * n) for r, _, n in funcs)
+    starts = [s for s, _ in spans]
+    extra = []
+    for l in open('funcs.txt'):
+        f = l.split('#')[0].split()
+        if len(f) < 4 or f[3] != 'libultra' or f[0].startswith('pad_'): continue
+        r, n = int(f[1], 16), int(f[2])
+        i = bisect.bisect_right(starts, r) - 1
+        if (i >= 0 and spans[i][1] > r) or (i + 1 < len(spans) and spans[i + 1][0] < r + 4 * n): continue
+        extra.append((r, f[0], n))
+    funcs += extra; funcs.sort()
+    print('libultra units added to the function list:', len(extra))
     base = open(ROMS['us-rev1'], 'rb').read(); other = open(ROMS[ver], 'rb').read()
     lo, hi = 0x1000, min(len(other), 0x1D0000) // 4 * 4
     ow = struct.unpack('>%dI' % ((hi - lo) // 4), other[lo:hi])
