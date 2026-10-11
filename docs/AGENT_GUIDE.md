@@ -52,6 +52,18 @@ the order of `case` bodies decides jump-table and pool order; the alignment pad 
 ranges overlap, or their `ro=` starts are not 8-aligned relative to each other, they may come from ONE object: put them in a single .c file in ROM order and verify each with its own chk line
 (same path, different function/rom).  Report this.  `python3 tools/rodoc.py <src.c> sn <ro offset hex> <size>` diffs the whole pool and lists the functions the object defines.
 
+## When only registers differ (the allocator rules, from gcc 2.8.1 global.c)
+`D:\Projects\ext\gcc281src` (also `wip/w/*281.c` in some workspaces) is the real source of our compiler.  Allocation = pseudos sorted by
+`floor_log2(refs)*refs/live_length` (refs weighted by loop depth); each takes the lowest free hard reg (pass 0: only regs already used by someone and not preferred by a
+lower-priority CONFLICTING pseudo), then copy preferences (moves to/from hard regs) and `expand_preferences` (a pseudo that dies in an insn that sets another
+non-conflicting pseudo inherits that pseudo's preferences, e.g. a divisor temp inherits the result's $a3) may override the choice.  A user variable is ONE pseudo for all its uses
+(priority and conflicts are the union), pseudos live across call-argument setup conflict with the arg regs, and jump2's cross-jumping merges identical arm tails only when the
+registers are identical.  Zero-code levers: `register T v __asm__("$N")` pin; copy preference = `register s32 p5 __asm__("$5"); p5 = tmp; __asm__ volatile ("" : : "r"(p5));`
+after tmp's last use; conflicts = `__asm__ volatile ("" : : "r"(x) : "$3", "$4");` inside x's live range; `__asm__ volatile ("" : "=f"(f))` cuts a preference chain; an empty
+volatile asm is a scheduling barrier.  Tools: `tools/dumpl.sh <src> <dir under ~>` (all RTL dumps) + `tools/regdump.py <dir> <pseudo..>` (order, reg, conflicts, preferences),
+`tools/sdiff.py` (alignment-aware diff when the insn counts differ), `tools/vscore.py` (scores many variants per process: build the variants from a template, score, then confirm with chk).
+Never keep dumps in /tmp (WSL wipes it when idle) or under ~/trw (rebuilt by dropfix).  func_00269A80 (five words, solved with a pinned copy to $5) is the worked example.
+
 ## Deliverable
 For each function that is EXACT: the final C at `wip/out/<fn>.c` (self-contained: includes + prototypes; it must compile as is
 from `include/`), plus your new header(s) `include/<topic>_types.h`.  Write `wip/out/results.txt` with one line per function:
