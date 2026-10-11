@@ -13,7 +13,7 @@ cover = []                                           # (rom start, rom end)
 for fn in ('funcs.txt', 'funcs_a.txt'):
     for l in open(fn):
         f = l.split('#')[0].split()
-        if len(f) >= 3 and not f[0].startswith('pad_'):
+        if len(f) >= 3:      # padding entries (pad_*) count: a function's size in docs/game_funcs.txt includes its trailing alignment words
             try: s = int(f[1], 16); cover.append((s, s + 4 * int(f[2])))
             except ValueError: pass
 cover.sort()

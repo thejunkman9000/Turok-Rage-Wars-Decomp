@@ -13,7 +13,7 @@ cover = []                                           # ROM ranges of the matched
 for fn in ('funcs.txt', 'funcs_a.txt'):
     for l in open(fn):
         f = l.split('#')[0].split()
-        if len(f) >= 3 and not f[0].startswith('pad_'):
+        if len(f) >= 3:      # padding entries (pad_*) count: a function's size in docs/game_funcs.txt includes its trailing alignment words
             try: s = int(f[1], 16); cover.append((s, s + 4 * int(f[2])))
             except ValueError: pass
 def covered(a, b):
@@ -35,7 +35,12 @@ if os.path.exists('wip/skip_funcs.txt'):                      # padding words / 
     sk = set(open('wip/skip_funcs.txt').read().split())
     rem = [r for r in rem if r[1] not in sk]
 rem.sort()
-groups = [rem[i:i + size] for i in range(0, len(rem), size)]
+if '--groups' in sys.argv:                                  # --groups <file>: one line per worker, function names separated by spaces (hand-made groups; the size argument is ignored)
+    gf = [l.split() for l in open(sys.argv[sys.argv.index('--groups') + 1]) if l.strip()]
+    byname = {r[1]: r for r in rem}
+    groups = [[byname[n] for n in g if n in byname] for g in gf]
+else:
+    groups = [rem[i:i + size] for i in range(0, len(rem), size)]
 print(len(rem), 'functions,', sum(r[3] for r in rem), 'insns ->', len(groups), 'groups')
 if dry: sys.exit()
 prompt = open('wip/ROUND_PROMPT.txt').read().replace('round 3', f'round {rnd}')

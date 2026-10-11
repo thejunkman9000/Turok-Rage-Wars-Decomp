@@ -32,7 +32,7 @@ def manifests(text_of):
         t = text_of(fn)
         for l in (t or '').splitlines():
             f = l.split('#')[0].split()
-            if len(f) >= 4 and not f[0].startswith('pad_') and f[3] in ('game', 'ovl_a'):
+            if len(f) >= 4 and f[3] in ('game', 'ovl_a'):      # pad_* entries count as covered (alignment words inside a function's recorded size)
                 try: a = int(f[1], 16); cov.append((a, a + 4 * int(f[2])))
                 except ValueError: pass
     return sorted(cov)
