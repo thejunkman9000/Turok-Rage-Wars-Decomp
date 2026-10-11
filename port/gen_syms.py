@@ -12,7 +12,7 @@ import collections, os, re, struct, sys, glob
 log = open(sys.argv[1], encoding='utf-8', errors='replace').read()
 unres = set(re.findall(r'unresolved external symbol _(\w+)', log))
 # data symbols referenced through C asm labels (undecorated names, e.g. extern u8 X[] asm("D_800D2F90"))
-plain_alias = set(re.findall(r'unresolved external symbol (D_[0-9A-Fa-f]{3,8})\b', log))
+plain_alias = set(re.findall(r'unresolved external symbol (D_(?:auto_)?[0-9A-Fa-f]{3,8})\b', log))
 unres |= plain_alias
 if '--merge' in sys.argv and os.path.exists('port/gen/syms.asm'):
     unres |= set(re.findall(r'^PUBLIC _(\w+)', open('port/gen/syms.asm').read(), re.M))
