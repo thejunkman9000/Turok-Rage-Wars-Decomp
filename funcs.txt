@@ -497,7 +497,7 @@ func_00273424 0x74024 37 game
 func_00273E90 0x74A90 17 game
 func_00274BB4 0x757B4 14 game
 func_00274BEC 0x757EC 30 game
-func_00276580 0x77180 36 game
+func_00276580 0x77180 38 game
 func_00279024 0x79C24 20 game
 func_00279530 0x7A130 18 game
 func_00283038 0x83C38 21 game
@@ -3121,3 +3121,4 @@ func_002A98E0 0xAA4E0 398 game mode=sn+nb ro=0xCBD48:396
 func_002AB19C 0xABD9C 329 game mode=sn+nb ro=0xCBF50:48
 func_002ABED4 0xACAD4 115 game mode=sn ro=0xCBFBC:20
 func_0023CAFC 0x3D6FC 21 game mode=sn
+func_0023CA14 0x3D614 58 game mode=sn

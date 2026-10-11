@@ -11,3 +11,6 @@ void func_00276580(f32 *box, s32 n, f32 *pt) {
         box[3] = !(box[3] <= p[2]) ? box[3] : p[2];
     }
 }
+
+void func_00276610(void) {
+}

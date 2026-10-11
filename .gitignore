@@ -55,3 +55,25 @@ wip/push_*.txt
 wip/*.new
 wip/base_shots/
 wip/stage_r8a/
+
+# scratch of the repair/integration loops (tools/rd*.py, tools/upstream_port.py)
+wip/rd/
+wip/merge/
+wip/their_new/
+wip/their_fuzzy/
+wip/chk_block.txt
+wip/relocs.txt
+wip/x.ro
+wip/rodoc_all.txt
+wip/blocked_exact.txt
+wip/upstream_seen.txt
+wip/turok_C.map
+wip/t_*.txt
+wip/t[0-9]*.txt
+wip/new8.txt
+wip/new_since_good.txt
+wip/nm_covered.txt
+wip/pt_base2.txt
+wip/sn_names.txt
+wip/bisect_run2.out
+wip/dbg_func_*.c
