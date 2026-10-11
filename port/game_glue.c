@@ -76,6 +76,12 @@ static void load_guest_data(int have_overlay) {
     if (have_overlay) {
         unsigned char *o = H(0x400000u + 0x1BCDA0u - 0x16E000u);
         raw_copy(o, 0x1BCDA0u, 0x1EE000u); relocate_fnptrs(o, 0x1EE000u - 0x1BCDA0u);
+        /* two data blobs sit inside overlay A's code range (asm/1B94A0.s, asm/1B9DD0.s): the overlay code is native, so they must be copied on their own.
+           D_44B4A0 is the template table func_0023EDF0 copies into the collision profiles (0x80103FF0..0x80104460: the flags word that func_00243A80
+           gets as arg4 for every actor state); without it every profile stays 0 and actors walk through walls and never fall.  D_44BDD0 is passed
+           on by func_0026AC38.  Neither holds code pointers (flags, floats, RAM addresses), so no relocation. */
+        raw_copy(H(0x44B4A0u), 0x1B94A0u, 0x1B9A40u);
+        raw_copy(H(0x44BDD0u), 0x1B9DD0u, 0x1B9FD0u);
     }
 }
 
