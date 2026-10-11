@@ -303,7 +303,6 @@ func_0021B1E4 sn
 func_0020D6E4 sn
 func_0021BFBC sn
 func_00214624 sn
-func_00274090 sn
 func_00265A00 sn
 func_002631D0 sn
 func_00264F80 sn
@@ -312,6 +311,11 @@ func_00257DF4 sn
 func_002661FC sn
 func_00266830 sn+nb
 func_0026AD8C sn+nb
+func_002343B8 sn
+func_00233DEC sn
+func_0022804C sn
+func_00277620 sn
+func_00238660 sn
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
