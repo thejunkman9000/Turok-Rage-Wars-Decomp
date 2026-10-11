@@ -100,3 +100,18 @@ byte-identical.  Lessons of the integration:
     versions/eu/syms.ld.  A jal into the middle of a function from mis-split asm (DE 0x2BB5E0) and a real entry behind two stray words (EU 0x294DB0) need explicit
     `func_auto_` addresses once the neighbouring code became C.
   - an identity name the release maps elsewhere (DE `D_800E4518`): the release source uses its own `D_auto_800E04C0` instead of moving the shared name.
+
+## Release matching, wave 1 and tools (2026-10-11 night)
+- **Most `diff` / `lib` targets were checker artefacts, not code changes**: all ~60 Europe targets of wave 1 (10 workers) are the unchanged 1.1 C.  Causes: tools/chk.py did
+  not read c_syms.ld / their_alias.ld (identity names whose release address lives only there -> false RELOC-MISMATCH; fixed), `+inl` units checked without GAS_INLINE,
+  `luret` units without -DNOFILL (fixed in ver_sweep.mode_flags), sources defining the function under melalawi's name (use `@all=<unit>:<insns>`; the `:<insns>` count
+  ignores the object's trailing alignment words, which the ROM fills with linker pad), positional pairing of near-identical wrappers when the release inserted one.
+- `tools/ver_recheck.py <ver> <ws> [--write]`: re-checks a release's diff/lib targets inside its workspace (release symbols, real flags, CHK_ROM = the release ROM: the main
+  release workspaces keep the real 1.1 ROM under baserom.us.v11.z64); DE 43 of 48, US 5 of 5, EU 43 of 47 EXACT.
+- `tools/ver_newcascade.py <target> <source> [--write]`: reuses a matched release-only function of another release by normalised code (j/jal, lui/addiu/load/store
+  immediates masked), renames it, translates its D_auto_ / func_auto_ references through CHK_INFER and keeps plain EXACT units.  About 90 of the PAL releases'
+  `new` functions equal US v1.0 ones and ~96 are shared between Europe and Germany: match US v1.0, then Europe, then Germany.  It does not add func_auto_ callee
+  addresses that are not function starts in the target (stray-word entries): add those to versions/<ver>/syms.ld when the link reports them.
+- mkver literal pieces: a piece never exceeds the 1.1 manifest's size, overlaps of <= 8 bytes with the next piece are trimmed, and where 1.1 has >= 2 trailing zero
+  bytes the first byte the release has non-zero there starts the next piece (`:size:real`).  `seq` is a plain 36-byte piece in every release (`:40:38` grew the image).
+- State after wave 1: US v1.0 3,844 C units (157 release-only functions left), Europe 3,760, Germany 3,775; all three byte-identical.
