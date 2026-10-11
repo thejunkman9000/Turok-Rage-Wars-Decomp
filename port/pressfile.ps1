@@ -22,7 +22,9 @@ function WaitFrames($sec) {
 }
 $inputs = @('port_input.txt', 'port_input2.txt', 'port_input3.txt', 'port_input4.txt', 'port_frame.txt', 'port_frame.tmp')
 Remove-Item $inputs -ErrorAction SilentlyContinue
+$pakWas = $env:TUROK_PAK; if ($null -eq $pakWas) { $env:TUROK_PAK = '0' }      # the oracle baselines were recorded without the virtual Controller Pak (with a pak in every port another set of attract demos plays); paktest.ps1 has its own driver (pakpress.ps1)
 $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+if ($null -eq $pakWas) { Remove-Item Env:\TUROK_PAK -ErrorAction SilentlyContinue }
 $t0 = Get-Date; $n = 0
 # 'rm' is a built-in alias of Remove-Item and aliases win over functions, so this helper must not be called Rm
 function Remove-Input($f) { for ($r = 0; $r -lt 40; $r++) { Remove-Item $f -ErrorAction SilentlyContinue; if (-not (Test-Path $f)) { return }; Start-Sleep -Milliseconds 5 } }

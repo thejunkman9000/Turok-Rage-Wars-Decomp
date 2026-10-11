@@ -11,6 +11,19 @@ $Tool = 'tools\pak_tool.py'
 $script:fails = 0; $script:passes = 0
 $dn = @('stick:0:-80:0.1', 'wait:0.8'); $lf = @('stick:-80:0:0.1', 'wait:0.8'); $rt = @('stick:80:0:0.1', 'wait:0.8')
 function Ok($cond, $msg) { if ($cond) { $script:passes++; "  PASS  $msg" } else { $script:fails++; "  FAIL  $msg" } }
+# The port restarts itself when Windows put something into one of the guest address ranges (port_early_init; roughly every third start): a test that holds on to the process object
+# must follow that chain to the process that really runs (the first one exits with code 0 after starting its successor).
+function Follow-Port($p0, $exeFile) {
+    $name = [IO.Path]::GetFileNameWithoutExtension($exeFile); $p = $p0
+    for ($i = 0; $i -lt 8; $i++) {
+        Start-Sleep -Milliseconds 700
+        if (-not $p.HasExited) { return $p }
+        $next = Get-Process -Name $name -ErrorAction SilentlyContinue | Sort-Object StartTime -Descending | Select-Object -First 1
+        if (-not $next) { return $p }
+        $p = $next
+    }
+    return $p
+}
 function Pak($sd, $n = 1) { Join-Path $sd ("Turok; Rage Wars_Cont_{0}.mpk" -f $n) }
 function NewDir($name) { $d = Join-Path $W $name; if (Test-Path $d) { Remove-Item $d -Recurse -Force -ErrorAction SilentlyContinue }; New-Item -ItemType Directory -Force $d | Out-Null; $d }
 function Press([string[]]$seq, [hashtable]$ev = @{}, [string]$prefix = 'pt', [int]$speed = $Speed, [switch]$SkipMenu, [string]$log = 'port\build\paktest\run.log') {
@@ -482,6 +495,7 @@ $tests['crash-flush'] = {
         foreach ($k in $set.Keys) { Set-Item -Path ("Env:" + $k) -Value $set[$k] }
         $p = Start-Process $exe -WorkingDirectory $root -PassThru
         foreach ($k in $set.Keys) { Remove-Item ("Env:" + $k) -ErrorAction SilentlyContinue }
+        $p = Follow-Port $p $exe
         $t0 = Get-Date
         while (-not $p.HasExited -and ((Get-Date) - $t0).TotalSeconds -lt 40 -and -not (LogHas $lg 'virtual controller pak')) { Start-Sleep -Milliseconds 50 }
         Set-Content -Path port_pak.txt -Value 'format 1' -Encoding ascii

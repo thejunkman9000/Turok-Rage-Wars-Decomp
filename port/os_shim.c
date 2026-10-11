@@ -426,13 +426,9 @@ static int xi_get(int idx, XSTATE *st) {
     return p_XInputGetState && p_XInputGetState((unsigned)idx, st) == 0;
 }
 static int pads_wanted(void) { static int n = -1; if (n < 0) { char e[8]; n = GetEnvironmentVariableA("TUROK_PADS", e, sizeof e) ? atoi(e) : 0; if (n < 0) n = 0; if (n > 4) n = 4; } return n; }
-static int pad_connected(int i) {
-    XSTATE st; static int cache[4], cache_t[4]; DWORD now = GetTickCount();
-    if (i == 0) return 1;
-    if (i < pads_wanted()) return 1;
-    if (now - (DWORD)cache_t[i] > 1000) { cache[i] = xi_get(i, &st); cache_t[i] = (int)now; }      /* rescan once a second */
-    return cache[i];
-}
+extern int input_port_connected(int i); extern void input_poll_begin(void); extern void input_poll_port(int i, unsigned *b, int *x, int *y);      /* port/input.c: devices, assignment, controls.ini */
+extern int input_motor_attach(void *pfs, int ch); extern int input_motor_set(void *pfs, int on);
+static int pad_connected(int i) { return input_port_connected(i); }      /* player 1 always, TUROK_PADS=n, else the player has a keyboard / mouse / gamepad assigned */
 int port_pad_connected(int i) { return pad_connected(i); }      /* for the virtual Controller Pak (port/pak.c): which ports answer on the Joybus */
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     int i; u8 bp = 0; (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status);
@@ -473,19 +469,13 @@ void osContGetReadData(OSContPad *pad) {
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
     { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) autob |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) autob |= 0x1000; if (ph == 10) autob |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
+    input_poll_begin();                                               /* port/input.c: one consistent sample of keyboard, mouse and gamepads */
     for (i = 0; i < 4; i++) {
         unsigned b = 0; int x = 0, y = 0;
         if (!pad_connected(i)) continue;
-        if (i == 0) {
-            if (key(VK_RETURN)) b |= 0x1000;                          /* Start */
-            if (key('Z')) b |= 0x2000;                                /* Z */
-            if (key('X')) b |= 0x4000;                                /* B */
-            if (key('C')) b |= 0x8000;                                /* A */
-            b |= autob; y += autoy;
-            x += (key(VK_RIGHT) ? 80 : 0) - (key(VK_LEFT) ? 80 : 0); y += (key(VK_UP) ? 80 : 0) - (key(VK_DOWN) ? 80 : 0);
-        }
+        if (i == 0) { b |= autob; y += autoy; }                       /* TUROK_AUTOPRESS */
         file_pad(i, &b, &x, &y);
-        xinput_pad(i, &b, &x, &y);
+        if (!(b | (unsigned)x | (unsigned)y)) input_poll_port(i, &b, &x, &y);      /* real devices only while no scripted input is active on this port */
         if (x > 80) x = 80; if (x < -80) x = -80; if (y > 80) y = 80; if (y < -80) y = -80;
         { static unsigned lastb[4] = { 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu }; static int nl[4]; if (b != lastb[i] && nl[i]++ < 120) { fprintf(stderr, "pad%d: buttons %04X (was %04X)\n", i + 1, b, lastb[i] == 0xFFFFFFFFu ? 0 : lastb[i]); fflush(stderr); } lastb[i] = b; }
         ST16(pad[i].button, b); pad[i].stick_x = (s8)x; pad[i].stick_y = (s8)y;
@@ -500,9 +490,9 @@ void osContGetQuery(OSContStatus *status) {
     for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = pak_cont_status(i, c); status[i].errno_ = c ? 0 : 0x08; }
 }
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
-s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { return pak_motor_init(mq, pfs, ch); }      /* rumble pak probe / motor commands: the real libultra sequences over the virtual PIF (port/pak_os.c) */
-s32 osMotorStart(void *pfs) { return pak_motor_start(pfs); }
-s32 osMotorStop(void *pfs) { return pak_motor_stop(pfs); }
+s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { s32 r = pak_motor_init(mq, pfs, ch); if (r == 0) input_motor_attach(pfs, ch); return r; }      /* the virtual PIF (port/pak_os.c) decides whether a rumble pak answers; the input layer shakes the gamepad assigned to the port */
+s32 osMotorStart(void *pfs) { s32 r = pak_motor_start(pfs); if (r == 0) input_motor_set(pfs, 1); return r; }
+s32 osMotorStop(void *pfs) { s32 r = pak_motor_stop(pfs); input_motor_set(pfs, 0); return r; }
 
 /* ---- audio interface ----
    The AI DMA FIFO is modelled on the clock: every osAiSetNextBuffer extends the time at which the queued buffers finish playing, and

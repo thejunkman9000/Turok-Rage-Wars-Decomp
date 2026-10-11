@@ -26,11 +26,8 @@ void port_unimpl(const char *name) {
     fprintf(stderr, "UNIMPLEMENTED: %s\n", name); dump_trace(14); fflush(stderr);
 }
 
-static int load_rom(const char *path) {
-    FILE *f = fopen(path, "rb"); if (!f) return 0;
-    fseek(f, 0, SEEK_END); g_rom_size = ftell(f); fseek(f, 0, SEEK_SET);
-    g_rom = (unsigned char *)malloc(g_rom_size); fread(g_rom, 1, g_rom_size, f); fclose(f); return 1;
-}
+extern unsigned char *rom_find(unsigned *size);      /* port/rom_find.c: checked ROM image (asks the player when none is installed) */
+static int load_rom(void) { g_rom = rom_find(&g_rom_size); return g_rom != NULL; }
 
 static void *reserve(unsigned addr, unsigned size, const char *what) {
     void *p = VirtualAlloc((void *)(size_t)addr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -367,7 +364,7 @@ void port_game_init(void) {
     SetUnhandledExceptionFilter(crash_final); AddVectoredExceptionHandler(1, crash_filter);
     if (!g_ranges_ok) { fprintf(stderr, "could not reserve the game's address ranges (after retries)\n"); return; }
     fprintf(stderr, "guest address ranges reserved (attempt %s)\n", getenv("PORT_RETRY") ? getenv("PORT_RETRY") : "0");
-    if (!load_rom("baserom.us.v11.z64")) { fprintf(stderr, "baserom.us.v11.z64 not found in the working directory\n"); return; }
+    if (!load_rom()) { fprintf(stderr, "no usable ROM image (see the rom: lines above)\n"); return; }
     load_guest_data(1);
     *(volatile unsigned *)0x80000300 = _byteswap_ulong(1);                           /* osTvType = NTSC */
     *(volatile unsigned *)0x80000318 = _byteswap_ulong(0x800000);                    /* osMemSize */

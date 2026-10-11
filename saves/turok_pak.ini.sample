@@ -34,8 +34,7 @@
 ; Ctrl+F5..F8 / Ctrl+Shift+F5..F8 pull a memory / rumble pak out of and into controller 1..4 while the game window has the focus
 ;hotkeys = 1
 
-; a rumble pak makes the XInput pad of the same number vibrate
-;xinput_rumble = 1
+; a rumble pak in a port makes the gamepad assigned to that port vibrate (controls.ini: rumble, rumble_strength)
 
 ; 1 = log every accessory transaction in the run log (very verbose; for debugging)
 ;log = 0

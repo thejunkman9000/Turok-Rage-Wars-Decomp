@@ -187,7 +187,7 @@ static void wnarrow(const wchar_t *w, char *out, size_t cap) { if (!WideCharToMu
 /* ------------------------------------------------------------------------------------------------------------------------------------ */
 /* configuration                                                                                                                         */
 typedef struct {
-    int enabled, log, hotkeys, xinput_rumble, delay_ms, maxdelay_ms;
+    int enabled, log, hotkeys, delay_ms, maxdelay_ms;
     wchar_t savedir[MAX_PATH], pj64[MAX_PATH], name[96], pakpath[4][MAX_PATH], ini[MAX_PATH];
     int type[4];
 } PakConfig;
@@ -254,6 +254,25 @@ static void rom_title(wchar_t *out, size_t cap) {
     MultiByteToWideChar(CP_ACP, 0, t, -1, out, (int)cap);
     out[cap - 1] = 0;
 }
+extern int port_data_dir(wchar_t *out, int n);                         /* port/settings.c: %LOCALAPPDATA%\TurokRageWars */
+static int dir_writable(const wchar_t *dir) {                          /* can a file be created in it (the folder is created when missing)? */
+    wchar_t t[MAX_PATH]; HANDLE h;
+    if (!dir_create_all(dir)) return 0;
+    wjoin(t, MAX_PATH, dir, L"~probe.tmp");
+    h = CreateFileW(t, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    CloseHandle(h);
+    return 1;
+}
+static int under_program_files(const wchar_t *p) {                     /* Windows would silently redirect a 32-bit program's writes there into a VirtualStore the player cannot find */
+    static const wchar_t *vars[] = { L"ProgramFiles", L"ProgramFiles(x86)", L"ProgramW6432" };
+    int i;
+    for (i = 0; i < 3; i++) {
+        wchar_t pf[MAX_PATH]; DWORD n = GetEnvironmentVariableW(vars[i], pf, MAX_PATH);
+        if (n && n < MAX_PATH && !_wcsnicmp(p, pf, n) && (p[n] == L'\\' || p[n] == 0)) return 1;
+    }
+    return 0;
+}
 static void config_load(void) {
     wchar_t exe[MAX_PATH], exedir[MAX_PATH], v[MAX_PATH], key[48]; wchar_t *sl; int i; const wchar_t *iv; char k8[48];
     memset(&g_cfg, 0, sizeof g_cfg);
@@ -265,7 +284,6 @@ static void config_load(void) {
     iv = ini_get("enabled"); if (iv) g_cfg.enabled = parse_bool(iv, g_cfg.enabled);
     if (envw(L"TUROK_PAK", v, MAX_PATH)) g_cfg.enabled = parse_bool(v, g_cfg.enabled);
     g_cfg.hotkeys = 1; iv = ini_get("hotkeys"); if (iv) g_cfg.hotkeys = parse_bool(iv, 1);
-    g_cfg.xinput_rumble = 1; iv = ini_get("xinput_rumble"); if (iv) g_cfg.xinput_rumble = parse_bool(iv, 1);
     g_cfg.delay_ms = 300; iv = ini_get("writeback_ms"); if (iv) g_cfg.delay_ms = _wtoi(iv);
     if (envw(L"TUROK_PAK_DELAY", v, MAX_PATH)) g_cfg.delay_ms = _wtoi(v);
     if (g_cfg.delay_ms < 0) g_cfg.delay_ms = 0;
@@ -278,7 +296,10 @@ static void config_load(void) {
     iv = ini_get("savedir");
     if (envw(L"TUROK_SAVEDIR", v, MAX_PATH)) wfull(v, g_cfg.savedir, MAX_PATH);
     else if (iv && *iv) { if ((iv[0] && iv[1] == L':') || iv[0] == L'\\') wfull(iv, g_cfg.savedir, MAX_PATH); else { wjoin(v, MAX_PATH, exedir, iv); wfull(v, g_cfg.savedir, MAX_PATH); } }
-    else wjoin(g_cfg.savedir, MAX_PATH, exedir, L"saves");
+    else {
+        wjoin(g_cfg.savedir, MAX_PATH, exedir, L"saves");              /* default: next to the exe (portable); when that place is not for the user's files (Program Files, read-only media) the per-user data folder takes over */
+        if (under_program_files(exedir) || !dir_writable(g_cfg.savedir)) { wchar_t dd[MAX_PATH]; if (port_data_dir(dd, MAX_PATH)) wjoin(g_cfg.savedir, MAX_PATH, dd, L"saves"); }
+    }
     iv = ini_get("name");
     if (iv && *iv) wset(g_cfg.name, 96, iv); else rom_title(g_cfg.name, 96);
     iv = ini_get("pj64_save"); if (iv && *iv) wset(g_cfg.pj64, MAX_PATH, iv);
@@ -784,21 +805,9 @@ static void poll_hotkeys(void) {
         prev[i] = down;
     }
 }
-typedef struct { WORD l, r; } XVIB;
-static DWORD (WINAPI *p_XInputSetState)(DWORD, XVIB *); static int xi_tried;
-static void poll_vibration(int force_off) {
-    int i;
-    for (i = 0; i < 4; i++) {
-        int want, send;
-        EnterCriticalSection(&g_lock);
-        want = (!force_off && g_cfg.xinput_rumble && g_port[i].type == PAK_RUMBLE && g_port[i].motor) ? 1 : 0;
-        send = want != g_port[i].vib_sent; if (send) g_port[i].vib_sent = want;
-        LeaveCriticalSection(&g_lock);
-        if (!send) continue;
-        if (!xi_tried) { HMODULE m = LoadLibraryA("xinput1_4.dll"); if (!m) m = LoadLibraryA("xinput9_1_0.dll"); if (m) p_XInputSetState = (DWORD (WINAPI *)(DWORD, XVIB *))GetProcAddress(m, "XInputSetState"); xi_tried = 1; }
-        if (p_XInputSetState) { XVIB v; v.l = want ? 0xA000 : 0; v.r = want ? 0xA000 : 0; p_XInputSetState((DWORD)i, &v); }
-    }
-}
+/* vibration: the motor state of the rumble pak (g_port[i].motor, set by the real osMotorStart/Stop running over the virtual PIF) is delivered by the input layer (port/input.c, called from os_shim.c)
+   to the gamepad that is assigned to the port, not to XInput slot i: with keyboard and gamepad players mixed, a slot number and a port number are different things */
+static void poll_vibration(int force_off) { (void)force_off; }
 static DWORD WINAPI pak_thread(LPVOID arg) {
     (void)arg;
     while (WaitForSingleObject(g_stop_evt, 40) == WAIT_TIMEOUT) {

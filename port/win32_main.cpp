@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <stdio.h>
+#include <string.h>
+#include <wchar.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "user32.lib")
 
@@ -16,13 +18,18 @@ extern "C" void port_wait_idle(void);        // port/os_shim.c: block until ever
 extern "C" void oracle_frame_end(void);
 extern "C" int oracle_headless(void);
 extern "C" void port_present_hook(ID3D11DeviceContext* ctx);
+extern "C" void input_attach(void* hwnd);     // port/input.c: keyboard / mouse / gamepad input system (hotkeys, mouse capture, controls.ini)
 extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c);
 extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h);
+extern "C" int rom_ensure(void);              // port/rom_find.c: finds the ROM image, asks the player for it when none is installed (0 = none, quit)
+extern "C" int port_setting_int(const wchar_t* sec, const wchar_t* key, int def);                 // port/settings.c
+extern "C" void port_set_setting_int(const wchar_t* sec, const wchar_t* key, int v);
 
 static ID3D11Device*           g_dev;
 static ID3D11DeviceContext*    g_ctx;
 static IDXGISwapChain*         g_sc;
 static ID3D11RenderTargetView* g_rtv;
+static HWND g_hwnd;
 static int g_w = 1280, g_h = 720;
 static void stage(const char* m) { FILE* f = fopen("port_stage.txt", "a"); if (f) { fprintf(f, "%s\n", m); fclose(f); } }
 
@@ -33,10 +40,47 @@ static void make_rtv() {
     bb->Release();
 }
 
+// ---- full screen: a borderless window over the whole monitor (no mode switch: instant, Alt-Tab friendly, the renderer letterboxes to the window size)
+static bool g_fs;
+static WINDOWPLACEMENT g_wp;
+static LONG_PTR g_style;
+static DWORD g_last_mouse;
+
+static void set_fullscreen(HWND h, bool on, bool remember) {
+    if (on == g_fs || !h) return;
+    if (on) {
+        MONITORINFO mi = {}; mi.cbSize = sizeof mi;
+        g_wp.length = sizeof g_wp; GetWindowPlacement(h, &g_wp);
+        g_style = GetWindowLongPtrA(h, GWL_STYLE);
+        if (!GetMonitorInfoA(MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST), &mi)) return;
+        SetWindowLongPtrA(h, GWL_STYLE, (g_style & ~(LONG_PTR)WS_OVERLAPPEDWINDOW) | WS_POPUP | WS_VISIBLE);
+        SetWindowPos(h, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    } else {
+        SetWindowLongPtrA(h, GWL_STYLE, g_style);
+        SetWindowPlacement(h, &g_wp);
+        SetWindowPos(h, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+    g_fs = on;
+    g_last_mouse = GetTickCount();
+    if (remember) port_set_setting_int(L"window", L"fullscreen", on ? 1 : 0);
+}
+extern "C" void port_toggle_fullscreen(void) { set_fullscreen(g_hwnd, !g_fs, true); }
+extern "C" int port_is_fullscreen(void) { return g_fs ? 1 : 0; }
+
 static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l) {
     switch (m) {
     case WM_DESTROY: PostQuitMessage(0); return 0;
-    case WM_KEYDOWN: if (w == VK_ESCAPE) PostQuitMessage(0); return 0;
+    case WM_KEYDOWN: case WM_SYSKEYDOWN:
+        if (w == VK_RETURN && !(l & 0x40000000) &&
+            ((GetKeyState(VK_CONTROL) & 0x8000) || (GetKeyState(VK_MENU) & 0x8000) || (m == WM_SYSKEYDOWN && (l & (1 << 29))))) { port_toggle_fullscreen(); return 0; }      // Ctrl+Enter / Alt+Enter (the Alt context bit of a system key message counts too)
+        if (m == WM_SYSKEYDOWN) break;                      // Alt+F4 & co: the default handling
+        if (w == VK_ESCAPE) PostQuitMessage(0);
+        return 0;
+    case WM_SYSCHAR: if (w == VK_RETURN) return 0; break;   // no beep for Alt+Enter
+    case WM_SYSCOMMAND: if ((w & 0xFFF0) == SC_KEYMENU) return 0; break;      // a tap on Alt / F10 must not open the (non-existent) menu and stop the game loop
+    case WM_MOUSEMOVE: g_last_mouse = GetTickCount(); break;
+    case WM_APP + 0x46: port_toggle_fullscreen(); return 0;       // "toggle full screen" as a message (tests and tools: PostMessage works without keyboard injection)
     case WM_SIZE:
         if (g_sc && w != SIZE_MINIMIZED) {
             g_w = LOWORD(l); g_h = HIWORD(l);
@@ -49,10 +93,18 @@ static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l) {
     return DefWindowProcA(h, m, w, l);
 }
 
-int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
+int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int show) {
     { HANDLE h = CreateFileA("port_early.txt", GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, 0, nullptr);
       if (h != INVALID_HANDLE_VALUE) { char b[128]; DWORD n; void* hp = malloc(64); int l = wsprintfA(b, "WinMain start base=%p malloc=%p\r\n", GetModuleHandleA(nullptr), hp); WriteFile(h, b, l, &n, nullptr); CloseHandle(h); } }
     port_early_init();                                  // claim the guest address ranges before anything else allocates
+    if (!getenv("TUROK_NODPI")) SetProcessDPIAware();   // physical pixels: a scaled (150 %) desktop would otherwise stretch the window's bitmap, blurry in full screen
+    if (!getenv("TUROK_SELFTEST") && !getenv("TUROK_DIFFTEST") && !rom_ensure()) return 0;      // the ROM image: found, or picked by the player in a file dialog (cancel = quit)
+    stage("rom ok");
+    // full screen at start: -fullscreen / -windowed on the command line, else TUROK_FULLSCREEN=0|1, else what the player left it at (Ctrl+Enter)
+    int want_fs = port_setting_int(L"window", L"fullscreen", 0);
+    { char e[8]; if (GetEnvironmentVariableA("TUROK_FULLSCREEN", e, sizeof e)) want_fs = atoi(e) != 0;
+      if (cmdline && (strstr(cmdline, "-fullscreen") || strstr(cmdline, "/fullscreen"))) want_fs = 1;
+      if (cmdline && (strstr(cmdline, "-windowed") || strstr(cmdline, "/windowed"))) want_fs = 0; }
     WNDCLASSA wc = {}; wc.lpfnWndProc = wndproc; wc.hInstance = inst; wc.lpszClassName = "TurokRW";
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     RegisterClassA(&wc);
@@ -60,6 +112,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
     stage("early init done");
     HWND hwnd = CreateWindowA("TurokRW", "Turok: Rage Wars (port)", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                               CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, inst, nullptr);
+    g_hwnd = hwnd;
+    input_attach(hwnd);                                 // subclasses the window (Esc / F1 / F2 hotkeys, mouse capture), starts the device thread
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount = 2; sd.BufferDesc.Width = g_w; sd.BufferDesc.Height = g_h; sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; sd.OutputWindow = hwnd; sd.SampleDesc.Count = 1; sd.Windowed = TRUE;
@@ -71,7 +125,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
         return 1;
     }
     stage("d3d ok");
+    { IDXGIFactory* fac = nullptr;                      // DXGI's own Alt+Enter would switch the swap chain to exclusive full screen: the borderless toggle above replaces it
+      if (SUCCEEDED(g_sc->GetParent(__uuidof(IDXGIFactory), (void**)&fac)) && fac) { fac->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER); fac->Release(); } }
     make_rtv();
+    if (want_fs) set_fullscreen(hwnd, true, false);
     renderer_init(g_dev, g_ctx);
     if (getenv("TUROK_DIFFTEST")) { port_difftest(); return 0; }
     if (!getenv("TUROK_SELFTEST")) port_game_init();
@@ -81,6 +138,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int show) {
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) return 0;
             TranslateMessage(&msg); DispatchMessageA(&msg);
+        }
+        if (g_fs && GetTickCount() - g_last_mouse > 2500) {      // full screen: the mouse pointer goes away when it has not moved for a while (a move or a click brings it back)
+            POINT pt; RECT cr;
+            if (GetCursorPos(&pt) && GetClientRect(hwnd, &cr)) { ScreenToClient(hwnd, &pt); if (PtInRect(&cr, pt)) SetCursor(nullptr); }
         }
         int ff = port_ff_active(); int nfr = ff ? 10 : port_speed();
         if (nfr > 1) { for (int k = 0; k < nfr; k++) { port_game_frame(); port_wait_idle(); } }   // TUROK_SPEED=n: n frames per presented frame (paced); fast-forward: 10, unpaced   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
