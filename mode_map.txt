@@ -448,3 +448,8 @@ func_0044984C sn
 __osPfsSelectBank lu
 func_0041BEA8 sn
 func_0041CE20 sn
+func_0042C8AC sn
+func_0040E154 sn
+func_004058B0 sn
+func_00407748 sn
+func_00414D4C sn
