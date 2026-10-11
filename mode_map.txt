@@ -360,6 +360,7 @@ func_0023A4D0 sn
 func_00262ABC sn
 func_00200610 sn+sa+r4k+epi
 func_0027CCD0 sn
+func_0028A924 sn+nb
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn

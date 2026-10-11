@@ -2072,7 +2072,7 @@ segments:
       - [0x8A54C, c, game/func_0028994C]
       - [0x8AE58, c, game/func_0028A258]
       - [0x8B274, c, game/func_0028A674]
-      - [0x8B524, asm]
+      - [0x8B524, c, game/func_0028A924]
       - [0x8BBC8, c, game/func_0028AFC8]
       - [0x8BBE8, c, game/func_0028AFE8]
       - [0x8BC04, c, game/func_0028B004]
