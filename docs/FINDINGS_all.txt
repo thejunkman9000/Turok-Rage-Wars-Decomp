@@ -4829,3 +4829,139 @@ out how the lu mode relates to the real toolchain.
    (`+= 0`) was needed, and only after the structure was already identical (structural 0): start the permuter from the aligned-diff-zero base (score 80 -> 30 in a
    minute) rather than from the old base (385 -> 305 in 15 minutes).  WSL traps seen again: `pkill -f pattern` kills the very bash -c that carries the pattern in
    its command line (use the `[p]attern` trick, tools/pkill1014.sh); a loop `for x in ...; do ...$x...` inside `tools/w.sh "..."` loses `$x` (use a script file).
+
+=== ROUND 11 FINDINGS (overlay tail, hidden pad code, libaudio, PFS-adjacent, libm/Leo/dbg) (workspace s1012) ===
+FINDINGS s1012 (round 11: libaudio synthesizer driver stand-ins, @SN toolchain) -- new lessons only
+
+RESULT: all nine targets EXACT under @SN (plus libm_frexp / libm_ldexp as a bonus).  Verified three ways: tools/chk (fchk.sh), the real build wrapper
+(tools/cc.sh sn: .text equals the ROM except relocated words) and tools/rodoc.py (pool "IDENTICAL" for every ro= piece).  Files: wip/out/<name>.c per
+function, wip/out/env.c = the five-function span (alEnvmixerPull, _pullSubFrame, _getRate, alEnvmixerParam, _getVol; ro=0xCD450:272), header
+include/s1012_types.h (only includes libaudio.h + mixer_types.h; the types needed were already in mixer_types.h).
+
+1. UPSTREAM ALREADY MATCHES 8 OF THE 9 (versions/us-rev1/report.json: fuzzy_match_percent 100.0 for each; upstream_check.py does not list them because our
+   manifest counts the .s stand-ins as covered).  Names in
+   D:/Projects/ext/ragewars-decomp/src: func_802B40E0_eu_x = alMainBusPull (0x802B8ED0), func_802B3F10_de = alFxNew, func_802B468C_de = init_lpfilter,
+   func_802B4C7C_de = _pullSubFrame + _getRate (func_802B4F68_de) + alEnvmixerParam (func_802B51B8_de) + _getVol (func_802B5288_de) + frexp/ldexp
+   (func_802B5300_de / 53B4_de), func_802B56E0_eu_x = alAuxBusPull.  Their unit func_802B4C7C_de is 1880 bytes = all of _pullSubFrame.._getVol PLUS libm frexp/ldexp (our manifest splits those two off at 0xBAFD0 / 0xBB084).
+   alEnvmixerPull (func_802B4A10_eu_x, 1356 bytes) is NOT matched upstream (0%, rodata only):
+   that one had to be done from the old g3 draft (22 words off under the old toolchain) and is the only function with hacks.  Port recipe that worked
+   at once (EXACT on the first compile for all 8): take their body, replace `extern const f32 D_800C...` / `extern const f64` pool symbols by LITERALS
+   (the pool of our object must equal the ROM, chk prints the ro= piece), map their ALFx/ALDelay28/AudioLowPassFilter to mixer_types.h
+   (ALFxFilter/ALDelayFx/ALLowPassFx), keep their statement shapes (even odd ones, see 4), and write assert strings inline.
+
+2. THE REPO'S BUS NAMES ARE SWAPPED AGAINST THE SDK.  ROM 0xB9AD0 (our `alMainBusPull`, 55 insns) clears DMEM 0x6C0/0x800 = AL_AUX_L/R_OUT and just pulls the
+   sources: that is the SDK's alAuxBusPull.  ROM 0xBB0D0 (our `alAuxBusPull`, 80 insns) clears 0x440/0x580 = AL_MAIN_L/R_OUT and mixes the aux buffers
+   into them after every source: the SDK's alMainBusPull.  Same swap in alMainBusNew/alAuxBusNew (types 6 / 7), alMainBusParam/alAuxBusParam, and in
+   ALSynth (`mainBus` = the 0x4C byte block with the fx tail = SDK auxBus, `auxBus` = SDK mainBus; alSynAllocFX indexes drvr->mainBus[bus].fx).
+   Not renamed in the deliverables (no `name=` in results.txt, would collide); a rename pass would have to swap all three pairs at once.
+
+3. LITERAL BITS: the reverb constant 1/173123.404906676 must be written 0.0000057762265f (0x36C1D168); the natural 0.000005776226f is 0x36C1D167 and
+   chk (code only) would not notice - rodoc/chk's pool check does.  (Old g3 draft had the 1-ulp-off value.)
+
+4. SDK -O3 vs -O2 (sn build): the original libaudio was built -O3 (static init_lpfilter inlined into alFxNew AND a standalone copy exists, frexp inlined
+   into _getRate).  Under @SN (-O2) both must be spelled out: init_lpfilter's body written inside alFxNew's `if (param[j])` arm
+   (`temp = lp->fc * 16384; fc = temp >> 15; ... (s16)(fcoef * 16384.0)`; the `fc*16384>>15` form is what the ROM compiles, `fc >> 1` is not), the
+   frexp loops written inline with `eptr = &ex; *eptr = 0;`.  _getRate needs upstream's odd tail `if (vol) { A } else { A }` (identical arms; jump2
+   merges them, the early test keeps `vol` alive and gives `neg.d f12,f12`; a single tail is 1 operand off) and a LogTab local initialiser (stack copy of 8 doubles).
+
+5. OBJECT/POOL LAYOUT of this region (useful for the manifest): ROM 0xB9BE0 .. 0xBAFD0 is contiguous code without alignment gaps (alFxNew, alLoadNew,
+   alAuxBusNew, alMainBusNew, alResampleNew, alSaveNew, alEnvmixerNew, init_lpfilter | alEnvmixerPull, _pullSubFrame, _getRate, alEnvmixerParam, _getVol),
+   rodata 0xCD3F0..0xCD560 likewise: alFxNew 0xCD3F0:64 (6-entry jump table, then pool 16384.0d 0.001f [pad] 2^32d 1/173123.4f 1.0f 1/16384d),
+   alResampleNew 0xCD430:4, init_lpfilter 0xCD438:16 (1/16384d 16384.0d; the doubles after a 4-byte float need the absolute-address alignment), pad 8, then
+   the env.c object at 0xCD450 (16-aligned): strings "EX\0\0" "audio/env.c\0", the 17-entry jump table of alEnvmixerPull (0xCD460, last word 0xCD4A0,
+   4 pad bytes), _getRate's pool 0xCD4A8:176, _getVol 0xCD558:8.  The assert strings are shared by alEnvmixerPull and _pullSubFrame ("EX" is the SDK's
+   buggy assert macro: `#define assert(EX) ((EX) ? (void)0 : __assert("EX", __FILE__, __LINE__))`): as separate units _pullSubFrame uses
+   `extern char D_800CC850[], D_800CC854[]` (ROM 0xCD450 / 0xCD454); as the span file env.c everything is inline and chk prints ro=0xCD450:272 for all five.
+
+6. ALLOCATOR LESSON (local-alloc, found while chasing a v0/v1 swap): block_alloc sorts the quantities of a basic block with a HAND-ROLLED sort when
+   next_qty == 3 (local-alloc.c, "case 3:" before the qsort) that compares the quantity NUMBERS 0,1,2 instead of the current qty_order entries.  Result for
+   priorities a=pri(q0), b=pri(q1), c=pri(q2): if b > a and c <= b the allocation order is q0, q1, q2 (birth order), i.e. the EARLIEST born quantity gets the
+   first free register even if it has the lowest priority; for all other combinations the order is correct except (b <= a, c > a) which gives q0, q2, q1.
+   (>= 4 quantities use qsort and are correct; the two SCRATCH clobbers of a mult probably add quantities as well.)  So the register of a pointer/value in a SMALL block can
+   be flipped by adding or removing one block-local pseudo: in the type 0 arm of alEnvmixerPull the ROM has `lw v0,60(s0)` (pointer) / `lw v1,12(v0)` (value)
+   while every natural form gives the reverse; adding the local `ALSynth *drvr = &alGlobalsp->drvr; ... _freePVoice(drvr, ...)` (a third quantity; the load of
+   alGlobalsp is a separate pseudo that sched1 sinks behind the store, real-register shape `lui a0 / lw a0` after sched2) produces the ROM registers
+   with no pin.  The permuter found this (new_var = alGlobalsp) in 10 minutes; it is a good example of "try an extra block-local copy of a call argument".
+   The same trick does not work for the type 11 arm (4 value quantities + the mult scratches, so qsort): there the ROM's pointer-in-v0 needs a pin
+   (`register ALParam *pp __asm__("$2");`), no natural alternative was found (tried: statement orders, pp-less e->ctrlList forms, extra value locals,
+   function-level temporaries to make the loaded values global pseudos, asm/do-while barriers, `asm("" : "+r"(pp))` to raise pp's ref count).
+   What the ROM allocation needs (for whoever wants to remove the pin): pp (v0) must be allocated before the loaded value (v1) and the shifted product (v1);
+   by qsort priority (refs*floor_log2(refs)/life) pp is last (10000 against 60000), so either dI and the sra result are NOT local-alloc quantities
+   (global pseudos are allocated after the locals and then avoid v0 where pp lives; local_alloc only takes pseudos with REG_BASIC_BLOCK >= 0 and one REG_DEAD)
+   or pp carries a hard-register suggestion (first pass of block_alloc).  Neither was reproducible without the pin.
+
+7. LOOP.C PREHEADER ORDER AGAIN (alEnvmixerPull): the ROM hoists `li s7,1` BEFORE `lui/addiu s5,&D_800D8240` and keeps the table address in a register for all
+   eight table uses, while every natural source (direct D_800D8240[idx], or an inline helper with the table pointer as parameter) leaves the address in the
+   `sym(reg)` addressing mode (lui at / addu at / lhu %lo) or hoists it AFTER the constant.  Facts: (a) a pseudo for the table address must exist at loop.c time
+   (user local `s16 *eq = D_800D8240;`, set once: addresses become `addu v0,v0,s5 ; lhu 0(v0)`); (b) a USER variable set inside a loop is only hoisted if its set sits
+   before the first jump/label of the loop body (loop.c maybe_never), and movables are emitted in stream order, so `eq` first in the body gives [la eq][li 1];
+   (c) giving the constant a name set in the same place BEFORE it (`one = 1; eq = D_800D8240;` as the first two statements of the loop body, every `= 1`
+   store/compare using `one`) gives the ROM order and, with the right other settings, the ROM allocation (f in s4, eq in s5, one in s7).  Those two locals are
+   the only remaining non-natural thing besides the pin; inline-function parameters do NOT work (their pseudos are REG_USERVAR_P `reg/v`, i.e. not movable from
+   conditional code, and only some of the eight sites ended up using the hoisted register).
+   Allocation detail: eq (17 refs, life 518) vs f (4 refs, life 61) are within 0.2% of each other in global-alloc priority (68/518 vs 8/61); the order
+   [li 1][la eq] shortens eq's life by 2 insns and flips s4/s5 unless the other fixes are in (the pin in the type 11 arm moved the balance back); check
+   with tools/pm.py after each change.
+
+8. TOOLING (this workspace): tools/agents/* copied into tools/ with `sed -E 's#ws/s[0-9]{3}#ws/s1012#g; s#trw_s1012_s[0-9]{3}#trw_s1012#g; s#trw_s[0-9]{3}([^0-9]|$)#trw_s1012\1#g'`
+   (tools/agents scripts already contain `trw_s1012_sNNN` from an earlier careless sed).  Traps hit: (a) `$VAR`/`~` inside `wsl -- bash -c '...'` are expanded by the
+   WSL launcher before bash sees them: always put commands into a script file (wip/sh/g.sh runs wip/sh/cmd.sh); (b) tools/dump.sh piped cc1's stderr into
+   `head -5` -> SIGPIPE killed cc1 half way (empty dumps) whenever a function has more than 5 warnings: redirect to a file instead; (c) tools/side.py of the
+   workspace is a different tool than agents/side.py (copy skipped silently): sdf.sh/sd.sh call tools/sideA.py now; (d) decomp-permuter via tools/permsn_setup.py works
+   for a 339-insn function (base score 40-130, ~25 iterations/s with -j 3); a 10 minute run found the case 0 trick above.  New helper scripts: wip/sh/fcheck.py +
+   fcheck_all.sh (cc.sh sn + rodoc check of all deliverables), wip/sh/lam.sh (dump + local-alloc model), wip/vp*.py (variant specs for tools/vp.py).
+
+=== ROUND 11 FINDINGS (overlay tail, hidden pad code, libaudio, PFS-adjacent, libm/Leo/dbg) (workspace s1010) ===
+FINDINGS s1010 (round 11: Controller Pak library of overlay A: osPfsAllocateFile, osPfsChecker, the pfsid object) -- new lessons only
+
+RESULT: all 8 targets EXACT (mode lu = old decompals gcc 2.8.1 `-O3 -fforce-addr -fno-builtin -mcpu=r4300` + gas_compat, like their neighbours).
+osPfsAllocateFile and osPfsChecker are also EXACT with plain @SN; the pfsid object (6 functions) and all others are EXACT with `@SN -fforce-addr`.
+(The libultra units of overlay A really need -fforce-addr: plain @SN leaves __osGetId_b 10 words off; cc.sh's sn mode has no token for -fforce-addr.)
+The start was wip/c copies of the g7 near-misses (D:\Projects\ws\g7\wip\out\pfsid.c, pfschecker.c, pfsallocatefile.c): 3-23 words off.
+
+1. GCC 2.8 INLINE EXPANSION IS LAZY FOR UNMODIFIED PARAMETERS (integrate.c expand_inline_function, 1401): `arg_vals[i]` is copied into a pseudo only if the
+   formal is modified in the body (!TREE_READONLY) -- otherwise the actual argument's rtx (expanded with EXPAND_SUM, i.e. an UNEVALUATED `(plus (mult off 2) inode)`)
+   is substituted at every use.  Consequences: (a) the argument arithmetic is emitted at the first use inside the inlined body, i.e. AFTER the callee's own local
+   initialisers (`u32 sum = 0; int i = 0;` land before `sll v0,s4,1 ; addu a2,v0,s5`), (b) the operand order of the add is the rtl-native one (`addu a2,v0,s5`,
+   shifted offset first), (c) a value used several times is recomputed at each use.  The SDK's __osSumcalc is
+       u32 sum = 0; u8 *tmp = ptr; for (i = 0; i < length; i++) { sum += *tmp++; sum &= 0xFFFF; } return sum;
+   -- `tmp` is the copy that leaves `ptr` unmodified.  Writing `*ptr++` (modifies the formal) forces an eager copy and puts the `li` after the argument code
+   (that was g7's 3-4 word miss in __osPfsRWInode, second inlined copy); hand-expanding the loop in the caller reproduces the layout too but is not what the original had.
+   `u16 sum` does not give the in-loop `andi`; the `sum &= 0xFFFF` statement does.  Same for __osIdCheckSum (`*csum = *icsum = 0;` stores icsum first).
+2. A non-static `inline` helper defined BEFORE its callers is inlined into them AND emitted out of line after the last function of the TU (ROM order:
+   Repair, Check, GetId_b, RWInode, __osSumcalc, __osIdCheckSum).  The 6 stand-ins 0x1B6EB0..0x1B784C are therefore ONE object (615 insns, no padding between them).
+3. ALLOCATION PRIORITY ARITHMETIC (global.c): priority = floor_log2(refs) * refs / live_length (x size), ties -> LOWER PSEUDO NUMBER first, each takes the lowest
+   free callee-saved register.  REG_N_REFS counts a reference at loop depth d as d (depth starts at 1; flow.c), and the lengths are measured on the stream after sched1.
+   tools/prio.py <dumpdir> (dump with tools/dlu.sh = old gcc 2.8.1 + -dL -dS ... + sched verbose, or tools/dl.sh = SN cc1) prints the order table
+   (pseudo, refs, length, calls crossed, priority, hard reg).  Knobs that are natural C and do not change the code:
+   * declaration order of two locals with equal priority (osPfsChecker: `u8 cbank` declared BEFORE `s32 first` -> cbank s3, first s4; 3*8/49 tie);
+   * `do { fixed++; } while (0);` (osPfsChecker): the LOOP_BEG/END notes add +1 depth to both references of the counter (refs 6 -> 8, floor_log2 3) so `fixed`
+     outranks the pass-3 constant 3 (s7 vs fp);
+   * a DEAD test with identical arms, `if (pfs) { return ret; } else { return ret; }` (osPfsAllocateFile): the test (jump2 deletes it late) is one more reference to pfs
+     (19 -> 20 refs: pfs 0.2197 -> 0.231 > &backup pointer 0.2222), so pfs gets s3 and the hoisted &backup s4 (ROM) instead of the reverse.
+   A near-tie like that (0.2222 vs 0.2197) is the typical reason for a pure s3/s4 swap: compute the numbers first (prio.py) instead of trying statement orders.
+4. STACK SLOTS OF SPILLED PSEUDOS (reload1.c alter_reg + function.c assign_stack_local): slots are handed out in PSEUDO NUMBER order.  A narrow pseudo that is SET through a
+   paradoxical subreg (`first = ((u8)k << 8) | (u8)page;` on a u16/HI local gives `(set (subreg:SI first) (ior ...))`, so reg_max_ref_width = 4 > inherent 2) gets a BLKmode
+   slot: align -1 = 8 byte aligned, size rounded to 8, value at the END (big endian): that is why the ROM keeps `first` at sp+0x266 (slot 0x260..0x267) after a 1 byte slot at 0x258.
+   Every pseudo that is live across calls but gets no register gets a slot even if all its references disappear after reload: the original had one more
+   (a narrow SIGNED local whose value is a constant 0 that cse propagates away): `s16 zero = 0;` used as the ext_name argument of the second osPfsFindFile call moves the
+   &inode spill slot from sp+0x268 to sp+0x26C like the ROM (`int`, `u8`, `u16` do not work: only the sign-extending narrow types keep the pseudo alive).
+   tools/slots.py <greg dump> lists the (offset, mode, count) of all frame slots; the permuter's default score IGNORES stack offsets: run it with `--stack-diffs`
+   and a low `--keep-prob 0.15` (with the default 0.6 the mutation chain drifts to scores of thousands); that found the `s16 zero` in 40k iterations (15 min, -j 3).
+   Another permuter find (`if (pfs)` wrapper) was a real allocation lever; its `p++` moved-into-the-if "best" output for osPfsChecker was semantically WRONG (always compare).
+5. LOOP SHAPE: `while (map[j].inode_t.bank == bank) { if (map[j].ushort < start) break; ...; map[j] = tmp; }` is the natural form of osPfsChecker pass 3 and gives the ROM's
+   inner loop; the older `if (p->bank == bank) { while (1) { ...; if (map[j].bank != bank) break; } }` with a walking pointer p was 4 structural + 17 operand diffs off
+   (loop.c hoisted the inner `a = t + base` add into the outer giv machinery).  With the real while loop (LOOP_VTOP duplicate of the test) loop.c leaves
+   `addu a0,a1,a2` in the loop, reduces `j*2` to a2 and the entry test to the pointer a3 exactly like the ROM; `a1 = s6` in the loop body is cse_around_loop turning the
+   recomputed frame address into a copy of the hoisted &map (and reload_cse turned `li a2,0` into `move a2,s1`, `li v1,0` into copies: look for such copies before
+   assuming a source variable).
+6. cse equivalence trap (osPfsAllocateFile): g7's goto-based draft (`if (ret != 0 && ret != 5) goto fail; if (*file_no != -1) return 9; ... if (*file_no == -1) return 8;`)
+   kept the first loaded `*file_no` in a callee-saved register as the constant -1 for the second compare (1 insn short, 108 words off); the else-if chain form
+   `if (ret != 0 && ret != 5) { return ret; } else if (*file_no != -1) { return 9; }` (ERRCK = `ret = f; if (ret != 0) return ret`) does not, and reproduces the
+   ROM's shared `move v0,v1`/`j epilogue` tails without any goto.  Only the LAST of the four `return PFS_ERR_INVALID` sites needs `goto invalid` (jump2 does not merge
+   that one into the shared `li v0,5` tail otherwise).
+7. Tools written for this run (tools/): q.py + qq.sh (aligned diff of a source against the ROM for a manifest target: `qq.sh wip/c/x.c <fn> [@SN ...]`, env VOTES=1/FULL=1),
+   vb.py + vbx.sh (parallel variant ranking, ROM insn count from wip/targets.txt), vp.py + vpx.sh (variants as lists of text replacements; tools/permgen.py generates
+   statement permutations/moves), dlu.sh/dl.sh (RTL + sched-verbose dumps of the old gcc / the SN cc1), prio.py, slots.py, rtlall.sh/rtlall2.sh, psetup.sh/prun.sh/pstat.sh
+   (own permuter copy ~/permuter_s1010, dirs ~/perm/s1010_<fn>).  All run in WSL from the workspace root; on the Windows side use
+   `MSYS_NO_PATHCONV=1 wsl -d Ubuntu-24.04 -- bash /mnt/d/Projects/ws/s1010/tools/<script>` and put `$var` loops into script files (the Bash tool expands them empty).

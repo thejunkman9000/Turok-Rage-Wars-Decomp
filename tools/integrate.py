@@ -140,7 +140,7 @@ if not version:
     nadd = 0
     starts_ = sorted(have)
     for r, n, name, fn, e in added:
-        if name.startswith('pad_') or e[3] == 'libultra': continue
+        if name.startswith('pad_') or e[3] == 'libultra' or not re.fullmatch(r'func_[0-9A-F]{8}', name): continue      # the universe lists the game's own functions (identity names) only
         if r in have:                                             # the row exists: carry a longer function over when no other row starts inside it
             f = have[r].split()
             if f[1] == name and int(f[2]) != n and not any(r < s < r + 4 * n for s in starts_):

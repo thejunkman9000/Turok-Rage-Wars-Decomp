@@ -1,0 +1,5 @@
+# s1010: Controller Pak (PFS) library of overlay A: two functions + the pfsid object (six functions)
+ws D:/Projects/ws/s1010
+NEW osPfsAllocateFile 0x1B4BD0 233 ovl_a mode=lu
+NEW osPfsChecker 0x1B5D80 271 ovl_a mode=lu
+NEW __osRepairPackId 0x1B6EB0 615 ovl_a mode=lu

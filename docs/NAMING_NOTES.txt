@@ -1,0 +1,3 @@
+# Naming notes collected during matching (names are ours/upstream's, the code is what matters; fix in a naming pass, all pairs at once)
+- libaudio bus names are SWAPPED against the SDK in this repository (found by s1012): our alMainBusPull (0xB9AD0) clears the aux buffers 0x6C0/0x800, so it is the SDK's alAuxBusPull;
+  our alAuxBusPull (0xBB0D0) clears the main buffers 0x440/0x580 and mixes = the SDK's alMainBusPull.  alMainBusNew/alAuxBusNew, alMainBusParam/alAuxBusParam and the ALSynth fields are swapped the same way.

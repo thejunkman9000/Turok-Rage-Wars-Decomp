@@ -314,7 +314,10 @@ __sndpTimeAtPitch 0xCD398 32
 __nextSampleTime 0xCD3C0 24
 _timeToSamplesNoRound 0xCD3D8 8
 _timeToSamplesNoRound_2 0xCD3E0 8
+alFxNew 0xCD3F0 64
 alResampleNew 0xCD430 4
+init_lpfilter 0xCD438 16
+alEnvmixerPull 0xCD450 272
 libm_frexp 0xCD560 40
 alResamplePull 0xCD590 12
 alResampleParam 0xCD5A0 36

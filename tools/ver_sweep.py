@@ -12,12 +12,26 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 ROMS = {'us': 'baserom.us.v10.z64', 'eu': 'baserom.eu.z64', 'de': 'baserom.de.z64'}
 FLAGS = {'sn': '@SN', 'nb': '-fno-builtin', 'sa': '-msplit-addresses', 'r4k': '-mcpu=r4000', 'epi': '@EPI', 'sn272': '@SN272'}
+TOKFLAG = {'nb': '-fno-builtin', 'ntj': '-fno-thread-jumps', 'nrc': '-fno-rerun-cse-after-loop', 'neo': '-fno-expensive-optimizations', 'nsr': '-fno-strength-reduce'}
+SNTOK = {'sa': '-msplit-addresses', 'r4k': '-mcpu=r4000', 'epi': '@EPI', 'snl': '@L', 'snk': '@K', 'snz': '@Z'}
+OLDBASE = {'lu': '-O3 -fforce-addr -fno-builtin -mcpu=r4300', 'lu2': '-O2 -fforce-addr -fno-builtin -mcpu=r4300', 'lu3': '-O2 -mcpu=r4300', 'game': '-O2 -mcpu=r4300',
+           'lu4': '-O2 -msplit-addresses -mcpu=r4300 -mfp32'}
 
-def mode_flags(mode):
-    toks = mode.split('+'); out = []
-    for t in toks:
-        if t in FLAGS: out.append(FLAGS[t])
-    return ' '.join(out)
+def mode_flags(mode, sub='game'):
+    """chk flags of a manifest mode, as tools/cc.sh builds it: the old gcc modes (lu / lu2 / lu3 / lu4; a unit without a mode token is `game` = lu3 in src/game and src/ovl_a, `lu` in
+    src/libultra) and the sn toolchain with its tokens.  (A sweep that compiled every old-mode unit with @SN or with no flags reported units that are unchanged in the release as
+    different.)  `luret` and `inl` have no chk equivalent: those units are judged with the plain flags of their mode."""
+    if not mode: mode = 'lu' if sub == 'libultra' else 'game'
+    base, *toks = mode.split('+')
+    if base in ('sn', 'sn272'):
+        return ' '.join([FLAGS[base]] + [SNTOK[t] if t in SNTOK else TOKFLAG[t] for t in toks if t in SNTOK or t in TOKFLAG])
+    opt = OLDBASE.get(base, OLDBASE['game'])
+    if base in ('lu3', 'game') and 'o2' in toks: opt = '-O2'
+    out = [opt] + [TOKFLAG[t] for t in toks if t in TOKFLAG] + (['-DNOFILL'] if 'nf' in toks else [])
+    seen = []
+    for t in ' '.join(out).split():                                  # (lu + nb: the flag is already in the base set)
+        if t not in seen: seen.append(t)
+    return ' '.join(seen)
 
 def units():
     res = []
@@ -150,7 +164,7 @@ def main():
         while i < len(gf) and gf[i][0] < rom + 4 * n: fns.append(gf[i]); i += 1
         if not fns: fns = [(rom, name, n)]
         if any((fmap.get(g[1]) or ('none', 0))[0] == 'none' for g in fns): none.append((name, n)); continue
-        todo.append((name, [(g[1], fmap[g[1]][1], g[0], g[2]) for g in fns], f'src/{sub}/{name}.c', mode_flags(mode or 'sn')))
+        todo.append((name, [(g[1], fmap[g[1]][1], g[0], g[2]) for g in fns], f'src/{sub}/{name}.c', mode_flags(mode, sub)))
     if limit: todo = todo[:limit]
     print('units with a counterpart:', len(todo), ' without:', len(none))
     os.makedirs(f'wip/ver/{ver}', exist_ok=True)

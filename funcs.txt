@@ -279,25 +279,16 @@ _timeToSamplesNoRound 0xB99A0 16 libultra ro=0xCD3D8:8
 __nextSampleTime 0xB99E0 42 libultra ro=0xCD3C0:24
 _timeToSamplesNoRound_2 0xB9A88 15 libultra ro=0xCD3E0:8
 pad_0B9AC4 0xB9AC4 3 libultra
-alMainBusPull 0xB9AD0 55 libultra
 alMainBusParam 0xB9BAC 12 libultra
 pad_0B9BDC 0xB9BDC 1 libultra
-alFxNew 0xB9BE0 293 libultra
 alLoadNew 0xBA074 44 libultra
 alAuxBusNew 0xBA124 23 libultra
 alMainBusNew 0xBA180 23 libultra
 alResampleNew 0xBA1DC 35 libultra ro=0xCD430:4
 alSaveNew 0xBA268 17 libultra
 alEnvmixerNew 0xBA2AC 44 libultra
-init_lpfilter 0xBA35C 41 libultra
-alEnvmixerPull 0xBA400 339 libultra
-_pullSubFrame 0xBA94C 187 libultra
-_getRate 0xBAC38 148 libultra
-alEnvmixerParam 0xBAE88 52 libultra
-_getVol 0xBAF58 30 libultra
 alFilterNew 0xBB0B0 7 libultra
 pad_0BB0CC 0xBB0CC 1 libultra
-alAuxBusPull 0xBB0D0 80 libultra
 alAuxBusParam 0xBB210 12 libultra
 alFxParam 0xBBDA8 5 libultra
 pad_0BC048 0xBC048 2 libultra
@@ -3201,3 +3192,9 @@ dbgLinkSendByte 0xAF1AC 162 libultra mode=lu3
 dbgHostFread 0xB0E6C 215 libultra mode=sn
 adecReadBits 0xC4AA0 1311 libultra ro=0xCDB10:56
 pad_0C5F1C 0xC5F1C 1 libultra
+alMainBusPull 0xB9AD0 55 libultra mode=sn
+alFxNew 0xB9BE0 293 libultra mode=sn ro=0xCD3F0:64
+init_lpfilter 0xBA35C 39 libultra mode=sn ro=0xCD438:16
+pad_0BA3F8 0xBA3F8 2 libultra
+alEnvmixerPull 0xBA400 756 libultra mode=sn ro=0xCD450:272
+alAuxBusPull 0xBB0D0 80 libultra mode=sn

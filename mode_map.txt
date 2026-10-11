@@ -386,6 +386,11 @@ func_0026310C sn
 func_00263708 sn
 dbgLinkSendByte lu3
 dbgHostFread sn
+alMainBusPull sn
+alFxNew sn
+init_lpfilter sn
+alEnvmixerPull sn
+alAuxBusPull sn
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
@@ -602,3 +607,6 @@ func_0044BFD0 sn
 func_0044C050 sn
 func_0044C250 sn
 func_0044C410 sn
+osPfsAllocateFile lu
+osPfsChecker lu
+__osRepairPackId lu
