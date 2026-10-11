@@ -15,7 +15,6 @@ void port_stack_smash(unsigned fn) {
     if (n >= 512) return;
     seen[n++] = site;
     h = port_log_handle();
-    l = wsprintfA(b, "STACKSMASH fn=%lX
-", site);
+    l = wsprintfA(b, "STACKSMASH fn=%lX\r\n", site);
     if (h != INVALID_HANDLE_VALUE) WriteFile(h, b, l, &w, NULL);
 }

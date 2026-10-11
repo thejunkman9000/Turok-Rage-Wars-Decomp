@@ -11,6 +11,7 @@ import os, re, subprocess, sys, glob, time
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOG = 'wip/bisect_auto.log'
 cache = {}
+RUNS = int(sys.argv[sys.argv.index('--runs') + 1]) if '--runs' in sys.argv else 1
 
 def log(s):
     print(s); sys.stdout.flush()
@@ -37,15 +38,18 @@ def test(names, base):
     clean_stale()
     sh([sys.executable, 'port/build_clang.py'])
     sh(['powershell', '-NoProfile', '-File', 'port\\relink.ps1'])
-    r = sh(['powershell', '-NoProfile', '-File', 'port\\lvltest.ps1', '-Prefix', 'bauto'])
-    m = re.search(r'best share of non-black pixels: ([0-9.]+)', r.stdout)
-    share = float(m.group(1)) if m else 0.0
-    runlog = open('port/build/run.log', errors='replace').read() if os.path.exists('port/build/run.log') else ''
-    crash = 'CRASH(raw' in runlog
-    reached = bool(re.search(r'game state: g=\w+ st=13', runlog))
-    ok = (not crash) and reached and share > 0.3
+    ok = True; crash = False; reached = True; share = 1.0
+    for k in range(RUNS):                          # a bad build fails about half of the scripted runs: it only counts as good when every run passes
+        r = sh(['powershell', '-NoProfile', '-File', 'port\\lvltest.ps1', '-Prefix', 'bauto'])
+        m = re.search(r'best share of non-black pixels: ([0-9.]+)', r.stdout)
+        s = float(m.group(1)) if m else 0.0
+        runlog = open('port/build/run.log', errors='replace').read() if os.path.exists('port/build/run.log') else ''
+        c = 'CRASH(raw' in runlog
+        rch = bool(re.search(r'game state: g=\w+ st=13', runlog))
+        crash |= c; reached &= rch; share = min(share, s)
+        if c or not rch or s <= 0.3: ok = False; break
     cache[key] = ok
-    log(f'  test {len(names)} names: crash={crash} st13={reached} share={share:.2f} -> {"PASS" if ok else "fail"}  ({time.time() - t0:.0f}s)')
+    log(f'  test {len(names)} names: crash={crash} st13={reached} share={share:.2f} -> {"PASS" if ok else "fail"} (up to {RUNS} runs)  ({time.time() - t0:.0f}s)')
     return ok
 
 def ddmin(S, base):

@@ -176,6 +176,7 @@ static LONG WINAPI crash_filter2(EXCEPTION_POINTERS *ep);
 /* return addresses into this module found on the stack, written without stdio and bounded by the thread's stack base
  * (no memory probes: a failing IsBadReadPtr is itself a first-chance exception that used up the one CRASH report) */
 static HANDLE g_crash_log = INVALID_HANDLE_VALUE;      /* OS handle of the log (fd 2 after the freopen); cached so the handler makes no CRT calls */
+HANDLE port_log_handle(void) { return g_crash_log; }
 static void raw_stack_scan(HANDLE h, unsigned long *sp) {
     NT_TIB *tib = (NT_TIB *)NtCurrentTeb(); unsigned long *top = (unsigned long *)tib->StackBase; unsigned long base = (unsigned long)GetModuleHandleA(NULL);
     char b[32]; DWORD n; int i, hits = 0;
