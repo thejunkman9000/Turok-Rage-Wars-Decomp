@@ -1728,7 +1728,7 @@ segments:
       - [0x698E0, c, game/func_00268CE0]
       - [0x69E5C, c, game/func_0026925C]
       - [0x6A52C, c, game/func_0026992C]
-      - [0x6A680, asm]
+      - [0x6A680, c, game/func_00269A80]
       - [0x6B838, c, game/func_0026AC38]
       - [0x6B98C, c, game/func_0026AD8C]
       - [0x6C104, c, game/func_0026B504]
@@ -3394,7 +3394,8 @@ segments:
       - {start: 0xCA0A4, type: bin, name: data_92, linker_section_order: .rodata, linker_section: .data}
       - [0xCA190, .rodata, game/func_00268CE0]
       - [0xCA238, .rodata, game/func_0026925C]
-      - {start: 0xCA2B8, type: bin, name: data_93, linker_section_order: .rodata, linker_section: .data}
+      - [0xCA2B4, .rodata, game/func_00269A80]
+      - {start: 0xCA358, type: bin, name: data_93, linker_section_order: .rodata, linker_section: .data}
       - [0xCA398, .rodata, game/func_0026D27C]
       - [0xCA39C, .rodata, game/func_0026D844]
       - [0xCA3A0, .rodata, game/func_0026E5E0]
