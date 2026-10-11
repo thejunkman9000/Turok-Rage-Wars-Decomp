@@ -170,7 +170,7 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_zmodeDraws[4]; static int g_vtxGeom[4]; static std::map<uint32_t, int> g_omHHist; static int g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws;   // textured draws; of which without texture perspective (omH bit 19), with texture LOD (bit 16), with detail/sharpen (bits 17-18)
+static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_opsIgnored[256]; static int g_fogBlendDraws; static int g_zmodeDraws[4]; static int g_vtxGeom[4]; static std::map<uint32_t, int> g_omHHist; static int g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws;   // textured draws; of which without texture perspective (omH bit 19), with texture LOD (bit 16), with detail/sharpen (bits 17-18)
 // vertices loaded with texgen (0x40000) / texgen linear (0x80000) / fog (0x10000) / lighting (0x20000) set; draws per RDP z-mode (0 opaque, 1 interpenetrating, 2 translucent, 3 decal)
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
@@ -306,6 +306,7 @@ static void flush() {
     { static int fl = -1, nfl; if (fl < 0) fl = getenv("TUROK_FOGLOG") ? 1 : 0;      // TUROK_FOGLOG=1: log the render modes of the first draws that have the fog geometry bit set (the renderer has no fog)
       if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); } }
     ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
+    { uint32_t L = cur.omL; int c2 = ((cur.omH >> 20) & 3) == 1; bool fogBl = ((L >> 30) & 3) == 3 || ((L >> 22) & 3) == 3 || ((L >> 26) & 3) == 1 || (c2 && (((L >> 28) & 3) == 3 || ((L >> 20) & 3) == 3 || ((L >> 24) & 3) == 1)); if (fogBl) g_fogBlendDraws++; }
     if (cur.texOn) { g_omHHist[cur.omH]++; g_texDraws++; if (!(cur.omH & (1u << 19))) g_noPerspDraws++; if (cur.omH & (1u << 16)) g_lodDraws++; if (cur.omH & (3u << 17)) g_detailDraws++; }
     batch.clear();
 }
@@ -477,6 +478,12 @@ static void emitTri(int i0, int i1, int i2) {
             }
         }
     }
+    { static int dg = -1, ndg; if (dg < 0) dg = getenv("TUROK_DEGENLOG") ? 1 : 0;      // TUROK_DEGENLOG=1: textured triangles whose texture coordinates are degenerate on one axis although the triangle covers many pixels (the texture streaks)
+      if (dg && cur.texOn && ndg < 60) {
+          float sx[3], sy[3]; bool okw = true; for (int i = 0; i < 3; i++) { if (v[i]->cw <= 1e-5f) okw = false; else { sx[i] = v[i]->cx / v[i]->cw * S.vsc[0] * 0.25f; sy[i] = -v[i]->cy / v[i]->cw * S.vsc[1] * 0.25f; } }
+          float ds = fmaxf(fabsf(v[0]->s - v[1]->s), fmaxf(fabsf(v[1]->s - v[2]->s), fabsf(v[0]->s - v[2]->s))), dt = fmaxf(fabsf(v[0]->t - v[1]->t), fmaxf(fabsf(v[1]->t - v[2]->t), fabsf(v[0]->t - v[2]->t)));
+          float area = okw ? fabsf((sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0])) * 0.5f : 0.f;
+          if (okw && area > 40.f && (ds < 2.f || dt < 2.f)) { ndg++; fprintf(stderr, "DEGEN tri v%d,%d,%d s,t (%.0f,%.0f) (%.0f,%.0f) (%.0f,%.0f) screen area %.0f w %.1f %.1f %.1f scr (%.0f,%.0f) (%.0f,%.0f) (%.0f,%.0f) tex %dx%d key %llx frame %d" "\n", i0, i1, i2, v[0]->s, v[0]->t, v[1]->s, v[1]->t, v[2]->s, v[2]->t, area, v[0]->cw, v[1]->cw, v[2]->cw, sx[0] + S.vtr[0] * 0.25f, sy[0] + S.vtr[1] * 0.25f, sx[1] + S.vtr[0] * 0.25f, sy[1] + S.vtr[1] * 0.25f, sx[2] + S.vtr[0] * 0.25f, sy[2] + S.vtr[1] * 0.25f, curTexW, curTexH, (unsigned long long)srvKey[cur.srv], g_nfpub); } } }
     { static int ml = -1, nml, tot, bad; if (ml < 0) ml = getenv("TUROK_SCALELOG") ? 1 : 0;      // TUROK_SCALELOG=1: triangles whose vertices were loaded under a different G_TEXTURE scale than the one in effect at the draw
       if (ml && cur.texOn) { tot++; if (v[0]->ts != S.texScaleS || v[0]->tt != S.texScaleT || v[1]->ts != S.texScaleS || v[1]->tt != S.texScaleT || v[2]->ts != S.texScaleS || v[2]->tt != S.texScaleT) { bad++; if (nml++ < 12) fprintf(stderr, "SCALEMISMATCH vertex scales %04X/%04X %04X/%04X %04X/%04X now %04X/%04X (textured triangles so far %d, mismatching %d)\n", v[0]->ts, v[0]->tt, v[1]->ts, v[1]->tt, v[2]->ts, v[2]->tt, S.texScaleS, S.texScaleT, tot, bad); } } }
     { static int dl = -1, ndl; if (dl < 0) dl = getenv("TUROK_UVRAW") ? 1 : 0;      // TUROK_UVRAW=1: raw vertex s/t, G_TEXTURE scales and tile size of the first triangles that use a tiny 16x9 texture
@@ -499,7 +506,8 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
         const float* m = S.mvp;
         o.cx = x * m[0] + y * m[4] + z * m[8] + m[12]; o.cy = x * m[1] + y * m[5] + z * m[9] + m[13];
         o.cz = x * m[2] + y * m[6] + z * m[10] + m[14]; o.cw = x * m[3] + y * m[7] + z * m[11] + m[15];
-        o.ts = S.texScaleS; o.tt = S.texScaleT; o.s = (int16_t)rd16(p + 8) * (o.ts / 65536.f); o.t = (int16_t)rd16(p + 10) * (o.tt / 65536.f);      // G_TEXTURE scales s/t at vertex load; G_MODIFYVTX later overwrites them with final values o.mx = (short)x; o.my = (short)y; o.mz = (short)z;
+        o.ts = S.texScaleS; o.tt = S.texScaleT; o.s = (int16_t)rd16(p + 8) * (o.ts / 65536.f); o.t = (int16_t)rd16(p + 10) * (o.tt / 65536.f);      // G_TEXTURE scales s/t at vertex load; G_MODIFYVTX later overwrites them with final values
+        o.mx = (short)x; o.my = (short)y; o.mz = (short)z;
         if (capOn()) { const float* mv = S.mv[S.mvTop]; float vx = x * mv[0] + y * mv[4] + z * mv[8] + mv[12], vy = x * mv[1] + y * mv[5] + z * mv[9] + mv[13], vz = x * mv[2] + y * mv[6] + z * mv[10] + mv[14]; const float* c = S.camInv; o.wx = vx * c[0] + vy * c[4] + vz * c[8] + c[12]; o.wy = vx * c[1] + vy * c[5] + vz * c[9] + c[13]; o.wz = vx * c[2] + vy * c[6] + vz * c[10] + c[14]; }
         if (S.geom & 0x20000) {      // lighting: colour bytes are a normal
             const float* mv = S.mv[S.mvTop];
@@ -699,12 +707,35 @@ static void runDL(uint32_t addr, int depth) {
             else texRect(w0, w1, 0, 0x04000400u);                                              // this game emits a bare E4: texture origin 0, one texel per pixel
             break;
         }
-        default: break;     // NOOP, SYNCs, RDPHALF, SETCONVERT, SETSCISSOR, SETPRIMDEPTH, SETFOGCOLOR, SETBLENDCOLOR ...
+        default: g_opsIgnored[op]++; break;     // NOOP, SYNCs, RDPHALF, SETCONVERT, SETSCISSOR, SETPRIMDEPTH, SETFOGCOLOR, SETBLENDCOLOR ... (counted, printed in the frame log)
         }
     }
 }
 
 #include "renderer_selftest.inc"
+
+// TUROK_SHOTS=<first>-<last>:<step>[:<divisor>] writes port\build\fs_<frame>.bmp (the rendered frame, downscaled by <divisor>, default 4) for every <step>th renderer frame in the range:
+// frame-exact captures of moments that pass too fast for the external screenshot script (the fly-through at the start of a level)
+static void shotSave(int frame, int dv) {
+    static ID3D11Texture2D* stg;
+    if (!stg) { D3D11_TEXTURE2D_DESC sd = {}; sd.Width = INTERNAL_W; sd.Height = INTERNAL_H; sd.MipLevels = 1; sd.ArraySize = 1; sd.SampleDesc.Count = 1; sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM; sd.Usage = D3D11_USAGE_STAGING; sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ; if (FAILED(dev->CreateTexture2D(&sd, nullptr, &stg))) return; }
+    ctx->CopyResource(stg, rtTex);
+    D3D11_MAPPED_SUBRESOURCE mp; if (FAILED(ctx->Map(stg, 0, D3D11_MAP_READ, 0, &mp))) return;
+    int ow = INTERNAL_W / dv, oh = INTERNAL_H / dv, rb = (ow * 3 + 3) & ~3;
+    std::vector<uint8_t> out(54 + (size_t)rb * oh, 0);
+    uint32_t fsz = (uint32_t)out.size(), pofs = 54, hsz = 40, dsz = (uint32_t)(rb * oh); int32_t bw = ow, bh = oh; uint16_t pl = 1, bpp = 24;
+    out[0] = 'B'; out[1] = 'M'; memcpy(&out[2], &fsz, 4); memcpy(&out[10], &pofs, 4); memcpy(&out[14], &hsz, 4); memcpy(&out[18], &bw, 4); memcpy(&out[22], &bh, 4); memcpy(&out[26], &pl, 2); memcpy(&out[28], &bpp, 2); memcpy(&out[34], &dsz, 4);
+    for (int y = 0; y < oh; y++) {
+        uint8_t* d = &out[54 + (size_t)rb * (oh - 1 - y)];
+        for (int x = 0; x < ow; x++) {
+            int r = 0, g = 0, b = 0;
+            for (int j = 0; j < dv; j++) { const uint8_t* s = (const uint8_t*)mp.pData + (size_t)(y * dv + j) * mp.RowPitch + (size_t)x * dv * 4; for (int i = 0; i < dv; i++, s += 4) { r += s[0]; g += s[1]; b += s[2]; } }
+            int n = dv * dv; d[x * 3] = (uint8_t)(b / n); d[x * 3 + 1] = (uint8_t)(g / n); d[x * 3 + 2] = (uint8_t)(r / n);
+        }
+    }
+    ctx->Unmap(stg, 0);
+    char fn[96]; sprintf(fn, "port\\build\\fs_%05d.bmp", frame); FILE* f = fopen(fn, "wb"); if (f) { fwrite(out.data(), 1, out.size(), f); fclose(f); }
+}
 
 extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
     if (!ready) return;
@@ -725,8 +756,13 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         g_nfpub = nframes;
         { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 60) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
         { if (g_pickLeft > 0) g_pickLeft--; if (GetFileAttributesA("port_pick.txt") != INVALID_FILE_ATTRIBUTES) { char pb[256] = {0}; FILE* pf = fopen("port_pick.txt", "r"); if (pf) { if (fgets(pb, sizeof pb, pf)) {} fclose(pf); } DeleteFileA("port_pick.txt"); g_pickN = 0; const char* e = pb; while (*e && g_pickN < 16) { int a, b2, n = 0; if (sscanf(e, "%d:%d%n", &a, &b2, &n) < 2) break; g_pickX[g_pickN] = a; g_pickY[g_pickN++] = b2; e += n; if (*e == ';') e++; } if (g_pickN) { g_pickLeft = 2; fprintf(stderr, "PICK armed for %d pixels (first %d,%d) at frame %d\n", g_pickN, g_pickX[0], g_pickY[0], nframes); } } }
+        { static int paf = -2; static char pab[256];      // TUROK_PICKAT=<frame>:x:y;x:y = arm the pixel pick at that renderer frame (moments that pass before the pick file could be written)
+          if (paf == -2) { paf = -1; const char* e = getenv("TUROK_PICKAT"); int fr = 0, n = 0; if (e && sscanf(e, "%d:%n", &fr, &n) >= 1 && n > 0) { paf = fr; strncpy(pab, e + n, sizeof pab - 1); } }
+          if (paf >= 0 && nframes == paf) { g_pickN = 0; const char* e = pab; while (*e && g_pickN < 16) { int a, b2, n = 0; if (sscanf(e, "%d:%d%n", &a, &b2, &n) < 2) break; g_pickX[g_pickN] = a; g_pickY[g_pickN++] = b2; e += n; if (*e == ';') e++; } if (g_pickN) { g_pickLeft = 2; fprintf(stderr, "PICK armed for %d pixels (first %d,%d) at frame %d\n", g_pickN, g_pickX[0], g_pickY[0], nframes); } } }
         { static int trig; if (trig == 0 && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; port_dump_threads(); port_dump_trace_pub(400); { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } { FILE* m2 = fopen("port_mem2.bin", "wb"); if (m2) { fwrite((void*)0x801D0C00u, 1, 0x3600, m2); fclose(m2); } } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
         g_dlBudget = 4000000; runDL(dl, 0); flush();
+        { static int s0 = -2, s1, ss = 1, sd = 4; if (s0 == -2) { s0 = -1; const char* e = getenv("TUROK_SHOTS"); if (e && sscanf(e, "%d-%d:%d:%d", &s0, &s1, &ss, &sd) >= 3) { if (ss < 1) ss = 1; if (sd < 1 || INTERNAL_W % sd) sd = 4; } else s0 = -1; }
+          if (s0 >= 0 && nframes >= s0 && nframes <= s1 && (nframes - s0) % ss == 0) shotSave(nframes, sd); }
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
         if (capOn() && (nframes & 3) == 0) { FILE* cf = fopen("port_cam.tmp", "w"); if (cf) { fprintf(cf, "%.3f %.3f %.3f\n", g_frameCam[0], g_frameCam[1], g_frameCam[2]); fclose(cf); MoveFileExA("port_cam.tmp", "port_cam.txt", MOVEFILE_REPLACE_EXISTING); } }
         if (capOn() && GetFileAttributesA("port_poke.txt") != INVALID_FILE_ATTRIBUTES) { FILE* pf = fopen("port_poke.txt", "r"); if (pf) { unsigned ad; float v[3]; if (fscanf(pf, "%x %f %f %f", &ad, &v[0], &v[1], &v[2]) == 4) { for (int k = 0; k < 3; k++) { uint32_t u; memcpy(&u, &v[k], 4); u = _byteswap_ulong(u); memcpy((void*)(size_t)(ad + 4 * k), &u, 4); } } fclose(pf); DeleteFileA("port_poke.txt"); } }
@@ -734,7 +770,10 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         if (capOn() && (nframes & 15) == 0) { FILE* tf = fopen("port_mapdump.txt", "r"); if (tf) { char nm[100] = "map"; if (fscanf(tf, "%99s", nm) != 1) strcpy(nm, "map"); fclose(tf); DeleteFileA("port_mapdump.txt"); capWrite(nm); } if (GetFileAttributesA("port_mapreset.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_mapreset.txt"); capTris.clear(); } }
         if (capOn() && (nframes & 15) == 8) capVisAll(nframes);
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
-        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d, textured draws %d (no perspective %d, lod %d, detail/sharpen %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3], g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws); for (auto& kv : g_omHHist) fprintf(stderr, "   textured draws with othermode-high %08X: %d\n", kv.first, kv.second); fflush(stderr); }
+        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d, textured draws %d (no perspective %d, lod %d, detail/sharpen %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3], g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws); for (auto& kv : g_omHHist) fprintf(stderr, "   textured draws with othermode-high %08X: %d\n", kv.first, kv.second);
+            fprintf(stderr, "   draws whose blender uses the fog colour or fog alpha (since start): %d\n", g_fogBlendDraws);
+            { char ib[512]; int ip = 0; for (int o = 0; o < 256 && ip < 480; o++) if (g_opsIgnored[o]) ip += snprintf(ib + ip, sizeof ib - ip, " %02X:%d", o, g_opsIgnored[o]); if (ip) fprintf(stderr, "   display list commands the renderer ignores (op:count since start):%s\n", ib); }
+            fflush(stderr); }
     }
     LeaveCriticalSection(&g_snap_lock);
     // blit the internal frame (4:3) letterboxed into the window

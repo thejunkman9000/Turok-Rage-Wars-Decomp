@@ -51,9 +51,13 @@ foreach ($step in $Seq) {
     elseif ($p[0] -match '^until(?:p([2-4]))?$') {   # until:C:-> 2 (top=0):30  = press A every 1.2 game-s until the pattern appears in NEW log lines (30 game-s limit); untilp2:... for pad 2
         $f = if ($Matches[1]) { 'port_input{0}.txt' -f $Matches[1] } else { 'port_input.txt' }; $b = $btn[$p[1]]; $pat = $p[2]; $lim = [double]$p[3]
         $skip = [Math]::Max(0, @(Get-Content port/build/run.log -ErrorAction SilentlyContinue).Count - 100); $t1 = Get-Date; $hits = 0   # 100-line lookback: the target may already be up
+        function Seen() { [bool](Select-String -Path port/build/run.log -SimpleMatch $pat -ErrorAction SilentlyContinue | Where-Object { $_.LineNumber -gt $skip }) }
         while (((Get-Date) - $t1).TotalSeconds -lt (T $lim)) {
-            if (Select-String -Path port/build/run.log -SimpleMatch $pat -ErrorAction SilentlyContinue | Where-Object { $_.LineNumber -gt $skip }) { $hits = 1; break }
-            Hold $f $b 0 0 0.3; WaitFrames 1.2
+            if (Seen) { $hits = 1; break }
+            Hold $f $b 0 0 0.3
+            $f0 = Frame; $tgt = $f0 + 72; $t2 = Get-Date      # the 1.2 game-s gap between presses is polled: no further press once the pattern shows (a press during a level's fly-through skips it)
+            while ((Frame) -lt $tgt -and ((Get-Date) - $t2).TotalSeconds -lt ((T 1.2) * 4 + 2)) { if (Seen) { $hits = 1; break }; Start-Sleep -Milliseconds 20 }
+            if ($hits) { break }
         }
         if (-not $hits) { "until: '$pat' not seen within $lim s (skip $skip, log now " + @(Get-Content port/build/run.log -ErrorAction SilentlyContinue).Count + " lines, matches anywhere " + @(Select-String -Path port/build/run.log -SimpleMatch $pat -ErrorAction SilentlyContinue).Count + ')' }
     }
