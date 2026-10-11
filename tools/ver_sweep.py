@@ -104,13 +104,22 @@ def main():
         fmap[f[0]] = (f[3], int(f[4], 16))
     amap = load_map(f'wip/symmap_{ver}.txt')
     print(ver, 'address map entries:', len(amap), ' symbol overrides written:', build_syms(ver, amap))
-    todo = []; none = []
+    gf = []
+    for l in open('docs/game_funcs.txt'):
+        if l.startswith('#') or not l.strip(): continue
+        f = l.split(); gf.append((int(f[0], 16), f[1], int(f[2])))
+    gf.sort()
+    gfrom = [g[0] for g in gf]
+    import bisect
+    todo = []; none = []      # todo: (unit, [(fn, rom_other, rom11, insns)], src, flags)
     for name, rom, n, sub, mode in units():
         if only and name not in only: continue
         if sub_only and sub != sub_only: continue
-        st = fmap.get(name)
-        if not st or st[0] == 'none': none.append((name, n)); continue
-        todo.append((name, st[1], f'src/{sub}/{name}.c', mode_flags(mode or 'sn')))
+        i = bisect.bisect_left(gfrom, rom); fns = []
+        while i < len(gf) and gf[i][0] < rom + 4 * n: fns.append(gf[i]); i += 1
+        if not fns: fns = [(rom, name, n)]
+        if any((fmap.get(g[1]) or ('none', 0))[0] == 'none' for g in fns): none.append((name, n)); continue
+        todo.append((name, [(g[1], fmap[g[1]][1], g[0], g[2]) for g in fns], f'src/{sub}/{name}.c', mode_flags(mode or 'sn')))
     if limit: todo = todo[:limit]
     print('units with a counterpart:', len(todo), ' without:', len(none))
     os.makedirs(f'wip/ver/{ver}', exist_ok=True)
@@ -118,7 +127,7 @@ def main():
     lists = []
     for k, ch in enumerate(chunks):
         p = f'wip/ver/{ver}/list_{k}.txt'
-        open(p, 'w', newline='\n').write(''.join(f'{src} {name} 0x{rom:X} {fl}\n' for name, rom, src, fl in ch))
+        open(p, 'w', newline='\n').write(''.join(f'{src} {fn} 0x{ro:X} {fl}\n' for name, fns, src, fl in ch for fn, ro, r11, ni in fns))
         lists.append(p)
     env = f"CHK_ROM=/mnt/d/Projects/TurokRageWars/{ROMS[ver]} CHK_SYMS=wip/ver/{ver}/syms.ld"
     for k in range(jobs):
@@ -136,10 +145,18 @@ def main():
                 if m: res[m.group(1)] = m.group(3).strip()
     c = collections.Counter(); bad = []
     with open(f'wip/ver/{ver}/sweep.txt', 'w') as f:
-        for name, rom, src, fl in todo:
-            v = res.get(name, 'NO RESULT')
-            f.write(f'{name} 0x{rom:X} {v}\n')
-            k = 'EXACT' if v.startswith('EXACT') else 'CODE-EXACT' if v.startswith('CODE-EXACT') else 'diff' if re.match(r'\d+ words? differ|\d+ differ', v) or 'differ' in v else 'other'
+        for name, fns, src, fl in todo:
+            vs = [res.get(fn, 'NO RESULT') for fn, ro, r11, ni in fns]
+            bad_fn = [(fn, v) for (fn, ro, r11, ni), v in zip(fns, vs) if not v.startswith('EXACT')]
+            adj = True
+            for (fa, ra, a11, na), (fb, rb, b11, nb) in zip(fns, fns[1:]):
+                if rb - (ra + 4 * na) != b11 - (a11 + 4 * na): adj = False      # the gap between the functions of the unit differs in the other release
+            if bad_fn: v = bad_fn[0][1]; k = 'CODE-EXACT' if v.startswith('CODE-EXACT') else 'diff' if 'differ' in v else 'other'
+            elif not adj: v = 'LAYOUT (the functions of this unit are not adjacent in the release)'; k = 'other'
+            else:
+                pools = sorted(set(re.findall(r'ro=0x[0-9A-Fa-f]+:\d+', ' '.join(vs))))
+                v = 'EXACT' + (' ' + pools[0] if pools else '') + (' MULTIPOOL ' + ' '.join(pools[1:]) if len(pools) > 1 else ''); k = 'EXACT'
+            f.write(f'{name} 0x{fns[0][1]:X} {v}' + (f' [{bad_fn[0][0]}]' if bad_fn else '') + '\n')
             c[k] += 1
             if k != 'EXACT': bad.append((name, v))
         for name, n in none: f.write(f'{name} - NO COUNTERPART {n} insns\n')

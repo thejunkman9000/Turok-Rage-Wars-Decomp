@@ -12,7 +12,7 @@ src = r'D:\Projects\TurokRageWars'
 dst = rf'D:\Projects\ws\{name}'
 if update:
     for d in ('tools', 'docs'):
-        shutil.copytree(os.path.join(src, d), os.path.join(dst, d), dirs_exist_ok=True, ignore=shutil.ignore_patterns('gcc', '__pycache__'))
+        shutil.copytree(os.path.join(src, d), os.path.join(dst, d), dirs_exist_ok=True, ignore=shutil.ignore_patterns('gcc', '__pycache__', '.git'))      # .git packs are read-only: a second copy over them fails
     for h in os.listdir(os.path.join(src, 'include')):
         if h.endswith('_types.h') or h in ('common.h', 'libaudio.h'):
             shutil.copy(os.path.join(src, 'include', h), os.path.join(dst, 'include', h))

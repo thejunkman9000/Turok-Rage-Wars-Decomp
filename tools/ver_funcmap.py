@@ -41,27 +41,48 @@ def main():
     K = 6
     index = collections.defaultdict(list)
     for i in range(len(onorm) - K): index[tuple(onorm[i:i + K])].append(i)
-    res = []; expect = None
+    # 1. every position at which a function's normalised body occurs
+    short = {}
+    def short_index(n):
+        if n not in short:
+            d = collections.defaultdict(list)
+            for i in range(len(onorm) - n): d[tuple(onorm[i:i + n])].append(i)
+            short[n] = d
+        return short[n]
+    cands = []
     for rom, name, n in funcs:
         w = struct.unpack('>%dI' % n, base[rom:rom + 4 * n]); nw = norm(w)
-        cands = []
-        key = tuple(nw[:K]) if n >= K else None
-        if key is not None:
-            for i in index.get(key, ()):
-                if onorm[i:i + n] == nw: cands.append(i)
+        if n >= K: cs = [i for i in index.get(tuple(nw[:K]), ()) if onorm[i:i + n] == nw]
+        else: cs = list(short_index(n).get(tuple(nw), ()))
+        cands.append(cs)
+    # 2. anchors: functions with exactly one occurrence, reduced to the longest run that keeps the ROM order (the layout of a release is the 1.1 layout with insertions and deletions)
+    anchors = [(i, cs[0]) for i, cs in enumerate(cands) if len(cs) == 1]
+    tails = []; prev = [None] * len(anchors); idxs = []
+    for k, (i, pos) in enumerate(anchors):
+        j = bisect.bisect_left([anchors[t][1] for t in tails], pos)
+        if j > 0: prev[k] = tails[j - 1]
+        if j == len(tails): tails.append(k)
+        else: tails[j] = k
+    lis = []; k = tails[-1] if tails else None
+    while k is not None: lis.append(k); k = prev[k]
+    anchor_at = {anchors[k][0]: anchors[k][1] for k in lis}
+    anchor_idx = sorted(anchor_at)
+    # 3. assign in 1.1 order: an occurrence must lie after the previous assignment and before the next anchor; the first one after the previous end wins
+    res = []; prev_end = 0
+    for fi, (rom, name, n) in enumerate(funcs):
+        cs = cands[fi]; pick = None
+        if fi in anchor_at: pick = anchor_at[fi]
+        elif cs:
+            ni = bisect.bisect_right(anchor_idx, fi)
+            limit = anchor_at[anchor_idx[ni]] - n if ni < len(anchor_idx) else len(onorm)
+            ok = [c for c in cs if prev_end <= c <= limit]
+            if ok: pick = min(ok)
+        if pick is not None:
+            st = 'same' if pick == prev_end else 'shift'
+            res.append((name, rom, n, st, lo + 4 * pick, len(cs)))
+            prev_end = pick + n
         else:
-            # tiny functions: scan near the expected position only
-            if expect is not None:
-                for i in range(max(0, expect - 64), min(len(onorm) - n, expect + 64)):
-                    if onorm[i:i + n] == nw: cands.append(i)
-        if cands:
-            pick = min(cands, key=lambda i: abs(i - expect)) if expect is not None else cands[0]
-            st = 'same' if expect is not None and abs(pick - expect) <= 1 else ('shift' if expect is not None else 'same')
-            res.append((name, rom, n, st, lo + 4 * pick, len(cands)))
-            expect = pick + n
-        else:
-            res.append((name, rom, n, 'none', 0, 0))
-            if expect is not None: expect += n
+            res.append((name, rom, n, 'none', 0, len(cs)))
     os.makedirs(os.path.dirname(outp) or '.', exist_ok=True)
     with open(outp, 'w') as f:
         for r in res: f.write('%s 0x%06X %d %s 0x%06X %d\n' % r)

@@ -13,6 +13,11 @@ The block between the BEGIN/END GENERATED markers is replaced.
 import os, re, sys
 
 MAIN_START, MAIN_CODE_END, DATA_END = 0x1000, 0xC76B0, 0x160000
+OVL_START, OVL_END = 0x16E000, 0x1BCDA0
+if os.environ.get('VER_LAYOUT'):          # another release: a file of `NAME = 0xVALUE` lines (MAIN_CODE_END, DATA_END, OVL_START, OVL_END) written by tools/mkver.py
+    for _l in open(os.environ['VER_LAYOUT']):
+        _m = re.match(r'\s*(MAIN_START|MAIN_CODE_END|DATA_END|OVL_START|OVL_END)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
+        if _m: globals()[_m.group(1)] = int(_m.group(2), 16)
 funcs, ros, modes = [], [], []
 real_sizes = {}      # name -> size of the data proper when the piece is larger (alignment tail comes from the ROM)
 for line in open('funcs.txt'):
@@ -106,7 +111,6 @@ if os.path.exists('funcs_a.txt'):
             sys.exit(f'overlay A entry {name}: option {extra!r} not supported')
         ofuncs.append((int(rom, 16), int(n), name, sub))
     ofuncs.sort()
-    OVL_START, OVL_END = 0x16E000, 0x1BCDA0
     olines, pos = [], OVL_START
     for rom, n, name, sub in ofuncs:
         if rom < pos: sys.exit(f'overlap: {name} at 0x{rom:X} starts before 0x{pos:X}')

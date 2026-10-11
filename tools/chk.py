@@ -63,14 +63,12 @@ def infer_relocs(off, n, fw, rw, relnames, func):
         t, sym = relnames[o]
         if sym.startswith('.'): continue
         if t == 'R_MIPS_26':
-            out.write('%s 0x%08X %s
-' % (sym, (((rw[i] & 0x3FFFFFF) << 2) - ((fw[i] & 0x3FFFFFF) << 2)) & 0x0FFFFFFF | (0x80000000 if False else 0), func))
+            out.write('%s 0x%08X %s\n' % (sym, (((rw[i] & 0x3FFFFFF) << 2) - ((fw[i] & 0x3FFFFFF) << 2)) & 0x0FFFFFFF, func))
         elif t == 'R_MIPS_HI16':
             hi[sym] = rw[i] & 0xFFFF; hif[sym] = fw[i] & 0xFFFF
         elif t == 'R_MIPS_LO16' and sym in hi:
             rom_addr = ((hi[sym] << 16) + sx(rw[i] & 0xFFFF)) & 0xFFFFFFFF
-            out.write('%s 0x%08X %s
-' % (sym, (rom_addr - (hif[sym] << 16) - sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF, func))
+            out.write('%s 0x%08X %s\n' % (sym, (rom_addr - (hif[sym] << 16) - sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF, func))
     out.close()
 
 CACHE = {}

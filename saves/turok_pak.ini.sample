@@ -1,0 +1,41 @@
+; turok_pak.ini - settings of the virtual Controller Pak.  Everything is optional: without this file every port gets a memory pak
+; and the images live in the "saves" folder next to the exe.
+; Copy this file next to the exe as turok_pak.ini (or point TUROK_PAK_INI=<file> at it) and remove the leading ';' of the lines you change.
+; Environment variables with the same meaning (TUROK_PAK, TUROK_SAVEDIR, TUROK_PAK1..4, TUROK_PAK1_TYPE..4, TUROK_PJ64_SAVE, TUROK_PAK_DELAY,
+; TUROK_PAKLOG) win over this file.  Comments are whole lines starting with ; or # (a ';' inside a value is part of the value: game names have one).
+
+; 1 = virtual Controller Pak on, 0 = nothing plugged into any controller (the game reports NO CONTROLLER PAK FOUND, nothing is saved)
+;enabled = 1
+
+; folder of the pak images; relative paths start at the exe's folder; the default is "saves"
+;savedir = saves
+
+; game name in the file names ("<name>_Cont_<port>.mpk").  Default: the ROM's internal title with Project64's substitutions (: -> ;  / \ -> -)
+;name = Turok; Rage Wars
+
+; a Project64 "Save" folder (or any folder with its files): "<name>_Cont_<n>.mpk" there (also in its "<name>-<md5>" sub folders) is used
+; for port n instead of the file in savedir; "<name>.mpk" (Project64 1.6, mupen64plus) is used for port 1 (or its 1st/2nd/.. pak when the
+; file holds four)
+;pj64_save = C:\Emulators\Project64\Save
+
+; what is plugged into each controller at start-up: none | memory | rumble  (hot keys change it while playing)
+;port1 = memory
+;port2 = memory
+;port3 = memory
+;port4 = memory
+
+; an explicit image file for a port: raw .mpk / .mem (32768 bytes), DexDrive .n64, a 4-in-1 .mpk.  "file.mpk#2" selects the 2nd pak of a multi-pak file
+;pak1 = D:\Saves\my_pak.mpk
+;pak2 =
+
+; a changed pak is written to its file this many milliseconds after the last change (and always at exit)
+;writeback_ms = 300
+
+; Ctrl+F5..F8 / Ctrl+Shift+F5..F8 pull a memory / rumble pak out of and into controller 1..4 while the game window has the focus
+;hotkeys = 1
+
+; a rumble pak makes the XInput pad of the same number vibrate
+;xinput_rumble = 1
+
+; 1 = log every accessory transaction in the run log (very verbose; for debugging)
+;log = 0

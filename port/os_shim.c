@@ -14,6 +14,8 @@ static OSMesgQueue *g_ev_mq[16]; static OSMesg g_ev_msg[16];   /* osSetEventMesg
 static int g_tasklog;                    /* TUROK_TASKLOG=1: every RSP task start / completion in the log */
 static int g_aud_done;                   /* an audio RSP task completed (HLE ran at submit); its SP-done is posted when the scheduler next waits for events */
 static void post_from_host(OSMesgQueue *mq, OSMesg m);
+extern void pak_si_dma(int dir, void *ram); extern unsigned char pak_cont_status(int port, int connected);       /* port/pak.c: virtual Controller Pak (SI/PIF model) */
+extern s32 pak_motor_init(OSMesgQueue *mq, void *pfs, int channel); extern s32 pak_motor_start(void *pfs); extern s32 pak_motor_stop(void *pfs);   /* port/pak_os.c: rumble pak commands over the PIF model */
 
 /* Guest memory (game structs, message buffers, DMA targets) is big-endian: the game code reads it through byte-swapping
    loads/stores (port/be_ir.py).  The shim must use the same representation for every guest field it touches. */
@@ -431,9 +433,10 @@ static int pad_connected(int i) {
     if (now - (DWORD)cache_t[i] > 1000) { cache[i] = xi_get(i, &st); cache_t[i] = (int)now; }      /* rescan once a second */
     return cache[i];
 }
+int port_pad_connected(int i) { return pad_connected(i); }      /* for the virtual Controller Pak (port/pak.c): which ports answer on the Joybus */
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     int i; u8 bp = 0; (void)mq; bitpattern = (u8 *)XL(bitpattern); status = (OSContStatus *)XL(status);
-    for (i = 0; i < 4; i++) { int c = pad_connected(i); if (c) bp |= (u8)(1 << i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = 0; status[i].errno_ = c ? 0 : 0x08; }
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); if (c) bp |= (u8)(1 << i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = pak_cont_status(i, c); status[i].errno_ = c ? 0 : 0x08; }
     *bitpattern = bp;
     return 0;
 }
@@ -494,12 +497,12 @@ void osContGetQuery(OSContStatus *status) {
     int i; { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); }
     status = (OSContStatus *)XL(status);      /* (the previous version wrote through the untranslated pointer) */
     memset(status, 0, 4 * sizeof *status);
-    for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].errno_ = c ? 0 : 0x08; }
+    for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = pak_cont_status(i, c); status[i].errno_ = c ? 0 : 0x08; }
 }
 s32 osContReset(OSMesgQueue *mq, OSContStatus *s) { (void)mq; (void)s; return 0; }
-s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { (void)mq; (void)pfs; (void)ch; return 1; }
-s32 osMotorStart(void *pfs) { (void)pfs; return 0; }
-s32 osMotorStop(void *pfs) { (void)pfs; return 0; }
+s32 osMotorInit(OSMesgQueue *mq, void *pfs, s32 ch) { return pak_motor_init(mq, pfs, ch); }      /* rumble pak probe / motor commands: the real libultra sequences over the virtual PIF (port/pak_os.c) */
+s32 osMotorStart(void *pfs) { return pak_motor_start(pfs); }
+s32 osMotorStop(void *pfs) { return pak_motor_stop(pfs); }
 
 /* ---- audio interface ----
    The AI DMA FIFO is modelled on the clock: every osAiSetNextBuffer extends the time at which the queued buffers finish playing, and
@@ -540,8 +543,8 @@ void port_dump_threads(void) {
     LeaveCriticalSection(&g_lock); fflush(stderr);
 }
 
-/* ---- serial interface (PIF): no controller pak / EEPROM on the host; the transfer "completes" with the buffer untouched ---- */
-s32 __osSiRawStartDma(s32 dir, void *pif_ram) { (void)dir; (void)pif_ram; post_from_host(g_ev_mq[5], g_ev_msg[5]); return 0; }
+/* ---- serial interface (PIF): the 64-byte transfer runs through the virtual PIF / Controller Pak model (port/pak.c) and completes at once ---- */
+s32 __osSiRawStartDma(s32 dir, void *pif_ram) { pak_si_dma(dir, XL(pif_ram)); post_from_host(g_ev_mq[5], g_ev_msg[5]); return 0; }
 u32 __osGetFpcCsr(void) { return 0; }
 u32 __osSetFpcCsr(u32 v) { (void)v; return 0; }
 
