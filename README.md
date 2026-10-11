@@ -1,12 +1,143 @@
-# Turok: Rage Wars (N64, US v1.1) - decompilation
+<p align="center"><img src="icon.png" alt="Turok: Rage Wars decomp icon" width="160"></p>
 
-Goal: a matching decompilation (C that compiles to the original bytes), then a native PC port.
-Base ROM: `baserom.us.v11.z64`, SHA1 `037fb397cee2669048ed6b762a64698de4a4d88a` (not included; never commit it).
+# Turok: Rage Wars (N64) - decompilation of every release
+
+Goal: a matching decompilation (C that compiles to the original bytes) of all releases of the game - US v1.1, US v1.0, Europe and Germany
+(*Turok: Legenden des Verlorenen Landes*) - from one shared source tree, then a native PC port.
+Reference ROM: `baserom.us.v11.z64`, SHA1 `037fb397cee2669048ed6b762a64698de4a4d88a`; the other releases are listed in `docs/VERSIONS.md`
+(none are included; never commit them).
 
 ## Playing the PC port (Windows)
-The port (`port/`, see docs/PORT_STATUS.md) runs the game natively: Direct3D 11 renderer, keyboard / mouse / gamepad input (`turok_controls.exe` edits the mapping), virtual Controller Pak memory cards (Project64-compatible `.mpk` files in `saves\`).
-On the first start it asks for your own ROM of Turok: Rage Wars (USA, version 1.1; `.z64`, `.n64` or `.v64`), checks it and keeps a copy in `%LOCALAPPDATA%\TurokRageWars`; nothing of the original game is shipped.
-**Ctrl+Enter** (or Alt+Enter) switches between window and full screen; F1 captures / releases the mouse, F2 reloads `controls.ini`, Esc twice quits.  Build with `powershell -File port\linkgame.ps1`, start with `port\play.cmd`.
+
+The port (`port/`) runs Turok: Rage Wars natively on Windows: Direct3D 11 renderer, the game's own audio, keyboard / mouse / gamepad
+input with a mapping program, and virtual Controller Paks (memory cards) for your saves.  It runs all
+the menus through to 1-4 player matches (split screen, bots).
+
+**No game data is included.**  You need your own ROM of *Turok: Rage Wars* (USA, version 1.1, 8 MB; `.z64`, `.n64` or `.v64`
+all work).  The port checks the file and refuses other releases or a damaged dump.  The PC port runs USA v1.1 only; the other
+releases are covered by the decompilation, not by the port yet.
+
+### 1. Build it
+
+You need, once:
+- Windows 10 or 11.
+- **Visual Studio 2026 Build Tools** with the *Desktop development with C++* workload (the scripts look for
+  `C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools`).
+- **Python 3** with `pip install ziglang` (zig's clang compiles the game code), and the project's venv for splat:
+  `python -m venv .venv; .venv\Scripts\pip install splat64[mips]`.
+
+Then, in PowerShell from the project folder:
+```
+.venv\Scripts\python -m splat split turok_ragewars.yaml   # disassembly the port recompiles (only on a fresh checkout)
+.venv\Scripts\python tools\fix_asm.py
+python port\regen.py --asm                                # builds the whole game (the first build takes 20+ minutes; later: python port\regen.py)
+powershell -File port\build_config.ps1                    # builds the controls program turok_controls.exe
+```
+The game ends up in `port\build\` (the newest exe is named in `port\build\latest_exe.txt`).
+
+### 2. Start it
+
+Double-click **`port\play.cmd`** (or run it from a console; `port\play.cmd -fullscreen` / `-windowed` force a mode).
+
+On the first start the game asks for your ROM: pick the file in the dialog.  It is checked (SHA-1) and a copy is kept in
+`%LOCALAPPDATA%\TurokRageWars`, so you are asked only once.  A ROM named `baserom.us.v11.z64` in the project folder is
+found without asking.
+
+| Key | What it does |
+|---|---|
+| **Ctrl+Enter** or **Alt+Enter** | window / full screen (borderless; the choice is remembered) |
+| **F1** | capture / release the mouse |
+| **F2** | reload `controls.ini` (changes are also picked up automatically) |
+| **F3** | write a device report (which pads are seen, who plays with what) to the log |
+| **Esc** | releases the mouse; with the mouse free, press twice to quit |
+| **Ctrl+F5..F8** / **Ctrl+Shift+F5..F8** | pull out / push in the memory pak / rumble pak of controller 1..4 |
+
+**Tip:** for mouse look, turn **LOOK SPRING off** in the game's options.
+
+### 3. Controls
+
+Out of the box player 1 has keyboard + mouse + the first gamepad, and players 2-4 get the next gamepads that are plugged in.
+
+| Keyboard / mouse (`kbm_fps`) | N64 | | Xbox-style pad (`xbox`) | N64 |
+|---|---|---|---|---|
+| W A S D | move / strafe (C buttons) | | left stick | move / strafe (C buttons) |
+| mouse | look / aim (stick) | | right stick | look / aim (stick) |
+| left button | fire (Z) | | RT | fire (Z) |
+| right button | secondary fire (B) | | LT or B | secondary fire (B) |
+| E, C, middle button, wheel | weapon select (A) | | X or Y | weapon select (A) |
+| Space | jump (R) | | A or RB | jump (R) |
+| Q | L | | LB | L |
+| Enter | Start | | Start | Start |
+| arrow keys | stick | | D-pad | D-pad |
+
+In menus W A S D / the arrow keys / the wheel move the cursor and the left mouse button confirms.  Other built-in layouts:
+`xbox_n64` (the classic N64 mapping: left stick = stick, right stick = C buttons), `kb_left` + `kb_right` (two players on one
+keyboard) and `generic` (other DirectInput pads; PlayStation and Logitech pads are recognised by name).
+
+#### The controls program: `turok_controls.exe`
+
+`port\build\turok_controls.exe` edits the mapping with a picture of the N64 controller instead of a text file:
+
+- **One tab per player**: choose the devices (keyboard, mouse, a specific pad or "first free pad") and a starting layout.
+- **Rebind**: click (or double-click) a button on the controller picture, then press the key, mouse button, wheel, pad button,
+  stick or trigger you want; move the mouse to bind a stick direction.  Conflicts (the same input on two N64 buttons, the same
+  key for two players on a shared keyboard) are flagged.
+- **Tune**: mouse sensitivity / smoothing / invert, stick dead zone, response curve and sensitivity, trigger threshold.
+- **Test live**: the test area shows the N64 controller as the game would see it, including the stick circle.
+- **General tab**: mouse capture mode, Esc behaviour, rumble on / off and strength, input in the background, the list of connected devices.
+- Copy settings between players, import / export, reset to defaults, and **Launch game**.
+
+It saves `controls.ini` next to the game; a running game picks the change up at once.
+
+![Rebinding a button](docs/input_tool_capture.png)
+![Live test](docs/input_tool_live.png)
+
+#### Or edit `controls.ini` by hand
+
+`controls.ini` sits next to the exe (`port\build\`), or wherever `TUROK_CONTROLS=<file>` points.  The program writes its full
+documentation as the file header; a sample is in `port\config\controls.example.ini`.  Short version:
+```
+[general]
+mouse_capture = auto          ; auto (while a level runs) | click | off
+rumble = on
+rumble_strength = 0.8
+
+[player1]
+devices = keyboard, mouse, pad:auto
+profile = kbm_fps             ; start from a layout, then override single inputs:
+mouse_sens_x = 1.5            ; 1.0 = 0.05 degrees per mouse count
+Z = Mouse1, Pad.RT
+R += LCtrl                    ; "+=" adds to what the layout gave
+A = game:E, menu:Enter        ; game: / menu: limit a binding to play or to menus
+
+[player2]
+devices = pad:auto
+profile = xbox
+```
+Keys are named by their **physical position on a US keyboard** (so W A S D stay under the same fingers on AZERTY / QWERTZ).
+
+### 4. Saves: virtual Controller Paks
+
+The game saves player profiles on a Controller Pak, as on the console (1 PLAYER TRIALS -> CREATE PLAYER; the main menu's
+CONTROLLER PAK screen deletes them).  Each controller port has its own pak file in the `saves` folder next to the exe:
+`Turok; Rage Wars_Cont_1.mpk` ... `_Cont_4.mpk`.  They are ordinary 32 KB `.mpk` images, the same files **Project64**
+uses, so saves can be copied in both directions (mupen64plus 4-in-1 files and DexDrive `.n64` images work too).  Back up
+by copying the files, ideally with the game closed.
+
+Optional settings go in `turok_pak.ini` next to the exe (copy `saves\turok_pak.ini.sample`): another save folder, a
+Project64 save folder to use directly, a specific file per port, or a **rumble pak instead of a memory pak** (`port1 = rumble`;
+a port holds one accessory, as on the console; vibration needs an XInput pad).  `saves\README.txt` has the details.
+
+### Troubleshooting
+
+- **"No build yet"** from play.cmd: run `python port\regen.py` (step 1).
+- **The ROM is refused**: the message names what the file is; the port needs USA v1.1 (SHA-1 `037fb397...d88a`).
+- **A gamepad does nothing**: start `turok_controls.exe` and look at the General tab's device list, or run
+  `turok_controls.exe --devices --out devices.txt`; in the game F3 writes the same report to the log.  Gamepad support was
+  developed against virtual pads, so reports from real hardware are very welcome.
+- **The mouse turns too slowly**: mouse look drives the N64 stick, so its top speed is the game's own (raise the game's
+  CONTROL STICK sliders); faster movements are queued up to `mouse_backlog` degrees.
+- The full technical notes (renderer, audio, recompiler, input, pak emulation) are in `docs/PORT_STATUS.md`.
 
 ## Workflow
 Windows side (needs the venv: `python -m venv .venv; .venv\Scripts\pip install splat64[mips]`):
@@ -36,11 +167,13 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
 ## Status (2026-10-11)
-- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical.  The main image (`src/game/`) is complete: every function is matched C, except the original's
-  own hand-written assembly (boot code, exception handler, TLB / cache / status-register routines: 716 instructions, kept as readable `.s` sources `src/game/func_00200400.s` ... that reproduce the bytes) and
-  stray linker-padding words between objects (`pad_*.s` units).  Overlay A (`src/ovl_a/`) is complete except its last 56 functions (ROM 0x1B8100..0x1BCDA0, 4.9k instructions: 25 of them are being ported from the other
-  public decompilation, the rest are being matched).  By instructions that is 98.1% of all game code (`tools/progress_chart.py`).  libultra/libaudio live in `src/libultra/` (`-O3 -fforce-addr -fno-builtin`).
-- **Other releases**: US v1.0 builds byte-identical from the unchanged v1.1 C plus splat asm for the code that differs (`docs/VERSIONS.md`); Europe and Germany are next.
+- **US v1.1 (reference)**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical.  All game code (main image `src/game/` and overlay A `src/ovl_a/`)
+  is matched C, apart from the original's own hand-written assembly (boot code, exception handler, TLB / cache / status-register routines, kept as readable `.s`
+  sources listed in `docs/hand_asm.txt`) and stray linker-padding words between objects (`pad_*.s` units).  libultra / libaudio (`src/libultra/`) is matched
+  except five functions that still build from asm (`__osContAddressCrc`, `__osContDataCrc`, `__osContRamRead`, `__osDevMgrMain`, `sinf`; ~510 instructions).
+  `tools/progress_chart.py` draws the numbers.
+- **US v1.0, Europe, Germany**: each builds byte-identical from the unchanged v1.1 C (about 3,400-3,600 shared units) plus splat asm for the code that
+  differs; that release-specific code (200 functions for US v1.0, ~290 each for Europe and Germany) is being matched now (`docs/VERSIONS.md`).
 - **Toolchain** (the big finding): the other public decompilation of this game, [melalawi/ragewars-decomp](https://github.com/melalawi/ragewars-decomp)
   (CC0), builds everything with the pmret gcc 2.8.1 `cc1` (`-O2 -mgas -mcpu=VR4300 -mhard-float -mgp32 -mfp64 -mno-fix4300`), the SN64
   assembler normaliser `n64link asn64` and GNU as (gcc 2.7.2 for a few low-region units).  Our older decompals-gcc + `tools/gas_compat.py`
