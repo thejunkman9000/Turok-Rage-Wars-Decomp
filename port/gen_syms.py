@@ -64,7 +64,7 @@ def coff_defined(path):
         i += 1 + naux
     return out
 defined = set()
-for p in glob.glob('port/build/obj_c/*.obj') + [q for q in glob.glob('port/build/*.obj') if os.path.basename(q) not in ('syms.obj', 'stubs.obj', 'fnptrs.obj')]:
+for p in glob.glob('port/build/' + os.environ.get('PORT_OBJ', 'obj_c') + '/*.obj') + [q for q in glob.glob('port/build/*.obj') if os.path.basename(q) not in ('syms.obj', 'stubs.obj', 'fnptrs.obj')]:
     defined |= coff_defined(p)
 defined = {n[1:] if n.startswith('_') else n for n in defined}     # cdecl decoration
 defined |= {'sinf', 'cosf', 'sqrtf', 'tanf', 'atan2f', 'fabsf', 'floorf', 'ceilf', 'fmodf', 'powf', 'sqrt', 'sin', 'cos', 'floor', 'ceil', 'fabs',

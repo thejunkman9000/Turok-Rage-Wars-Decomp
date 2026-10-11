@@ -3100,3 +3100,6 @@ func_002A4DC4 0xA59C4 216 game mode=sn
 func_002A4708 0xA5308 431 game mode=sn
 func_002A2270 0xA2E70 77 game mode=sn
 func_0029AE80 0x9BA80 297 game mode=sn+nb ro=0xCB420:36
+func_0029864C 0x9924C 250 game mode=sn+nb ro=0xCB370:64
+func_0028795C 0x8855C 355 game mode=sn
+func_0028994C 0x8A54C 579 game mode=sn ro=0xCAF30:68

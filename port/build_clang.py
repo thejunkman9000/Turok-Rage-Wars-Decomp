@@ -16,7 +16,7 @@ if os.environ.get('PORT_OLD_BE'): import be_ir_old      # experiment switch: the
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
-OUT = 'port/build/obj_c'; LL = 'port/build/ll'
+OUT = 'port/build/' + os.environ.get('PORT_OBJ', 'obj_c'); LL = 'port/build/' + os.environ.get('PORT_LL', 'll')      # PORT_OBJ=obj_ssp PORT_LL=ll_ssp: a second object set (diagnostic builds) next to the normal one
 os.makedirs(OUT, exist_ok=True); os.makedirs(LL, exist_ok=True)
 COMMON = ['python', '-m', 'ziglang', 'cc', '-target', 'x86-windows-msvc', '-O1', '-g0', '-fno-vectorize', '-fno-slp-vectorize',
           '-fno-strict-aliasing', '-fno-jump-tables', '-fno-math-errno', '-finstrument-functions', '-std=gnu89', '-w', '-Wno-error=int-conversion', '-Wno-error=incompatible-pointer-types', '-Wno-error=incompatible-function-pointer-types', '-Wno-error=incompatible-pointer-types-discards-qualifiers', '-Wno-error=implicit-function-declaration', '-D_LANGUAGE_C'] + ([] if os.environ.get('PORT_NO_DEFS') else ['-DF3DEX_GBI_2', '-DVERSION_US_REV1']) + ['-DTARGET_PC', '-DM2CTX', '-include', 'port/compat_clang.h']
@@ -154,7 +154,7 @@ def patch_implicit_args(text):
         return f'{name}({argtxt.strip() + ", " if argtxt.strip() else ""}{", ".join(extra)})'
     return PARTIAL_CALL.sub(sub2, text)
 
-def stage1_flags(base, prefix=''):
+def stage1_flags_base(base, prefix=''):
     """clang flags of the first stage (C -> LLVM IR, before the big-endian rewrite).  Optimising here is unsafe for byte-order sensitive code: the passes fold
     memory accesses with the host's little-endian layout (a halfword of a union read becomes `lshr word, 16`, adjacent accesses merge into wider ones), and the
     rewrite of loads/stores to guest byte order then yields wrong values (func_0042A994: `D_800E4F64[i].a.h.h1` read 0 instead of 0x316 at -O1, the widget lookup
@@ -163,6 +163,11 @@ def stage1_flags(base, prefix=''):
     if base in os.environ.get('PORT_O0', '').split(',') or base in sn_stems(): return ['-O0' if a == '-O1' else a for a in COMMON]
     if prefix not in ('nt_', 'zd_') and not os.environ.get('PORT_O1_STAGE1') or base in os.environ.get('PORT_NOPASS', '').split(','): return COMMON + ['-Xclang', '-disable-llvm-passes']      # guest code: never fold memory accesses before the byte-order rewrite (native helpers such as the RNC decoder keep -O1; PORT_O1_STAGE1=1 restores -O1 for everything)
     return COMMON
+
+def stage1_flags(base, prefix=''):
+    f = stage1_flags_base(base, prefix)
+    return f
+
 
 
 def compile_one(p, force):
@@ -206,6 +211,8 @@ def compile_one(p, force):
             bm = be_ir_old if (os.environ.get('PORT_OLD_BE') and base not in os.environ.get('PORT_NEW_BE_ONLY', 'cseq,csplayer,seqplayer').split(',')) else be_ir
             bm.n_tmp[0] = 0; bm.ALIGN1_RAW = prefix in ('nt_', 'ar_', 'zd_')
             be_text = bm.rewrite(open(ll1, encoding='utf-8').read())
+            if os.environ.get('PORT_SSP') and prefix not in ('nt_', 'zd_', 'ar_'):      # diagnostic build: frame canaries (port/ssp_ir.py, port/ssp.c)
+                import ssp_ir; be_text = ssp_ir.instrument(be_text)
         open(ll2, 'w', encoding='utf-8', newline='\n').write(be_text)
     except Exception as e:
         return (p, False, f'rewrite: {e}')
