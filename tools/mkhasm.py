@@ -99,7 +99,9 @@ def build(name, start, end, primary, force_pad=0):
                 res.append(f'    /* {rom_s} {vram} {word} */  .word      0x{word} /* linker padding */')
                 continue
             if uses and any(u not in defined for u in uses):
-                res.append(f'    /* {rom_s} {vram} {word} */  .word      0x{word} /* was: {m.group(4).strip()} */')
+                txt = m.group(4)          # a line fix_asm already turned into a .word carries its original text after `was: ` (a comment inside the comment would end it early)
+                was = (txt.rsplit('was: ', 1)[-1].split('*/')[0] if 'was: ' in txt else txt.split('/*')[0]).strip()
+                res.append(f'    /* {rom_s} {vram} {word} */  .word      0x{word} /* was: {was} */')
                 fixed += 1
                 continue
         res.append(l)

@@ -366,7 +366,8 @@ if __name__ == '__main__':
         # neighbouring pool covered by chk's piece): fill the rest of the piece with the ROM's own bytes
         have = ro_real if ro_real else rodata_size(out)
         if have < ro_size:
-            off = (ro_va - 0x400000 + 0x16E000) if ro_va < 0x80000000 else (ro_va - 0x80000000 + 0xC00)
-            rom = open('baserom.us.v11.z64', 'rb').read()
+            off = (ro_va - 0x400000 + int(os.environ.get('OVL_START', '0x16E000'), 0)) if ro_va < 0x80000000 else (ro_va - 0x80000000 + 0xC00)
+            mk = re.search(r'BASEROM\s*:=\s*(\S+)', open('Makefile').read()) if os.path.exists('Makefile') else None      # a release workspace builds against its own ROM
+            rom = open(mk.group(1) if mk else 'baserom.us.v11.z64', 'rb').read()
             out += '\n\t.section\t.rodata\n' + '\n'.join(f'\t.byte\t{b}' for b in rom[off + have:off + ro_size]) + '\n\t.text\n'
     open(path, 'w', newline='\n').write(out)

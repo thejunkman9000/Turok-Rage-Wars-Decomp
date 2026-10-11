@@ -91,7 +91,11 @@ def main():
             rom = fmap[name][1]
             opts = [e for e in f[4:] if not e.startswith('ro=')]
             m = re.search(r'ro=(0x[0-9A-Fa-f]+):(\d+)', v)
-            if m: opts.append(f'ro={m.group(1)}:{m.group(2)}')
+            if any(e.startswith('ro=') for e in f[4:]) and not m:      # the 1.1 function has a literal pool of its own that the sweep did not find in this ROM: its object's .rodata would land at the wrong address
+                dropped[fn] += 1; continue
+            if m:
+                n_ro = int(m.group(2)); r_ro = (n_ro + 3) & ~3          # a piece is a whole number of words: the tail up to the word boundary comes from the ROM (ro=off:size:real)
+                opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{n_ro}' if r_ro != n_ro else ''))
             lines.append(f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts))
             kept[fn] += 1
         open(os.path.join(out, fn), 'w', newline='\n').write('\n'.join(lines) + '\n')
@@ -107,8 +111,29 @@ def main():
             if f.endswith(('.c', '.s')) and f.rsplit('.', 1)[0] not in names:
                 os.remove(os.path.join(root, f)); rm += 1
     print('removed', rm, 'source files of units that are not in the release manifests')
+    # linker padding: stray words (<= 3) between two consecutive C units are not code: keep them as .word units like the 1.1 pad_XXXX units (splat would disassemble them as instructions)
+    rom_bytes = open(ROMS[ver], 'rb').read()
+    npad = 0
+    for fn, sub in (('funcs.txt', None), ('funcs_a.txt', None)):
+        ents = []
+        for l in open(os.path.join(out, fn)):
+            f = l.split()
+            if len(f) >= 4 and not f[0].startswith('pad_'): ents.append((int(f[1], 16), int(f[2]), f[3], f[0]))
+        ents.sort()
+        extra = []
+        for (r1, n1, s1, nm1), (r2, n2, s2, nm2) in zip(ents, ents[1:]):
+            gap = r2 - (r1 + 4 * n1)
+            if 0 < gap <= 12 and gap % 4 == 0 and s1 == s2:
+                g = r1 + 4 * n1; words = [int.from_bytes(rom_bytes[g + 4 * i:g + 4 * i + 4], 'big') for i in range(gap // 4)]
+                pname = 'pad_%06X' % g
+                d = os.path.join(out, 'src', s1); os.makedirs(d, exist_ok=True)
+                body = ''.join(f'    /* {g + 4 * i:X} */  .word      0x{w:08X}\n' for i, w in enumerate(words))
+                open(os.path.join(d, pname + '.s'), 'w', newline='\n').write(f'.include "macro.inc"\n\n.set noat\n.set noreorder\n\n.section .text, "ax"\n\n/* linker padding: stray words between objects, ROM 0x{g:X} */\nglabel {pname}\n{body}endlabel {pname}\n')
+                extra.append(f'{pname} 0x{g:X} {gap // 4} {s1}'); npad += 1
+        if extra: open(os.path.join(out, fn), 'a', newline='\n').write('\n'.join(extra) + '\n')
+    print('generated', npad, 'padding units')
     # ---- layout + yaml skeleton
-    open(os.path.join(out, 'ver_layout.txt'), 'w').write(''.join(f'{k} = 0x{lay[k]:X}\n' for k in ('MAIN_CODE_END', 'DATA_END', 'OVL_START', 'OVL_END')))
+    open(os.path.join(out, 'ver_layout.txt'), 'w', newline='\n').write(''.join(f'{k} = 0x{lay[k]:X}\n' for k in ('MAIN_CODE_END', 'DATA_END', 'OVL_START', 'OVL_END')))
     y = open('turok_ragewars.yaml', newline='').read().replace('\r\n', '\n')
     y = y.replace('target_path: baserom.us.v11.z64', f'target_path: {ROMS[ver]}\n  symbol_name_format: auto_$VRAM\n  symbol_name_format_no_rom: auto_$VRAM')      # auto names must not collide with our identity names (func_XXXXXXXX = the 1.1 address)
     import hashlib
@@ -147,7 +172,11 @@ def main():
             if m: names[m.group(1)] = int(m.group(2), 16)
     cs = []; unm = []
     for n, a in sorted(names.items()):
-        b = amap.name(n)
+        b = None
+        mf = re.fullmatch(r'func_[0-9A-Fa-f]{8}', n)
+        if mf and n in fmap and fmap[n][0] != 'none':             # a game function: the function map is authoritative (the instruction-pair map has gaps)
+            rom = fmap[n][1]; b = rom + MAIN_VMA_OFF if rom < lay['OVL_START'] else rom - lay['OVL_START'] + 0x400000
+        if b is None: b = amap.name(n)
         if b is None: b = amap.addr(a)
         if b is None: unm.append(n); b = a
         cs.append(f'{n} = 0x{b:08X};')
@@ -161,12 +190,39 @@ def main():
             b = amap.name(m.group(1))
             if b is None: b = amap.addr(int(m.group(2), 16))
             if b is not None: al.append(f'PROVIDE({m.group(1)} = 0x{b:08X});')
-    open(os.path.join(out, 'their_alias.ld'), 'w', newline='\n').write('\n'.join(al) + '\n')
     src = f'{THEIRS}/{ver}/symbols.ld'
     t = open(src).read()
+    # the 1.1 sources also use names of melalawi's 1.1 table (their_syms.ld) that the release's own table does not have: same names at the release's addresses
+    rel = set(re.findall(r'(?m)^\s*(?:PROVIDE\()?\s*([.\w]+)\s*=', t)) | set(re.findall(r'PROVIDE\(([.\w]+) =', '\n'.join(al)))
+    nt = 0
+    for l in open('their_syms.ld'):
+        m = re.match(r'PROVIDE\((\w+) = (0x[0-9A-Fa-f]+)\);', l)
+        if not m or m.group(1) in rel: continue
+        b = amap.name(m.group(1))
+        if b is None: b = amap.addr(int(m.group(2), 16))
+        if b is not None: al.append(f'PROVIDE({m.group(1)} = 0x{b:08X});'); nt += 1
+    print('their_alias: %d names of the 1.1 table translated' % nt)
+    # splat names a call target that lies in a unit we compile from C (so it has no asm definition) with its auto name, func_auto_<address>: the C object defines it as func_<1.1 address>
+    na = 0
+    for l in sa:
+        m = re.match(r'(func_[0-9A-Fa-f]{8}) = (0x[0-9A-Fa-f]{8});', l)
+        if m: al.append(f'PROVIDE(func_auto_{int(m.group(2), 16):08X} = {m.group(2)});'); na += 1
+    print('their_alias: %d func_auto_ aliases of the C functions' % na)
+    open(os.path.join(out, 'their_alias.ld'), 'w', newline='\n').write('\n'.join(al) + '\n')
     open(os.path.join(out, 'their_syms.ld'), 'w', newline='\n').write(f'/* generated from melalawi/ragewars-decomp versions/{ver}/symbols.ld (CC0) */\n' + t)
     # extra_syms.ld defines function names at their 1.1 addresses (asm functions the C objects reference): in another release splat names those functions itself (symbol_addrs.txt above)
     ex = [l.rstrip('\n') for l in open('extra_syms.ld') if not re.match(r'\s*(?:func|D|jtbl)_[0-9A-Fa-f]{8}\s*=\s*0x[0-9A-Fa-f]{8};', l) or re.match(r'\s*D_A4', l)]
+    # the 1.1 sources also spell targets that have no symbol of ours the way splat names an undefined function/object in that release (func_402FB4, D_800CE040): translate those addresses too
+    nu = 0
+    for fn in ('undefined_funcs_auto.txt', 'undefined_syms_auto.txt'):
+        for l in open(fn):
+            m = re.match(r'\s*(\w+)\s*=\s*(0x[0-9A-Fa-f]+);', l)
+            if not m: continue
+            b = amap.name(m.group(1))
+            if b is None: b = amap.addr(int(m.group(2), 16))
+            if b is None: continue
+            ex.append(f'{m.group(1)} = 0x{b:08X};' if int(m.group(2), 16) >= 0x00800000 else f'{m.group(1)} = 0x{b:X};'); nu += 1
+    print('extra_syms: %d translated undefined symbols of the 1.1 sources' % nu)
     open(os.path.join(out, 'extra_syms.ld'), 'w', newline='\n').write('\n'.join(ex) + '\n')
     # ---- workspace cycle.ps1: layout env, no regeneration of the 1.1 symbol files
     cp = os.path.join(out, 'tools', 'cycle.ps1')

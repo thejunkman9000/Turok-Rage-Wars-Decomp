@@ -61,13 +61,36 @@ def matched_now(committed=False):
         return open(fn).read() if os.path.exists(fn) else ''
     return matched(manifests(read), universe())
 
+def hasm_names(committed=False):
+    """names of the universe functions that a hand-written asm source (a non-pad `.s` unit of the manifests: boot code, exception handler, cache / SR routines) covers:
+    they reproduce the bytes but are not C and never will be (the original authors wrote them in assembler)"""
+    if committed:
+        files = set(subprocess.run(['git', 'ls-tree', '-r', '--name-only', 'HEAD', 'src'], capture_output=True, text=True).stdout.split())
+        exists = lambda p: p in files
+        def read(fn):
+            r = subprocess.run(['git', 'show', f'HEAD:{fn}'], capture_output=True, text=True, errors='replace')
+            return r.stdout if r.returncode == 0 else ''
+    else:
+        exists = os.path.exists
+        read = lambda fn: open(fn).read() if os.path.exists(fn) else ''
+    cov = []
+    for fn in ('funcs.txt', 'funcs_a.txt'):
+        for l in read(fn).splitlines():
+            f = l.split('#')[0].split()
+            if len(f) >= 4 and f[3] in ('game', 'ovl_a', 'libultra') and not f[0].startswith('pad_') and exists(f'src/{f[3]}/{f[0]}.s'):
+                try: a = int(f[1], 16); cov.append((a, a + 4 * int(f[2])))
+                except ValueError: pass
+    return matched(sorted(cov), universe())
+
 def current(committed=False):
-    uni = universe(); done = matched_now(committed)
-    tot = {'main': [0, 0, 0, 0], 'ovl': [0, 0, 0, 0]}                      # matched functions, functions, matched insns, insns
+    uni = universe(); done = matched_now(committed); hasm = hasm_names(committed)
+    tot = {'main': [0, 0, 0, 0, 0], 'ovl': [0, 0, 0, 0, 0]}                # matched functions, functions, matched insns, insns, of the matched: hand-written asm insns
     for n, i, _ in uni:
         k = 'ovl' if 0x400000 <= int(n[5:], 16) < 0x500000 else 'main'
         t = tot[k]; t[1] += 1; t[3] += i
-        if n in done: t[0] += 1; t[2] += i
+        if n in done:
+            t[0] += 1; t[2] += i
+            if n in hasm: t[4] += i
     return tot
 
 def history():
@@ -113,12 +136,12 @@ def main():
     for nm, t in rows:
         pct = 100 * t[2] / t[3]
         d.text((M, y + 18), nm, fill=DIM, font=font(18), anchor='lm')
-        bar(d, M + 170, y, W - 2 * M - 170 - 120, 36, t[2] / t[3], GREEN, f'{t[2]:,} of {t[3]:,} instructions   -   {t[0]:,} of {t[1]:,} functions', f'{pct:.1f}%', font(16), font(26, True))
+        bar(d, M + 170, y, W - 2 * M - 170 - 120, 36, t[2] / t[3], GREEN, f'{t[2]:,} of {t[3]:,} instructions   -   {t[0]:,} of {t[1]:,} functions' + (f'   ({t[4]:,} insns hand-written asm)' if t[4] else ''), f'{pct:.1f}%', font(16), font(26, True))
         y += 54
     y += 22
     if hist:
         pts, total = hist
-        d.text((M, y), 'Progress over time (share of all game code that is matched C)', fill=TXT, font=font(21, True)); y += 38
+        d.text((M, y), 'Progress over time (share of all game code that is matched: C, plus the original hand-written asm once its units exist)', fill=TXT, font=font(21, True)); y += 38
         x0, x1, y0, y1 = M + 56, W - M - 90, y, y + 210
         d.rounded_rectangle((M, y0 - 8, W - M, y1 + 44), 8, fill=PANEL)
         for p in (0, 25, 50, 75, 100):
