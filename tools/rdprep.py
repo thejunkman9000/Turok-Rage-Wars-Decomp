@@ -12,6 +12,24 @@ os.chdir(ROOT)
 os.makedirs('wip/rd', exist_ok=True)
 names = sys.argv[1:]
 if names == ['--blocked']: names = open('wip/blocked_exact.txt').read().split()
+if names[:1] == ['--new']:            # every EXACT result of the workspaces matching the glob (default s9*) whose ROM address no manifest entry covers yet
+    pat = names[1] if len(names) > 1 else 's9*'
+    cov = []
+    for mf in ('funcs.txt', 'funcs_a.txt'):
+        for l in open(mf):
+            f = l.split('#')[0].split()
+            if len(f) >= 4:
+                try: cov.append((int(f[1], 16), int(f[1], 16) + 4 * int(f[2])))
+                except ValueError: pass
+    names = []
+    for p_ in sorted(glob.glob(f'D:/Projects/ws/{pat}/wip/out/results.txt')):
+        for l in open(p_, errors='replace'):
+            f = l.split('#')[0].split()
+            if len(f) >= 4 and f[0].startswith('func_') and f[3] == 'EXACT':
+                try: a = int(f[1], 16)
+                except ValueError: continue
+                if not any(s <= a < e for s, e in cov) and f[0] not in names: names.append(f[0])
+    print('new EXACT results:', ' '.join(names))
 
 def newest(fn):
     best = None
