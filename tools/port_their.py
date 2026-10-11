@@ -63,21 +63,20 @@ for name, (n, ro) in sorted(ex.items(), key=lambda kv: byname.get(kv[0], 0)):
     if not dry:
         if '--their2' in sys.argv and os.path.exists(f'wip/their_new/{name}.c'): shutil.copy(f'wip/their_new/{name}.c', f'src/{sub}/{ours}.c')      # the prepared copy with the `their2` marker (tools/upstream_port.py): compiled against include/their2
         else: shutil.copy(f'D:/Projects/ext/ragewars-decomp/src/{name}.c' if os.path.exists(f'D:/Projects/ext/ragewars-decomp/src/{name}.c') else f'D:/Projects/ext/ragewars-decomp/src/fuzzy/{name}.c', f'src/{sub}/{ours}.c')
-for fn, lines in add.items():
-    if lines and not dry:
-        t = open(fn).read()
-        open(fn, 'w', newline='\n').write(t.rstrip('\n') + '\n' + '\n'.join(lines) + '\n')
+newnames = {l.split()[0] for v in add.values() for l in v}          # a new entry usually takes the name of the first entry it subsumes: that one is replaced, not removed
 for fn in ('funcs.txt', 'funcs_a.txt'):
-    if subsumed and not dry:
-        L = open(fn).read().split(chr(10))
-        L = [l for l in L if not (l.split('#')[0].split() and l.split('#')[0].split()[0] in subsumed)]
-        open(fn, 'w', newline=chr(10)).write(chr(10).join(L))
+    if dry or not (subsumed or add[fn]): continue
+    L = open(fn).read().split(chr(10))
+    L = [l for l in L if not (l.split('#')[0].split() and l.split('#')[0].split()[0] in subsumed)]       # old entries first, then the new ones
+    open(fn, 'w', newline=chr(10)).write(chr(10).join(L).rstrip(chr(10)) + chr(10) + (chr(10).join(add[fn]) + chr(10) if add[fn] else ''))
 for c in subsumed:
+    if c in newnames: continue                                                                         # its source was just replaced by the new copy
     for sub in ('game', 'ovl_a'):
         f = f'src/{sub}/{c}.c'
         if os.path.exists(f) and not dry: os.remove(f)
-if subsumed and not dry:
-    open('wip/subsumed.txt', 'a').write(chr(10).join(subsumed) + chr(10))      # tools/gen_alias.py keeps these names as linker symbols
+alias = [c for c in subsumed if c not in newnames]
+if alias and not dry:
+    open('wip/subsumed.txt', 'a').write(chr(10).join(alias) + chr(10))      # tools/gen_alias.py keeps these names as linker symbols
 print('subsumed', len(subsumed))
 print('added', sum(len(v) for v in add.values()), 'skipped', len(skipped))
 for s in skipped[:30]: print('  skip', *s)

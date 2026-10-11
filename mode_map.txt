@@ -80,7 +80,6 @@ func_0029F52C lu3+nb
 func_0029F77C lu3+nb
 func_0029F810 lu3+nb
 func_002A6010 lu3+nb
-func_00283BA0 lu3+nf
 func_00285150 lu3+nb
 func_0023C8C4 lu3+luret
 func_0023E8A4 lu3+luret
@@ -316,6 +315,11 @@ func_00233DEC sn
 func_0022804C sn
 func_00277620 sn
 func_00238660 sn
+func_00274090 sn
+func_00274214 sn
+func_0028308C sn
+func_002839F0 sn
+func_002A7F58 sn
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
@@ -425,3 +429,5 @@ __osGetId lu
 osPfsFindFile lu
 func_0044984C sn
 __osPfsSelectBank lu
+func_0041BEA8 sn
+func_0041CE20 sn
