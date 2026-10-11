@@ -492,3 +492,4 @@ func_0043C730 sn
 func_00403658 sn
 func_0040BE38 sn+nb
 func_00414480 sn
+func_00418224 sn

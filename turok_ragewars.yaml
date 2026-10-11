@@ -4192,7 +4192,7 @@ segments:
       - [0x1853FC, c, ovl_a/func_004173FC]
       - [0x185574, c, ovl_a/func_00417574]
       - [0x185BA0, c, ovl_a/func_00417BA0]
-      - [0x186224, asm]
+      - [0x186224, c, ovl_a/func_00418224]
       - [0x186E20, c, ovl_a/func_00418E20]
       - [0x186E60, c, ovl_a/func_00418E60]
       - [0x18700C, c, ovl_a/func_0041900C]
