@@ -3188,3 +3188,744 @@ float/double VALUES, pool ORDER, the alignment pad before a double and extra out
    first function's jump table and the second one's).  Split the span at such gaps: object 1 = func_0043C500 (ro 0xE2C80:132), object 2 = func_0043C730..0043D4E0 (903 insns, ro 0xE2DB8:348).
 8. Upstream (melalawi) does not derive rodata from code at all: constants and strings are separate C data objects (rw_constants_*, rw_pool_*, ragewars_resident_strings_*) placed at
    fixed ROM addresses, with packed structs.  That avoids every layout problem above but needs one data file per piece; we keep compiler-generated pools where they reproduce.
+
+=== ROUND 9b FINDINGS (s901 s903 s904 s905 s906: allocator rules, sched1, preferences, pins) (workspace s901) ===
+ROUND 9 / s901 - lessons from func_00269A80 (1134 insns, switch + F3DEX display-list pushes; PARTIAL, 5 words off) and func_00200610 (handed to the lead)
+(only lessons that are NOT already in FINDINGS_all.txt; all verified with the real @SN toolchain)
+
+LAYOUT / SCHEDULING
+1. Operand load drifting behind a div (sched1 gap fill).  Block = `call rand ; lw n0 ; lw n1 ; div(v0,n0) ; beqz n1`.  Writing the copy BEFORE the condition
+   (`v = u; if (n1 == 0 || v >= n1)`) puts `v = u` (a single-set-less pseudo, priority 38 = 35-cycle div latency + 3) at the end of the call block; sched1 (backward)
+   launches that copy first, the div then cannot issue for 35 cycles and the ready `lw n1` fills the gap, i.e. ends up BEHIND the div.  Writing the copy inside the
+   second operand (`if (n1 == 0 || (v = u) >= n1)`) moves it into the fall-through block, the call block then is lw n0 / lw n1 / div / beqz exactly like the ROM
+   (rand arm of func_00269A80, 2 structural words -> 0).  Read the log with tools/schedlog.sh <dump.sched> <uid> (ready lists per block).
+2. A `div`/`mod` PARALLEL whose quotient is unused is single_set() = the mod set: the dying divisor shares the quotient's register (`div zero,s0,v0` with n0 in v0),
+   and expand_preferences() merges the preferences of a pseudo dying in that insn with the destination of the mod: a short-lived temp that dies in `v = idx % t`
+   inherits the preferred register of v (here a3 = 4th call argument).  So `t = info.n1; v = idx % t` lands in a3 in every arm and the identical arm tails are
+   cross-jumped.  A holder variable that lives on (c1, t2) gets a different register and keeps the tails apart (the ROM has the tails split: n1 in a0/a3/a1).
+3. `x = 0; if (c) x = 2;` becomes srl/andi (jump.c store-flag) unless the 0 is not a constant: `c0 = zero;` with a function-scope `s32 zero = 0;` keeps the
+   ROM's `beqz ; addu t0,zero,zero (slot) ; addiu t0,zero,2`.  A 2-insn arm or a label between also blocks it.
+4. Copy + two ORs (`c1 = c0; if (f) { c0 |= 1; c1 |= 1; }`): with the ROM's order (base first) cse merges the second OR into a copy (`ori v1,v1,1 ; addu t0,v1,zero`)
+   because the copy c1 becomes the canonical register of the quantity (its last use, the 8th stack arg, is after c0's and beyond the cse block).  A dead
+   `c0 = zero;` as the very last statement of the function raises last_uid(c0) and the ROM's `ori t0 ; ori v1` comes out (known trick, q03 - here it also flips the
+   ORDER of the two ORs).  The dead statement is deleted before flow, nothing else changes.
+5. Display-list pushes (F3DEX): `P4Gfx *gN = D_80110634++; gN->words.w0 = ..; gN->words.w1 = ..;` with a DISTINCT pointer variable per push, grey/3 value computed
+   BEFORE the push, float globals read through one aggregate (struct of f32 c0..c4) so that the loads keep their order behind the stores (MEM_IN_STRUCT rule).
+
+TOOLS (new, in tools/)
+- wvb.py / wip/exp.py: spec file (BASE, VARS = {name: [(old, new), ...]}) -> variants -> aligned-diff metric (structural / operand / first divergence / window).
+  This turned out far better than the permuter for 5-30 word problems: 40 variants in ~1 minute.
+- schedlog.sh (sched1 ready-list log of the block containing uid N), rtlregion.sh / rtlgrep.sh (condensed RTL around a regex for any dump letter), dual.py + cols.py
+  (side by side ours/ROM with branch targets as insn numbers), fsweep_sn.sh (single extra cc1 flags under @SN), killperm.sh (stop my permuter without matching itself).
+
+NEGATIVE RESULTS (do not repeat)
+- Remaining diff of func_00269A80: ROM keeps the default arm's n1 in a1, ours (any holder tried) in v1/a3/t1.  Not fixed by: ~60 holder variables (every existing
+  local, s32 and u32; u32 turns `idx % n1` into divu), fresh locals at 18 declaration positions, `v = 0` first (sched1 hoists it to the arm start, reorg then moves it
+  into the dispatch jump's delay slot), sharing a1v/a3v (the tail masks, which live in a1/a3 in the ROM) with the arms' n1 temps (they swap), register pins
+  (`register s32 n1 asm("$5")` makes every arm choose a1 and breaks the rand arm: the explicit hard reg adds a1 to the preferences of the other arms' temps),
+  declaration order of all locals (no effect), the 24 single cc1 flags of fsweep_sn.sh, 17000 permuter iterations with the default arm randomized.
+- Empty `__asm__("" : : "r"(n1h))` after the switch (to make the default arm's n1 live through the w/h code so that v1/a0 are excluded and a1 is the first fit):
+  the holder is then undefined on the other arms, i.e. live-in at function entry and across both calls -> it takes a callee-saved register (s3) and shifts the
+  prologue.  Needs a def on every path without emitting an insn - not found.
+  Analysis: with standard global-alloc rules n1 should be v1 (v0 = n0) or a3 (merge with v); a1 needs either hard-reg conflicts with v1 and a0 or an a1 copy
+  preference that I could not find in the ROM code of insns 149-178.
+
+ROUND 9 / s901 - lessons from func_00269A80 (1134 insns, switch + F3DEX display-list pushes; PARTIAL, 5 words off) and func_00200610 (handed to the lead)
+(only lessons that are NOT already in FINDINGS_all.txt; all verified with the real @SN toolchain)
+
+LAYOUT / SCHEDULING
+1. Operand load drifting behind a div (sched1 gap fill).  Block = `call rand ; lw n0 ; lw n1 ; div(v0,n0) ; beqz n1`.  Writing the copy BEFORE the condition
+   (`v = u; if (n1 == 0 || v >= n1)`) puts `v = u` (a single-set-less pseudo, priority 38 = 35-cycle div latency + 3) at the end of the call block; sched1 (backward)
+   launches that copy first, the div then cannot issue for 35 cycles and the ready `lw n1` fills the gap, i.e. ends up BEHIND the div.  Writing the copy inside the
+   second operand (`if (n1 == 0 || (v = u) >= n1)`) moves it into the fall-through block, the call block then is lw n0 / lw n1 / div / beqz exactly like the ROM
+   (rand arm of func_00269A80, 2 structural words -> 0).  Read the log with tools/schedlog.sh <dump.sched> <uid> (ready lists per block).
+2. A `div`/`mod` PARALLEL whose quotient is unused is single_set() = the mod set: the dying divisor shares the quotient's register (`div zero,s0,v0` with n0 in v0),
+   and expand_preferences() merges the preferences of a pseudo dying in that insn with the destination of the mod: a short-lived temp that dies in `v = idx % t`
+   inherits the preferred register of v (here a3 = 4th call argument).  So `t = info.n1; v = idx % t` lands in a3 in every arm and the identical arm tails are
+   cross-jumped.  A holder variable that lives on (c1, t2) gets a different register and keeps the tails apart (the ROM has the tails split: n1 in a0/a3/a1).
+3. `x = 0; if (c) x = 2;` becomes srl/andi (jump.c store-flag) unless the 0 is not a constant: `c0 = zero;` with a function-scope `s32 zero = 0;` keeps the
+   ROM's `beqz ; addu t0,zero,zero (slot) ; addiu t0,zero,2`.  A 2-insn arm or a label between also blocks it.
+4. Copy + two ORs (`c1 = c0; if (f) { c0 |= 1; c1 |= 1; }`): with the ROM's order (base first) cse merges the second OR into a copy (`ori v1,v1,1 ; addu t0,v1,zero`)
+   because the copy c1 becomes the canonical register of the quantity (its last use, the 8th stack arg, is after c0's and beyond the cse block).  A dead
+   `c0 = zero;` as the very last statement of the function raises last_uid(c0) and the ROM's `ori t0 ; ori v1` comes out (known trick, q03 - here it also flips the
+   ORDER of the two ORs).  The dead statement is deleted before flow, nothing else changes.
+5. Display-list pushes (F3DEX): `P4Gfx *gN = D_80110634++; gN->words.w0 = ..; gN->words.w1 = ..;` with a DISTINCT pointer variable per push, grey/3 value computed
+   BEFORE the push, float globals read through one aggregate (struct of f32 c0..c4) so that the loads keep their order behind the stores (MEM_IN_STRUCT rule).
+
+TOOLS (new, in tools/)
+- wvb.py / wip/exp.py: spec file (BASE, VARS = {name: [(old, new), ...]}) -> variants -> aligned-diff metric (structural / operand / first divergence / window).
+  This turned out far better than the permuter for 5-30 word problems: 40 variants in ~1 minute.
+- schedlog.sh (sched1 ready-list log of the block containing uid N), rtlregion.sh / rtlgrep.sh (condensed RTL around a regex for any dump letter), dual.py + cols.py
+  (side by side ours/ROM with branch targets as insn numbers), fsweep_sn.sh (single extra cc1 flags under @SN), killperm.sh (stop my permuter without matching itself).
+
+NEGATIVE RESULTS (do not repeat)
+- Remaining diff of func_00269A80: ROM keeps the default arm's n1 in a1, ours (any holder tried) in v1/a3/t1.  Not fixed by: ~60 holder variables (every existing
+  local, s32 and u32; u32 turns `idx % n1` into divu), fresh locals at 18 declaration positions, `v = 0` first (sched1 hoists it to the arm start, reorg then moves it
+  into the dispatch jump's delay slot), sharing a1v/a3v (the tail masks, which live in a1/a3 in the ROM) with the arms' n1 temps (they swap), register pins
+  (`register s32 n1 asm("$5")` makes every arm choose a1 and breaks the rand arm: the explicit hard reg adds a1 to the preferences of the other arms' temps),
+  declaration order of all locals (no effect), the 24 single cc1 flags of fsweep_sn.sh, 17000 permuter iterations with the default arm randomized.
+- Empty `__asm__("" : : "r"(n1h))` after the switch (to make the default arm's n1 live through the w/h code so that v1/a0 are excluded and a1 is the first fit):
+  the holder is then undefined on the other arms, i.e. live-in at function entry and across both calls -> it takes a callee-saved register (s3) and shifts the
+  prologue.  Needs a def on every path without emitting an insn - not found.
+  Analysis: with standard global-alloc rules n1 should be v1 (v0 = n0) or a3 (merge with v); a1 needs either hard-reg conflicts with v1 and a0 or an a1 copy
+  preference that I could not find in the ROM code of insns 149-178.
+
+=== ROUND 9b FINDINGS (s901 s903 s904 s905 s906: allocator rules, sched1, preferences, pins) (workspace s903) ===
+FINDINGS s903 (round 9, @SN toolchain; targets func_0023A4D0 [708 insns] and func_0040BE38 [185 insns]) -- new lessons only
+RESULT: both EXACT under @SN (func_0040BE38 needs -fno-builtin and three register pins, see 7).
+
+0. WORKFLOW THAT WORKED (both drafts were old-flag near-misses of earlier workers; re-run them under @SN FIRST: func_0040BE38_sa6 went from "198 insns, 198 words
+   off" to 2 words off just by adding `@SN -fno-builtin`; the ROM calls memcpy, @SN without -fno-builtin inlines the 0x50 byte copy).
+   Use the ALIGNED metric (structural / operand diff counts) for every step; the positional "N words differ" of chk is meaningless once an insn is shifted.
+   func_0023A4D0: n16 draft (16 structural, 7 operand) -> EXACT in ~12 steps, each step below was a 1-line source change.
+
+1. FLOAT POOL = LITERALS.  func_0023A4D0 references each of its 9 pool constants exactly once (768.0 5120.0 10240.0 0.25 0.75 1.0 0.5 16384.0 and the implicit 2^31 of the
+   (u32) casts); ROM shows `lui at,%hi(D_800C86A0+4)` style addressing = entries of the function's OWN pool.  Writing them as plain float literals (not `extern f32 D_800C86xx`)
+   gives the same code AND chk reports `ro=0xC92A0:36` (whole pool, order and values verified by the new checker + rocheck.py).  The extern version was also code-EXACT but
+   its ro= piece was only the 4-byte 2^31 entry.  The pool order is the order of first use in the SOURCE (A0,A4,A8,AC,B0,B4,B8,BC,C0), so keep the expression order.
+   A repeated 0.25f (two source uses) is CSE'd into one load/one pool entry, as in the ROM.
+
+2. `asm("" : : "r"(x))` (no output operand) is implicitly VOLATILE: a full scheduling barrier.  The earlier draft used two of them to "fix" the s0/s2/s3 assignment of the three
+   switch indices a0/a1/a2, which cost 16 structural diffs elsewhere (hoisted constants and `i = 0` could no longer float to the block top).  What the asm really did was add
+   references to a0: global-alloc priority is floor_log2(weighted refs)*refs/live_length, REG_N_REFS is weighted by loop depth (x2 inside the q4 do-while) and a0 had 7 refs vs
+   9 for a1/a2 (14 vs 18 weighted: floor_log2 = 3 vs 4).  ONE `__asm__("" : "+r"(a0));` after the switch (non-volatile, an output operand, 2 refs, not a barrier) lifts a0 to 9 refs
+   (tie with a1, lower pseudo number wins) and gives the ROM's s0/s2/s3 = a0/a1/a2 with the schedule untouched (30 operand diffs -> 0).  Generic recipe for a pure
+   callee-saved permutation: count the refs per pseudo (tools/pr903.py), find the pseudo whose floor_log2 bucket is one too low, add refs with an empty asm("+r").
+
+3. `x = cond ? a : b;` stored to MEMORY (`alp[i] = (i == 0) ? al : 0.0f;`) expands the target address BEFORE the compare and stores each arm directly into it, so cse1 does not
+   apply the path knowledge `i == 0` to the address: ROM `swc1 f4,0(t0)` (strength-reduced pointer).  The if/else with two statements `alp[i] = a; ` / `alp[i] = 0.0f;` folds the
+   then-arm address to `192(sp)` (constant index).  Use the ternary when the ROM stores through the walking pointer in both arms.
+   Also reuse the variable (`al *= unk208 * unk220;` instead of a new a0v) -> `mul.s f4,f4,f0` in place, store from the same FP register.
+
+4. Natural statement order wins over "scheduled" order: write the vector copy as x, y, z (`pts[i].x = v->pos[i].x; pts[i].y = ey; pts[i].z = ...`): the ROM's load of x before the
+   store of y comes from the independent store filling the load delay slot; writing y first keeps the load behind the (may-alias) store.
+
+5. LOOP PREHEADER ORDER (unboosted initial-ready insns are emitted in luid order, higher-latency FP loads last): `i = 1;` BEFORE `p0 = &pts[0];` and an explicit FP variable
+   `zero = 0.0f;` BEFORE `lim = 1.0f;` (both plain statements before the loop, loop uses `for (; i < 5; i++)` and compares `dd >= zero`) gives the ROM order
+   [li i][p0][giv init][mtc1 zero][lwc1 lim]; the implicit hoisted 0.0 constant of loop.c is emitted after the explicit loads.
+
+6. Two loads whose order is wrong although registers are right (lwc1 536(s7) vs 524(s7)): move BOTH loads textually to just after `cls = e->cls;` (tt0 then tt1) and drop them
+   from their old places; moving one of them only changes the FP register numbers.  (luid order of boosted loads at the block top = order of the assignments.)
+
+7. func_0040BE38 (os.vi mode editor).  The last 2 words are local-alloc, not scheduling: `lh a1,16(sp)` (ROM) vs `lh v1,16(sp)` (every natural source).  local-alloc facts
+   (modelled in tools/lamodel.py, which reproduces the real choices of this block): output ties to the FIRST dying input (a - b ties sub to a, so the three-insn
+   expression a/sub/sra chain is ONE quantity in v0); quantities are allocated by floor_log2(refs)*refs*size/(death-birth), ties by birth order, first-fit over regs 2..;
+   b gets v1 unless v1 is busy over [lh b, subu].  The ROM has `subu v1,a0,a3` / `addu v1,v1,v0` (hm - hw + xb/2) live across that point, i.e. in the ROM's sched1 output the
+   c0 add and the `hs = c0 << 16` shift sit AFTER the halfword loads (sched2 later hoists them to the top; the model confirms b -> a1 when insn 156 is moved after the lh).
+   No natural source variant (1600 single statement moves, 96 empty-asm insertions, 56K permuter iterations, many expression forms) reproduces that sched1 order, because the
+   shift's pseudo (`hs`, multi-set) is unboosted and floats to the block top.  EXACT form:  three register pins on the temporaries of the first block only
+        register s32 bb __asm__("$5"); register s32 aa __asm__("$2"); register u32 cc __asm__("$8");
+        aa = L.v0.r.e; bb = L.v0.r.s; cc = (u16)L.v0.r.s; m0 = cc + (aa - bb) / 2;
+   (fewer pins are not enough: aa alone fixes the load order, bb the register, cc keeps c1's addu in place).  Flagged HACK.
+   Untested idea for a natural form: make the c0/shift chain late in sched1 by feeding `hs` into something with a longer dependence path.
+
+8. Tools added (tools/, WSL python3, all parallel with --jobs 3):  vp.py (variants as (old,new) replacement lists, ranked by the aligned metric of vb.py),
+   mvs.py (move/swap statement i to every position of a line range; 1600 variants in 70 s for a 185-insn function), asmins.py (insert empty asm("+r")/asm("r")/asm volatile or
+   do{}while(0) after each assignment), lamodel.py (model of gcc 2.8.1 local-alloc for one basic block from the sched1 dump: `tools/sv.sh`/dump.sh -> rtlc.py (RTLC_W=5000
+   keeps the REG_DEAD notes, the default cuts lines at 230 chars) -> lamodel.py <dir> [--move UID:AFTER_UID]), pr903.py (global-alloc order table), regstat.sh, sv.sh.
+   cc1_281 does NOT accept -fsched-verbose (the pmret build has no verbose scheduler log); sched.c/local-alloc.c of the exact compiler are in wip/w/ (fetched from
+   gcc-papermario, identical to stock 2.8.1).
+9. Shell traps: `$var` inside `wsl -- bash -c '...'` is expanded by the Windows side (empty): put loops into a script file; python3 exists only inside WSL, `python` only on Windows.
+
+==================================================================================================================
+ROUND 9 ADDENDUM (s903, second pair of targets: func_0027CCD0 [EXACT], func_002A78F0)
+==================================================================================================================
+10. func_0027CCD0 (491 insns, EXACT with plain @SN):
+   - A `static inline` helper that has its OWN locals (u8 spB8[0x40]; Vec3f spF8;) is what the ROM looks like: every call site re-materialises `addiu aN,sp,off`
+     for the locals, whereas the same code written as a macro / inside the one function CSEs the addresses into a saved register.  Use the helper when the ROM
+     recomputes `addiu a0,sp,0xB8` before each jal.
+   - Copy a vector table entry with a properly TYPED element (`sp28 = cfg->tab->vec[st];` with CcPr vec[14]) - a u8-array/memcpy style copy gives the wrong load/store shape.
+   - Two variables with the same type but different life (R / R2) must stay two source variables; merging them changes the register split.
+   - A byte field written once (`ob->unk1D1 = D_801041F0.idx;`) must be typed u8 in the struct, otherwise sb becomes sh/sw.
+   - y0 (and every temp shared between two sequential code regions) must be declared at FUNCTION scope: it then becomes one multi-set pseudo (not boosted by sched1).
+
+11. func_002A78F0 (410 insns): EXACT with plain @SN, ro=0xCBC60:64 (rodata identical), but it needs 3 HACKs (j, k, g below).  The draft started at 33/102.  Lessons, all verified
+    with the compiler (each one moved the aligned metric):
+   a) USER VARIABLE SCOPE decides sched1/global-alloc behaviour.  A variable that is assigned in BOTH of two sequential loops (acc, sx, sy, x0, y0, fs0) must be one
+      function-level variable: it becomes ONE multi-set pseudo.  Multi-set pseudos are never "birthing" boosted by sched1 (adjust_priority needs REG_N_SETS==1), so
+      their final add sinks/floats like the ROM's; and a function-level fs0 lives across the call of loop 1, so global-alloc gives it the callee-saved $f20 in BOTH loops
+      (loop-local fs0 = a temp in $f0 -> every other FP register shifts by one).  x0 and y0 behave the same (x0 loop-local made the x0 add the LAST insn before the branch).
+   b) The same effect for the colour word: r,g,b are function-level ints set BEFORE the loop (`r = g = b = 0xFF; i = 0; n = i;` then `for (; i < 4; i++)`): that puts
+      `li s5,255` first in the preheader (lowest luid) exactly as the ROM, instead of after `i = 0`.
+   c) `rgba` partial: `rgba = (r<<24)|(g<<16)|(b<<8); g1->w1 = rgba | ((u32)(fs0*kf) & 0xFF);` (single-set USER variable used in another basic block) reproduces the ROM
+      (r<<24|g<<16 hoisted as `lui fp,0xFFFF`, `sll b,8` + `or` at the very end of the block, `or` in the delay slot).  A compiler-temp single expression is a loop movable
+      and force_movables chains it into one hoisted constant (0xFFFFFF00) - wrong; a multi-set `rgba |= ...` is never boosted and floats to the block top - wrong.
+      Mechanism: loop.c cannot move a SET of a user variable that is used outside its basic block (REG_USERVAR_P) unless the loop is entered unconditionally.
+   d) bubble sort compare: `t0 = sl[i]; t1 = sl[i+1]; if ((u32)t0->unk1C > (u32)t1->unk1C)` (NOT `t1 < t0`) gives ROM's lw order and a2/a0 assignment (operand order of the
+      compare changes the pseudo creation order and so the global-alloc tie-break).
+   e) `n++` placed AFTER the trailing `if (a != s->unk18 && fs0 < k) {..}` statement (end of the body) is what the ROM has: it ends up in the delay slot of the first beq; placed
+      right after the call it floats above the call.
+   f) Loop-2 preheader `i = 0; n = i;` + `for (; i < 4; i++)` (not `n = 0; for (i = 0; ...)`) gives `addu s1,zero,zero; addu s3,s1,zero` in the ROM order.
+   g) HOISTING THE MAGIC CONSTANT of `x / 5` (0x66666667) out of a big loop (ROM: `lui/ori s6` in the preheader).  loop.c move_movables hoists a movable only if
+      threshold*savings*lifetime >= insn_count, threshold = (loop has call ? 1 : 2) * (1 + n_non_fixed_regs) = 69 here, minus 3 for every movable already hoisted in that loop;
+      savings = number of SETS of the pseudo (not uses), lifetime = luid(REGNO_LAST_UID) - luid(REGNO_FIRST_UID).  A 134-insn loop never hoists a life-1 constant (a tiny
+      loop of <= 69 insns does, e.g. a 6-line test).  cse1 DOES extend REGNO_LAST_UID: if a second `/5` with a DIFFERENT dividend sits in the same extended basic block, cse1 replaces
+      its K load by the first K register and the first K's life becomes the distance to the second mult (life 9..13) -> hoisted into a callee-saved register.  If the second
+      division's result is overwritten before use (`r = (a*0xC1+3)/5; r = 0xFF;`) flow deletes it after the loop pass, so the final code has ONE mult and K lives in
+      s6 - exactly the ROM.  Does NOT work: same dividend (fully CSE'd), result never used (jump_optimize deletes it before cse), second division in another EBB (then K
+      matches via combine_movables only if both loads survive cse1, savings=2).  So the original source evidently computed a second (dead) /5 value in that arm.
+   h) `do { stmt; } while (0);` is NOT a no-op: the NOTE_INSN_LOOP_BEG/END pair is a scheduling barrier and raises the loop-depth weight of the pseudos inside (global-alloc
+      priority) - wrapping the dead-quotient/r,g,b/fs0 group of loop 2's then-arm moved c / &D_80110634 / K into the ROM's s7 / fp / s6 assignment (8/38 -> 6/15; do{}while(0) around the glistp blocks instead is much worse).  Use it as a priority knob
+      (like the empty asm("+r") of lesson 2) when the only diff left is a callee-saved permutation.
+   i) The R4300 pipeline in mips.md puts ALL FP ops and mult/mfhi in one 'imuldiv' unit (imul SI 5/5, fadd 3/3, fmul SF 5/5, fcmp 1/1, hilo 1/3, load 2, ADJUST_COST makes
+      anti/output deps free): backward list scheduling therefore fills the mult/mfhi shadow with any ready ALU insn ("floaters": multi-set sets, constants).  Consequence: the
+      position of `li r,255`-style multi-set sets is determined by which stall comes first, and sched2 (after RA) lets them drift further up unless a register false
+      dependence pins them (e.g. a pseudo that shares its hard register with the quotient temp).
+12. New tools in tools/: ldump.sh (cc1 with -dL -dS -dR ... into a dir), blk.sh (+condensed rtlc txt of sched/sched2/jump/combine/loop), kmov.sh (loop.c decision for the
+    0x66666667 movable), ad.py ADFULL=lo-hi env var (full aligned listing of a range), vp.py/mvs.py/asmins.py (see 8).  Source copies in wip/w: loop281.c, mips.md_281,
+    mips.h_281, mips.c_281 (from pmret/gcc-papermario master; loop.c is at the repo root, mips files under config/mips/).  WSL /tmp is wiped when the distro idles: keep dumps in ~.
+   j) THE LAST 3 OPERAND DIFFS (cvt.s.w result in $f1 instead of fs0's $f20) - GLOBAL vs LOCAL allocno.  A separate temp for `(f32)((a*0xBF)/5+0x40)` is allocated by
+      local-alloc ($f1 right after the 1/256 const got $f0).  global.c then calls set_preference(dest=fs0, src=first operand of the mult = the local-alloc'd temp) which gives
+      fs0 a preference for $f1, and expand_preferences() merges that preference into every allocno that dies into an insn setting fs0 without conflict (here loop 1's
+      `fs0 = f * k01`): loop 1's f flips from $f0 to $f1 (5 operand diffs) and the g / glistp pair of the join block flips a0<->a1 (13 diffs).  The ROM must therefore have had the temp
+      as a GLOBAL pseudo (global-alloc runs after set_preference, so no preference arises and the temp simply gets the first free reg above the const).  A pseudo is global when
+      it has references in more than one basic block: add a surviving reference in the other arm - `__asm__ volatile("" : "=f"(f));` as first statement after r,g,b = 0x80 in the
+      else arm (a non-volatile asm with an unused output is deleted by flow and does not help; a volatile one emits no code).  Do not use a register pin: it gives the same
+      perturbation.  (Diagnose with: tools/ldump.sh + tools/pr903.py + the ';; N preferences: M' lines of a.i.greg.)
+   k) FLOATER PLACEMENT BETWEEN cvt AND mul.s.  ROM then-arm = mult, sra, mfhi, sra, subu, addiu 64, mtc1, cvt.s.w, li r, move g, lui+lwc1 (1/256), mul.s, j (delay: move b).
+      Plain source puts the const load into the mult shadow and mul.s directly behind the cvt.  The recipe that reproduces it: end the quotient/cvt part of the arm in a
+      `do { ...; f = (f32)(..); } while (0);`, then `r = 0xFF; g = 0xFF; b = 0xFF;` and `fs0 = f * 0.00390625f;` as separate statements - the LOOP_BEG/LOOP_END note pair splits sched1
+      and sched2 into regions, so the multi-set sets (r,g,b) and the const load are scheduled together with the final mul.s after the cvt.  (180 placements of the wrapper, statement
+      orders, asm pins and expression forms without the temp could not do it.)
+   Final recipe of the then-arm (loop 2):
+        do { r = (a * 0xC1 + 3) / 5; f = (f32)((a * 0xBF) / 5 + 0x40); } while (0);   // dead /5 -> K hoist (g), barrier (k)
+        r = 0xFF; g = 0xFF; b = 0xFF;   fs0 = f * 0.00390625f;
+      else arm:  r = g = b = 0x80;  __asm__ volatile("" : "=f"(f));  fs0 = 0.5f;           // global allocno (j)
+    The original source was surely different (the dead /5 and the asm are stand-ins for whatever made those pseudos/blocks in the real code); they emit nothing.
+
+FINDINGS s903 (round 9, @SN toolchain; targets func_0023A4D0 [708 insns] and func_0040BE38 [185 insns]) -- new lessons only
+RESULT: both EXACT under @SN (func_0040BE38 needs -fno-builtin and three register pins, see 7).
+
+0. WORKFLOW THAT WORKED (both drafts were old-flag near-misses of earlier workers; re-run them under @SN FIRST: func_0040BE38_sa6 went from "198 insns, 198 words
+   off" to 2 words off just by adding `@SN -fno-builtin`; the ROM calls memcpy, @SN without -fno-builtin inlines the 0x50 byte copy).
+   Use the ALIGNED metric (structural / operand diff counts) for every step; the positional "N words differ" of chk is meaningless once an insn is shifted.
+   func_0023A4D0: n16 draft (16 structural, 7 operand) -> EXACT in ~12 steps, each step below was a 1-line source change.
+
+1. FLOAT POOL = LITERALS.  func_0023A4D0 references each of its 9 pool constants exactly once (768.0 5120.0 10240.0 0.25 0.75 1.0 0.5 16384.0 and the implicit 2^31 of the
+   (u32) casts); ROM shows `lui at,%hi(D_800C86A0+4)` style addressing = entries of the function's OWN pool.  Writing them as plain float literals (not `extern f32 D_800C86xx`)
+   gives the same code AND chk reports `ro=0xC92A0:36` (whole pool, order and values verified by the new checker + rocheck.py).  The extern version was also code-EXACT but
+   its ro= piece was only the 4-byte 2^31 entry.  The pool order is the order of first use in the SOURCE (A0,A4,A8,AC,B0,B4,B8,BC,C0), so keep the expression order.
+   A repeated 0.25f (two source uses) is CSE'd into one load/one pool entry, as in the ROM.
+
+2. `asm("" : : "r"(x))` (no output operand) is implicitly VOLATILE: a full scheduling barrier.  The earlier draft used two of them to "fix" the s0/s2/s3 assignment of the three
+   switch indices a0/a1/a2, which cost 16 structural diffs elsewhere (hoisted constants and `i = 0` could no longer float to the block top).  What the asm really did was add
+   references to a0: global-alloc priority is floor_log2(weighted refs)*refs/live_length, REG_N_REFS is weighted by loop depth (x2 inside the q4 do-while) and a0 had 7 refs vs
+   9 for a1/a2 (14 vs 18 weighted: floor_log2 = 3 vs 4).  ONE `__asm__("" : "+r"(a0));` after the switch (non-volatile, an output operand, 2 refs, not a barrier) lifts a0 to 9 refs
+   (tie with a1, lower pseudo number wins) and gives the ROM's s0/s2/s3 = a0/a1/a2 with the schedule untouched (30 operand diffs -> 0).  Generic recipe for a pure
+   callee-saved permutation: count the refs per pseudo (tools/pr903.py), find the pseudo whose floor_log2 bucket is one too low, add refs with an empty asm("+r").
+
+3. `x = cond ? a : b;` stored to MEMORY (`alp[i] = (i == 0) ? al : 0.0f;`) expands the target address BEFORE the compare and stores each arm directly into it, so cse1 does not
+   apply the path knowledge `i == 0` to the address: ROM `swc1 f4,0(t0)` (strength-reduced pointer).  The if/else with two statements `alp[i] = a; ` / `alp[i] = 0.0f;` folds the
+   then-arm address to `192(sp)` (constant index).  Use the ternary when the ROM stores through the walking pointer in both arms.
+   Also reuse the variable (`al *= unk208 * unk220;` instead of a new a0v) -> `mul.s f4,f4,f0` in place, store from the same FP register.
+
+4. Natural statement order wins over "scheduled" order: write the vector copy as x, y, z (`pts[i].x = v->pos[i].x; pts[i].y = ey; pts[i].z = ...`): the ROM's load of x before the
+   store of y comes from the independent store filling the load delay slot; writing y first keeps the load behind the (may-alias) store.
+
+5. LOOP PREHEADER ORDER (unboosted initial-ready insns are emitted in luid order, higher-latency FP loads last): `i = 1;` BEFORE `p0 = &pts[0];` and an explicit FP variable
+   `zero = 0.0f;` BEFORE `lim = 1.0f;` (both plain statements before the loop, loop uses `for (; i < 5; i++)` and compares `dd >= zero`) gives the ROM order
+   [li i][p0][giv init][mtc1 zero][lwc1 lim]; the implicit hoisted 0.0 constant of loop.c is emitted after the explicit loads.
+
+6. Two loads whose order is wrong although registers are right (lwc1 536(s7) vs 524(s7)): move BOTH loads textually to just after `cls = e->cls;` (tt0 then tt1) and drop them
+   from their old places; moving one of them only changes the FP register numbers.  (luid order of boosted loads at the block top = order of the assignments.)
+
+7. func_0040BE38 (os.vi mode editor).  The last 2 words are local-alloc, not scheduling: `lh a1,16(sp)` (ROM) vs `lh v1,16(sp)` (every natural source).  local-alloc facts
+   (modelled in tools/lamodel.py, which reproduces the real choices of this block): output ties to the FIRST dying input (a - b ties sub to a, so the three-insn
+   expression a/sub/sra chain is ONE quantity in v0); quantities are allocated by floor_log2(refs)*refs*size/(death-birth), ties by birth order, first-fit over regs 2..;
+   b gets v1 unless v1 is busy over [lh b, subu].  The ROM has `subu v1,a0,a3` / `addu v1,v1,v0` (hm - hw + xb/2) live across that point, i.e. in the ROM's sched1 output the
+   c0 add and the `hs = c0 << 16` shift sit AFTER the halfword loads (sched2 later hoists them to the top; the model confirms b -> a1 when insn 156 is moved after the lh).
+   No natural source variant (1600 single statement moves, 96 empty-asm insertions, 56K permuter iterations, many expression forms) reproduces that sched1 order, because the
+   shift's pseudo (`hs`, multi-set) is unboosted and floats to the block top.  EXACT form:  three register pins on the temporaries of the first block only
+        register s32 bb __asm__("$5"); register s32 aa __asm__("$2"); register u32 cc __asm__("$8");
+        aa = L.v0.r.e; bb = L.v0.r.s; cc = (u16)L.v0.r.s; m0 = cc + (aa - bb) / 2;
+   (fewer pins are not enough: aa alone fixes the load order, bb the register, cc keeps c1's addu in place).  Flagged HACK.
+   Untested idea for a natural form: make the c0/shift chain late in sched1 by feeding `hs` into something with a longer dependence path.
+
+8. Tools added (tools/, WSL python3, all parallel with --jobs 3):  vp.py (variants as (old,new) replacement lists, ranked by the aligned metric of vb.py),
+   mvs.py (move/swap statement i to every position of a line range; 1600 variants in 70 s for a 185-insn function), asmins.py (insert empty asm("+r")/asm("r")/asm volatile or
+   do{}while(0) after each assignment), lamodel.py (model of gcc 2.8.1 local-alloc for one basic block from the sched1 dump: `tools/sv.sh`/dump.sh -> rtlc.py (RTLC_W=5000
+   keeps the REG_DEAD notes, the default cuts lines at 230 chars) -> lamodel.py <dir> [--move UID:AFTER_UID]), pr903.py (global-alloc order table), regstat.sh, sv.sh.
+   cc1_281 does NOT accept -fsched-verbose (the pmret build has no verbose scheduler log); sched.c/local-alloc.c of the exact compiler are in wip/w/ (fetched from
+   gcc-papermario, identical to stock 2.8.1).
+9. Shell traps: `$var` inside `wsl -- bash -c '...'` is expanded by the Windows side (empty): put loops into a script file; python3 exists only inside WSL, `python` only on Windows.
+
+==================================================================================================================
+ROUND 9 ADDENDUM (s903, second pair of targets: func_0027CCD0 [EXACT], func_002A78F0)
+==================================================================================================================
+10. func_0027CCD0 (491 insns, EXACT with plain @SN):
+   - A `static inline` helper that has its OWN locals (u8 spB8[0x40]; Vec3f spF8;) is what the ROM looks like: every call site re-materialises `addiu aN,sp,off`
+     for the locals, whereas the same code written as a macro / inside the one function CSEs the addresses into a saved register.  Use the helper when the ROM
+     recomputes `addiu a0,sp,0xB8` before each jal.
+   - Copy a vector table entry with a properly TYPED element (`sp28 = cfg->tab->vec[st];` with CcPr vec[14]) - a u8-array/memcpy style copy gives the wrong load/store shape.
+   - Two variables with the same type but different life (R / R2) must stay two source variables; merging them changes the register split.
+   - A byte field written once (`ob->unk1D1 = D_801041F0.idx;`) must be typed u8 in the struct, otherwise sb becomes sh/sw.
+   - y0 (and every temp shared between two sequential code regions) must be declared at FUNCTION scope: it then becomes one multi-set pseudo (not boosted by sched1).
+
+11. func_002A78F0 (410 insns): EXACT with plain @SN, ro=0xCBC60:64 (rodata identical), but it needs 3 HACKs (j, k, g below).  The draft started at 33/102.  Lessons, all verified
+    with the compiler (each one moved the aligned metric):
+   a) USER VARIABLE SCOPE decides sched1/global-alloc behaviour.  A variable that is assigned in BOTH of two sequential loops (acc, sx, sy, x0, y0, fs0) must be one
+      function-level variable: it becomes ONE multi-set pseudo.  Multi-set pseudos are never "birthing" boosted by sched1 (adjust_priority needs REG_N_SETS==1), so
+      their final add sinks/floats like the ROM's; and a function-level fs0 lives across the call of loop 1, so global-alloc gives it the callee-saved $f20 in BOTH loops
+      (loop-local fs0 = a temp in $f0 -> every other FP register shifts by one).  x0 and y0 behave the same (x0 loop-local made the x0 add the LAST insn before the branch).
+   b) The same effect for the colour word: r,g,b are function-level ints set BEFORE the loop (`r = g = b = 0xFF; i = 0; n = i;` then `for (; i < 4; i++)`): that puts
+      `li s5,255` first in the preheader (lowest luid) exactly as the ROM, instead of after `i = 0`.
+   c) `rgba` partial: `rgba = (r<<24)|(g<<16)|(b<<8); g1->w1 = rgba | ((u32)(fs0*kf) & 0xFF);` (single-set USER variable used in another basic block) reproduces the ROM
+      (r<<24|g<<16 hoisted as `lui fp,0xFFFF`, `sll b,8` + `or` at the very end of the block, `or` in the delay slot).  A compiler-temp single expression is a loop movable
+      and force_movables chains it into one hoisted constant (0xFFFFFF00) - wrong; a multi-set `rgba |= ...` is never boosted and floats to the block top - wrong.
+      Mechanism: loop.c cannot move a SET of a user variable that is used outside its basic block (REG_USERVAR_P) unless the loop is entered unconditionally.
+   d) bubble sort compare: `t0 = sl[i]; t1 = sl[i+1]; if ((u32)t0->unk1C > (u32)t1->unk1C)` (NOT `t1 < t0`) gives ROM's lw order and a2/a0 assignment (operand order of the
+      compare changes the pseudo creation order and so the global-alloc tie-break).
+   e) `n++` placed AFTER the trailing `if (a != s->unk18 && fs0 < k) {..}` statement (end of the body) is what the ROM has: it ends up in the delay slot of the first beq; placed
+      right after the call it floats above the call.
+   f) Loop-2 preheader `i = 0; n = i;` + `for (; i < 4; i++)` (not `n = 0; for (i = 0; ...)`) gives `addu s1,zero,zero; addu s3,s1,zero` in the ROM order.
+   g) HOISTING THE MAGIC CONSTANT of `x / 5` (0x66666667) out of a big loop (ROM: `lui/ori s6` in the preheader).  loop.c move_movables hoists a movable only if
+      threshold*savings*lifetime >= insn_count, threshold = (loop has call ? 1 : 2) * (1 + n_non_fixed_regs) = 69 here, minus 3 for every movable already hoisted in that loop;
+      savings = number of SETS of the pseudo (not uses), lifetime = luid(REGNO_LAST_UID) - luid(REGNO_FIRST_UID).  A 134-insn loop never hoists a life-1 constant (a tiny
+      loop of <= 69 insns does, e.g. a 6-line test).  cse1 DOES extend REGNO_LAST_UID: if a second `/5` with a DIFFERENT dividend sits in the same extended basic block, cse1 replaces
+      its K load by the first K register and the first K's life becomes the distance to the second mult (life 9..13) -> hoisted into a callee-saved register.  If the second
+      division's result is overwritten before use (`r = (a*0xC1+3)/5; r = 0xFF;`) flow deletes it after the loop pass, so the final code has ONE mult and K lives in
+      s6 - exactly the ROM.  Does NOT work: same dividend (fully CSE'd), result never used (jump_optimize deletes it before cse), second division in another EBB (then K
+      matches via combine_movables only if both loads survive cse1, savings=2).  So the original source evidently computed a second (dead) /5 value in that arm.
+   h) `do { stmt; } while (0);` is NOT a no-op: the NOTE_INSN_LOOP_BEG/END pair is a scheduling barrier and raises the loop-depth weight of the pseudos inside (global-alloc
+      priority) - wrapping the dead-quotient/r,g,b/fs0 group of loop 2's then-arm moved c / &D_80110634 / K into the ROM's s7 / fp / s6 assignment (8/38 -> 6/15; do{}while(0) around the glistp blocks instead is much worse).  Use it as a priority knob
+      (like the empty asm("+r") of lesson 2) when the only diff left is a callee-saved permutation.
+   i) The R4300 pipeline in mips.md puts ALL FP ops and mult/mfhi in one 'imuldiv' unit (imul SI 5/5, fadd 3/3, fmul SF 5/5, fcmp 1/1, hilo 1/3, load 2, ADJUST_COST makes
+      anti/output deps free): backward list scheduling therefore fills the mult/mfhi shadow with any ready ALU insn ("floaters": multi-set sets, constants).  Consequence: the
+      position of `li r,255`-style multi-set sets is determined by which stall comes first, and sched2 (after RA) lets them drift further up unless a register false
+      dependence pins them (e.g. a pseudo that shares its hard register with the quotient temp).
+12. New tools in tools/: ldump.sh (cc1 with -dL -dS -dR ... into a dir), blk.sh (+condensed rtlc txt of sched/sched2/jump/combine/loop), kmov.sh (loop.c decision for the
+    0x66666667 movable), ad.py ADFULL=lo-hi env var (full aligned listing of a range), vp.py/mvs.py/asmins.py (see 8).  Source copies in wip/w: loop281.c, mips.md_281,
+    mips.h_281, mips.c_281 (from pmret/gcc-papermario master; loop.c is at the repo root, mips files under config/mips/).  WSL /tmp is wiped when the distro idles: keep dumps in ~.
+   j) THE LAST 3 OPERAND DIFFS (cvt.s.w result in $f1 instead of fs0's $f20) - GLOBAL vs LOCAL allocno.  A separate temp for `(f32)((a*0xBF)/5+0x40)` is allocated by
+      local-alloc ($f1 right after the 1/256 const got $f0).  global.c then calls set_preference(dest=fs0, src=first operand of the mult = the local-alloc'd temp) which gives
+      fs0 a preference for $f1, and expand_preferences() merges that preference into every allocno that dies into an insn setting fs0 without conflict (here loop 1's
+      `fs0 = f * k01`): loop 1's f flips from $f0 to $f1 (5 operand diffs) and the g / glistp pair of the join block flips a0<->a1 (13 diffs).  The ROM must therefore have had the temp
+      as a GLOBAL pseudo (global-alloc runs after set_preference, so no preference arises and the temp simply gets the first free reg above the const).  A pseudo is global when
+      it has references in more than one basic block: add a surviving reference in the other arm - `__asm__ volatile("" : "=f"(f));` as first statement after r,g,b = 0x80 in the
+      else arm (a non-volatile asm with an unused output is deleted by flow and does not help; a volatile one emits no code).  Do not use a register pin: it gives the same
+      perturbation.  (Diagnose with: tools/ldump.sh + tools/pr903.py + the ';; N preferences: M' lines of a.i.greg.)
+   k) FLOATER PLACEMENT BETWEEN cvt AND mul.s.  ROM then-arm = mult, sra, mfhi, sra, subu, addiu 64, mtc1, cvt.s.w, li r, move g, lui+lwc1 (1/256), mul.s, j (delay: move b).
+      Plain source puts the const load into the mult shadow and mul.s directly behind the cvt.  The recipe that reproduces it: end the quotient/cvt part of the arm in a
+      `do { ...; f = (f32)(..); } while (0);`, then `r = 0xFF; g = 0xFF; b = 0xFF;` and `fs0 = f * 0.00390625f;` as separate statements - the LOOP_BEG/LOOP_END note pair splits sched1
+      and sched2 into regions, so the multi-set sets (r,g,b) and the const load are scheduled together with the final mul.s after the cvt.  (180 placements of the wrapper, statement
+      orders, asm pins and expression forms without the temp could not do it.)
+   Final recipe of the then-arm (loop 2):
+        do { r = (a * 0xC1 + 3) / 5; f = (f32)((a * 0xBF) / 5 + 0x40); } while (0);   // dead /5 -> K hoist (g), barrier (k)
+        r = 0xFF; g = 0xFF; b = 0xFF;   fs0 = f * 0.00390625f;
+      else arm:  r = g = b = 0x80;  __asm__ volatile("" : "=f"(f));  fs0 = 0.5f;           // global allocno (j)
+    The original source was surely different (the dead /5 and the asm are stand-ins for whatever made those pseudos/blocks in the real code); they emit nothing.
+
+=== ROUND 9b FINDINGS (s901 s903 s904 s905 s906: allocator rules, sched1, preferences, pins) (workspace s904) ===
+FINDINGS s904 (round 9, hard leftovers; @SN toolchain) -- new lessons only
+
+RESULT: both targets EXACT with @SN (no -fno-builtin): func_00414480 (563 insns, double formatter, ro=0xE1D18:224) and func_002529E4 (390 insns, debug heap map).
+Method that worked for both: take the best earlier draft, read the ALIGNED diff (tools/ad.py via tools/adf.sh) cluster by cluster, test every hypothesis as a source variant
+with vb.py (tools/vbx.sh, ~4 s per variant, 3 jobs), look at the compiler dumps (tools/dump.sh + tools/pm.py + wip/sh/lm.sh) to see WHY a cluster differs, and let the
+permuter close the last word of an otherwise exact structure.
+
+=========================== func_00414480 (double formatter): 31 structural / 36 operand -> EXACT ===========================
+1. SPLIT VARIABLES BY ROLE.  A draft that reuses one C variable for unrelated jobs (n = pow-loop counter AND int-part value, lim = 'g' limit AND pad count, a1p = rounding
+   pointer AND output cursor) gets ONE pseudo with a long, high-priority live range and the registers of every temp around it shift.  The ROM had different registers for each
+   job (n v1 / iv a0, lim v1 / padn a1, a1p a1 / op a0): giving each job its own variable took the operand diffs 34 -> 24 -> 8 without touching the structure.
+   Tool: tools/pm.py <dump dir of tools/dump.sh> prints the global-alloc order with refs / live length / priority / hard reg per pseudo (the pseudo with 47 refs in a0 was the
+   output cursor that also served as the rounding pointer).
+2. OUTPUT LOOPS AS `for (j = 0; j < n; j++) *op++ = ...;` (not hand-written `if (n > 0) do { } while (j < n)`): same code, but the pseudo priorities of j/op then match the
+   ROM (operand diffs 35 -> 8).  Use natural for-loops for fill/copy loops before anything else.
+3. LOOP ROTATION: `if (0.0 < d) { while (d < lim2) { d *= 10; e10--; if (!(0.0 < d)) break; } }` (m2c / hand transcription of the rotated loop) compiles as a rotated loop with the
+   wrong test duplicated and the invariant constant load (ldc1 10.0) inside the loop.  The ROM = source `while (0.0 < d && d < lim2) { d *= 10.0; e10--; }`: jump.c duplicates
+   the FIRST exit test of a while loop (here `0.0 < d`) in front of the loop and at its bottom (as the conditional back branch), the second test stays at the loop top and the
+   constant is hoisted into the preheader after the guard.  A manual for(;;)/do-while/goto form of the rotated loop is NOT equivalent (no LOOP_BEG notes -> no hoisting).
+   Write the original un-rotated source and let jump.c rotate it.
+4. `d == 0.0 -> goto L614` (shared `dof = 1; nint = 0;` block) instead of duplicating `dof = 1` before a goto to the following label: reorg then steals the first insn of L614
+   into the slot of a branch-likely (`bc1tl L61C ; li a0,1`) and skips the redundant `nint = 0` at the target (redundant_insn).  The duplicated-assignment form produced
+   `bc1f ; nop ; j ; li` (relax_delay_slots does not invert a branch around an unconditional jump whose slot is already filled).
+5. WHERE `dof = 0` SITS DECIDES THE ZERO SOURCE REGISTER: with `dof = 0;` after the join of the three pw arms, reload_cse knows a0 == 0 in the following straight-line code and
+   rewrites `li s6,0` / `move s4,s6` into `move s6,a0` / `move s4,a0` (it prefers the lowest register holding the value).  The ROM has `addu s6,zero,zero ; addu s4,s6,zero`:
+   `dof = 0;` at the END OF EACH ARM (before the join label; reload_cse forgets everything at a label).
+6. `sgn = e10 < 0;` (store-flag = `srl a1,s1,31` in the delay slot of `bgez s1`) placed BEFORE `if (e10 < 0) e10 = -e10;`, `u8 sgn`, test `if (sgn != 0) '-' else '+'`
+   (orientation decides beqz vs bnez).  The old `carry = 0; if (e10 < 0) { e10 = -e10; carry = 1; }` gives li/move pairs.
+7. Loop-preheader copies: `f2 = fr;` must come BEFORE the guard `if (nexp < prec)` and BEFORE `i = 0;` (ROM: mov.d in the bc1f slot and at the join, i = 0 in the guard's
+   slot).  Statement order inside a call loop: `f2 = modf(f2 * 10.0, &t1); ndig++; i++; ...` (ndig++ after the call statement lets sched2 put it right before the jal =
+   reorg's delay-slot filler; written before the call it lands before the argument setup).  Found with a 20-permutation brute force of the 5 loop statements
+   (generator in the transcript, wip/sh/vbfiles.sh ranks a glob of variants).
+8. BRANCH-LIKELY FILL (`beql a0,zero,L ; <first insn of L>` vs ours `beqz a0,L ; <2nd insn of the fall-through>`) -- solved by the PERMUTER with an empty
+   `do { } while (0);` as the last statement of the then-block before the join label.  Mechanism (reorg.c mostly_true_jump): scanning backwards from the branch target
+   label over NOTEs, a NOTE_INSN_LOOP_BEG makes the branch "very likely taken" (return 2), so fill_eager_delay_slots tries the TARGET thread first and steals its first insn
+   with annulment.  Without it an EQ test is predicted not taken, the fall-through thread is owned and its 2nd insn (`li v0,49`) is eligible, which is what we got.
+   Recipe: when the ROM has the target's insn in a branch-likely slot, try an empty do-while(0) (or anything that leaves a LOOP_BEG note) right before the join label.
+9. Only hack left: `asm("" : : "f"(pw))` after `pw *= 0.1` (pw = $f20, rnd = $f21; without it rnd has the higher allocation priority 4030 vs 3750 and they swap).
+10. Native semantic check of a refactored draft (wip/sem/run.sh old.c new.c N): compile both versions with gcc -O0 against the host modf and compare outputs on random
+    doubles / prec / width / ch; strip `__asm__` lines first.  Cheap insurance when reshuffling gotos (400000 cases, 0 diffs here).
+
+=========================== func_002529E4 (debug heap map): 8 structural / 61 operand (s703) -> EXACT ===========================
+11. THE ROOT CAUSE OF "the ROM keeps (x0&0x3FF)<<14 inside the pass loop" is the loop.c MOVABLE BUDGET: move_movables doubles insn_count (`insn_count *= 2`) for EVERY movable whose
+    register was already moved once by the inner loop, cumulatively, whether or not it is finally moved; the test is threshold*savings*lifetime >= insn_count with
+    threshold = 2*(1+n_non_fixed_regs) (~124 without a call in the loop) and all hoisted regs showing the same lifetime (~265).  With an outer loop of ~197 insns exactly
+    7 movables are moved, the 8th is "not desirable", and a `cond` movable whose `forces` movable was not moved is "not safe" (log: tools/dump.sh + wip/sh/lm.sh prints the
+    "Insn N: regno R ... moved/not desirable" lines of every loop pass).  In the ROM A = x0&0x3FF is hoisted out of BOTH loops while S = A<<14 stays after the guard of the pass
+    loop, i.e. S is the 8th movable: ONE more movable than ours precedes it.  Proof of concept: a dummy invariant store before the first use pushed A to the 8th place.
+    FIX WITHOUT VISIBLE CODE: write `x0 & 0x3FF` as the SHIFT PAIR `((u32)x0 << 22) >> 22` (macro RECTA): at loop.c time it is two movables (ashift, lshiftrt), combine later folds
+    the pair into `andi 0x3FF`; also use the pair form in the straight-line top-fill rect so that cse2 merges the hoisted copy with it (ROM `andi v0,s7,0x3ff ; addu s5,v0,zero`).
+    Generic recipe: when loop.c hoists one level too far, make the invariant a longer chain of simple ops that combine folds back (shift pairs, add+neg) to burn the doubling budget.
+12. CSE SKIP-BLOCK FOLLOWING (-fcse-skip-blocks, on at -O2) folds `b = 0xFF; ...; if (top < bot) {rect} ...; t = (b*3)>>1` to a constant and merges the two `-1` constants on both sides of the
+    skip block into one hoistable pseudo; the ROM did NOT follow that block (multiply present, two separate `addiu v0,zero,-1`).  Checked: -fno-cse-skip-blocks turns the natural
+    50-structural draft into 12 but the flag is wrong globally (43 of 149 EXACT @SN functions break with it, 4 of 94 in this memory-manager module), a second jump to the end label
+    (cse_end_of_basic_block: LABEL_NUSES == 1 is required) does stop the following but leaves visible code, and jumps/labels that disappear before cse2 do not help because cse2
+    follows the block again.  Wrappers around the rect (do{}while(0), for(;;){break;}, switch(0), else{;}, goto) change nothing.  What worked: make the highlight blue value opaque with
+    an empty asm: a SEPARATE variable `register s32 hb __asm__("$9"); hb = 0xFF; ... __asm__("" : "+r"(hb)); ... (hb*3)>>1` (no copy; a `bb = b; asm("+r"(bb))` copy leaves a `move v1,t1`;
+    an asm directly on the shared u32 b makes b lose its nonzero_bits and adds `andi 0xff` masks to the colour code).  The true original construct is still unknown.
+13. COLOUR WORD: `(tt < 0x100) ? ((hi | ((tt & 0xFF) << 8)) | 0xFF) : 0xFFFFFFFF` with `hi = 0xFFFF0000` in a VARIABLE (not a literal) keeps the constants out of tree-level reassociation
+    (fold turned `0xFFFF0000 | x | 0xFF` into `x | 0xFFFF00FF` = lui+ori) and gives the ROM's `lui a1,0xffff ; or v0,v0,a1 ; ori v0,v0,0xff` (a register constant that cannot be an
+    ori immediate stays a register after cse).  Put the whole expression, multiply included, inside the macro argument (statement expression) so that the gfx pointer
+    load/increment precedes the multiply as in the ROM; the two arm values then form ONE pseudo set in both arms (not movable: the -1 stays in place).
+14. `do { } while (0);` between two macro invocations is a sched1 barrier: without it sched1 hoists the next macro's `lw gfx` above the previous `sw v0,4(a0)` (the scalar global and the
+    struct-field store are independent for alias.c), the loaded pointer then overlaps the colour word and the word is allocated v1 instead of v0 (structural diff 2 -> 0).
+15. REGISTER-ALLOCATION PRIORITY BY EXTRA REFERENCES: ROM order r($t0) > b($t1) > g($t2) > p($t3) > bot($t4) could not be pinned (a pinned colour channel loses nonzero_bits ->
+    `andi 0xff` masks and structural changes) but is reproduced by adding REFERENCES with a volatile empty asm right after the colour selection:
+    `__asm__("" : : "r"(r), "r"(r), "r"(r), "r"(b));`  (priority = floor_log2(refs)*refs/live length; 3 extra refs of r lift it above b, 1 extra ref of b above g; the asm does not extend
+    the live ranges).  Use pm.py to read the numbers, then add/remove operands.  Operands that appear twice in one asm count twice.
+16. Pins and the allocator: a local `register ... asm("$N")` variable keeps $N out of reload's choices for the WHOLE function, not only inside its live range: with r pinned to $t0 the
+    pre-loop `mflo` temp moved to $t2 (ROM $t0).  So pin only what must be pinned (here the highlight blue `hb` -> $t1, which is needed because the ROM shares t1 with b; unpinned it
+    takes $v1 and drags the gfx+8 temp and the shared w0 word with it), and use extra references (15) for the rest.  A keep-alive `asm("" : : "r"(var))` at the end of a block stops the
+    allocator from reusing a pinned register as a temp inside the block (greedy search wip/sh/greedy_pin2.py).
+17. Greedy pin / variant tooling written for this round: wip/sh/greedy_pin.py, greedy_pin2.py (pin search with vb.py scoring), tools/vbx.sh (vb.py with file sync), tools/adf.sh (aligned
+    diff of a file), tools/sdf.sh (full side by side), tools/pm.py (allocation table), wip/sh/lm.sh (loop.c movable log), wip/sh/pstat.sh / pdiff.sh / pkill_mine.sh / prun_bg.sh (permuter
+    runs on a private copy ~/permuter_s904).  All helper scripts of tools/agents hardcode ~/trw_s904_sNNN and /mnt/d/Projects/ws/sNNN: sed them before use (done in tools/).
+
+DEAD ENDS (do not repeat): do{}while(0) wrapped around every gbi macro (phony loops, 101 structural); r/gc/b as variables assigned in the highlight block (register pressure -> extra s8, 25 structural);
+a `yy = y1` copy or a statement-expression copy as the extra loop.c movable (cse1 removes the copy before loop.c); explicit per-pass locals xs/xs8 with hand-written rect words (A part of the
+x0+8 chain gets hoisted); asm("+r") directly on u32 b; pins on gc or b; permuter from the s703 hack draft (1190 -> 1035 in 47k iterations: the loop.c budget is not reachable by random mutation).
+
+FINDINGS s904 (round 9, hard leftovers; @SN toolchain) -- new lessons only
+
+RESULT: both targets EXACT with @SN (no -fno-builtin): func_00414480 (563 insns, double formatter, ro=0xE1D18:224) and func_002529E4 (390 insns, debug heap map).
+Method that worked for both: take the best earlier draft, read the ALIGNED diff (tools/ad.py via tools/adf.sh) cluster by cluster, test every hypothesis as a source variant
+with vb.py (tools/vbx.sh, ~4 s per variant, 3 jobs), look at the compiler dumps (tools/dump.sh + tools/pm.py + wip/sh/lm.sh) to see WHY a cluster differs, and let the
+permuter close the last word of an otherwise exact structure.
+
+=========================== func_00414480 (double formatter): 31 structural / 36 operand -> EXACT ===========================
+1. SPLIT VARIABLES BY ROLE.  A draft that reuses one C variable for unrelated jobs (n = pow-loop counter AND int-part value, lim = 'g' limit AND pad count, a1p = rounding
+   pointer AND output cursor) gets ONE pseudo with a long, high-priority live range and the registers of every temp around it shift.  The ROM had different registers for each
+   job (n v1 / iv a0, lim v1 / padn a1, a1p a1 / op a0): giving each job its own variable took the operand diffs 34 -> 24 -> 8 without touching the structure.
+   Tool: tools/pm.py <dump dir of tools/dump.sh> prints the global-alloc order with refs / live length / priority / hard reg per pseudo (the pseudo with 47 refs in a0 was the
+   output cursor that also served as the rounding pointer).
+2. OUTPUT LOOPS AS `for (j = 0; j < n; j++) *op++ = ...;` (not hand-written `if (n > 0) do { } while (j < n)`): same code, but the pseudo priorities of j/op then match the
+   ROM (operand diffs 35 -> 8).  Use natural for-loops for fill/copy loops before anything else.
+3. LOOP ROTATION: `if (0.0 < d) { while (d < lim2) { d *= 10; e10--; if (!(0.0 < d)) break; } }` (m2c / hand transcription of the rotated loop) compiles as a rotated loop with the
+   wrong test duplicated and the invariant constant load (ldc1 10.0) inside the loop.  The ROM = source `while (0.0 < d && d < lim2) { d *= 10.0; e10--; }`: jump.c duplicates
+   the FIRST exit test of a while loop (here `0.0 < d`) in front of the loop and at its bottom (as the conditional back branch), the second test stays at the loop top and the
+   constant is hoisted into the preheader after the guard.  A manual for(;;)/do-while/goto form of the rotated loop is NOT equivalent (no LOOP_BEG notes -> no hoisting).
+   Write the original un-rotated source and let jump.c rotate it.
+4. `d == 0.0 -> goto L614` (shared `dof = 1; nint = 0;` block) instead of duplicating `dof = 1` before a goto to the following label: reorg then steals the first insn of L614
+   into the slot of a branch-likely (`bc1tl L61C ; li a0,1`) and skips the redundant `nint = 0` at the target (redundant_insn).  The duplicated-assignment form produced
+   `bc1f ; nop ; j ; li` (relax_delay_slots does not invert a branch around an unconditional jump whose slot is already filled).
+5. WHERE `dof = 0` SITS DECIDES THE ZERO SOURCE REGISTER: with `dof = 0;` after the join of the three pw arms, reload_cse knows a0 == 0 in the following straight-line code and
+   rewrites `li s6,0` / `move s4,s6` into `move s6,a0` / `move s4,a0` (it prefers the lowest register holding the value).  The ROM has `addu s6,zero,zero ; addu s4,s6,zero`:
+   `dof = 0;` at the END OF EACH ARM (before the join label; reload_cse forgets everything at a label).
+6. `sgn = e10 < 0;` (store-flag = `srl a1,s1,31` in the delay slot of `bgez s1`) placed BEFORE `if (e10 < 0) e10 = -e10;`, `u8 sgn`, test `if (sgn != 0) '-' else '+'`
+   (orientation decides beqz vs bnez).  The old `carry = 0; if (e10 < 0) { e10 = -e10; carry = 1; }` gives li/move pairs.
+7. Loop-preheader copies: `f2 = fr;` must come BEFORE the guard `if (nexp < prec)` and BEFORE `i = 0;` (ROM: mov.d in the bc1f slot and at the join, i = 0 in the guard's
+   slot).  Statement order inside a call loop: `f2 = modf(f2 * 10.0, &t1); ndig++; i++; ...` (ndig++ after the call statement lets sched2 put it right before the jal =
+   reorg's delay-slot filler; written before the call it lands before the argument setup).  Found with a 20-permutation brute force of the 5 loop statements
+   (generator in the transcript, wip/sh/vbfiles.sh ranks a glob of variants).
+8. BRANCH-LIKELY FILL (`beql a0,zero,L ; <first insn of L>` vs ours `beqz a0,L ; <2nd insn of the fall-through>`) -- solved by the PERMUTER with an empty
+   `do { } while (0);` as the last statement of the then-block before the join label.  Mechanism (reorg.c mostly_true_jump): scanning backwards from the branch target
+   label over NOTEs, a NOTE_INSN_LOOP_BEG makes the branch "very likely taken" (return 2), so fill_eager_delay_slots tries the TARGET thread first and steals its first insn
+   with annulment.  Without it an EQ test is predicted not taken, the fall-through thread is owned and its 2nd insn (`li v0,49`) is eligible, which is what we got.
+   Recipe: when the ROM has the target's insn in a branch-likely slot, try an empty do-while(0) (or anything that leaves a LOOP_BEG note) right before the join label.
+9. Only hack left: `asm("" : : "f"(pw))` after `pw *= 0.1` (pw = $f20, rnd = $f21; without it rnd has the higher allocation priority 4030 vs 3750 and they swap).
+10. Native semantic check of a refactored draft (wip/sem/run.sh old.c new.c N): compile both versions with gcc -O0 against the host modf and compare outputs on random
+    doubles / prec / width / ch; strip `__asm__` lines first.  Cheap insurance when reshuffling gotos (400000 cases, 0 diffs here).
+
+=========================== func_002529E4 (debug heap map): 8 structural / 61 operand (s703) -> EXACT ===========================
+11. THE ROOT CAUSE OF "the ROM keeps (x0&0x3FF)<<14 inside the pass loop" is the loop.c MOVABLE BUDGET: move_movables doubles insn_count (`insn_count *= 2`) for EVERY movable whose
+    register was already moved once by the inner loop, cumulatively, whether or not it is finally moved; the test is threshold*savings*lifetime >= insn_count with
+    threshold = 2*(1+n_non_fixed_regs) (~124 without a call in the loop) and all hoisted regs showing the same lifetime (~265).  With an outer loop of ~197 insns exactly
+    7 movables are moved, the 8th is "not desirable", and a `cond` movable whose `forces` movable was not moved is "not safe" (log: tools/dump.sh + wip/sh/lm.sh prints the
+    "Insn N: regno R ... moved/not desirable" lines of every loop pass).  In the ROM A = x0&0x3FF is hoisted out of BOTH loops while S = A<<14 stays after the guard of the pass
+    loop, i.e. S is the 8th movable: ONE more movable than ours precedes it.  Proof of concept: a dummy invariant store before the first use pushed A to the 8th place.
+    FIX WITHOUT VISIBLE CODE: write `x0 & 0x3FF` as the SHIFT PAIR `((u32)x0 << 22) >> 22` (macro RECTA): at loop.c time it is two movables (ashift, lshiftrt), combine later folds
+    the pair into `andi 0x3FF`; also use the pair form in the straight-line top-fill rect so that cse2 merges the hoisted copy with it (ROM `andi v0,s7,0x3ff ; addu s5,v0,zero`).
+    Generic recipe: when loop.c hoists one level too far, make the invariant a longer chain of simple ops that combine folds back (shift pairs, add+neg) to burn the doubling budget.
+12. CSE SKIP-BLOCK FOLLOWING (-fcse-skip-blocks, on at -O2) folds `b = 0xFF; ...; if (top < bot) {rect} ...; t = (b*3)>>1` to a constant and merges the two `-1` constants on both sides of the
+    skip block into one hoistable pseudo; the ROM did NOT follow that block (multiply present, two separate `addiu v0,zero,-1`).  Checked: -fno-cse-skip-blocks turns the natural
+    50-structural draft into 12 but the flag is wrong globally (43 of 149 EXACT @SN functions break with it, 4 of 94 in this memory-manager module), a second jump to the end label
+    (cse_end_of_basic_block: LABEL_NUSES == 1 is required) does stop the following but leaves visible code, and jumps/labels that disappear before cse2 do not help because cse2
+    follows the block again.  Wrappers around the rect (do{}while(0), for(;;){break;}, switch(0), else{;}, goto) change nothing.  What worked: make the highlight blue value opaque with
+    an empty asm: a SEPARATE variable `register s32 hb __asm__("$9"); hb = 0xFF; ... __asm__("" : "+r"(hb)); ... (hb*3)>>1` (no copy; a `bb = b; asm("+r"(bb))` copy leaves a `move v1,t1`;
+    an asm directly on the shared u32 b makes b lose its nonzero_bits and adds `andi 0xff` masks to the colour code).  The true original construct is still unknown.
+13. COLOUR WORD: `(tt < 0x100) ? ((hi | ((tt & 0xFF) << 8)) | 0xFF) : 0xFFFFFFFF` with `hi = 0xFFFF0000` in a VARIABLE (not a literal) keeps the constants out of tree-level reassociation
+    (fold turned `0xFFFF0000 | x | 0xFF` into `x | 0xFFFF00FF` = lui+ori) and gives the ROM's `lui a1,0xffff ; or v0,v0,a1 ; ori v0,v0,0xff` (a register constant that cannot be an
+    ori immediate stays a register after cse).  Put the whole expression, multiply included, inside the macro argument (statement expression) so that the gfx pointer
+    load/increment precedes the multiply as in the ROM; the two arm values then form ONE pseudo set in both arms (not movable: the -1 stays in place).
+14. `do { } while (0);` between two macro invocations is a sched1 barrier: without it sched1 hoists the next macro's `lw gfx` above the previous `sw v0,4(a0)` (the scalar global and the
+    struct-field store are independent for alias.c), the loaded pointer then overlaps the colour word and the word is allocated v1 instead of v0 (structural diff 2 -> 0).
+15. REGISTER-ALLOCATION PRIORITY BY EXTRA REFERENCES: ROM order r($t0) > b($t1) > g($t2) > p($t3) > bot($t4) could not be pinned (a pinned colour channel loses nonzero_bits ->
+    `andi 0xff` masks and structural changes) but is reproduced by adding REFERENCES with a volatile empty asm right after the colour selection:
+    `__asm__("" : : "r"(r), "r"(r), "r"(r), "r"(b));`  (priority = floor_log2(refs)*refs/live length; 3 extra refs of r lift it above b, 1 extra ref of b above g; the asm does not extend
+    the live ranges).  Use pm.py to read the numbers, then add/remove operands.  Operands that appear twice in one asm count twice.
+16. Pins and the allocator: a local `register ... asm("$N")` variable keeps $N out of reload's choices for the WHOLE function, not only inside its live range: with r pinned to $t0 the
+    pre-loop `mflo` temp moved to $t2 (ROM $t0).  So pin only what must be pinned (here the highlight blue `hb` -> $t1, which is needed because the ROM shares t1 with b; unpinned it
+    takes $v1 and drags the gfx+8 temp and the shared w0 word with it), and use extra references (15) for the rest.  A keep-alive `asm("" : : "r"(var))` at the end of a block stops the
+    allocator from reusing a pinned register as a temp inside the block (greedy search wip/sh/greedy_pin2.py).
+17. Greedy pin / variant tooling written for this round: wip/sh/greedy_pin.py, greedy_pin2.py (pin search with vb.py scoring), tools/vbx.sh (vb.py with file sync), tools/adf.sh (aligned
+    diff of a file), tools/sdf.sh (full side by side), tools/pm.py (allocation table), wip/sh/lm.sh (loop.c movable log), wip/sh/pstat.sh / pdiff.sh / pkill_mine.sh / prun_bg.sh (permuter
+    runs on a private copy ~/permuter_s904).  All helper scripts of tools/agents hardcode ~/trw_s904_sNNN and /mnt/d/Projects/ws/sNNN: sed them before use (done in tools/).
+
+DEAD ENDS (do not repeat): do{}while(0) wrapped around every gbi macro (phony loops, 101 structural); r/gc/b as variables assigned in the highlight block (register pressure -> extra s8, 25 structural);
+a `yy = y1` copy or a statement-expression copy as the extra loop.c movable (cse1 removes the copy before loop.c); explicit per-pass locals xs/xs8 with hand-written rect words (A part of the
+x0+8 chain gets hoisted); asm("+r") directly on u32 b; pins on gc or b; permuter from the s703 hack draft (1190 -> 1035 in 47k iterations: the loop.c budget is not reachable by random mutation).
+
+=== ROUND 9b FINDINGS (s901 s903 s904 s905 s906: allocator rules, sched1, preferences, pins) (workspace s905) ===
+FINDINGS s905 (round 9, @SN toolchain) - new lessons only
+
+func_00235AD0  EXACT  (view viewport/scissor/fog setup + colour clear, upstream func_80235AE0_de(Racer *); file wip/out/func_00235AD0.c, header include/s905_types.h)
+=======================================================================================================================================
+How it was found (workflow that worked): 98 -> 15 -> 8 -> 4 -> 0 aligned-diff words in four steps, each step came from READING the GCC 2.8.1 sources
+(D:\Projects\ext\gcc281src: sched.c, cse.c, rtlanal.c semantics) and then testing ONE hypothesis on the real cc1 (tools/dd.sh RTL dumps, `-dS` scheduler log via sv.sh,
+tools/rr.sh).  The last step was a hill climber over source *shape* (tools/gen.py: spec = statement order + option flags -> source, scored by tools/vb2.py aligned diff);
+a plain permuter / single-statement-move hill climber never found it because the winning change needed 4 coordinated edits.
+
+1. display-list pushes: upstream gbi.h macros (`_GBI_CMD(pkt,a,b) { Gfx *_gbi = (Gfx *)(pkt); _gbi->words.w0 = a; _gbi->words.w1 = b; }`), pkt = `D_80110634++`.
+   gSPLookAt: `#define gSPLookAt(pkt, la) { gSPLookAtX(pkt, la); gSPLookAtY(pkt, (char *)(la) + 16); }` (single base pointer, +16).
+   Custom gSPFogPosition(pkt,min,max) = gSPMoveWord(pkt, G_MW_FOG, 0, (_SHIFTL(128000/((max)-(min)),16,16) | _SHIFTL((500-(min))*256/((max)-(min)),0,16))).
+   Pass fields the ROM loads AFTER a command's w0 store directly as macro arguments (`gSPFogPosition(D_80110634++, o->unk53E, 1000)`), not through a pre-loaded temp.
+2. MEMORY ALIAS CLASSES DECIDE THE SCHEDULE.  true_dependence/anti_dependence (rtlanal.c): two refs are independent only if one is {MEM_IN_STRUCT_P, varying address} and the
+   other is {not in struct, fixed address} (or the offsets/bases are provably disjoint).  `_gbi->words.w0 = ..` and `o->field` are in-struct+varying; so
+   - a global that the ROM reads in a different order than the source order of the Gfx stores must be an AGGREGATE (in-struct, fixed): `extern u32 D_801462C8[]; D_801462C8[0]`,
+     `extern struct {..} *D_8011FE80[]; fe = D_8011FE80[0];` (placed right after the preceding compare).  A scalar live-out global load is a boosted "birth", sched1 puts it at the
+     END of its block and sched2 can then never hoist it above the `sw x,0(s2)` pointer stores (true dependence on the symbol-less register address after RA).
+   - locals that the ROM loads/stores freely around Gfx stores (colour bytes at 0x18/0x19/0x1A(sp): the second command's `lui;sw w0` is hoisted ABOVE the lbu of the colour,
+     and the fill-colour `lbu` is hoisted above the preceding w0 store) must be NON-struct fixed-address stack scalars, NOT u8 c[3] / structs.  Plain u8 scalars get callee-saved
+     registers (they out-prioritise the x/y pseudos in global alloc), a dead `&c` does not help (2.8.1 keeps (addressof (reg)); purge_addressof turns it back into a register unless
+     the address escapes or the access is volatile).  Zero-cost fixes: (a) pass the addresses to a `static inline void set3(u8 *a, u8 *b, u8 *c, u8 x, u8 y, u8 z) { *a = x; *b = y; *c = z; }` called once as
+     `set3(&c0, &c1, &c2, 0, 0, 0)` (the address escapes into the inline's param pseudos -> put_addressof_into_stack; the stores fold to `sb zero,24(sp)` and the last one still
+     fills the `j` delay slot) - this is what the delivered source uses; (b) ONE volatile access per variable, `*(volatile u8 *)&c0 = 0;` (a volatile MEM forces the same), but a
+     volatile store is never put into a branch delay slot (reorg), so keep it off the last store before a `j`.  Every other access stays a plain, CSE-able load/store.
+3. cse1 invalidation (cse.c invalidate_memory): ANY store through an in-struct varying address (S4 = `o->unk10 = x`, every `_gbi->words.wN = ..`) removes ALL cached in-struct MEM
+   expressions.  A field read before and after such a store is therefore TWO loads in the RTL; reload_cse_regs later deletes the second one (same hard reg) or turns it into
+   `mov.s fA,fB` (different hard regs, value still in fB).  This is where the ROM's `lwc1 f1,0x110(s1) ; swc1 f1,12(s1) ; mov.s f0,f1` comes from: S3 `o->unkC = o->unk110` followed by
+   the READ-BACK `o->unkC` in `vs0 = (s32)(2.0f * w * o->unkC)`, and the same read-back `o->unk10` for vs1 (`vs1 = (s32)(2.0f * o->height * o->unk10)`, the last of the statements).
+   The conversion happens only if, in the sched1 output order, the read-back load comes BEFORE any def of the register that holds the stored value (here the o->x load).
+4. sched1 (sched.c, backward list scheduler) facts needed for that: priority = latency-weighted depth from the block start; `birthing_insn_p` boost (0x7f000001) is given to an insn
+   that becomes ready when its destination is live in the already-scheduled suffix AND REG_N_SETS==1 (so plain single-set loads are placed right before their consumer, user
+   variables with 2 sets are not); insns without successors are made predecessors of the block's final branch/call and boosted when that is scheduled; ties: priority, then class
+   (data dependent on the last scheduled insn with latency>1 loses), then INSN_LUID (later in the source = scheduled first = placed LATER), then largest potential hazard; the FP
+   multiplier blocks the `mul.s` for several cycles (idle slots are filled by the low-priority user-variable copies `x0 = subreg`).  A load that is a SET OF A HARD REGISTER (a
+   `register f32 t __asm__("$f1")` temp) is never boosted (REG_N_SETS of a hard reg is 0), so it floats to the TOP of the block like the ROM's width/y/unk110 loads.
+   ONE such pin is enough (`register f32 yf __asm__("$f2")` for o->y, or xf=$f1 for o->x; pinning only o->width is NOT enough; the other two loads can be plain `f32` temps; no pin at all
+   leaves 11 structural words): the delivered source uses yf only, with the statement order
+   [S1 S2 S3 S4 WL YL XL V0 X0 Y0 X1 Y1 W H V1] (S* = the four o->unkC/unk10 stores, WL/YL/XL = the width/y/x temp loads, V0/V1 = the vscale ints, W/H = wm1/hm1; wip/gen/final_spec.json).
+   `xf + wf` / `yf + o->height` (x first) so that the add.s result reuses the register of the first operand like the ROM (`add.s f1,f1,f3`, `add.s f2,f2,f0`).
+   Pins on loads that the ROM places LATE (unk114, height) are harmful: they float to the top and wreck the schedule.
+5. Small things: s16 locals (`s16 y0,x0,x1,y1`) give the `trunc/mfc1 a3; addu s7,a3,zero` copies and sll/sra at every compare; the clamp limits are s16 locals
+   `wm1 = D_800E28D0 - 1; hm1 = D_800E28D4 - 1;` assigned before the ifs while the compares keep `D_800E28D0 - 1 < x1`; the viewport scale ints vs0/vs1 are s16 locals computed before
+   the clamps; `s0 = func_0029A958() != 2;` gives `xori;sltu`; the three float pool constants 1.0f, 0.25f, 4.0f are literals (2.0f folds to add.s) -> chk ro=0xC8FA8:12.
+6. Tooling traps: `(void)&c;` / a dead pointer assignment do NOT make a variable memory resident; the dump `a.i.cse` shows loads that reload_cse_regs deletes later (judge by the final asm);
+   the permuter score is not the aligned diff (a hit on the fog arm gave a lower score and no aligned improvement); vb2/ad.py `movs=` counts mov.s in the first 70 insns.
+
+func_0027CCD0 (particle/effect attach update, upstream func_8027CCA0_eu; REASSIGNED to s903, handoff notes)
+- THE KEY: the duplicated "ATTACH" sequence (func_0026EFC8 ; func_00272908 ; spF8 = D_801042C8 ; func_002720EC ; func_00272BA8 ; flags |= 0x10000 ; target ; unk1D1 ; type 0x56 && mode 2 -> flags |= 0x4000000)
+  is an INLINED copy of the standalone ROM function func_00283C1C (upstream src/func_80283C1C_de.c).  Write it as `static inline void attach(B18Oz *arg0, f32 *arg1, s32 arg2)`
+  with locals `f32 source[16]; f32 matrix[16]; Vec3f direction; actor = arg0; mode = arg2; current = D_801041F0.unk0; if (arg1 != 0) {...} else {...}` exactly like upstream and call
+  `attach(o, sp38, st)` / `attach(tgt, sp38, st)` with the caller's `f32 sp38[16]`: the inline's locals (source/matrix/direction) then sit at sp+0x78/0xB8/0xF8 and the frame is 0x140 as in the ROM.
+  This took the old macro draft from 62 structural / 204 operand diffs to 6 / 12 (18 words) under @SN, with correct register allocation (o=s2, par=s1, st=s3, ... cfg=fp).
+- Order inside the helper for the US/EU build: `actor->flags |= 0x10000;` BEFORE `actor->target = current;` (upstream DE source has the reverse).
+- pi constant of the 0x3EF block is 3.141593f (0x40490FDC), not 3.1415927f (0x40490FDB).
+- The `if (type==0x56 || type==2 || type==0x126 || type==0xF || f13 != 0 || (type==0xB && (D_801041F0.unk7D & 3) == 1))` chain (not a switch) matches the beq chain.
+  (func_0027CCD0 itself was matched by s903.)
+
+FINDINGS s905 (round 9, @SN toolchain) - new lessons only
+
+func_00235AD0  EXACT  (view viewport/scissor/fog setup + colour clear, upstream func_80235AE0_de(Racer *); file wip/out/func_00235AD0.c, header include/s905_types.h)
+=======================================================================================================================================
+How it was found (workflow that worked): 98 -> 15 -> 8 -> 4 -> 0 aligned-diff words in four steps, each step came from READING the GCC 2.8.1 sources
+(D:\Projects\ext\gcc281src: sched.c, cse.c, rtlanal.c semantics) and then testing ONE hypothesis on the real cc1 (tools/dd.sh RTL dumps, `-dS` scheduler log via sv.sh,
+tools/rr.sh).  The last step was a hill climber over source *shape* (tools/gen.py: spec = statement order + option flags -> source, scored by tools/vb2.py aligned diff);
+a plain permuter / single-statement-move hill climber never found it because the winning change needed 4 coordinated edits.
+
+1. display-list pushes: upstream gbi.h macros (`_GBI_CMD(pkt,a,b) { Gfx *_gbi = (Gfx *)(pkt); _gbi->words.w0 = a; _gbi->words.w1 = b; }`), pkt = `D_80110634++`.
+   gSPLookAt: `#define gSPLookAt(pkt, la) { gSPLookAtX(pkt, la); gSPLookAtY(pkt, (char *)(la) + 16); }` (single base pointer, +16).
+   Custom gSPFogPosition(pkt,min,max) = gSPMoveWord(pkt, G_MW_FOG, 0, (_SHIFTL(128000/((max)-(min)),16,16) | _SHIFTL((500-(min))*256/((max)-(min)),0,16))).
+   Pass fields the ROM loads AFTER a command's w0 store directly as macro arguments (`gSPFogPosition(D_80110634++, o->unk53E, 1000)`), not through a pre-loaded temp.
+2. MEMORY ALIAS CLASSES DECIDE THE SCHEDULE.  true_dependence/anti_dependence (rtlanal.c): two refs are independent only if one is {MEM_IN_STRUCT_P, varying address} and the
+   other is {not in struct, fixed address} (or the offsets/bases are provably disjoint).  `_gbi->words.w0 = ..` and `o->field` are in-struct+varying; so
+   - a global that the ROM reads in a different order than the source order of the Gfx stores must be an AGGREGATE (in-struct, fixed): `extern u32 D_801462C8[]; D_801462C8[0]`,
+     `extern struct {..} *D_8011FE80[]; fe = D_8011FE80[0];` (placed right after the preceding compare).  A scalar live-out global load is a boosted "birth", sched1 puts it at the
+     END of its block and sched2 can then never hoist it above the `sw x,0(s2)` pointer stores (true dependence on the symbol-less register address after RA).
+   - locals that the ROM loads/stores freely around Gfx stores (colour bytes at 0x18/0x19/0x1A(sp): the second command's `lui;sw w0` is hoisted ABOVE the lbu of the colour,
+     and the fill-colour `lbu` is hoisted above the preceding w0 store) must be NON-struct fixed-address stack scalars, NOT u8 c[3] / structs.  Plain u8 scalars get callee-saved
+     registers (they out-prioritise the x/y pseudos in global alloc), a dead `&c` does not help (2.8.1 keeps (addressof (reg)); purge_addressof turns it back into a register unless
+     the address escapes or the access is volatile).  Zero-cost fixes: (a) pass the addresses to a `static inline void set3(u8 *a, u8 *b, u8 *c, u8 x, u8 y, u8 z) { *a = x; *b = y; *c = z; }` called once as
+     `set3(&c0, &c1, &c2, 0, 0, 0)` (the address escapes into the inline's param pseudos -> put_addressof_into_stack; the stores fold to `sb zero,24(sp)` and the last one still
+     fills the `j` delay slot) - this is what the delivered source uses; (b) ONE volatile access per variable, `*(volatile u8 *)&c0 = 0;` (a volatile MEM forces the same), but a
+     volatile store is never put into a branch delay slot (reorg), so keep it off the last store before a `j`.  Every other access stays a plain, CSE-able load/store.
+3. cse1 invalidation (cse.c invalidate_memory): ANY store through an in-struct varying address (S4 = `o->unk10 = x`, every `_gbi->words.wN = ..`) removes ALL cached in-struct MEM
+   expressions.  A field read before and after such a store is therefore TWO loads in the RTL; reload_cse_regs later deletes the second one (same hard reg) or turns it into
+   `mov.s fA,fB` (different hard regs, value still in fB).  This is where the ROM's `lwc1 f1,0x110(s1) ; swc1 f1,12(s1) ; mov.s f0,f1` comes from: S3 `o->unkC = o->unk110` followed by
+   the READ-BACK `o->unkC` in `vs0 = (s32)(2.0f * w * o->unkC)`, and the same read-back `o->unk10` for vs1 (`vs1 = (s32)(2.0f * o->height * o->unk10)`, the last of the statements).
+   The conversion happens only if, in the sched1 output order, the read-back load comes BEFORE any def of the register that holds the stored value (here the o->x load).
+4. sched1 (sched.c, backward list scheduler) facts needed for that: priority = latency-weighted depth from the block start; `birthing_insn_p` boost (0x7f000001) is given to an insn
+   that becomes ready when its destination is live in the already-scheduled suffix AND REG_N_SETS==1 (so plain single-set loads are placed right before their consumer, user
+   variables with 2 sets are not); insns without successors are made predecessors of the block's final branch/call and boosted when that is scheduled; ties: priority, then class
+   (data dependent on the last scheduled insn with latency>1 loses), then INSN_LUID (later in the source = scheduled first = placed LATER), then largest potential hazard; the FP
+   multiplier blocks the `mul.s` for several cycles (idle slots are filled by the low-priority user-variable copies `x0 = subreg`).  A load that is a SET OF A HARD REGISTER (a
+   `register f32 t __asm__("$f1")` temp) is never boosted (REG_N_SETS of a hard reg is 0), so it floats to the TOP of the block like the ROM's width/y/unk110 loads.
+   ONE such pin is enough (`register f32 yf __asm__("$f2")` for o->y, or xf=$f1 for o->x; pinning only o->width is NOT enough; the other two loads can be plain `f32` temps; no pin at all
+   leaves 11 structural words): the delivered source uses yf only, with the statement order
+   [S1 S2 S3 S4 WL YL XL V0 X0 Y0 X1 Y1 W H V1] (S* = the four o->unkC/unk10 stores, WL/YL/XL = the width/y/x temp loads, V0/V1 = the vscale ints, W/H = wm1/hm1; wip/gen/final_spec.json).
+   `xf + wf` / `yf + o->height` (x first) so that the add.s result reuses the register of the first operand like the ROM (`add.s f1,f1,f3`, `add.s f2,f2,f0`).
+   Pins on loads that the ROM places LATE (unk114, height) are harmful: they float to the top and wreck the schedule.
+5. Small things: s16 locals (`s16 y0,x0,x1,y1`) give the `trunc/mfc1 a3; addu s7,a3,zero` copies and sll/sra at every compare; the clamp limits are s16 locals
+   `wm1 = D_800E28D0 - 1; hm1 = D_800E28D4 - 1;` assigned before the ifs while the compares keep `D_800E28D0 - 1 < x1`; the viewport scale ints vs0/vs1 are s16 locals computed before
+   the clamps; `s0 = func_0029A958() != 2;` gives `xori;sltu`; the three float pool constants 1.0f, 0.25f, 4.0f are literals (2.0f folds to add.s) -> chk ro=0xC8FA8:12.
+6. Tooling traps: `(void)&c;` / a dead pointer assignment do NOT make a variable memory resident; the dump `a.i.cse` shows loads that reload_cse_regs deletes later (judge by the final asm);
+   the permuter score is not the aligned diff (a hit on the fog arm gave a lower score and no aligned improvement); vb2/ad.py `movs=` counts mov.s in the first 70 insns.
+
+func_0027CCD0 (particle/effect attach update, upstream func_8027CCA0_eu; REASSIGNED to s903, handoff notes)
+- THE KEY: the duplicated "ATTACH" sequence (func_0026EFC8 ; func_00272908 ; spF8 = D_801042C8 ; func_002720EC ; func_00272BA8 ; flags |= 0x10000 ; target ; unk1D1 ; type 0x56 && mode 2 -> flags |= 0x4000000)
+  is an INLINED copy of the standalone ROM function func_00283C1C (upstream src/func_80283C1C_de.c).  Write it as `static inline void attach(B18Oz *arg0, f32 *arg1, s32 arg2)`
+  with locals `f32 source[16]; f32 matrix[16]; Vec3f direction; actor = arg0; mode = arg2; current = D_801041F0.unk0; if (arg1 != 0) {...} else {...}` exactly like upstream and call
+  `attach(o, sp38, st)` / `attach(tgt, sp38, st)` with the caller's `f32 sp38[16]`: the inline's locals (source/matrix/direction) then sit at sp+0x78/0xB8/0xF8 and the frame is 0x140 as in the ROM.
+  This took the old macro draft from 62 structural / 204 operand diffs to 6 / 12 (18 words) under @SN, with correct register allocation (o=s2, par=s1, st=s3, ... cfg=fp).
+- Order inside the helper for the US/EU build: `actor->flags |= 0x10000;` BEFORE `actor->target = current;` (upstream DE source has the reverse).
+- pi constant of the 0x3EF block is 3.141593f (0x40490FDC), not 3.1415927f (0x40490FDB).
+- The `if (type==0x56 || type==2 || type==0x126 || type==0xF || f13 != 0 || (type==0xB && (D_801041F0.unk7D & 3) == 1))` chain (not a switch) matches the beq chain.
+  (func_0027CCD0 itself was matched by s903.)
+
+=== ROUND 9b FINDINGS (s901 s903 s904 s905 s906: allocator rules, sched1, preferences, pins) (workspace s906) ===
+FINDINGS s906 (round 9) -- new lessons only.  Targets: func_002627C0 (+func_00262ABC), func_00278530, func_0028A924 (EXACT), func_002A78F0 (reassigned to s903, analysed only)
+
+=== A. func_00278530 (EXACT, @SN -fno-builtin): ORDER OF TWO LOOP-PREHEADER COPIES ===
+ROM preheader of the inlined clamp loop:  blez t1 ; addiu v0,s3,8 (slot) ; move a0,v0 ; move t0,s6 ; L: move a2,t0 ...
+  a0 = loop.c giv init of the pointer giv p = vp + 16*i (vp = b->v already in v0);  t0 = copy of the output pointer `out`.
+Plain C ALWAYS gives the opposite order [move t0,s6][move a0,v0]:
+  * loop.c emits movables first and giv inits LAST (just before NOTE_INSN_LOOP_BEG), i.e. after every plain source copy;
+  * a plain copy `vq = vp` of the giv base (vq dies in the giv init) is folded away by combine into the giv init (r271 = r226), so it cannot
+    be used to put the `a0 = v0` copy first (y1/y2 tests);
+  * pins do not help: loop.c treats hard-reg variables as NON-invariant (n_times_set[hard] = 1), so a pinned base kills the pointer giv.
+Recipe that gives the exact ROM order (three EMPTY volatile asms in the guarded preheader, no code emitted):
+      if (i < n) {
+          __asm__ volatile("" : : : "$4");              /* vp is live across it -> vp cannot share a0 with vq */
+          vq = vp;                                      /* plain copy of the giv base; loop uses  p = vq + i  */
+          __asm__ volatile("" : : : "$2", "$3");        /* vq (block-local, local-alloc) must avoid v0,v1 -> takes a0; volatile asm pins the order */
+          o = out;
+          __asm__ volatile("" : : "r"(vq));             /* second use of vq: combine cannot fold the copy forward; sched1 would otherwise sink it (birthing boost) behind `o = out` */
+          do { p = vq + i; d = o; o += 4; ... i++; } while (i < n);
+      }
+  Result: vp = v0 (delay slot), `move a0,v0` = the vq copy, `move t0,s6` = o copy, the giv init `a0 = vq` becomes a no-op (g and vq both a0).
+  Each asm is needed (w1 without the first one coalesces vp, vq and the walker in a0: 243 insns).  Several equivalent spellings give 0/0 (asm2 may also take "r"(vq); asm3 may add "memory").
+  General rule: to put a loop.c giv-init copy BEFORE a plain copy in the preheader, route the giv base through a block-local pseudo vq, keep vq alive past the plain copy
+  (asm use), force vq into the walker's register (clobber v0/v1 inside its range) and keep the vp->vq copy from coalescing (clobber the walker's reg while vp is live).
+Mechanisms verified in the gcc 2.8.1 sources (D:/Projects/ext/gcc281src):
+  * local-alloc picks the FIRST free hard reg (no REG_ALLOC_ORDER on MIPS => $2,$3,$4,...) for block-local pseudos; global.c set_preference() turns a copy with an already
+    allocated local pseudo into a copy preference of the global partner => vp follows vq's register unless they conflict.
+  * sched1 rank_for_schedule: priority, then dependence class, then INSN_LUID (original order).  A move chain does NOT raise priority (latency 1 => priority stays 1), so
+    equal-priority moves keep their IR order; only birthing insns (dest REG_N_SETS==1 and live, released by a scheduled user) are boosted and sink next to their use.
+  * Copy order can therefore only be changed in the IR, never by the schedulers.
+
+=== B. func_00278530: INLINED OUT-OF-LINE-DEFERRED `inline` FUNCTION (func_00278A78) ===
+  * func_00278A78 has no caller (no jal anywhere) and sits AFTER func_00278530 in the ROM: it is an `inline` function whose out-of-line copy is emitted at the end; the
+    loop in func_00278530 is its INLINED body.  Reproduce with `static inline void clampv(R06VBlk *b, u8 *out)` + the MN/MX/CL macros of src/game/func_00278A78.c, called as
+    `if (ret != 0) clampv(dst, cp);`.
+  * Inline expansion copies EVERY non-const formal through a fresh pseudo at the call site (integrate.c: `! TREE_READONLY (formal)` -> copy_to_mode_reg).  cse1 removes the copy
+    again if the callee does not modify the param (the old reg stays canonical); if the callee modifies its param (`out += 4` as in the standalone body) the copy stays at the
+    CALL SITE, i.e. in front of `i = 0` and the guard (`move t0,s6` first).  The ROM has the walker copy AFTER the guard, so the callee body used a local copy inside the guard:
+    `if (i < n) { o = out; do {...} while (i < n); }` (also gets the loop rotated exactly like the ROM).
+  * walker idiom `move a2,t0 ... addiu t0,a2,4` (d = o; o += 4): cse1 makes d canonical (its last use is beyond the EBB and later than o's) so `o = o + 4` becomes `o = d + 4` and o is
+    NOT a biv.  If o is made a biv (e.g. a later use of o after the loop) loop.c reduces the three stores as DEST_ADDR givs (`sb v0,-2(a2)`), so the idiom needs the non-iv form.
+  * giv `d = o` (mult 1, add 0) has benefit 1; strength_reduce subtracts add_cost (2) => never reduced ("not worth while, -32760 vs 46"); DEST_ADDR givs with mult 1/add 0 are not recorded.
+  * Helper must be `static inline`; plain `inline` would add an out-of-line definition (chk rule).
+
+=== C. func_0028A924 (EXACT with the lead's pin) ===
+  * Two reads of the same global (`if (D_8011FE94 != 0) ... use(D_8011FE94, D_8011FE94)`) that the ROM does NOT merge (test in v0, arg 1 `move a1,v0`, arg 2 `move a2,a1`):
+    `sz = D_8011FE94; if (sz != 0) { sz = 0; ... }` -- the dead write `sz = 0` kills the cse equivalence of the first load; and take the call args from an existing MULTI-SET local
+    (sched1 birthing boost needs REG_N_SETS == 1, so a multi-set pseudo's load stays at the top of the block and reload_cse later turns the second load into `move`).
+  * The remaining a1/a2 role swap of the doubled argument temp was fixed by a pin on the temp: `{ register s32 av __asm__("$5"); av = D_8011FE94; h = func_002518DC(0, av, av, ...); }` (lead).
+    The decomp-permuter (20 min, 3 jobs, base score 20) found nothing.
+
+=== D. func_002627C0 (two functions in 314 insns) ===
+  * The 314-insn span is TWO functions: func_002627C0 (191 insns) and func_00262ABC at ROM 0x636BC (123 insns).  Both are the upstream decomp's func_802627A0_de / func_80262A9C_de
+    (D:/Projects/ext/ragewars-decomp/src): static inline take_effect/spawn_effect helpers, EXACT @SN with the OLD include/their headers (chk marker `/* their2 */` in the first 3 lines
+    selects include/their2).  func_00262ABC needs `extern char D_8011FE88;`, `->unk5F24`, `unk5F00.v0` and `&...unk5F00.v1` spellings.
+
+=== E. func_002A78F0 (not finished, reassigned to s903) ===
+  * Only analysed (allocation table, loop-invariant hoisting of the divisor constant, pool dump) before the reassignment; no reusable lesson beyond the draft.
+    Best draft wip/hard/func_002A78F0.c (= s804h draft, 33 structural / 106 operand aligned diffs).
+
+=== F. TOOLING PITFALLS (this workspace) ===
+  * tools/perm_strip.py dropped `static inline` helper definitions (permuter base compiled to 201 insns instead of 244, score 4740).  Use the s804 version (keeps `inline` helpers).
+  * Several agent tools wrote fixed /tmp names (ad.py, sbsm.py, sbs.py, side.py, score.py, lst.py, regvote.py): in parallel workspaces they clobber each other; names are per-pid now.
+  * `exec(compile(open('tools/lu_match.py')...))` helper scripts (sbsm.py, pre.py) inherit lu_match's globals: a script that uses names like `lo`/`hi` gets them overwritten by
+    `for lo, hi, n in REGIONS` -- use unique variable names.
+  * `&`-backgrounded permuter jobs die when the wsl call returns; run them with run_in_background and `timeout`.
+  * Dump recipe used for all loop/sched questions: `EXTRA='-fno-builtin -fsched-verbose=5' bash tools/dump.sh <file.c> /tmp/dd_x` (a.i.loop = loop.c log + RTL after loop,
+    a.i.sched / a.i.sched2 = sched logs with "ready list" priorities), `python3 tools/prio2.py /tmp/dd_x` = global-alloc order/registers per pseudo.
+
+FINDINGS s906 (round 9) -- new lessons only.  Targets: func_002627C0 (+func_00262ABC), func_00278530, func_0028A924 (EXACT), func_002A78F0 (reassigned to s903, analysed only)
+
+=== A. func_00278530 (EXACT, @SN -fno-builtin): ORDER OF TWO LOOP-PREHEADER COPIES ===
+ROM preheader of the inlined clamp loop:  blez t1 ; addiu v0,s3,8 (slot) ; move a0,v0 ; move t0,s6 ; L: move a2,t0 ...
+  a0 = loop.c giv init of the pointer giv p = vp + 16*i (vp = b->v already in v0);  t0 = copy of the output pointer `out`.
+Plain C ALWAYS gives the opposite order [move t0,s6][move a0,v0]:
+  * loop.c emits movables first and giv inits LAST (just before NOTE_INSN_LOOP_BEG), i.e. after every plain source copy;
+  * a plain copy `vq = vp` of the giv base (vq dies in the giv init) is folded away by combine into the giv init (r271 = r226), so it cannot
+    be used to put the `a0 = v0` copy first (y1/y2 tests);
+  * pins do not help: loop.c treats hard-reg variables as NON-invariant (n_times_set[hard] = 1), so a pinned base kills the pointer giv.
+Recipe that gives the exact ROM order (three EMPTY volatile asms in the guarded preheader, no code emitted):
+      if (i < n) {
+          __asm__ volatile("" : : : "$4");              /* vp is live across it -> vp cannot share a0 with vq */
+          vq = vp;                                      /* plain copy of the giv base; loop uses  p = vq + i  */
+          __asm__ volatile("" : : : "$2", "$3");        /* vq (block-local, local-alloc) must avoid v0,v1 -> takes a0; volatile asm pins the order */
+          o = out;
+          __asm__ volatile("" : : "r"(vq));             /* second use of vq: combine cannot fold the copy forward; sched1 would otherwise sink it (birthing boost) behind `o = out` */
+          do { p = vq + i; d = o; o += 4; ... i++; } while (i < n);
+      }
+  Result: vp = v0 (delay slot), `move a0,v0` = the vq copy, `move t0,s6` = o copy, the giv init `a0 = vq` becomes a no-op (g and vq both a0).
+  Each asm is needed (w1 without the first one coalesces vp, vq and the walker in a0: 243 insns).  Several equivalent spellings give 0/0 (asm2 may also take "r"(vq); asm3 may add "memory").
+  General rule: to put a loop.c giv-init copy BEFORE a plain copy in the preheader, route the giv base through a block-local pseudo vq, keep vq alive past the plain copy
+  (asm use), force vq into the walker's register (clobber v0/v1 inside its range) and keep the vp->vq copy from coalescing (clobber the walker's reg while vp is live).
+Mechanisms verified in the gcc 2.8.1 sources (D:/Projects/ext/gcc281src):
+  * local-alloc picks the FIRST free hard reg (no REG_ALLOC_ORDER on MIPS => $2,$3,$4,...) for block-local pseudos; global.c set_preference() turns a copy with an already
+    allocated local pseudo into a copy preference of the global partner => vp follows vq's register unless they conflict.
+  * sched1 rank_for_schedule: priority, then dependence class, then INSN_LUID (original order).  A move chain does NOT raise priority (latency 1 => priority stays 1), so
+    equal-priority moves keep their IR order; only birthing insns (dest REG_N_SETS==1 and live, released by a scheduled user) are boosted and sink next to their use.
+  * Copy order can therefore only be changed in the IR, never by the schedulers.
+
+=== B. func_00278530: INLINED OUT-OF-LINE-DEFERRED `inline` FUNCTION (func_00278A78) ===
+  * func_00278A78 has no caller (no jal anywhere) and sits AFTER func_00278530 in the ROM: it is an `inline` function whose out-of-line copy is emitted at the end; the
+    loop in func_00278530 is its INLINED body.  Reproduce with `static inline void clampv(R06VBlk *b, u8 *out)` + the MN/MX/CL macros of src/game/func_00278A78.c, called as
+    `if (ret != 0) clampv(dst, cp);`.
+  * Inline expansion copies EVERY non-const formal through a fresh pseudo at the call site (integrate.c: `! TREE_READONLY (formal)` -> copy_to_mode_reg).  cse1 removes the copy
+    again if the callee does not modify the param (the old reg stays canonical); if the callee modifies its param (`out += 4` as in the standalone body) the copy stays at the
+    CALL SITE, i.e. in front of `i = 0` and the guard (`move t0,s6` first).  The ROM has the walker copy AFTER the guard, so the callee body used a local copy inside the guard:
+    `if (i < n) { o = out; do {...} while (i < n); }` (also gets the loop rotated exactly like the ROM).
+  * walker idiom `move a2,t0 ... addiu t0,a2,4` (d = o; o += 4): cse1 makes d canonical (its last use is beyond the EBB and later than o's) so `o = o + 4` becomes `o = d + 4` and o is
+    NOT a biv.  If o is made a biv (e.g. a later use of o after the loop) loop.c reduces the three stores as DEST_ADDR givs (`sb v0,-2(a2)`), so the idiom needs the non-iv form.
+  * giv `d = o` (mult 1, add 0) has benefit 1; strength_reduce subtracts add_cost (2) => never reduced ("not worth while, -32760 vs 46"); DEST_ADDR givs with mult 1/add 0 are not recorded.
+  * Helper must be `static inline`; plain `inline` would add an out-of-line definition (chk rule).
+
+=== C. func_0028A924 (EXACT with the lead's pin) ===
+  * Two reads of the same global (`if (D_8011FE94 != 0) ... use(D_8011FE94, D_8011FE94)`) that the ROM does NOT merge (test in v0, arg 1 `move a1,v0`, arg 2 `move a2,a1`):
+    `sz = D_8011FE94; if (sz != 0) { sz = 0; ... }` -- the dead write `sz = 0` kills the cse equivalence of the first load; and take the call args from an existing MULTI-SET local
+    (sched1 birthing boost needs REG_N_SETS == 1, so a multi-set pseudo's load stays at the top of the block and reload_cse later turns the second load into `move`).
+  * The remaining a1/a2 role swap of the doubled argument temp was fixed by a pin on the temp: `{ register s32 av __asm__("$5"); av = D_8011FE94; h = func_002518DC(0, av, av, ...); }` (lead).
+    The decomp-permuter (20 min, 3 jobs, base score 20) found nothing.
+
+=== D. func_002627C0 (two functions in 314 insns) ===
+  * The 314-insn span is TWO functions: func_002627C0 (191 insns) and func_00262ABC at ROM 0x636BC (123 insns).  Both are the upstream decomp's func_802627A0_de / func_80262A9C_de
+    (D:/Projects/ext/ragewars-decomp/src): static inline take_effect/spawn_effect helpers, EXACT @SN with the OLD include/their headers (chk marker `/* their2 */` in the first 3 lines
+    selects include/their2).  func_00262ABC needs `extern char D_8011FE88;`, `->unk5F24`, `unk5F00.v0` and `&...unk5F00.v1` spellings.
+
+=== E. func_002A78F0 (not finished, reassigned to s903) ===
+  * Only analysed (allocation table, loop-invariant hoisting of the divisor constant, pool dump) before the reassignment; no reusable lesson beyond the draft.
+    Best draft wip/hard/func_002A78F0.c (= s804h draft, 33 structural / 106 operand aligned diffs).
+
+=== F. TOOLING PITFALLS (this workspace) ===
+  * tools/perm_strip.py dropped `static inline` helper definitions (permuter base compiled to 201 insns instead of 244, score 4740).  Use the s804 version (keeps `inline` helpers).
+  * Several agent tools wrote fixed /tmp names (ad.py, sbsm.py, sbs.py, side.py, score.py, lst.py, regvote.py): in parallel workspaces they clobber each other; names are per-pid now.
+  * `exec(compile(open('tools/lu_match.py')...))` helper scripts (sbsm.py, pre.py) inherit lu_match's globals: a script that uses names like `lo`/`hi` gets them overwritten by
+    `for lo, hi, n in REGIONS` -- use unique variable names.
+  * `&`-backgrounded permuter jobs die when the wsl call returns; run them with run_in_background and `timeout`.
+  * Dump recipe used for all loop/sched questions: `EXTRA='-fno-builtin -fsched-verbose=5' bash tools/dump.sh <file.c> /tmp/dd_x` (a.i.loop = loop.c log + RTL after loop,
+    a.i.sched / a.i.sched2 = sched logs with "ready list" priorities), `python3 tools/prio2.py /tmp/dd_x` = global-alloc order/registers per pseudo.
