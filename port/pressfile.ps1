@@ -41,6 +41,7 @@ foreach ($step in $Seq) {
     $p = $step.Split(':')
     if ($p[0] -eq 'wait') { WaitFrames ([double]$p[1]) }
     elseif ($p[0] -eq 'shot') { $n++; & "$PSScriptRoot\screenshot.ps1" -Out ("port\build\{0}_{1:D2}.png" -f $Prefix, $n) | Out-Null }
+    elseif ($p[0] -eq 'pick') { Set-Content port_pick.txt $step.Substring(5) -Encoding ascii; WaitFrames 3 }      # pick:x:y;x:y = the renderer logs the triangles under those 480x360 pixels (PICK lines in run.log: positions, s/t, tile, texture key)
     elseif ($p[0] -eq 'mapdump') { Set-Content port_mapdump.txt $p[1] -Encoding ascii; WaitFrames 3 }      # TUROK_MAPDUMP=1: write mapdump/<name>/map.obj (static triangles seen so far)
     elseif ($p[0] -eq 'ramdump') { Remove-Item port_ram.bin -ErrorAction SilentlyContinue; Copy-Item port_cam.txt ("port\build\ram_{0}.cam" -f $p[1]) -ErrorAction SilentlyContinue; New-Item port_ramdump.txt -ItemType File -Force | Out-Null; WaitFrames 3; Start-Sleep -Milliseconds 800; Move-Item port_ram.bin ("port\build\ram_{0}.bin" -f $p[1]) -Force -ErrorAction SilentlyContinue }   # full 8 MB guest RAM + camera position (TUROK_MAPDUMP=1)
     elseif ($p[0] -eq 'poke') { Set-Content port_poke.txt ('{0} {1} {2} {3}' -f $p[1], $p[2], $p[3], $p[4]) -Encoding ascii; WaitFrames 2 }   # poke:<hexaddr>:x:y:z writes three big-endian floats into guest RAM (TUROK_MAPDUMP=1)

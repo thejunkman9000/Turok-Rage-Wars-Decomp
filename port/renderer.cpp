@@ -152,9 +152,10 @@ static const uint8_t* res(uint32_t a) {
     if (a >= 0x80000000u && a < 0x80800000u) return g_snapNow ? g_snapNow + (a - 0x80000000u) : (const uint8_t*)(size_t)a;
     return g_zero;                                                       // garbage pointer (e.g. an object not initialised yet): read zeros instead of crashing
 }
+static int g_pickN, g_pickX[16], g_pickY[16], g_pickLeft;      // pixel picking (port_pick.txt): see emitTri
 struct Tile { int fmt, siz, line, tmem, pal, cmT, maskT, shiftT, cmS, maskS, shiftS, uls, ult, lrs, lrt; };
 struct Light { float r, g, b; float dx, dy, dz; };
-struct V { float cx, cy, cz, cw; float r, g, b, a; float s, t; float wx, wy, wz; };
+struct V { float cx, cy, cz, cw; float r, g, b, a; float s, t; float wx, wy, wz; uint32_t ts, tt; short mx, my, mz; };      // ts/tt: G_TEXTURE scale in effect when the vertex was loaded (the RSP scales s/t at load time)
 static struct {
     uint32_t geom, omL, omH, combW0, combW1;
     uint32_t cimg, zimg, timg, timgW; int timgFmt, timgSiz;
@@ -233,7 +234,9 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
     for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) decodeTexel(t, x, y, &px[((size_t)y * w + x) * 4]);
     { static int nl; if (nl++ < 12) { long sum = 0, nz = 0; for (size_t i = 0; i < px.size(); i += 4) { sum += px[i] + px[i + 1] + px[i + 2]; nz += px[i + 3] != 0; } fprintf(stderr, "texture %dx%d fmt %d siz %d line %d tmem %d: rgb sum %ld, opaque texels %ld\n", w, h, t.fmt, t.siz, t.line, t.tmem, sum, nz); fflush(stderr); } }
     { static int tl = -1, tln; if (tl < 0) tl = getenv("TUROK_TEXLOG") ? 1 : 0; if (tl && tln++ < 600) fprintf(stderr, "texdecode %dx%d fmt %d siz %d line %d tmem %d pal %d uls %d lrs %d ult %d lrt %d timg %08X\n", w, h, t.fmt, t.siz, t.line, t.tmem, t.pal, t.uls, t.lrs, t.ult, t.lrt, S.timg); }
-    { static int nd; static int seen; static int only8 = getenv("TUROK_TEXDUMP8") != nullptr; static int big = getenv("TUROK_TEXDUMPBIG") != nullptr; static int wh_w = 0, wh_h = 0, wh_init = 0; if (!wh_init) { wh_init = 1; const char* e = getenv("TUROK_TEXDUMPWH"); if (e) sscanf(e, "%dx%d", &wh_w, &wh_h); } if (wh_w ? (w == wh_w && h == wh_h && nd < 40) : big ? (w >= 32 && h >= 16 && w != 288 && nd < 80) : only8 ? (w == 16 && h == 8 && nd < 12) : (nd < 80 && seen++ >= atoi(getenv("TUROK_TEXDUMP") ? getenv("TUROK_TEXDUMP") : "999999"))) { char fn[64]; fprintf(stderr, "texdump %d: %dx%d fmt %d siz %d line %d tmem %d pal %d uls %d lrs %d ult %d lrt %d maskS %d maskT %d timgW %d timgSiz %d\n", nd, w, h, t.fmt, t.siz, t.line, t.tmem, t.pal, t.uls, t.lrs, t.ult, t.lrt, t.maskS, t.maskT, S.timgW, S.timgSiz); sprintf(fn, "port/build/tex_%d.ppm", nd++); FILE* f = fopen(fn, "wb"); if (f) { fprintf(f, "P6 %d %d 255 ", w, h); for (size_t i = 0; i < px.size(); i += 4) fwrite(&px[i], 1, 3, f); fclose(f); } } }
+    { static int nd; static int seen; static int only8 = getenv("TUROK_TEXDUMP8") != nullptr; static int big = getenv("TUROK_TEXDUMPBIG") != nullptr; static int wh_w = 0, wh_h = 0, wh_init = 0; if (!wh_init) { wh_init = 1; const char* e = getenv("TUROK_TEXDUMPWH"); if (e) sscanf(e, "%dx%d", &wh_w, &wh_h); } if (wh_w ? (w == wh_w && h == wh_h && nd < 40) : big ? (w >= 32 && h >= 16 && w != 288 && nd < 80) : only8 ? (w == 16 && h == 8 && nd < 12) : (nd < 80 && seen++ >= atoi(getenv("TUROK_TEXDUMP") ? getenv("TUROK_TEXDUMP") : "999999"))) { char fn[64]; fprintf(stderr, "texdump %d: %dx%d fmt %d siz %d line %d tmem %d pal %d uls %d lrs %d ult %d lrt %d maskS %d maskT %d timgW %d timgSiz %d key %llx\n", nd, w, h, t.fmt, t.siz, t.line, t.tmem, t.pal, t.uls, t.lrs, t.ult, t.lrt, t.maskS, t.maskT, S.timgW, S.timgSiz, (unsigned long long)key); sprintf(fn, "port/build/tex_%d.ppm", nd++); FILE* f = fopen(fn, "wb"); if (f) { fprintf(f, "P6 %d %d 255 ", w, h); for (size_t i = 0; i < px.size(); i += 4) fwrite(&px[i], 1, 3, f); fclose(f); } } }
+    { static const char* ks = getenv("TUROK_TEXDUMPKEY");      // TUROK_TEXDUMPKEY=<hex key>[:<hex key>...]: write port/build/key_<key>.ppm for those cache keys (keys are printed by the PICK / UVLOG lines)
+      if (ks) { char kb[32]; sprintf(kb, "%llx", (unsigned long long)key); if (strstr(ks, kb)) { char fn[96]; sprintf(fn, "port/build/key_%llx.ppm", (unsigned long long)key); FILE* f = fopen(fn, "wb"); if (f) { fprintf(f, "P6 %d %d 255 ", w, h); for (size_t i = 0; i < px.size(); i += 4) fwrite(&px[i], 1, 3, f); fclose(f); fprintf(stderr, "texdump key %llx: %dx%d fmt %d siz %d -> %s\n", (unsigned long long)key, w, h, t.fmt, t.siz, fn); } } } }
     D3D11_TEXTURE2D_DESC td = {}; td.Width = w; td.Height = h; td.MipLevels = td.ArraySize = 1; td.SampleDesc.Count = 1; td.Format = DXGI_FORMAT_R8G8B8A8_UNORM; td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     D3D11_SUBRESOURCE_DATA sr = { px.data(), (UINT)w * 4, 0 }; ID3D11Texture2D* tx = nullptr; ID3D11ShaderResourceView* sv = nullptr;
     if (SUCCEEDED(dev->CreateTexture2D(&td, &sr, &tx))) { dev->CreateShaderResourceView(tx, nullptr, &sv); tx->Release(); }
@@ -365,11 +368,10 @@ static void capTexture(uint64_t key, const std::vector<uint8_t>& px, int w, int 
 }
 static void capRecord(const V* v[3], ID3D11ShaderResourceView* srv, float tw, float th, float uls, float ult, int frame) {
     CapTri t; memset(&t, 0, sizeof t);
-    float sScale = S.texScaleS / 65536.f, tScale = S.texScaleT / 65536.f;
     uint64_t h = 1469598103934665603ull;
     for (int i = 0; i < 3; i++) {
         t.p[i][0] = v[i]->wx; t.p[i][1] = v[i]->wy; t.p[i][2] = v[i]->wz;
-        t.uv[i][0] = (v[i]->s / 32.f * sScale - uls / 4.f) / tw; t.uv[i][1] = (v[i]->t / 32.f * tScale - ult / 4.f) / th;
+        t.uv[i][0] = (v[i]->s / 32.f - uls / 4.f) / tw; t.uv[i][1] = (v[i]->t / 32.f - ult / 4.f) / th;      // v->s/t are final S10.5 (scaled at vertex load)
         t.c[i][0] = (uint8_t)(v[i]->r * 255.f + .5f); t.c[i][1] = (uint8_t)(v[i]->g * 255.f + .5f); t.c[i][2] = (uint8_t)(v[i]->b * 255.f + .5f); t.c[i][3] = (uint8_t)(v[i]->a * 255.f + .5f);
         for (int k = 0; k < 3; k++) h = (h ^ (uint64_t)(int64_t)lroundf(t.p[i][k] * 4.f)) * 1099511628211ull;
     }
@@ -426,8 +428,7 @@ static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool n
     if (zs < 0) zs = 0; if (zs > 1) zs = 1;
     Vtx o; o.x = (px / SCREEN_W * 2.f - 1.f) * v.cw; o.y = (1.f - py / SCREEN_H * 2.f) * v.cw; o.z = zs * v.cw; o.w = v.cw;
     o.r = v.r; o.g = v.g; o.b = v.b; o.a = v.a;
-    float sScale = S.texScaleS / 65536.f, tScale = S.texScaleT / 65536.f;
-    o.u = (v.s / 32.f * sScale - uls / 4.f) / tw; o.v = (v.t / 32.f * tScale - ult / 4.f) / th;
+    o.u = (v.s / 32.f - uls / 4.f) / tw; o.v = (v.t / 32.f - ult / 4.f) / th;      // v.s / v.t are final S10.5: scaled by G_TEXTURE when the vertex was loaded (the RSP does it at load time), or written as final values by G_MODIFYVTX
     batch.push_back(o);
 }
 
@@ -463,15 +464,19 @@ static void emitTri(int i0, int i1, int i2) {
     { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && vtxlog_on()) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
-    { static int npix = -1, pxs[16], pys[16], npx;      // TUROK_UVPIXEL=x:y;x:y;... (480x360 screen pixels): log the triangles of frame 595 that cover those pixels with raw s/t, UVs and tile parameters
-      if (npix < 0) { npix = 0; const char* e = getenv("TUROK_UVPIXEL"); while (e && *e && npix < 16) { int a, b, n = 0; if (sscanf(e, "%d:%d%n", &a, &b, &n) < 2) break; pxs[npix] = a; pys[npix++] = b; e += n; if (*e == ';') e++; } }
-      if (npix > 0 && g_nfpub >= 594 && g_nfpub <= 595 && cur.texOn && npx < 160) {
-          float sx[3], sy[3]; for (int i = 0; i < 3; i++) { sx[i] = v[i]->cx / v[i]->cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f; sy[i] = -v[i]->cy / v[i]->cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f; }
-          for (int k = 0; k < npix; k++) {
-              float X = (float)pxs[k], Y = (float)pys[k];
-              auto edge = [&](int a, int b) { return (sx[b] - sx[a]) * (Y - sy[a]) - (sy[b] - sy[a]) * (X - sx[a]); };
-              float e0 = edge(0, 1), e1 = edge(1, 2), e2 = edge(2, 0);
-              if ((e0 >= 0 && e1 >= 0 && e2 >= 0) || (e0 <= 0 && e1 <= 0 && e2 <= 0)) { npx++; const int* d = cur.dbg; fprintf(stderr, "UVPIXEL (%d,%d) tri s,t (%d,%d) (%d,%d) (%d,%d) w %.1f %.1f %.1f scale %04X/%04X | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d key %llx omH %08X omL %08X cw %08X %08X\n", pxs[k], pys[k], (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, v[0]->cw, v[1]->cw, v[2]->cw, S.texScaleS, S.texScaleT, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv], S.omH, S.omL, S.combW0, S.combW1); } } } }
+    if (g_pickN > 0 && g_pickLeft > 0 && cur.texOn) {      // port_pick.txt (pressfile step `pick:x:y;x:y`, 480x360 pixels): log the (clipped) triangles of the next frame that cover those pixels
+        for (int f = 1; f + 1 < n; f++) {
+            const V* q[3] = { &poly[0], &poly[f], &poly[f + 1] }; float sx[3], sy[3]; for (int i = 0; i < 3; i++) { sx[i] = q[i]->cx / q[i]->cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f; sy[i] = -q[i]->cy / q[i]->cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f; }
+            for (int k = 0; k < g_pickN; k++) {
+                float X = (float)g_pickX[k], Y = (float)g_pickY[k];
+                auto edge = [&](int a, int b) { return (sx[b] - sx[a]) * (Y - sy[a]) - (sy[b] - sy[a]) * (X - sx[a]); };
+                float e0 = edge(0, 1), e1 = edge(1, 2), e2 = edge(2, 0);
+                if ((e0 >= 0 && e1 >= 0 && e2 >= 0) || (e0 <= 0 && e1 <= 0 && e2 <= 0)) { const int* d = cur.dbg; fprintf(stderr, "PICK (%d,%d) src pos (%d,%d,%d) (%d,%d,%d) (%d,%d,%d) src s,t (%d,%d) (%d,%d) (%d,%d) clipped s,t (%.0f,%.0f) (%.0f,%.0f) (%.0f,%.0f) scr (%.0f,%.0f) (%.0f,%.0f) (%.0f,%.0f) w %.1f %.1f %.1f scale %04X/%04X | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d key %llx\n", g_pickX[k], g_pickY[k], v[0]->mx, v[0]->my, v[0]->mz, v[1]->mx, v[1]->my, v[1]->mz, v[2]->mx, v[2]->my, v[2]->mz, (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, q[0]->s, q[0]->t, q[1]->s, q[1]->t, q[2]->s, q[2]->t, sx[0], sy[0], sx[1], sy[1], sx[2], sy[2], q[0]->cw, q[1]->cw, q[2]->cw, S.texScaleS, S.texScaleT, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv]); }
+            }
+        }
+    }
+    { static int ml = -1, nml, tot, bad; if (ml < 0) ml = getenv("TUROK_SCALELOG") ? 1 : 0;      // TUROK_SCALELOG=1: triangles whose vertices were loaded under a different G_TEXTURE scale than the one in effect at the draw
+      if (ml && cur.texOn) { tot++; if (v[0]->ts != S.texScaleS || v[0]->tt != S.texScaleT || v[1]->ts != S.texScaleS || v[1]->tt != S.texScaleT || v[2]->ts != S.texScaleS || v[2]->tt != S.texScaleT) { bad++; if (nml++ < 12) fprintf(stderr, "SCALEMISMATCH vertex scales %04X/%04X %04X/%04X %04X/%04X now %04X/%04X (textured triangles so far %d, mismatching %d)\n", v[0]->ts, v[0]->tt, v[1]->ts, v[1]->tt, v[2]->ts, v[2]->tt, S.texScaleS, S.texScaleT, tot, bad); } } }
     { static int dl = -1, ndl; if (dl < 0) dl = getenv("TUROK_UVRAW") ? 1 : 0;      // TUROK_UVRAW=1: raw vertex s/t, G_TEXTURE scales and tile size of the first triangles that use a tiny 16x9 texture
       if (dl && cur.texOn && curTexW == 16 && curTexH == 9 && ndl < 12) { ndl++; fprintf(stderr, "UVRAW s,t (%d,%d) (%d,%d) (%d,%d) scale %04X/%04X tile %d size uls %d ult %d lrs %d lrt %d line %d fmt %d siz %d\n", (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, S.texScaleS, S.texScaleT, S.texTile & 7, t.uls, t.ult, t.lrs, t.lrt, t.line, t.fmt, t.siz); } }
     if (capOn()) { const V* cv[3] = { v[0], v[1], v[2] }; capRecord(cv, cur.texOn ? cur.srv : nullptr, (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult, g_nfpub); }
@@ -491,7 +496,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
         const float* m = S.mvp;
         o.cx = x * m[0] + y * m[4] + z * m[8] + m[12]; o.cy = x * m[1] + y * m[5] + z * m[9] + m[13];
         o.cz = x * m[2] + y * m[6] + z * m[10] + m[14]; o.cw = x * m[3] + y * m[7] + z * m[11] + m[15];
-        o.s = (int16_t)rd16(p + 8); o.t = (int16_t)rd16(p + 10);
+        o.ts = S.texScaleS; o.tt = S.texScaleT; o.s = (int16_t)rd16(p + 8) * (o.ts / 65536.f); o.t = (int16_t)rd16(p + 10) * (o.tt / 65536.f);      // G_TEXTURE scales s/t at vertex load; G_MODIFYVTX later overwrites them with final values o.mx = (short)x; o.my = (short)y; o.mz = (short)z;
         if (capOn()) { const float* mv = S.mv[S.mvTop]; float vx = x * mv[0] + y * mv[4] + z * mv[8] + mv[12], vy = x * mv[1] + y * mv[5] + z * mv[9] + mv[13], vz = x * mv[2] + y * mv[6] + z * mv[10] + mv[14]; const float* c = S.camInv; o.wx = vx * c[0] + vy * c[4] + vz * c[8] + c[12]; o.wy = vx * c[1] + vy * c[5] + vz * c[9] + c[13]; o.wz = vx * c[2] + vy * c[6] + vz * c[10] + c[14]; }
         if (S.geom & 0x20000) {      // lighting: colour bytes are a normal
             const float* mv = S.mv[S.mvTop];
@@ -619,7 +624,7 @@ static void runDL(uint32_t addr, int depth) {
             if (idx >= 0 && idx < 64) {
                 V& v = S.vtx[idx];
                 if (off == 0x10) { v.r = ((w1 >> 24) & 255) / 255.f; v.g = ((w1 >> 16) & 255) / 255.f; v.b = ((w1 >> 8) & 255) / 255.f; v.a = (w1 & 255) / 255.f; }
-                else if (off == 0x14) { v.s = (float)(int16_t)(w1 >> 16); v.t = (float)(int16_t)(w1 & 0xFFFF); { static int nm; if (nm++ < 20 && getenv("TUROK_MODVTXLOG")) { fprintf(stderr, "MODIFYVTX ST vtx %d s,t %d,%d with G_TEXTURE scale %04X/%04X\n", idx, (int)v.s, (int)v.t, S.texScaleS, S.texScaleT); } } }
+                else if (off == 0x14) { v.s = (float)(int16_t)(w1 >> 16); v.t = (float)(int16_t)(w1 & 0xFFFF); { static int nm; if (g_nfpub >= 450 && nm++ < 60 && getenv("TUROK_MODVTXLOG")) { fprintf(stderr, "MODIFYVTX ST vtx %d s,t %d,%d with G_TEXTURE scale %04X/%04X\n", idx, (int)v.s, (int)v.t, S.texScaleS, S.texScaleT); } } }
                 else if (off == 0x18) { float x = (float)(int16_t)(w1 >> 16), y = (float)(int16_t)(w1 & 0xFFFF); float vs0 = S.vsc[0] != 0 ? S.vsc[0] : 1.f, vs1 = S.vsc[1] != 0 ? S.vsc[1] : 1.f; v.cw = 1.f; v.cx = (x - S.vtr[0]) / vs0; v.cy = (S.vtr[1] - y) / vs1; }
                 else if (off == 0x1C) { v.cz = 0.f; }
             }
@@ -715,6 +720,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         ctx->VSSetShader(vs, nullptr, 0); ctx->PSSetShader(ps, nullptr, 0); ctx->PSSetConstantBuffers(0, 1, &cbuf);
         g_nfpub = nframes;
         { static int df = -1; if (df < 0) { const char* e = getenv("TUROK_DLFRAME"); df = e ? atoi(e) : 300; } if (nframes >= df && nframes < df + 60) { char fn[64]; sprintf(fn, "port_dl_%d.txt", nframes - df); g_dump = fopen(fn, "w"); } }
+        { if (g_pickLeft > 0) g_pickLeft--; if (GetFileAttributesA("port_pick.txt") != INVALID_FILE_ATTRIBUTES) { char pb[256] = {0}; FILE* pf = fopen("port_pick.txt", "r"); if (pf) { if (fgets(pb, sizeof pb, pf)) {} fclose(pf); } DeleteFileA("port_pick.txt"); g_pickN = 0; const char* e = pb; while (*e && g_pickN < 16) { int a, b2, n = 0; if (sscanf(e, "%d:%d%n", &a, &b2, &n) < 2) break; g_pickX[g_pickN] = a; g_pickY[g_pickN++] = b2; e += n; if (*e == ';') e++; } if (g_pickN) { g_pickLeft = 2; fprintf(stderr, "PICK armed for %d pixels (first %d,%d) at frame %d\n", g_pickN, g_pickX[0], g_pickY[0], nframes); } } }
         { static int trig; if (trig == 0 && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; port_dump_threads(); port_dump_trace_pub(400); { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } { FILE* m2 = fopen("port_mem2.bin", "wb"); if (m2) { fwrite((void*)0x801D0C00u, 1, 0x3600, m2); fclose(m2); } } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
         g_dlBudget = 4000000; runDL(dl, 0); flush();
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
