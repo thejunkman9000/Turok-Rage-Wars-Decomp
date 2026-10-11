@@ -169,7 +169,8 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_zmodeDraws[4]; static int g_vtxGeom[4];   // vertices loaded with texgen (0x40000) / texgen linear (0x80000) / fog (0x10000) / lighting (0x20000) set; draws per RDP z-mode (0 opaque, 1 interpenetrating, 2 translucent, 3 decal)
+static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_zmodeDraws[4]; static int g_vtxGeom[4]; static std::map<uint32_t, int> g_omHHist; static int g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws;   // textured draws; of which without texture perspective (omH bit 19), with texture LOD (bit 16), with detail/sharpen (bits 17-18)
+// vertices loaded with texgen (0x40000) / texgen linear (0x80000) / fog (0x10000) / lighting (0x20000) set; draws per RDP z-mode (0 opaque, 1 interpenetrating, 2 translucent, 3 decal)
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
 static void matMul(const float* a, const float* b, float* o) {    // row-vector convention: o = a * b
@@ -241,7 +242,7 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
 }
 
 // ---- batching
-struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mode; ID3D11ShaderResourceView* srv; ID3D11ShaderResourceView* srv1; ID3D11SamplerState* smp; bool texOn; };
+struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mode; ID3D11ShaderResourceView* srv; ID3D11ShaderResourceView* srv1; ID3D11SamplerState* smp; bool texOn; int dbg[16]; };      // dbg: tile parameters for TUROK_UVLOG (addrU addrV w h uls ult lrs lrt maskS maskT cmS cmT fmt siz line texTile)
 static DState cur; static bool curValid; static int curTexW = 1, curTexH = 1;
 
 static void flush() {
@@ -290,9 +291,19 @@ static void flush() {
                 (int)batch.size() / 3, x0, y0, x1, y1, r / n, g / n, b / n, a / n, cur.texOn ? 1 : 0, (cur.texOn && !cur.srv) ? "(nosrv)" : "", cw0, cw1, cur.omL, cur.omH, cur.geom, cycle,
                 cur.prim[0], cur.prim[1], cur.prim[2], cur.prim[3], cur.env[0], cur.env[1], cur.env[2], cur.env[3], zb, zcmp, zupd, blend, thr);
     }
+    { static int ul = -1, nul; if (ul < 0) ul = getenv("TUROK_UVLOG") ? 1 : 0;      // TUROK_UVLOG=1: textured draws whose UVs leave the texture on an axis that is clamped (the edge texel streaks)
+      static int ulall = -1; if (ulall < 0) { const char* e = getenv("TUROK_UVLOG"); ulall = e ? atoi(e) : 0; }      // TUROK_UVLOG=2: log every textured draw of frame g_nfpub == 595
+      if (ulall == 2 && cur.texOn && cur.srv && g_nfpub == 595) {
+          float u0 = 1e9f, u1 = -1e9f, v0 = 1e9f, v1 = -1e9f; for (const Vtx& v : batch) { if (v.u < u0) u0 = v.u; if (v.u > u1) u1 = v.u; if (v.v < v0) v0 = v.v; if (v.v > v1) v1 = v.v; }
+          const int* d = cur.dbg; fprintf(stderr, "UVDRAW u %.2f..%.2f v %.2f..%.2f tris %d | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d key %llx\n", u0, u1, v0, v1, (int)batch.size() / 3, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv]); }
+      if (ul && cur.texOn && cur.srv && nul < 120) {
+          float u0 = 1e9f, u1 = -1e9f, v0 = 1e9f, v1 = -1e9f; for (const Vtx& v : batch) { if (v.u < u0) u0 = v.u; if (v.u > u1) u1 = v.u; if (v.v < v0) v0 = v.v; if (v.v > v1) v1 = v.v; }
+          const int* d = cur.dbg; bool badU = d[0] == 2 && (u0 < -0.02f || u1 > 1.02f), badV = d[1] == 2 && (v0 < -0.02f || v1 > 1.02f);
+          if (badU || badV) { nul++; fprintf(stderr, "UVCLAMP u %.2f..%.2f v %.2f..%.2f tris %d | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d srvkey %llx\n", u0, u1, v0, v1, (int)batch.size() / 3, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv]); } } }
     { static int fl = -1, nfl; if (fl < 0) fl = getenv("TUROK_FOGLOG") ? 1 : 0;      // TUROK_FOGLOG=1: log the render modes of the first draws that have the fog geometry bit set (the renderer has no fog)
       if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); } }
     ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
+    if (cur.texOn) { g_omHHist[cur.omH]++; g_texDraws++; if (!(cur.omH & (1u << 19))) g_noPerspDraws++; if (cur.omH & (1u << 16)) g_lodDraws++; if (cur.omH & (3u << 17)) g_detailDraws++; }
     batch.clear();
 }
 
@@ -307,10 +318,13 @@ static void setupState(int mode) {
         n.srv = getTexture(t, w, h);
         { uint32_t cw0 = S.combW0, cw1 = S.combW1; uint32_t f[16] = { (cw0 >> 20) & 15, (cw1 >> 28) & 15, (cw0 >> 15) & 31, (cw1 >> 15) & 7, (cw0 >> 12) & 7, (cw1 >> 12) & 7, (cw0 >> 9) & 7, (cw1 >> 9) & 7, (cw0 >> 5) & 15, (cw1 >> 24) & 15, cw0 & 31, (cw1 >> 6) & 7, (cw1 >> 21) & 7, (cw1 >> 3) & 7, (cw1 >> 18) & 7, cw1 & 7 };
           bool uses1 = false; for (int k = 0; k < 16; k++) if (f[k] == 2 || (k == 2 && f[k] == 9) || (k == 10 && f[k] == 9)) uses1 = true;
-          if (uses1) { const Tile& t1 = S.tile[(S.texTile + 1) & 7]; int w1, h1; tileDims(t1, w1, h1); n.srv1 = getTexture(t1, w1, h1); } else n.srv1 = nullptr; }
+          if (uses1) { const Tile& t1 = S.tile[(S.texTile + 1) & 7]; int w1, h1; tileDims(t1, w1, h1); n.srv1 = getTexture(t1, w1, h1);
+              { static int sl = -1, nsl; if (sl < 0) sl = getenv("TUROK_TEX1LOG") ? 1 : 0;      // TUROK_TEX1LOG=1: draws that sample a second tile (the UV of the first tile is used for both)
+                if (sl && nsl < 60) { nsl++; fprintf(stderr, "TEX1 tile0 %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d shift %d/%d cm %d/%d fmt %d siz | tile1 %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d shift %d/%d cm %d/%d fmt %d siz %d | cw %08X %08X\n", w, h, t.uls, t.ult, t.lrs, t.lrt, t.maskS, t.maskT, t.shiftS, t.shiftT, t.cmS, t.cmT, t.fmt, w1, h1, t1.uls, t1.ult, t1.lrs, t1.lrt, t1.maskS, t1.maskT, t1.shiftS, t1.shiftT, t1.cmS, t1.cmT, t1.fmt, t1.siz, S.combW0, S.combW1); } } } else n.srv1 = nullptr; }
         int f = ((S.omH >> 12) & 3) != 0;
         int u = t.maskS == 0 ? 2 : (t.cmS & 2) ? 2 : (t.cmS & 1) ? 1 : 0, v = t.maskT == 0 ? 2 : (t.cmT & 2) ? 2 : (t.cmT & 1) ? 1 : 0;
         n.smp = samplers[f][u][v];
+        { int d[16] = { u, v, w, h, t.uls, t.ult, t.lrs, t.lrt, t.maskS, t.maskT, t.cmS, t.cmT, t.fmt, t.siz, t.line, S.texTile & 7 }; memcpy(n.dbg, d, sizeof d); }
     } else n.smp = samplers[0][2][2];
     bool same = curValid && cur.geom == n.geom && cur.omL == n.omL && cur.omH == n.omH && cur.cw0 == n.cw0 && cur.cw1 == n.cw1 && cur.mode == n.mode &&
                 !memcmp(cur.prim, n.prim, 16) && !memcmp(cur.env, n.env, 16) && cur.srv == n.srv && cur.srv1 == n.srv1 && cur.smp == n.smp && cur.texOn == n.texOn;
@@ -449,6 +463,17 @@ static void emitTri(int i0, int i1, int i2) {
     { static int nl2; if (nl2 < 12 && g_nfpub >= 590 && vtxlog_on()) { nl2++; fprintf(stderr, "tri v%d,%d,%d ndc (%.2f %.2f %.3f) (%.2f %.2f %.3f) (%.2f %.2f %.3f) n=%d tex=%d geom=%x\n", i0, i1, i2, poly[0].cx / poly[0].cw, poly[0].cy / poly[0].cw, poly[0].cz / poly[0].cw, poly[1].cx / poly[1].cw, poly[1].cy / poly[1].cw, poly[1].cz / poly[1].cw, poly[2].cx / poly[2].cw, poly[2].cy / poly[2].cw, poly[2].cz / poly[2].cw, n, S.texOn, S.geom); } }
     setupState(0);
     const Tile& t = S.tile[S.texTile & 7];
+    { static int npix = -1, pxs[16], pys[16], npx;      // TUROK_UVPIXEL=x:y;x:y;... (480x360 screen pixels): log the triangles of frame 595 that cover those pixels with raw s/t, UVs and tile parameters
+      if (npix < 0) { npix = 0; const char* e = getenv("TUROK_UVPIXEL"); while (e && *e && npix < 16) { int a, b, n = 0; if (sscanf(e, "%d:%d%n", &a, &b, &n) < 2) break; pxs[npix] = a; pys[npix++] = b; e += n; if (*e == ';') e++; } }
+      if (npix > 0 && g_nfpub >= 594 && g_nfpub <= 595 && cur.texOn && npx < 160) {
+          float sx[3], sy[3]; for (int i = 0; i < 3; i++) { sx[i] = v[i]->cx / v[i]->cw * S.vsc[0] * 0.25f + S.vtr[0] * 0.25f; sy[i] = -v[i]->cy / v[i]->cw * S.vsc[1] * 0.25f + S.vtr[1] * 0.25f; }
+          for (int k = 0; k < npix; k++) {
+              float X = (float)pxs[k], Y = (float)pys[k];
+              auto edge = [&](int a, int b) { return (sx[b] - sx[a]) * (Y - sy[a]) - (sy[b] - sy[a]) * (X - sx[a]); };
+              float e0 = edge(0, 1), e1 = edge(1, 2), e2 = edge(2, 0);
+              if ((e0 >= 0 && e1 >= 0 && e2 >= 0) || (e0 <= 0 && e1 <= 0 && e2 <= 0)) { npx++; const int* d = cur.dbg; fprintf(stderr, "UVPIXEL (%d,%d) tri s,t (%d,%d) (%d,%d) (%d,%d) w %.1f %.1f %.1f scale %04X/%04X | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d key %llx omH %08X omL %08X cw %08X %08X\n", pxs[k], pys[k], (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, v[0]->cw, v[1]->cw, v[2]->cw, S.texScaleS, S.texScaleT, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv], S.omH, S.omL, S.combW0, S.combW1); } } } }
+    { static int dl = -1, ndl; if (dl < 0) dl = getenv("TUROK_UVRAW") ? 1 : 0;      // TUROK_UVRAW=1: raw vertex s/t, G_TEXTURE scales and tile size of the first triangles that use a tiny 16x9 texture
+      if (dl && cur.texOn && curTexW == 16 && curTexH == 9 && ndl < 12) { ndl++; fprintf(stderr, "UVRAW s,t (%d,%d) (%d,%d) (%d,%d) scale %04X/%04X tile %d size uls %d ult %d lrs %d lrt %d line %d fmt %d siz %d\n", (int)v[0]->s, (int)v[0]->t, (int)v[1]->s, (int)v[1]->t, (int)v[2]->s, (int)v[2]->t, S.texScaleS, S.texScaleT, S.texTile & 7, t.uls, t.ult, t.lrs, t.lrt, t.line, t.fmt, t.siz); } }
     if (capOn()) { const V* cv[3] = { v[0], v[1], v[2] }; capRecord(cv, cur.texOn ? cur.srv : nullptr, (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult, g_nfpub); }
     if (batch.size() + 12 > 3 * 6000) flush();
     for (int k = 1; k + 1 < n; k++) { pushVtx(poly[0], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); pushVtx(poly[k + 1], (float)curTexW, (float)curTexH, (float)t.uls, (float)t.ult); g_tris++; }
@@ -594,7 +619,7 @@ static void runDL(uint32_t addr, int depth) {
             if (idx >= 0 && idx < 64) {
                 V& v = S.vtx[idx];
                 if (off == 0x10) { v.r = ((w1 >> 24) & 255) / 255.f; v.g = ((w1 >> 16) & 255) / 255.f; v.b = ((w1 >> 8) & 255) / 255.f; v.a = (w1 & 255) / 255.f; }
-                else if (off == 0x14) { v.s = (float)(int16_t)(w1 >> 16); v.t = (float)(int16_t)(w1 & 0xFFFF); }
+                else if (off == 0x14) { v.s = (float)(int16_t)(w1 >> 16); v.t = (float)(int16_t)(w1 & 0xFFFF); { static int nm; if (nm++ < 20 && getenv("TUROK_MODVTXLOG")) { fprintf(stderr, "MODIFYVTX ST vtx %d s,t %d,%d with G_TEXTURE scale %04X/%04X\n", idx, (int)v.s, (int)v.t, S.texScaleS, S.texScaleT); } } }
                 else if (off == 0x18) { float x = (float)(int16_t)(w1 >> 16), y = (float)(int16_t)(w1 & 0xFFFF); float vs0 = S.vsc[0] != 0 ? S.vsc[0] : 1.f, vs1 = S.vsc[1] != 0 ? S.vsc[1] : 1.f; v.cw = 1.f; v.cx = (x - S.vtr[0]) / vs0; v.cy = (S.vtr[1] - y) / vs1; }
                 else if (off == 0x1C) { v.cz = 0.f; }
             }
@@ -683,7 +708,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         uint32_t dl = rd32(g_gfx_task + 0x30);
         memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
         g_frameCamSet = false; matIdent(S.proj); matIdent(S.camInv); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
-        memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0; memset(g_zmodeDraws, 0, sizeof g_zmodeDraws); memset(g_vtxGeom, 0, sizeof g_vtxGeom);
+        memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0; memset(g_zmodeDraws, 0, sizeof g_zmodeDraws); memset(g_vtxGeom, 0, sizeof g_vtxGeom); g_texDraws = g_noPerspDraws = g_lodDraws = g_detailDraws = 0; g_omHHist.clear();
         ctx->OMSetRenderTargets(1, &rtv, dsv);
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);
         ctx->RSSetState(rs); ctx->IASetInputLayout(layout); ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -699,7 +724,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         if (capOn() && (nframes & 15) == 0) { FILE* tf = fopen("port_mapdump.txt", "r"); if (tf) { char nm[100] = "map"; if (fscanf(tf, "%99s", nm) != 1) strcpy(nm, "map"); fclose(tf); DeleteFileA("port_mapdump.txt"); capWrite(nm); } if (GetFileAttributesA("port_mapreset.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_mapreset.txt"); capTris.clear(); } }
         if (capOn() && (nframes & 15) == 8) capVisAll(nframes);
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
-        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3]); fflush(stderr); }
+        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d, textured draws %d (no perspective %d, lod %d, detail/sharpen %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3], g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws); for (auto& kv : g_omHHist) fprintf(stderr, "   textured draws with othermode-high %08X: %d\n", kv.first, kv.second); fflush(stderr); }
     }
     LeaveCriticalSection(&g_snap_lock);
     // blit the internal frame (4:3) letterboxed into the window
