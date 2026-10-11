@@ -51,6 +51,28 @@ def reloc_check(off, n, fw, rw, relnames):
             if rom_addr != exp: badr.append(i)
     return badr
 
+def infer_relocs(off, n, fw, rw, relnames, func):
+    """CHK_INFER=<file>: append `<symbol> 0x<address> <function>` for every relocation of a function whose code matches the ROM modulo relocations: the address the ROM
+    (another release) encodes for the symbol, so the address map of a version build can be derived from the code instead of paired by hand (tools/ver_sweep.py)."""
+    out = open(os.environ['CHK_INFER'], 'a')
+    hi = {}; hif = {}
+    sx = lambda v: v - 0x10000 if v & 0x8000 else v
+    for i in range(n):
+        o = off + 4 * i
+        if o not in relnames: continue
+        t, sym = relnames[o]
+        if sym.startswith('.'): continue
+        if t == 'R_MIPS_26':
+            out.write('%s 0x%08X %s
+' % (sym, (((rw[i] & 0x3FFFFFF) << 2) - ((fw[i] & 0x3FFFFFF) << 2)) & 0x0FFFFFFF | (0x80000000 if False else 0), func))
+        elif t == 'R_MIPS_HI16':
+            hi[sym] = rw[i] & 0xFFFF; hif[sym] = fw[i] & 0xFFFF
+        elif t == 'R_MIPS_LO16' and sym in hi:
+            rom_addr = ((hi[sym] << 16) + sx(rw[i] & 0xFFFF)) & 0xFFFFFFFF
+            out.write('%s 0x%08X %s
+' % (sym, (rom_addr - (hif[sym] << 16) - sx(fw[i] & 0xFFFF)) & 0xFFFFFFFF, func))
+    out.close()
+
 CACHE = {}
 
 for line in open(list_file):
@@ -83,6 +105,7 @@ for line in open(list_file):
             m = 0xFFFFFFFF ^ relocs.get(off + 4 * i, 0)
             if (a & m) != (b & m): bad.append(i)
         rbad = reloc_check(off, n, fw, rw, relnames) if not bad else []
+        if not bad and os.environ.get('CHK_INFER'): infer_relocs(off, n, fw, rw, relnames, func)
         # literal pool location from HI16/LO16 relocs against .rodata
         ro = LAST.get('ro', b'')
         if os.environ.get('CHKDBG'): print('DBG ro', len(ro), sorted(set(v[1] for v in relnames.values()))[:6], [k for k in LAST])
