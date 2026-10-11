@@ -169,7 +169,7 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256];
+static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_zmodeDraws[4]; static int g_vtxGeom[4];   // vertices loaded with texgen (0x40000) / texgen linear (0x80000) / fog (0x10000) / lighting (0x20000) set; draws per RDP z-mode (0 opaque, 1 interpenetrating, 2 translucent, 3 decal)
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
 static void matMul(const float* a, const float* b, float* o) {    // row-vector convention: o = a * b
@@ -290,7 +290,7 @@ static void flush() {
                 (int)batch.size() / 3, x0, y0, x1, y1, r / n, g / n, b / n, a / n, cur.texOn ? 1 : 0, (cur.texOn && !cur.srv) ? "(nosrv)" : "", cw0, cw1, cur.omL, cur.omH, cur.geom, cycle,
                 cur.prim[0], cur.prim[1], cur.prim[2], cur.prim[3], cur.env[0], cur.env[1], cur.env[2], cur.env[3], zb, zcmp, zupd, blend, thr);
     }
-    ctx->Draw((UINT)batch.size(), 0); g_draws++;
+    ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
     batch.clear();
 }
 
@@ -460,6 +460,7 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
     for (int i = 0; i < n; i++, p += 16) {
         V& o = S.vtx[v0 + i];
         float x = (int16_t)rd16(p), y = (int16_t)rd16(p + 2), z = (int16_t)rd16(p + 4);
+        if (S.geom & 0x40000) g_vtxGeom[0]++; if (S.geom & 0x80000) g_vtxGeom[1]++; if (S.geom & 0x10000) g_vtxGeom[2]++; if (S.geom & 0x20000) g_vtxGeom[3]++;
         const float* m = S.mvp;
         o.cx = x * m[0] + y * m[4] + z * m[8] + m[12]; o.cy = x * m[1] + y * m[5] + z * m[9] + m[13];
         o.cz = x * m[2] + y * m[6] + z * m[10] + m[14]; o.cw = x * m[3] + y * m[7] + z * m[11] + m[15];
@@ -680,7 +681,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         uint32_t dl = rd32(g_gfx_task + 0x30);
         memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
         g_frameCamSet = false; matIdent(S.proj); matIdent(S.camInv); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
-        memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0;
+        memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0; memset(g_zmodeDraws, 0, sizeof g_zmodeDraws); memset(g_vtxGeom, 0, sizeof g_vtxGeom);
         ctx->OMSetRenderTargets(1, &rtv, dsv);
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);
         ctx->RSSetState(rs); ctx->IASetInputLayout(layout); ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -696,7 +697,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         if (capOn() && (nframes & 15) == 0) { FILE* tf = fopen("port_mapdump.txt", "r"); if (tf) { char nm[100] = "map"; if (fscanf(tf, "%99s", nm) != 1) strcpy(nm, "map"); fclose(tf); DeleteFileA("port_mapdump.txt"); capWrite(nm); } if (GetFileAttributesA("port_mapreset.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_mapreset.txt"); capTris.clear(); } }
         if (capOn() && (nframes & 15) == 8) capVisAll(nframes);
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
-        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size()); fflush(stderr); }
+        if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3]); fflush(stderr); }
     }
     LeaveCriticalSection(&g_snap_lock);
     // blit the internal frame (4:3) letterboxed into the window

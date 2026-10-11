@@ -356,6 +356,8 @@ func_002AB19C sn+nb
 func_002ABED4 sn
 func_0023CAFC sn
 func_0023CA14 sn
+func_0023A4D0 sn
+func_00262ABC sn
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
@@ -478,3 +480,5 @@ func_00441384 sn
 func_00441764 sn
 func_0043C500 sn
 func_0043C730 sn
+func_00403658 sn
+func_0040BE38 sn+nb
