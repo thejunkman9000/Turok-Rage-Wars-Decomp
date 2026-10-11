@@ -24,7 +24,8 @@ def fix(path):
         if not m: continue
         uses = LABEL_USE.findall(l[m.end(1):])
         if uses and any(u not in defined for u in uses):
-            lines[i] = f'{m.group(1)}  .word      0x{m.group(2)} /* was: {l[m.end(1):].strip()} */'
+            was = re.sub(r'/\*.*?\*/', '', l[m.end(1):]).strip()          # a comment inside the comment would end it early (`/* handwritten instruction */`)
+            lines[i] = f'{m.group(1)}  .word      0x{m.group(2)} /* was: {was} */'
             changed += 1
     if changed:
         open(path, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines))

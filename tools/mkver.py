@@ -111,6 +111,9 @@ def main():
     open(os.path.join(out, 'ver_layout.txt'), 'w').write(''.join(f'{k} = 0x{lay[k]:X}\n' for k in ('MAIN_CODE_END', 'DATA_END', 'OVL_START', 'OVL_END')))
     y = open('turok_ragewars.yaml', newline='').read().replace('\r\n', '\n')
     y = y.replace('target_path: baserom.us.v11.z64', f'target_path: {ROMS[ver]}\n  symbol_name_format: auto_$VRAM\n  symbol_name_format_no_rom: auto_$VRAM')      # auto names must not collide with our identity names (func_XXXXXXXX = the 1.1 address)
+    import hashlib
+    sha = hashlib.sha1(open(ROMS[ver], 'rb').read()).hexdigest()
+    y = re.sub(r'(?m)^sha1: [0-9a-f]{40}', f'sha1: {sha}', y)
     if not lay['unresolved']:
         y = re.sub(r'\n  # 56 KB, structure unresolved.*?\n  - \[0x160000, bin, ovl_unresolved_160000\]\n', '\n', y, flags=re.S)
     y = y.replace('    start: 0x16E000\n    vram: 0x400000', f"    start: 0x{lay['OVL_START']:X}\n    vram: 0x400000")
@@ -126,10 +129,11 @@ def main():
         if b is None: skipped += 1; sa.append('// unmapped: ' + l.rstrip('\n')); continue
         sa.append(f'{m.group(1)} = 0x{b:08X};{m.group(3)}')
     nf = 0
+    have = set(m.group(1) for m in (re.match(r'(\w+)\s*=\s*0x', l) for l in sa) if m)      # libultra names are game_funcs entries too: one definition per name
     for l in open('docs/game_funcs.txt'):
         if l.startswith('#') or not l.strip(): continue
         f = l.split(); name = f[1]
-        if name not in fmap or fmap[name][0] == 'none': continue
+        if name in have or name not in fmap or fmap[name][0] == 'none': continue
         rom = fmap[name][1]
         vma = rom + MAIN_VMA_OFF if rom < lay['OVL_START'] else rom - lay['OVL_START'] + 0x400000
         sa.append(f'{name} = 0x{vma:08X}; // type:func'); nf += 1
