@@ -90,9 +90,6 @@ __osEnqueueThread 0xC21F8 20 libultra
 __osPopThread 0xC2248 6 libultra
 __osDispatchThread 0xC2260 127 libultra
 __osCleanupThread 0xC245C 5 libultra
-__osLeoInterrupt 0xC2470 324 libultra
-__osLeoAbnormalResume 0xC2980 53 libultra
-__osLeoResume 0xC2A54 47 libultra
 osGetCount 0xC2BF0 4 libultra
 __osGetFpcCsr 0xC2C00 4 libultra
 __osGetSR 0xC2C10 4 libultra
@@ -122,13 +119,7 @@ sinf  0xBCE00  95  libultra
 osAiGetStatus  0xBCF90  5  libultra
 sqrtf 0xBCF80 4 libultra
 sprintf  0xC3010  32  libultra
-_Ldtob 0xC3DB0 2 libultra
 pad_0C3DB8 0xC3DB8 2 libultra
-alAdpcmPull 0xC3DC0 273 libultra
-alRaw16Pull 0xC4204 225 libultra
-alAdecPull 0xC4588 131 libultra
-alLoadParam 0xC4794 100 libultra
-_decodeChunk 0xC4924 95 libultra
 adecReadBits 0xC4AA0 117 libultra
 adecHuffDecode 0xC4C74 257 libultra
 adecDecodeFrame 0xC5078 99 libultra
@@ -153,7 +144,6 @@ __moddi3 0xC6510 350 libultra ro=0xCDC50:256 mode=lu4
 pad_0C6A88 0xC6A88 2 libultra
 __udivdi3 0xC6A90 353 libultra ro=0xCDD50:256 mode=lu4
 dbgLinkRecvByte 0xAEF80 139 libultra mode=lu3
-dbgLinkSendByte 0xAF1AC 162 libultra
 dbgLinkRecvBlock 0xAF434 160 libultra mode=lu3
 dbgLinkSendBlock 0xAF6B4 229 libultra mode=lu3
 dbgLinkCmdCallHook 0xAFA48 79 libultra mode=lu3
@@ -168,7 +158,6 @@ dbgLinkCmdLoadProgram 0xB03F8 102 libultra mode=lu3
 dbgLinkServerLoop 0xB0590 213 libultra ro=0xCC090:192 mode=lu3
 dbgHostFopen 0xB08E4 194 libultra mode=lu3
 dbgHostFclose 0xB0BEC 160 libultra mode=lu3
-dbgHostFread 0xB0E6C 215 libultra
 dbgHostFwrite 0xB11C8 213 libultra mode=lu3
 dbgHostFseek 0xB151C 264 libultra mode=lu3
 dbgHostFtell 0xB193C 211 libultra mode=lu3
@@ -324,24 +313,12 @@ _pullSubFrame 0xBA94C 187 libultra
 _getRate 0xBAC38 148 libultra
 alEnvmixerParam 0xBAE88 52 libultra
 _getVol 0xBAF58 30 libultra
-libm_frexp 0xBAFD0 45 libultra
-libm_ldexp 0xBB084 11 libultra
 alFilterNew 0xBB0B0 7 libultra
 pad_0BB0CC 0xBB0CC 1 libultra
 alAuxBusPull 0xBB0D0 80 libultra
 alAuxBusParam 0xBB210 12 libultra
-alResamplePull 0xBB240 112 libultra
-alResampleParam 0xBB400 48 libultra
-alFxPull 0xBB4C0 233 libultra
-alFxParamHdl 0xBB864 119 libultra
-_loadOutputBuffer 0xBBA40 126 libultra
-_saveBuffer 0xBBC38 92 libultra
 alFxParam 0xBBDA8 5 libultra
-_loadBuffer 0xBBDBC 92 libultra
-_filterBuffer 0xBBF2C 41 libultra
-_doModFunc 0xBBFD0 30 libultra
 pad_0BC048 0xBC048 2 libultra
-alSavePull 0xBC050 64 libultra
 alSaveParam 0xBC150 13 libultra
 pad_0BC184 0xBC184 3 libultra
 alSynAllocFX 0xBC190 37 libultra mode=lu
@@ -395,7 +372,6 @@ pad_0C05F4 0xC05F4 3 libultra
 pad_0C093C 0xC093C 5 libultra
 pad_0C0974 0xC0974 3 libultra
 pad_0C0A58 0xC0A58 2 libultra
-__osGetCurrFaultedThread 0xC0A60 4 libultra
 pad_0C0A8C 0xC0A8C 1 libultra
 pad_0C0AAC 0xC0AAC 1 libultra
 pad_0C0B2C 0xC0B2C 1 libultra
@@ -2507,10 +2483,7 @@ pad_03FAEC 0x3FAEC 1 game
 
 pad_055E78 0x55E78 2 game
 
-pad_063C18 0x63C18 58 game
-pad_063D0C 0x63D0C 26 game
 pad_063DC8 0x63DC8 2 game
-pad_064308 0x64308 22 game
 
 pad_08F50C 0x8F50C 1 game
 
@@ -3216,3 +3189,31 @@ func_002023D0 0x2FD0 3 game
 func_002023DC 0x2FDC 317 game
 func_002028D0 0x34D0 49 game
 func_00202994 0x3594 193 game
+alResamplePull 0xBB240 112 libultra mode=sn ro=0xCD590:12
+alResampleParam 0xBB400 48 libultra mode=sn ro=0xCD5A0:36
+alFxPull 0xBB4C0 233 libultra mode=sn ro=0xCD5D0:20:19
+alFxParamHdl 0xBB864 245 libultra mode=sn ro=0xCD5E8:64
+_saveBuffer 0xBBC38 92 libultra mode=sn
+_loadBuffer 0xBBDBC 92 libultra mode=sn
+_filterBuffer 0xBBF2C 41 libultra mode=sn
+_doModFunc 0xBBFD0 30 libultra mode=sn ro=0xCD628:12
+alSavePull 0xBC050 64 libultra mode=sn ro=0xCD640:20:17
+alAdpcmPull 0xC3DC0 273 libultra mode=sn
+alRaw16Pull 0xC4204 356 libultra mode=sn
+alLoadParam 0xC4794 194 libultra mode=sn
+pad_0C4A9C 0xC4A9C 1 libultra
+func_00263018 0x63C18 34 game mode=sn
+func_002630A0 0x63CA0 23 game mode=sn
+pad_063CFC 0x63CFC 1 game
+func_0026310C 0x63D0C 26 game mode=sn
+func_00263708 0x64308 19 game mode=sn
+pad_064354 0x64354 3 game
+__osGetCurrFaultedThread 0xC0A60 4 libultra
+libm_frexp 0xBAFD0 45 libultra ro=0xCD560:40
+libm_ldexp 0xBB084 8 libultra
+pad_0BB0A4 0xBB0A4 3 libultra
+__osLeoInterrupt 0xC2470 423 libultra
+pad_0C2B0C 0xC2B0C 1 libultra
+_Ldtob 0xC3DB0 2 libultra
+dbgLinkSendByte 0xAF1AC 162 libultra mode=lu3
+dbgHostFread 0xB0E6C 215 libultra mode=sn

@@ -69,6 +69,16 @@ def main():
         if n >= K: cs = [i for i in index.get(tuple(nw[:K]), ()) if onorm[i:i + n] == nw]
         else: cs = list(short_index(n).get(tuple(nw), ()))
         cands.append(cs)
+    # a release can hold the same code twice (another overlay carries copies of library functions): a function of 1.1's overlay A can only be in the release's overlay A, a main image
+    # function in its main image (layouts: tools/mkver.py LAYOUT)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from mkver import LAYOUT
+    lay = LAYOUT[ver]
+    filt = []
+    for (rom, name, n), cs in zip(funcs, cands):
+        lo_, hi_ = (lay['OVL_START'], lay['OVL_END']) if rom >= 0x16E000 else (0x1000, lay['MAIN_CODE_END'])
+        filt.append([i for i in cs if lo_ <= lo + 4 * i and lo + 4 * (i + n) <= hi_])
+    cands = filt
     # 2. anchors: functions with exactly one occurrence, reduced to the longest run that keeps the ROM order (the layout of a release is the 1.1 layout with insertions and deletions)
     anchors = [(i, cs[0]) for i, cs in enumerate(cands) if len(cs) == 1]
     tails = []; prev = [None] * len(anchors); idxs = []

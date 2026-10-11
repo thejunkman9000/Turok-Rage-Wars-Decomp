@@ -71,9 +71,27 @@ def read_manifest(fn):
 def main():
     ver = sys.argv[1]; out = opt('--out'); assert out, '--out <workspace>'
     lay = LAYOUT[ver]
-    fmap = {}
+    fmap = {}; ent = []
     for l in open(f'wip/funcmap_{ver}.txt'):
-        f = l.split(); fmap[f[0]] = (f[3], int(f[4], 16))
+        f = l.split(); fmap[f[0]] = (f[3], int(f[4], 16)); ent.append((int(f[1], 16), f[0], int(f[2]), f[3], int(f[4], 16)))
+    # the function map is by code content: a small function can be 'found' at a wrong place (a clone, or data that looks like code).  Keep only what is consistent: a function of the
+    # overlay must land in the release's overlay, one of the main image in its main image, and in 1.1 order the release offsets must increase (the longest increasing run wins).
+    bad = 0
+    for lo_, hi_, ovl_ in ((0x1000, lay['MAIN_CODE_END'], False), (lay['OVL_START'], lay['OVL_END'], True)):
+        reg = [e for e in sorted(ent) if e[3] != 'none' and ((e[0] >= 0x16E000) == ovl_) and lo_ <= e[4] < hi_]
+        tails = []; prv = [None] * len(reg)
+        for i, e in enumerate(reg):
+            j = bisect.bisect_left([reg[q][4] for q in tails], e[4])
+            if j > 0: prv[i] = tails[j - 1]
+            if j == len(tails): tails.append(i)
+            else: tails[j] = i
+        ok = set(); k = tails[-1] if tails else None
+        while k is not None: ok.add(reg[k][1]); k = prv[k]
+        for e in sorted(ent):
+            if e[3] != 'none' and ((e[0] >= 0x16E000) == ovl_) and e[1] not in ok: fmap[e[1]] = ('none', 0); bad += 1
+    for e in ent:                                                           # mapped outside both regions
+        if e[3] != 'none' and fmap[e[1]][0] != 'none' and not (0x1000 <= e[4] < lay['MAIN_CODE_END'] or lay['OVL_START'] <= e[4] < lay['OVL_END']): fmap[e[1]] = ('none', 0); bad += 1
+    print('function map: %d entries ignored as inconsistent (clones / wrong region / out of order)' % bad)
     sweep = {}
     for l in open(f'wip/ver/{ver}/sweep.txt'):
         f = l.split(None, 2)
@@ -81,6 +99,7 @@ def main():
     amap = Map(ver)
     # ---- manifests
     kept = collections.Counter(); dropped = collections.Counter()
+    keptmap = []                                                         # (unit, ROM offset, subdir) of the units kept as C
     for fn, ovl in (('funcs.txt', False), ('funcs_a.txt', True)):
         lines = []
         for f in read_manifest(fn):
@@ -120,6 +139,8 @@ def main():
             if i not in keep or r < last_end: dropped[fn] += 1; kept[fn] -= 1; continue
             out_lines.append(text); last_end = r + 4 * n
         lines = out_lines
+        for text in out_lines:
+            ff = text.split(); keptmap.append((ff[0], int(ff[1], 16), ff[3]))
         open(os.path.join(out, fn), 'w', newline='\n').write('\n'.join(lines) + '\n')
     print('manifest units kept', dict(kept), 'dropped (stay asm)', dict(dropped))
     # the Makefile compiles every file under src/: remove the sources of units that are not in this release's manifests (they stay asm: splat covers them)
@@ -133,6 +154,22 @@ def main():
             if f.endswith(('.c', '.s')) and f.rsplit('.', 1)[0] not in names:
                 os.remove(os.path.join(root, f)); rm += 1
     print('removed', rm, 'source files of units that are not in the release manifests')
+    # a workspace that was prepared before (this is a rerun with newer sweep verdicts) holds the INCLUDE_ASM stub that splat wrote for a unit that was not a C unit then: restore the
+    # sources of the kept units, and the headers they include, from the project
+    src_of = {}
+    for root, _, files in os.walk('src'):
+        for f in files:
+            if f.endswith(('.c', '.s')): src_of.setdefault(f.rsplit('.', 1)[0], os.path.join(root, f))
+    nrest = 0
+    for name in sorted(names):
+        p = src_of.get(name)
+        if not p or name.startswith('pad_'): continue
+        q = os.path.join(out, p)
+        if os.path.exists(q) and open(p, 'rb').read() == open(q, 'rb').read(): continue
+        os.makedirs(os.path.dirname(q), exist_ok=True); shutil.copyfile(p, q); nrest += 1
+        shutil.rmtree(os.path.join(out, 'asm', 'nonmatchings', os.path.basename(os.path.dirname(p)), name), ignore_errors=True)
+    shutil.copytree('include', os.path.join(out, 'include'), dirs_exist_ok=True)
+    print('restored', nrest, 'sources of kept units from the project')
     # linker padding: stray words (<= 3) between two consecutive C units are not code: keep them as .word units like the 1.1 pad_XXXX units (splat would disassemble them as instructions)
     rom_bytes = open(ROMS[ver], 'rb').read()
     npad = 0
@@ -184,6 +221,13 @@ def main():
         rom = fmap[name][1]
         vma = rom + MAIN_VMA_OFF if rom < lay['OVL_START'] else rom - lay['OVL_START'] + 0x400000
         sa.append(f'{name} = 0x{vma:08X}; // type:func'); nf += 1
+    seen_addr = {}                                                         # two symbols at one address (translated names that collide in a release): splat rejects the file, keep the first
+    for i, l in enumerate(sa):
+        m = re.match(r'(\w+)\s*=\s*(0x[0-9A-Fa-f]+);.*type:func', l)
+        if not m: continue
+        a = int(m.group(2), 16)
+        if a in seen_addr: sa[i] = f'// same address as {seen_addr[a]}: ' + l
+        else: seen_addr[a] = m.group(1)
     open(os.path.join(out, 'symbol_addrs.txt'), 'w', newline='\n').write('\n'.join(sa) + '\n')
     print('symbol_addrs: game functions', nf, 'unmapped libultra/other names', skipped)
     # ---- linker symbol files of the C objects
@@ -229,6 +273,10 @@ def main():
     for l in sa:
         m = re.match(r'(func_[0-9A-Fa-f]{8}) = (0x[0-9A-Fa-f]{8});', l)
         if m: al.append(f'PROVIDE(func_auto_{int(m.group(2), 16):08X} = {m.group(2)});'); na += 1
+    for name, rom, sub in keptmap:                                       # libultra units are named by the SDK, not by an identity name: asm that calls them uses the auto name of their address
+        if sub == 'libultra':
+            vma = rom + MAIN_VMA_OFF
+            al.append(f'PROVIDE(func_auto_{vma:08X} = 0x{vma:08X});'); na += 1
     print('their_alias: %d func_auto_ aliases of the C functions' % na)
     open(os.path.join(out, 'their_alias.ld'), 'w', newline='\n').write('\n'.join(al) + '\n')
     open(os.path.join(out, 'their_syms.ld'), 'w', newline='\n').write(f'/* generated from melalawi/ragewars-decomp versions/{ver}/symbols.ld (CC0) */\n' + t)

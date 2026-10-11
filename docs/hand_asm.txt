@@ -34,3 +34,17 @@ osReadAllTLBEntries
 __osProbeTLB
 __osSpSetStatus
 sqrtf
+func_00446B80   # ovl_a hand-written assembly (agent s1011)
+__osEnqueueThread   # hand-written assembly (agent s1015)
+__osPopThread   # hand-written assembly (agent s1015)
+__osDispatchThread   # hand-written assembly (agent s1015)
+__osCleanupThread   # hand-written assembly (agent s1015)
+dbgSetWatchpoint   # hand-written assembly (agent s1015)
+rncUnpackMethod1   # hand-written assembly (agent s1015)
+rncUnpackMethod1Body   # hand-written assembly (agent s1015)
+rncReadHuffCode   # hand-written assembly (agent s1015)
+rncInputBits   # hand-written assembly (agent s1015)
+rncRefillBitBuf   # hand-written assembly (agent s1015)
+rncMakeHuffTable   # hand-written assembly (agent s1015)
+rncUnpackMethod2   # hand-written assembly (agent s1015)
+rncUnpackMethod2Body   # hand-written assembly (agent s1015)

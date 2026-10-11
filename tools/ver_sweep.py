@@ -75,10 +75,25 @@ def build_syms(ver, amap):
         if a < 0x80200000: lines.append(f'D_{a:08X} = 0x{b:08X};')
         else: lines.append(f'func_{a & 0xFFFFFF:08X} = 0x{b & 0xFFFFFF:08X};')
     os.makedirs(f'wip/ver/{ver}', exist_ok=True)
+    # the function map (by code content, region-aware) knows where every function of 1.1 is in the release: the authoritative address of its identity name
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from mkver import LAYOUT
+    ovl_start = LAYOUT[ver]['OVL_START']
+    byname_ = {}
+    for l in lines:
+        m = re.match(r'(\w+) = (0x[0-9A-Fa-f]+);', l)
+        if m: byname_[m.group(1)] = int(m.group(2), 16)
+    nfm = 0
+    for l in open(f'wip/funcmap_{ver}.txt'):
+        f = l.split()
+        if f[3] == 'none': continue
+        rom = int(f[4], 16)
+        byname_[f[0]] = rom + 0x1FF400 if rom < ovl_start else rom - ovl_start + 0x400000; nfm += 1
+    lines = [f'{n} = 0x{a:08X};' for n, a in sorted(byname_.items())]
     inf = []
     if os.path.exists(f'wip/ver/{ver}/syms_inferred.ld'): inf = [l.strip() for l in open(f'wip/ver/{ver}/syms_inferred.ld') if l.strip()]
-    open(f'wip/ver/{ver}/syms.ld', 'w', newline='\n').write('\n'.join(sorted(set(lines)) + inf) + '\n')      # inferred addresses come last: chk lets the last definition win
-    return len(set(lines)) + len(inf)
+    open(f'wip/ver/{ver}/syms.ld', 'w', newline='\n').write('\n'.join(lines + inf) + '\n')      # inferred addresses come last: chk lets the last definition win
+    return len(lines) + len(inf)
 
 def aggregate_inferred(ver, jobs):
     """symbol -> address the other release encodes, from the relocations of every unit whose code matched (CHK_INFER); majority vote, conflicts reported"""

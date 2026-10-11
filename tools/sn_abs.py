@@ -14,6 +14,7 @@ pads_only = '--pads-only' in sys.argv      # only the `.align` -> `.space` step 
 text = re.sub(r'\.section\s+\.rdata', '.section .rodata', open(args[0]).read())
 ro_va = int(args[1], 0) if len(args) > 1 and args[1] else None
 ro_size = int(args[2]) if len(args) > 2 and args[2] else None
+ro_real = int(args[3]) if len(args) > 3 and args[3] else None      # bytes of the piece that are the object's own data (the rest, up to ro_size, is an alignment tail the ROM supplies)
 lines = text.split('\n')
 sec = '.text'; marks = []
 for i, l in enumerate(lines):
@@ -48,4 +49,14 @@ text = '\n'.join(lines)
 if ro_va is None or pads_only:
     sys.stdout.write(text)
 else:
-    sys.stdout.write(gas_compat.finalize_rodata(text.split('\n'), gas_compat.Pool(), ro_va, ro_size))
+    out = gas_compat.finalize_rodata(text.split('\n'), gas_compat.Pool(), ro_va, ro_size)
+    if ro_size:
+        # the piece is longer than the compiled data (the alignment tail of the original object: stray bytes the linker left there, not always zero, or a dead constant):
+        # fill the rest of the piece with the ROM's own bytes, as gas_compat's main does for the old (lu) path
+        have = ro_real if ro_real else gas_compat.rodata_size(out)
+        if have < ro_size:
+            off = (ro_va - 0x400000 + int(os.environ.get('OVL_START', '0x16E000'), 0)) if ro_va < 0x80000000 else (ro_va - 0x80000000 + 0xC00)
+            mk = re.search(r'BASEROM\s*:=\s*(\S+)', open('Makefile').read()) if os.path.exists('Makefile') else None      # a release workspace builds against its own ROM
+            rom = open(mk.group(1) if mk else 'baserom.us.v11.z64', 'rb').read()
+            out += '\n\t.section\t.rodata\n' + '\n'.join(f'\t.byte\t{b}' for b in rom[off + have:off + ro_size]) + '\n\t.text\n'
+    sys.stdout.write(out)

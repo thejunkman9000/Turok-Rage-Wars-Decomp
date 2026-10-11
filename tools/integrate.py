@@ -1,115 +1,147 @@
 #!/usr/bin/env python3
-"""Integrate a worker's results and make the build byte-identical again, dropping functions that break it.
+"""Integrate an agent's results into the main tree from a manifest-change spec (the `NEW` lines of an agent's wip/out/manifest.txt, or a hand-written one).
 
-usage: python tools/integrate.py <ws dir> [--game|--ovl]
-1. tools/apply_results.py (new manifest entries / C files)   2. tools/cycle.ps1   3. on MISMATCH find the function that
-contains the first differing ROM offset, drop it again (manifest entry + its .c, pad entries stay valid) and repeat.
-Dropped functions are listed in wip/integrate_dropped.txt (retry them by hand)."""
-import subprocess, sys, re, os, shutil
-ws = sys.argv[1]
-flag = [a for a in sys.argv[2:] if a in ('--game', '--ovl')]
-game = '--game' in flag; ovl = '--ovl' in flag
-manifest = 'funcs_a.txt' if ovl else 'funcs.txt'
-sub = 'game' if game else ('ovl_a' if ovl else 'libultra')
-before = {l.split()[0] for l in open(manifest) if l.strip() and not l.startswith('#')}
-r = subprocess.run([sys.executable, 'tools/apply_results.py', ws] + flag, capture_output=True, text=True)
-print(r.stdout[-400:], r.stderr[-400:])
-after = [l for l in open(manifest).read().split('\n') if l.strip()]
-applied = {l.split()[0] for l in after if l.split()[0] not in before or True}
-def entries():
+usage: python tools/integrate.py <spec file> [--ws <agent workspace>] [--dry]
+Spec lines (everything after '#' is a comment):
+  ws <dir>                                      agent workspace (also given by --ws): its wip/out/<name>.c are the sources, its include/*.h the new headers
+  NEW <name> <rom hex> <insns> <seg> [opts...]  a manifest entry in final form (seg: game | ovl_a | libultra).  Every existing entry that overlaps its ROM range is replaced.
+  OLD <name> ...                                informational (the old entry; the overlap rule removes it), checked: it must exist
+  DEL <name>                                    remove an entry without a replacement (e.g. a duplicate)
+  PAD <name> <rom hex> <words> <seg>            same as NEW for pad_* entries (the pad .s is written from the 1.1 ROM)
+The tool then: writes funcs.txt / funcs_a.txt (entries keep their order, new ones are appended), checks that the replaced ROM ranges are still covered exactly (no hole, no
+growth), copies the C sources of the new non-pad entries to src/<seg>/ and writes pad_*.s for new pad entries, removes the sources of entries that disappeared, adds the new
+function entries to docs/game_funcs.txt and copies new/changed headers (never common.h / libaudio.h / macro.inc).  Run tools/gen_yaml.py + tools/cycle.ps1 afterwards."""
+import os, re, shutil, struct, sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(ROOT)
+args = sys.argv[1:]
+dry = '--dry' in args
+ws = args[args.index('--ws') + 1] if '--ws' in args else None
+spec = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or args[i - 1] != '--ws')][0]
+SEGDIR = {'game': 'game', 'ovl_a': 'ovl_a', 'libultra': 'libultra'}
+
+def read(fn): return open(fn, encoding='utf-8', newline='').read().replace('\r\n', '\n')
+def parse(l):
+    f = l.split('#')[0].split()
+    return f if len(f) >= 4 else None
+def manifest_of(seg): return 'funcs_a.txt' if seg == 'ovl_a' else 'funcs.txt'
+
+lines = {fn: read(fn).rstrip('\n').split('\n') for fn in ('funcs.txt', 'funcs_a.txt')}
+news = []; olds = []; dels = []
+for l in read(spec).split('\n'):
+    t = l.split('#')[0].strip()
+    if not t: continue
+    f = t.split()
+    if f[0] == 'ws': ws = ws or f[1]; continue
+    if f[0] in ('NEW', 'PAD'): news.append(f[1:])
+    elif f[0] == 'OLD': olds.append(f[1:])
+    elif f[0] == 'DEL': dels.append(f[1])
+    else: print('spec line ignored:', l); continue
+rom = open('baserom.us.v11.z64', 'rb').read()
+
+def existing():
     out = []
-    for l in open(manifest):
-        f = l.split('#')[0].split()
-        if len(f) >= 4: out.append((f[0], int(f[1], 16), int(f[2]), f[3], l.rstrip('\n')))
+    for fn in lines:
+        for i, l in enumerate(lines[fn]):
+            f = parse(l)
+            if f: out.append((int(f[1], 16), int(f[2]), f[0], fn, i))
     return out
-cand = {n for n, _, _, s, _ in entries() if s == sub and not n.startswith('pad_')} 
-dropped = []
-for it in range(40):
-    p = subprocess.run(['powershell', '-NoProfile', '-File', 'tools/cycle.ps1'], capture_output=True, text=True)
-    out = p.stdout + p.stderr
-    if 'OK: byte-identical' in out:
-        print('byte-identical after', it, 'drops'); break
-    merged_any = False
-    for m in re.finditer(r"multiple definition of `(\w+)'; build/src/" + sub + r"/(\w+)\.o:", out):
-        S, Y = m.group(1), m.group(2)
-        ent = {e[0]: e for e in entries()}
-        if S in ent and Y in ent and S != Y and S in cand and Y in cand:
-            a, b = sorted([ent[S], ent[Y]], key=lambda e: e[1])
-            if a[1] + 4 * a[2] == b[1]:
-                srcfile = f'src/{sub}/{Y}.c'
-                dstfile = f'src/{sub}/{a[0]}.c'
-                if srcfile != dstfile:
-                    shutil.copy(srcfile, dstfile)
-                    if os.path.exists(f'src/{sub}/{b[0]}.c') and b[0] != a[0] and Y != b[0]:
-                        pass
-                ls = open(manifest).read().split(chr(10))
-                out_ls = []
-                for l in ls:
-                    f = l.split('#')[0].split()
-                    if f and f[0] == a[0]:
-                        f[2] = str(a[2] + b[2]); l = ' '.join(f + [])
-                    elif f and f[0] == b[0]:
-                        continue
-                    out_ls.append(l)
-                open(manifest, 'w', newline=chr(10)).write(chr(10).join(out_ls))
-                if b[0] != a[0] and os.path.exists(f'src/{sub}/{b[0]}.c') and b[0] != Y:
-                    os.remove(f'src/{sub}/{b[0]}.c')
-                if b[0] == Y and os.path.exists(f'src/{sub}/{b[0]}.c'):
-                    os.remove(f'src/{sub}/{b[0]}.c')
-                cand.discard(b[0]); merged_any = True
-                print('merged objects', a[0], b[0]); 
-    if merged_any: continue
-    dup = {m.group(2) for m in re.finditer(r"multiple definition of `(\w+)'; build/src/" + sub + r"/(\w+)\.o:", out)}
-    if dup:
-        dup = {d for d in dup if d in cand}
-        ls = open(manifest).read().split(chr(10))
-        ls = [l for l in ls if not (l.split('#')[0].split() and l.split('#')[0].split()[0] in dup)]
-        open(manifest, 'w', newline=chr(10)).write(chr(10).join(ls))
-        for b in dup:
-            c = f'src/{sub}/{b}.c'
-            if os.path.exists(c): os.remove(c)
-            cand.discard(b); dropped.append(b)
-        print('dropped (duplicate definitions):', sorted(dup)); continue
-    bad = set(re.findall(r'src/' + sub + r'/(\w+)\.c:\d+: (?:parse error|.*error|.*undeclared)', out)) | set(re.findall(r'build/src/' + sub + r'/(\w+)\.o\]', out))
-    for m in re.finditer(r'src/' + sub + r'/(\w+)\.c:\(\.text[^)]*\): multiple definition of `\w+\'; build/src/' + sub + r'/(\w+)\.o:', out):
-        bad.update(m.groups())
-    bad = {b for b in bad if b in cand}
-    if bad:
-        ls = open(manifest).read().split(chr(10))
-        ls = [l for l in ls if not (l.split('#')[0].split() and l.split('#')[0].split()[0] in bad)]
-        open(manifest, 'w', newline=chr(10)).write(chr(10).join(ls))
-        for b in bad:
-            c = f'src/{sub}/{b}.c'
-            if os.path.exists(c): os.remove(c)
-            cand.discard(b); dropped.append(b)
-        print('dropped (compile errors):', sorted(bad)); continue
-    if 'undefined reference' in out:
-        print(out[-1500:]); print('link error; stopping'); break
-    q = subprocess.run(['wsl', '-d', 'Ubuntu-24.04', '--', 'bash', '/mnt/d/Projects/TurokRageWars/tools/firstdiff.sh', '0x1001'], capture_output=True, text=True)
-    offs = [int(x, 16) for x in q.stdout.split()]
-    if not offs: print('no diff offsets?', out[-500:]); break
-    off = offs[0]
-    es = [e for e in entries() if e[3] == sub and not e[0].startswith('pad_') and e[0] in cand]
-    hit = [e for e in es if e[1] <= off < e[1] + 4 * e[2]]
-    if not hit:
-        sc = subprocess.run(['wsl', '-d', 'Ubuntu-24.04', '--', 'bash', '/mnt/d/Projects/TurokRageWars/tools/symcheck2.sh'], capture_output=True, text=True)
-        rows = [l.split() for l in sc.stdout.split(chr(10)) if l.strip()]
-        if rows:
-            va = int(rows[0][0], 16) if False else int(rows[0][2], 16)       # expected address of the lowest displaced symbol
-            rom_dev = (va - 0x1FF400) if va < 0x400000 else None
-            prev = [e for e in es if rom_dev is not None and e[1] + 4 * e[2] <= rom_dev + 0x40 and e[1] < rom_dev]
-            hit = [max(prev, key=lambda e: e[1])] if prev else []
-    if not hit:
-        prev = [e for e in es if e[1] <= off]
-        hit = [max(prev, key=lambda e: e[1])] if prev else []
-    if not hit: print('cannot attribute offset', hex(off)); break
-    name = hit[0][0]
-    print('dropping', name, 'first diff', hex(off))
-    ls = open(manifest).read().split('\n')
-    ls = [l for l in ls if not (l.split('#')[0].split() and l.split('#')[0].split()[0] == name)]
-    open(manifest, 'w', newline='\n').write('\n'.join(ls))
-    c = f'src/{sub}/{name}.c'
-    if os.path.exists(c): os.remove(c)
-    dropped.append(name); cand.discard(name)
-open('wip/integrate_dropped.txt', 'a').write('\n'.join(dropped) + ('\n' if dropped else ''))
-print('dropped:', dropped)
+
+removed = []                                          # (rom, insns, name, file) of every replaced / deleted entry
+for o in olds:
+    if not any(e[2] == o[0] for e in existing()): print('OLD entry not found (already integrated?):', o[0])
+for name in dels:
+    for r, n, nm, fn, i in existing():
+        if nm == name: lines[fn][i] = None; removed.append((r, n, nm, fn))
+    for fn in lines: lines[fn] = [l for l in lines[fn] if l is not None]
+added = []
+for e in news:
+    name, r, n, seg = e[0], int(e[1], 16), int(e[2]), e[3]
+    fn = manifest_of(seg)
+    for r2, n2, nm2, fn2, i2 in existing():
+        if fn2 == fn and r2 < r + 4 * n and r < r2 + 4 * n2:
+            if nm2 == name and r2 == r and n2 == n:
+                print('entry updated in place:', name)
+            lines[fn2][i2] = None; removed.append((r2, n2, nm2, fn2))
+    lines[fn] = [l for l in lines[fn] if l is not None]
+    lines[fn].append(' '.join(e)); added.append((r, n, name, fn, e))
+# coverage: the ROM ranges that the replaced entries covered (minus the ones that were re-added identically) must be covered by the new entries exactly
+for fn in lines:
+    old = set(); new = set()
+    for r, n, nm, f2 in removed:
+        if f2 == fn: old.update(range(r, r + 4 * n, 4))
+    for r, n, nm, f2, e in added:
+        if f2 == fn: new.update(range(r, r + 4 * n, 4))
+    for w in sorted(old - new)[:3]: print('HOLE in', fn, 'at', hex(w), '(covered by a replaced entry, not by a new one)')
+    for w in sorted(new - old)[:3]: print('GROWTH in', fn, 'at', hex(w), '(covered by a new entry, not by a replaced one)')
+# overlap check of the whole manifest
+for fn in lines:
+    ents = sorted((int(parse(l)[1], 16), int(parse(l)[2]), parse(l)[0]) for l in lines[fn] if parse(l))
+    for (r1, n1, a), (r2, n2, b) in zip(ents, ents[1:]):
+        if r1 + 4 * n1 > r2: print('OVERLAP', fn, a, hex(r1), n1, 'and', b, hex(r2))
+names_after = {parse(l)[0] for fn in lines for l in lines[fn] if parse(l)}
+if not dry:
+    for fn in lines: open(fn, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines[fn]) + '\n')
+# ---- sources
+for r, n, nm, fn in removed:
+    if nm in names_after: continue
+    for sd in SEGDIR.values():
+        for ext in ('.c', '.s'):
+            p = f'src/{sd}/{nm}{ext}'
+            if os.path.exists(p):
+                print('remove', p)
+                if not dry: os.remove(p)
+for r, n, name, fn, e in added:
+    seg = e[3]; sd = SEGDIR[seg]
+    if name.startswith('pad_'):
+        out = ['.include "macro.inc"', '', '.set noat', '.set noreorder', '', '.section .text, "ax"', '', f'/* linker padding: stray words between objects, ROM 0x{r:X} */', f'glabel pad_{r:06X}']
+        for k in range(n): out.append('    /* %X */  .word      0x%08X' % (r + 4 * k, struct.unpack('>I', rom[r + 4 * k:r + 4 * k + 4])[0]))
+        out.append(f'endlabel pad_{r:06X}')
+        assert name == 'pad_%06X' % r, name
+        p = f'src/{sd}/{name}.s'
+        if not dry: os.makedirs(os.path.dirname(p), exist_ok=True); open(p, 'w', newline='\n').write('\n'.join(out) + '\n')
+        print('pad', p, n, 'words')
+        continue
+    src = f'{ws}/wip/out/{name}.c'
+    if not os.path.exists(src) and os.path.exists(f'{ws}/wip/out/units/{name}.s'):      # a hand-written assembly unit of the original (not C): its .s is the source
+        t = read(f'{ws}/wip/out/units/{name}.s')
+        if not dry: os.makedirs(f'src/{sd}', exist_ok=True); open(f'src/{sd}/{name}.s', 'w', encoding='utf-8', newline='\n').write(t)
+        print('hand-written unit', f'src/{sd}/{name}.s')
+        ha = read('docs/hand_asm.txt')
+        if not re.search(r'(?m)^' + re.escape(name) + r'\b', ha) and not dry:
+            open('docs/hand_asm.txt', 'w', newline='\n').write(ha.rstrip('\n') + f'\n{name}   # {e[3]} hand-written assembly (agent {os.path.basename(ws)})\n')
+        continue
+    if not os.path.exists(src): print('MISSING SOURCE', src); continue
+    t = read(src)
+    if not dry: os.makedirs(f'src/{sd}', exist_ok=True); open(f'src/{sd}/{name}.c', 'w', encoding='utf-8', newline='\n').write(t)
+    print('source', f'src/{sd}/{name}.c')
+    if os.path.exists(f'src/{sd}/{name}.s'):                # the unit was an assembly placeholder: the C file replaces it
+        print('remove', f'src/{sd}/{name}.s')
+        if not dry: os.remove(f'src/{sd}/{name}.s')
+# ---- docs/game_funcs.txt: new function entries of game / ovl_a
+gl = read('docs/game_funcs.txt').rstrip('\n').split('\n')
+have = {int(l.split()[0], 16): l for l in gl if l.strip() and not l.startswith('#')}
+nadd = 0
+starts_ = sorted(have)
+for r, n, name, fn, e in added:
+    if name.startswith('pad_') or e[3] == 'libultra': continue
+    if r in have:                                             # the row exists: carry a longer function over when no other row starts inside it
+        f = have[r].split()
+        if f[1] == name and int(f[2]) != n and not any(r < s < r + 4 * n for s in starts_):
+            gl[gl.index(have[r])] = '0x%06X %s %d %s' % (r, name, n, ' '.join(f[3:])); nadd += 1
+        continue
+    gl.append('0x%06X %s %d 0 0 ' % (r, name, n)); nadd += 1
+if nadd and not dry:
+    head = [l for l in gl if l.startswith('#')]; body = sorted((l for l in gl if l.strip() and not l.startswith('#')), key=lambda l: int(l.split()[0], 16))
+    open('docs/game_funcs.txt', 'w', newline='\n').write('\n'.join(head + body) + '\n')
+print('docs/game_funcs.txt: added', nadd)
+# ---- headers
+if ws and os.path.isdir(f'{ws}/include'):
+    for h in sorted(os.listdir(f'{ws}/include')):
+        if not h.endswith('.h') or h in ('common.h', 'libaudio.h', 'macro.inc'): continue
+        a, b = f'{ws}/include/{h}', f'include/{h}'
+        if not os.path.exists(b) or open(a, 'rb').read() != open(b, 'rb').read():
+            if os.path.exists(b) and os.path.getmtime(a) < os.path.getmtime(b): print('header older than the project copy, kept:', h); continue
+            if not dry: shutil.copyfile(a, b)
+            print('header', h)
+print('done' + (' (dry run)' if dry else ''))

@@ -53,15 +53,15 @@ if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
   sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' "$tmp/s.s"
   "$SN/n64link" asn64 "$tmp/s.s" > "$tmp/n.s"
   # rodata label references -> absolute addresses (the real rodata sits in KSEG0, the splat segment's VA does not match)
-  sbase=$(basename "$in" .c); sro_va=""; sro_size=""
+  sbase=$(basename "$in" .c); sro_va=""; sro_size=""; sro_real=""
   if [ -f rodata_map.txt ]; then
-    soff=$(awk -v n="$sbase" '$1==n {print $2}' rodata_map.txt); sro_size=$(awk -v n="$sbase" '$1==n {print $3}' rodata_map.txt)
+    soff=$(awk -v n="$sbase" '$1==n {print $2}' rodata_map.txt); sro_size=$(awk -v n="$sbase" '$1==n {print $3}' rodata_map.txt); sro_real=$(awk -v n="$sbase" '$1==n {print $4}' rodata_map.txt)
     [ -z "$soff" ] && soff=${CC_RO_OFF:-}; [ -z "$sro_size" ] && sro_size=${CC_RO_SIZE:-}      # CC_RO_OFF/CC_RO_SIZE: piece of a function that is not in the manifest yet (tools/rodoc.py)
     if [ -n "$soff" ]; then
       if [ $(( soff )) -ge $(( OVL_START )) ]; then sro_va=$(printf '0x%X' $(( 0x400000 + soff - OVL_START ))); else sro_va=$(printf '0x%X' $(( 0x80000000 + soff - 0xC00 ))); fi
     fi
   fi
-  python3 tools/sn_abs.py "$tmp/n.s" $sro_va ${sro_size:-} > "$tmp/a.s"
+  python3 tools/sn_abs.py "$tmp/n.s" $sro_va ${sro_size:-} ${sro_real:-} > "$tmp/a.s"
   bash tools/as.sh "$tmp/a.s" "$out"
   exit 0
 fi
