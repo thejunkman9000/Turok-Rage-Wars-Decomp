@@ -364,6 +364,7 @@ func_0028A924 sn+nb
 func_00290A68 sn
 func_002529E4 sn
 func_00278530 sn+nb
+func_002A78F0 sn
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
