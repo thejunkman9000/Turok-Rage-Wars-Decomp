@@ -119,6 +119,7 @@ typedef struct ControlsCfg {
     int hot_reload;                        /* re-read the file when it changes */
     int mouse_menu_guard;                  /* mouse motion only moves the stick during free play */
     int show_status;                       /* short notices in the window title */
+    int native_controls;                   /* free play: the mouse turns / tilts the view and the C buttons move the player directly (port/overrides/func_002231B0.c, func_002631D0.c), whatever the game's own control style */
     PlayerCfg player[MAX_PLAYERS];
 } ControlsCfg;
 

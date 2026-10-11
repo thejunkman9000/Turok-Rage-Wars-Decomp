@@ -52,8 +52,6 @@ found without asking.
 | **Esc** | releases the mouse; with the mouse free, press twice to quit |
 | **Ctrl+F5..F8** / **Ctrl+Shift+F5..F8** | pull out / push in the memory pak / rumble pak of controller 1..4 |
 
-**Tip:** for mouse look, turn **LOOK SPRING off** in the game's options.
-
 ### 3. Controls
 
 Out of the box player 1 has keyboard + mouse + the first gamepad, and players 2-4 get the next gamepads that are plugged in.
@@ -69,6 +67,11 @@ Out of the box player 1 has keyboard + mouse + the first gamepad, and players 2-
 | Q | L | | LB | L |
 | Enter | Start | | Start | Start |
 | arrow keys | stick | | D-pad | D-pad |
+
+**Native mouse and keyboard** (`native_controls = on`, the default): in a level the mouse turns and tilts the view directly, 1:1 with
+the mouse and with no speed limit, and W A S D walk and strafe, whichever control style is selected in the game's options.  (The
+original game only knows an analog stick; without this the mouse is converted to stick deflection and is capped at the stick's
+turn speed.)  `native_controls = off` in `controls.ini` goes back to the stick emulation.
 
 In menus W A S D / the arrow keys / the wheel move the cursor and the left mouse button confirms.  Other built-in layouts:
 `xbox_n64` (the classic N64 mapping: left stick = stick, right stick = C buttons), `kb_left` + `kb_right` (two players on one
@@ -135,8 +138,8 @@ a port holds one accessory, as on the console; vibration needs an XInput pad).  
 - **A gamepad does nothing**: start `turok_controls.exe` and look at the General tab's device list, or run
   `turok_controls.exe --devices --out devices.txt`; in the game F3 writes the same report to the log.  Gamepad support was
   developed against virtual pads, so reports from real hardware are very welcome.
-- **The mouse turns too slowly**: mouse look drives the N64 stick, so its top speed is the game's own (raise the game's
-  CONTROL STICK sliders); faster movements are queued up to `mouse_backlog` degrees.
+- **The mouse turns too slowly / feels laggy, or W A S D do nothing**: make sure `native_controls` is not switched off in `controls.ini`;
+  `mouse_sens_x` / `mouse_sens_y` set the speed (1.0 = 0.05 degrees per mouse count), `mouse_invert_y = on` flips up / down.
 - The full technical notes (renderer, audio, recompiler, input, pak emulation) are in `docs/PORT_STATUS.md`.
 
 ## Workflow

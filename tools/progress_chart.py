@@ -91,7 +91,9 @@ def unit_ranges(committed=False):
             if len(f) < 4 or f[0].startswith('pad_'): continue
             try: a = int(f[1], 16); n = int(f[2])
             except ValueError: continue
-            if exists(f'src/{f[3]}/{f[0]}.c'): k = 'c'
+            if exists(f'src/{f[3]}/{f[0]}.c'):
+                import re as _re
+                k = 'asm' if _re.search(r'(?m)^\s*INCLUDE_ASM', read(f'src/{f[3]}/{f[0]}.c')) else 'c'      # a NON_MATCHING draft that builds through INCLUDE_ASM is assembler, not matched C
             elif exists(f'src/{f[3]}/{f[0]}.s'): k = 'hand' if f[0] in hand else 'asm'
             else: continue
             if f[3] == 'libultra': lu[k] += n

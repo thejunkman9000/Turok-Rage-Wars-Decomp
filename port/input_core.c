@@ -352,7 +352,7 @@ void cfg_defaults(ControlsCfg *c) {
     int i;
     memset(c, 0, sizeof *c);
     c->version = 1; c->mouse_capture = MC_AUTO; c->esc_mode = ESC_CONFIRM; c->rumble = 1; c->rumble_strength = 0.6f; c->background_input = 0;
-    c->hot_reload = 1; c->mouse_menu_guard = 1; c->show_status = 1;
+    c->hot_reload = 1; c->mouse_menu_guard = 1; c->show_status = 1; c->native_controls = 1;
     for (i = 0; i < MAX_PLAYERS; i++) cfg_player_defaults(&c->player[i], i);
 }
 void cfg_copy_player(PlayerCfg *dst, const PlayerCfg *src, int bindings_only) {
@@ -431,6 +431,7 @@ static void parse_general_key(Parse *ps, const char *key, const char *val) {
     if (ci_eq(key, "hot_reload")) { if (parse_bool(val, &b)) c->hot_reload = b; else warn(ps, "bad on/off value for '%s'", key); return; }
     if (ci_eq(key, "mouse_menu_guard")) { if (parse_bool(val, &b)) c->mouse_menu_guard = b; else warn(ps, "bad on/off value for '%s'", key); return; }
     if (ci_eq(key, "show_status")) { if (parse_bool(val, &b)) c->show_status = b; else warn(ps, "bad on/off value for '%s'", key); return; }
+    if (ci_eq(key, "native_controls")) { if (parse_bool(val, &b)) c->native_controls = b; else warn(ps, "bad on/off value for '%s'", key); return; }
     warn(ps, "unknown key '%s' in [general]", key);
 }
 
@@ -520,6 +521,8 @@ static const char *const g_header =
     ";             rumble = on | off,  rumble_strength = 0..1      XInput vibration for the game's Rumble Pak\n"
     ";             background_input = on | off        read devices while the window is not in front (default off)\n"
     ";             hot_reload = on | off,  mouse_menu_guard = on | off,  show_status = on | off\n"
+    ";             native_controls = on | off         on (default): in a level the mouse turns and tilts the view directly (no stick speed limit) and the\n"
+    ";                                                C-button inputs (W A S D in kbm_fps) walk and strafe, whatever control style is chosen in the game's options\n"
     ";\n"
     "; [player1] .. [player4]   one section per N64 controller port.\n"
     ";   devices = none | keyboard, mouse, pad:auto, xinput:1..4, dinput:N, dinput:{instance guid}, dinput:name=part of the name   (comma separated)\n"
@@ -553,6 +556,7 @@ int cfg_write(const ControlsCfg *c, char *buf, int cap) {
     out_kv_b(&o, "rumble", c->rumble); out_kv_f(&o, "rumble_strength", c->rumble_strength);
     out_kv_b(&o, "background_input", c->background_input); out_kv_b(&o, "hot_reload", c->hot_reload);
     out_kv_b(&o, "mouse_menu_guard", c->mouse_menu_guard); out_kv_b(&o, "show_status", c->show_status);
+    out_kv_b(&o, "native_controls", c->native_controls);
     for (p = 0; p < MAX_PLAYERS; p++) {
         const PlayerCfg *pl = &c->player[p]; char devs[200]; int n = 0;
         out_f(&o, "\n[player%d]\n", p + 1);
@@ -591,7 +595,7 @@ int cfg_save(const ControlsCfg *c, const char *path) {
 int cfg_equal(const ControlsCfg *a, const ControlsCfg *b) {
     int i, k, j;
     if (a->version != b->version || a->mouse_capture != b->mouse_capture || a->esc_mode != b->esc_mode || a->rumble != b->rumble || a->background_input != b->background_input ||
-        a->hot_reload != b->hot_reload || a->mouse_menu_guard != b->mouse_menu_guard || a->show_status != b->show_status) return 0;
+        a->hot_reload != b->hot_reload || a->mouse_menu_guard != b->mouse_menu_guard || a->show_status != b->show_status || a->native_controls != b->native_controls) return 0;
     if (fabsf(a->rumble_strength - b->rumble_strength) > 0.0005f) return 0;
     for (i = 0; i < MAX_PLAYERS; i++) {
         const PlayerCfg *x = &a->player[i], *y = &b->player[i];

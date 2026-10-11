@@ -237,6 +237,9 @@ int input_port_connected(int i) {
     return r;
 }
 
+typedef struct NativeIn { int active; float fwd, strafe, yaw, pitch; } NativeIn;
+static NativeIn g_nat[MAX_PLAYERS];
+
 void input_poll_begin(void) {
     int p, k, i;
     ensure_init(); log_flush();
@@ -245,6 +248,7 @@ void input_poll_begin(void) {
     EnterCriticalSection(&g_cs);
     refresh_assign();
     g_ctx = game_context();
+    for (p = 0; p < MAX_PLAYERS; p++) g_nat[p].active = 0;                                 /* set again by input_poll_port for the ports the real devices drive */
     inpdev_read_kbm(g_keys, &g_mbtn, &g_dx, &g_dy, g_wheel);
     for (i = 0; i < DEV_MAX_PADS; i++) g_padst[i].connected = 0;
     if (inpdev_active())                                                                    /* gamepads, like keyboard and mouse, only count while the window is in front (background_input = on lifts that) */
@@ -259,8 +263,30 @@ void input_poll_begin(void) {
     }
 }
 
+/* ------------------------------------------------------------------ native keyboard / mouse controls (native_controls = on)
+ * The game turns each player's controller into four values in func_002631D0 (player+0x688: +0x14 turn rate, +0x18 view tilt, +0x1C strafe, +0x20 walk), and
+ * func_002231B0 applies them to the view (actor+0x6C yaw, player+0x724 tilt).  Which button means what depends on the control style of the game's options
+ * (style 0: stick = look, C buttons = walk / strafe; style 1: stick = walk / turn, C up / down = tilt), and mouse look through the stick is capped at the stick's
+ * top turn rate.  With native controls the port's overrides of those two functions take the player's input from here instead: the mouse turns and tilts the
+ * view by exactly the motion (MOUSE_DEG_PER_COUNT x sensitivity), the C-button inputs (W A S D in kbm_fps, the left stick in the xbox layout) walk and strafe. */
+static int nat_port(int port) { if (port < 0 || port >= MAX_PLAYERS) port = g_mouse_player >= 0 ? g_mouse_player : 0; return port; }    /* port -1 = the game's merged controller */
+int input_native_active(int port) { return g_nat[nat_port(port)].active; }
+float input_native_get(int port, int what) {        /* 0 walk (-1..1), 1 strafe (-1..1, + = right), 2 yaw degrees since the last call (+ = right), 3 tilt degrees since the last call (+ = down) */
+    NativeIn *n = &g_nat[nat_port(port)]; float v = 0;
+    if (!g_cs_ready) return 0;
+    EnterCriticalSection(&g_cs);
+    if (n->active) switch (what) {
+        case 0: v = n->fwd; break;
+        case 1: v = n->strafe; break;
+        case 2: v = n->yaw; n->yaw = 0; break;
+        case 3: v = n->pitch; n->pitch = 0; break;
+    }
+    LeaveCriticalSection(&g_cs);
+    return v;
+}
+
 void input_poll_port(int i, unsigned *b, int *x, int *y) {
-    InputSample in; N64Pad out; unsigned now; int k;
+    InputSample in; N64Pad out; unsigned now; int k, native;
     if (!g_snap_valid || i < 0 || i >= MAX_PLAYERS) return;
     EnterCriticalSection(&g_cs);
     memset(&in, 0, sizeof in);
@@ -271,6 +297,15 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         in.mouse_valid = (inpdev_get_mouse_mode() == 2) && (g_ctx != 0 || !g_cfg.mouse_menu_guard);
     }
     for (k = 0; k < g_nassign[i]; k++) { const PadState *ps = &g_padst[g_assign[i][k]]; if (ps->connected) in.pad[in.npad++] = ps; }
+    native = g_cfg.native_controls && g_ctx == 1 && (g_cfg.player[i].use_keyboard || g_mouse_player == i);
+    if (native && in.mouse_valid) {                                                         /* native mouse look: the motion goes straight to the view (port/overrides/func_002231B0.c), not through the stick */
+        const PlayerCfg *pc = &g_cfg.player[i];
+        g_nat[i].yaw += (float)in.mouse_dx * pc->mouse_sens_x * MOUSE_DEG_PER_COUNT;
+        g_nat[i].pitch += (float)in.mouse_dy * pc->mouse_sens_y * MOUSE_DEG_PER_COUNT * (pc->mouse_invert_y ? -1.0f : 1.0f);
+        if (g_nat[i].yaw > 90.0f) g_nat[i].yaw = 90.0f; else if (g_nat[i].yaw < -90.0f) g_nat[i].yaw = -90.0f;           /* not taken (player dead, cut-scene): drop the excess */
+        if (g_nat[i].pitch > 90.0f) g_nat[i].pitch = 90.0f; else if (g_nat[i].pitch < -90.0f) g_nat[i].pitch = -90.0f;
+        in.mouse_dx = in.mouse_dy = 0;                                                      /* buttons and wheel still go through the bindings */
+    }
     now = osGetCount();
     in.dt = g_have_count[i] ? (double)(unsigned)(now - g_last_count[i]) / 46875000.0 : 1.0 / 60.0;
     g_last_count[i] = now; g_have_count[i] = 1;
@@ -280,6 +315,13 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         g_req_yaw += in.mouse_dx * g_cfg.player[i].mouse_sens_x * MOUSE_DEG_PER_COUNT; g_del_yaw += (sx < 0 ? -1.0 : 1.0) * GAME_YAW_RATE_PER_E3 * nx * nx * nx * in.dt;
         g_req_pitch += in.mouse_dy * g_cfg.player[i].mouse_sens_y * MOUSE_DEG_PER_COUNT; g_del_pitch += (sy < 0 ? 1.0 : -1.0) * GAME_PITCH_RATE_PER_E3 * ny * ny * ny * in.dt;
     }
+    g_nat[i].active = native;
+    if (native) {                                                                          /* native movement: the C buttons walk / strafe directly (port/overrides/func_002631D0.c), whatever the game's control style */
+        unsigned cb = out.buttons;
+        g_nat[i].fwd = (float)(((cb & N64_BTN_CUP) ? 1 : 0) - ((cb & N64_BTN_CDOWN) ? 1 : 0));
+        g_nat[i].strafe = (float)(((cb & N64_BTN_CRIGHT) ? 1 : 0) - ((cb & N64_BTN_CLEFT) ? 1 : 0));
+        out.buttons &= (unsigned short)~(N64_BTN_CUP | N64_BTN_CDOWN | N64_BTN_CLEFT | N64_BTN_CRIGHT);
+    } else { g_nat[i].fwd = g_nat[i].strafe = 0; g_nat[i].yaw = g_nat[i].pitch = 0; }
     LeaveCriticalSection(&g_cs);
     *b |= out.buttons; *x += out.x; *y += out.y;
     if (g_inputlog < 0) { char e[8]; g_inputlog = GetEnvironmentVariableA("TUROK_INPUTLOG", e, sizeof e) ? 1 : 0; }

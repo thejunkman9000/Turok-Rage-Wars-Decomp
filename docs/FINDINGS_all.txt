@@ -4965,3 +4965,204 @@ The start was wip/c copies of the g7 near-misses (D:\Projects\ws\g7\wip\out\pfsi
    statement permutations/moves), dlu.sh/dl.sh (RTL + sched-verbose dumps of the old gcc / the SN cc1), prio.py, slots.py, rtlall.sh/rtlall2.sh, psetup.sh/prun.sh/pstat.sh
    (own permuter copy ~/permuter_s1010, dirs ~/perm/s1010_<fn>).  All run in WSL from the workspace root; on the Windows side use
    `MSYS_NO_PATHCONV=1 wsl -d Ubuntu-24.04 -- bash /mnt/d/Projects/ws/s1010/tools/<script>` and put `$var` loops into script files (the Bash tool expands them empty).
+
+ROUND 11 FINDINGS (version-matching workers vded01/veu, cloud sandbox environment, 2026-10-11)
+
+0. This device_bash sandbox (no wsl.exe/powershell.exe, FUSE passthrough to D:\Projects) can run the REAL gcc 2.8.1 / mips-linux-gnu
+   cross-build (not just hand ROM-diffing) once set up per u10d08's round-10/11 FINDINGS entry: rsync each workspace to a local ext4
+   copy ~/trw_<name> (NOT ~/trw_<worker-id> necessarily -- tools/chk.py's ROOTD constant is already baked to a specific name by
+   tools/mkws.py at workspace-creation time; `grep ROOTD tools/chk.py` in the workspace BEFORE renaming your local copy, or you'll
+   silently read/write the wrong directory), shim the i386 gcc/cpp/cc1/cc1plus binaries with qemu-i386-static, and fix the
+   `os.path.expanduser("~/trw_X")` nested-double-quote f-string SyntaxError in tools/lu_match.py (~line 77, Python <3.12 only).
+1. BACKGROUND PROCESSES DO NOT SURVIVE a device_bash call boundary in this sandbox, even with `setsid nohup ... &disown` and output
+   redirected to a file under $HOME (persistent storage) rather than /tmp: the whole process tree appears to be torn down when the
+   call that spawned it returns. A long job (e.g. `tools/ver_sweep.py <ver>` over the whole ~3700-unit funcs.txt/funcs_a.txt) must be
+   split into synchronous chunks that each fit one call's ~175s budget (`--only-file wip/ver/chunk_N.txt` with the unit list
+   pre-split, `--merge` to keep each chunk's CHK_INFER symbol votes) rather than launched once in the background and polled.
+2. `tools/ver_diff.py`'s `base = 'D:/Projects/ext/ragewars-decomp/versions'` (used by ver_symmap.py/ver_sweep.py for the melalawi
+   reference repo's slices.mk files) is a bare Windows path literal that only resolves on native Windows Python; in this sandbox it
+   is reachable at ~/mnt/ext/ragewars-decomp/versions (the D:\Projects\ext connected folder) -- patch `base` to
+   `os.path.expanduser('~/mnt/ext/ragewars-decomp/versions')` (and add `import os`) in your LOCAL workspace copy only.
+3. `tools/ver_sweep.py`'s own `run()` shells out to `wsl -d Ubuntu-24.04 -- bash -c "... rsync ... && CHK_ROM=... CHK_SYMS=... python3
+   tools/chk.py ..."`, which has no `wsl` binary to call here. Patched locally to call `tools/chk.py` as a plain subprocess with
+   CHK_ROM/CHK_SYMS/CHK_INFER set directly in the env dict and PATH/LD_LIBRARY_PATH pointed at the qemu-shimmed toolchain + the
+   mips-linux-gnu-{as,ld,nm,objcopy,objdump,readelf} binaries (no rsync needed -- the "WSL" and "sandbox" copies are the same
+   directory once you've patched ROOTD). This lets the WHOLE normal ver_sweep.py pipeline (funcmap/symmap generation, CHK_INFER
+   bootstrap, aggregate_inferred) run unmodified otherwise.
+4. ver_sweep.py's `units()`/`main()` only ever considers a function that ALREADY has a `src/<sub>/<name>.c` file in THIS workspace;
+   it is not usable as-is to verify `diff`/`lib`-class targets that don't have a matched file yet in the release-specific workspace
+   (that's the whole point of the class). For those, copy the matched US v1.1 `.c` from the MAIN tree (`src/<sub>/<name>.c`, or bare
+   `<name>.c` for libultra/libaudio units, which chk.py resolves via `ROOTD/src/libultra/<path>`) into the local workspace copy at
+   the same relative path, build your own chk.py list file by hand, and run chk.py directly with CHK_ROM=<other release's rom> and
+   CHK_SYMS=wip/ver/<ver>/syms.ld (still built by running ver_sweep.py normally first, over the units that DO already have files --
+   that's what generates the address map and lets CHK_INFER bootstrap it further). Do run a broad `--only-file` sweep over the whole
+   funcs.txt/funcs_a.txt first (several chunks, see #1) before the by-hand pass: CHK_INFER's symbol votes come from every OTHER unit
+   that matches, not just the ones you're checking, and materially raise the EXACT rate on the targets you actually care about.
+5. DECODING A funcs.txt `mode=` TOKEN BY HAND (to build a chk.py list line) must follow tools/cc.sh's actual case statement, NOT
+   ver_sweep.py's own `mode_flags()` dict (only knows sn/nb/sa/r4k/epi/sn272 and drops everything else silently -- the same bug
+   u10d08's FINDINGS already flagged for ovl_a). In particular: `lu` = `-O3 -fforce-addr -fno-builtin -mcpu=r4300` (NOT bare -O2 --
+   bare -O2 is what chk.py's list-line parser falls back to ONLY when a line has zero extra-flag tokens at all, which is a
+   different, coincidental thing); `lu4` = `-O2 -msplit-addresses -mcpu=r4300 -mfp32` TOGETHER (not `-msplit-addresses` alone --
+   that alone disables optimization entirely and produces a function several times too large, a dead giveaway if you see "N insns"
+   wildly exceed the manifest's declared count); `+nf` means pass the literal extra token `-DNOFILL` to lu_match.py (it special-cases
+   that exact string to set `gas_compat.NOFILL`), not the `GAS_NOFILL` env var tools/cc.sh's own pipeline uses for the same effect.
+   Getting this wrong turns real EXACTs into large bogus "N words differ" results that look like genuine code differences.
+6. A `diff`/`lib` target whose compiled object comes back "not found in object" from chk.py is not necessarily uncompilable -- check
+   whether the unit's real top-level symbol differs from the vtargets name (e.g. a unit named `csplayer`/`seqplayer`/`piacs` actually
+   defines `alCSPNew`/`alSeqpNew`/`__osPiCreateAccessQueue` etc. as its real exported symbols) and retry with `@all=<name>` (whole-
+   object compare from the unit's base ROM address, chk.py's own mechanism for exactly this case) instead of the plain `<name>`.
+7. Fully-confirmed outcome of this round's Germany diff/lib re-verification (232 vtargets_de.txt targets, workspace vded01): 220
+   independently EXACT with the real compiler (up from a hand-ROM-diff estimate of 225 "look exact"); the hand method had 2 false
+   positives in the "real PARTIAL" bucket too (func_00294428, func_004458F4, func_004459A4 are actually EXACT) -- hand ROM-diffing
+   without a real compiler is good for triage but produces both false positives AND false negatives relative to the real toolchain;
+   prefer getting chk.py running for real over trusting a byte-level heuristic, even a careful one.
+
+ROUND 12 FINDINGS (worker vden01, Germany 'new' class, cloud sandbox environment, 2026-10-11)
+
+0. A worker's qemu-i386-static shim for tools/gcc/2.8.1/{gcc,cc1,cc1plus,cpp} must embed an ABSOLUTE path to the
+   ".real" binary (`"$PWD/$f.real"`), never the relative path used while looping over the shim targets from the
+   workspace root: lu_match.py's compile_funcs() runs gcc from a fresh tempfile.mkdtemp() directory every call (a
+   different cwd each time), so a shim with a relative target path works once by accident (tested from the workspace
+   root) and then fails every real chk.py call with return code 1 and EMPTY stdout/stderr -- chk.py reports this as
+   the uninformative `COMPILE FAIL: []`, which looks like a deep toolchain problem but is just this one-line bug.
+   ~/tk (native x86-64 mips-linux-gnu-{as,ld,...} + qemu-i386-static + SN cc1_272/cc1_281 shims) and the ~/sn symlink
+   are shared, persistent scratch for the WHOLE sandbox session (keyed by session id, not by workspace) -- `ls ~/tk
+   ~/sn` before rebuilding; if a sibling worker already set it up this session, reuse it directly and only redo the
+   per-workspace bits (ROOTD in tools/chk.py, the ~/trw_vde -> ~/trw_<me> replace + nested-f-string fix in
+   tools/lu_match.py, your own gcc 2.8.1 shims inside your workspace's tools/gcc/2.8.1/).
+
+1. A release workspace's baserom.us.v11.z64 IS NOT RELIABLY THE RELEASE ROM, contrary to docs/AGENT_GUIDE.md's claim
+   ("the file baserom.us.v11.z64 HERE IS THE @@RELEASE@@ ROM") -- verified false for the vde/vden01 lineage by direct
+   byte comparison (md5 differs from baserom.de.z64; reading both files at several ROM offsets shows baserom.us.v11.z64
+   actually holds the real US v1.1 content). Using chk.py with its default ROM (CHK_ROM unset) in such a workspace
+   produces completely bogus "N words differ" results with the FIRST word already unrelated garbage (not a plausible
+   content difference, a total misalignment) for any function that differs between US and DE -- and, worse, a
+   coincidental FALSE "EXACT" for any function whose bytes happen to be identical in both ROMs at that address (two
+   of my first results looked EXACT against the wrong ROM purely because that particular bit of low-level code is
+   unchanged between releases). ALWAYS pass `CHK_ROM=$PWD/baserom.de.z64` (absolute path) explicitly; verify with a
+   direct `xxd` byte comparison at an offset your asm/*.s disagrees about before trusting either the guide or chk.py's
+   silent default, for ANY release workspace, not just this one.
+
+2. "new"-class `unit=` hints are frequently computed against a splat-declared span that includes 1-3 LEADING STRAY
+   PAD WORDS (the tail of the PRECEDING splat unit bleeding into this one) -- this is a release-independent structural
+   fact, not a version difference, and 7 of 24 targets in one 24-target slice had it. Reliable, free tell: the matched
+   1.1 unit's OWN source file often already carries a comment documenting the exact same "+N stray word(s), real entry
+   at X" fact for the identically-named 1.1 function (3 of 7 cases this round) -- grep the 1.1 unit's source for
+   "stray"/"pad" before starting. Confirm the split empirically: compile both the full splat span and the trimmed one
+   and let chk's word-diff tell you (a wrong split gives a near-total word-diff of the SAME values shifted by N
+   positions -- a dead giveaway, vs a real code difference which gives a few isolated mismatches at matching
+   positions); EXACT only happens when you compile+verify at the TRUE entry (rom+pad_bytes), with a separate
+   `pad_<rom>` manifest line (format per ROUND 10 #1/#2) for the stray prefix.
+
+3. A "new"-class target that is just `jr $ra; addiu $sp,$sp,N` with NO `addiu $sp,$sp,-N` anywhere in its own span
+   (or, mid-body, a register-save/restore pair at stack offsets with no 0-based frame context) is not a standalone
+   function at all -- it's a cross-jumped shared epilogue (or internal merge point) that some unrelated OTHER function
+   jumps to directly; splat still gives it a `func_auto_<addr>` label because anything referenced as a jump target
+   gets one, and the position/size `unit=` matcher can then pick a totally unrelated 1.1 function by coincidence of
+   size (seen 3 times this round: a 1-2 insn "new" target whose unit= hint's real body plainly needs more instructions
+   than the target has). This is a legitimate NONE per docs/VERSION_MATCH_PROMPT.txt's hand-written-assembly/padding
+   clause; recognizing it costs 5-10 minutes of asm reading and should not be mistaken for a function worth time-boxing.
+
+4. A genuinely dead instruction (result never read, nothing ever stores it) can still be part of the REAL function,
+   not pad, when it is INTERLEAVED with that function's own prologue/body (pad is always contiguous at a boundary,
+   never inside a function's own frame setup). Two targets this round (a leading dead `li v0,1` with zero data-flow
+   use in an otherwise-byte-perfect 21-word match; a leading `mtc1 $zero,$fv0 / c.le.s $fv0f,$fv0` FP-compare whose
+   condition code is never branched on) resisted ~6-8 source variants each (dead locals, register pins + volatile-asm
+   barriers per docs/AGENT_GUIDE.md's allocator section) under plain -O2 -mcpu=r4300. Left as PARTIAL; worth trying
+   tools/vq.py-style scheduling variants (statement reordering, splitting a call expression, a volatile scheduling
+   barrier at a different point) next time, since the mismatch is about WHEN an unused computation is scheduled, not
+   what value/register it uses.
+
+ROUND 13 FINDINGS (worker veun02, Europe 'new' class, cloud sandbox environment, 2026-10-11)
+
+0. mkvtargets.py's "new"-class scanner globs `<ws>/asm/*.s` NON-RECURSIVELY (flat, one level) -- in this project's
+   release workspaces the flat `asm/<ROMHEX>.s` files are what it reads (one file commonly holds several consecutive
+   functions' glabel/endlabel blocks), NOT the `asm/nonmatchings/<sub>/<pad_dir>/func_auto_<addr>.s` tree that exists
+   alongside it. An earlier pass in this same session wrongly concluded wip/vtargets_eu.txt's entire 371-entry "new"
+   class was stale because it searched the nonmatchings/ subtree and by filename; `grep -rhoE '^glabel
+   func_auto_[0-9A-Fa-f]+' asm/*.s | sort -u` against `awk '$4=="new"{print $1}' wip/vtargets_eu.txt | sort -u`
+   showed a PERFECT match (0 missing either direction) -- the file is NOT stale, no mkvtargets.py re-run was needed.
+   Always grep glabel NAMES inside the flat asm/*.s files for this class, never go by nonmatchings/ or by filename.
+
+1. chk.py's relocation check SILENTLY SKIPS (not fails) any word whose symbol `_symaddr()` cannot resolve -- so a
+   candidate can print plain `EXACT` while one of its referenced globals/callees was never actually checked against
+   the ROM's real address, if that symbol isn't in symbol_addrs.txt/extra_syms.ld/their_syms.ld/CHK_SYMS. This
+   happened to 3 EXACT results this round (their D_auto_<addr> externs weren't yet in extra_syms.ld) until those
+   lines were added and the check re-run with the relocation now genuinely verified (still EXACT, so no harm done
+   here, but only by luck of the address matching the name's own numeric suffix). Always grep every D_auto_/func_auto_
+   extern a candidate declares against extra_syms.ld before trusting its first EXACT; add a plain
+   `D_auto_<addr> = 0x<addr>;` / `func_auto_<addr> = 0x<addr>;` line (always safe -- splat's own naming guarantees
+   name == address) and re-run if it's missing, to turn a skipped check into a real one.
+
+2. A 1.1-identity function/global whose EU (or other-release) address differs from its own numeric name is usually
+   already overridden correctly in symbol_addrs.txt (chk.py auto-loads it) -- but c_syms.ld carries SOME of these
+   same overrides and is NOT auto-loaded by chk.py. When a callee you call by its real 1.1 name resolves to address 0
+   / the wrong address (first sign: every later word in the diff is garbage-shifted, or a lone `RELOC-MISMATCH` on
+   just that call), `grep "^func_NAME\b" c_syms.ld` in the release workspace before assuming you need a brand new
+   func_auto_<addr> alias -- if it's there, just copy that one line into extra_syms.ld and keep calling the function
+   by its ordinary 1.1 identity name (cleaner than inventing a parallel func_auto_ name for a function that already
+   has a good one).
+
+3. A "new"-class target's `unit=` position/size hint can point at a unit MANY TIMES larger than the target (seen
+   once this round: a 21-insn target hinted at a ~110-line, multi-switch 1.1 function) -- when that happens, check
+   whether the asm instead matches one of the HINTED unit's OWN CALLEES: the real counterpart here turned out to be
+   a small wrapper around one switch-case's helper function, confirmed by the callee address the asm actually calls
+   being exactly that helper's EU address per c_syms.ld. Don't give up on `unit=` just because the top-level size
+   doesn't match; check its callees' sizes/addresses too before falling back to a from-scratch decompile.
+
+4. Caching a global STRUCT's base pointer in a local before repeated field access matters for exact address-mode
+   matching, not just style: `D_auto_X[0x581] = v;` (plain array indexing with a sizeable constant index) makes GCC
+   2.8.1 fold the WHOLE address into one lui/addiu pair with a bare immediate 0 at the actual load/store, whereas the
+   ROM kept a base-only pointer in a register across two separate accesses and applied +0x581 as each load/store
+   instruction's own immediate. Wrapping the global in a tiny struct and taking ITS address first (`struct { u8
+   pad[0x581]; u8 val; } *s = &D_auto_X; ... s->val ...`) reproduced the ROM's addressing exactly. Try this
+   restructuring whenever a near-exact candidate differs only in a lui/addiu-vs-load-immediate split for a constant
+   struct-field offset into an otherwise-matching global reference.
+
+ROUND 14 FINDINGS (worker veun03, Europe 'new' class, next batch after veun01/veun02, cloud sandbox environment, 2026-10-11)
+
+0. A "new"-class target whose `unit=` hint names a LIBULTRA/LIBAUDIO SDK FUNCTION (not a `func_0XXXXXXX` game
+   identifier) is a strong, fast signal that it is hand-written assembly with NO C source anywhere in the 1.1
+   tree, not a from-scratch decompile target: of 18 such hints this round (sqrtf, __osGetFpcCsr, __osGetSR,
+   __osRestoreInt, __osSetCompare, adecClearStopFlag, rncUnpackMethod2Body, init_lpfilter, exceptasm, osGetCount,
+   osInvalDCache, osInvalICache, __osProbeTLB, osSetIntMask, osWritebackDCache, osWritebackDCacheAll,
+   dbgLinkSetCallHook, osReadAllTLBEntries, osUnmapTLBAll), EVERY ONE had only an `extern`/declaration line or a
+   call site in src/ (symbol_addrs.txt/c_syms.ld carry the address, src/ has no .c). These are COP0/COP1
+   register-control instructions (mfc0/mtc0/cfc1/ctc1), `cache`-instruction loops, kernel-register ($k0/$k1)
+   exception trampolines, or known RNC/audio codec assembly -- none expressible identically by portable C under
+   any gcc-2.8.1 flags, so VERSION_MATCH_PROMPT's "hand-written assembly ... gets a NONE line" clause applies
+   immediately (each took under 5 minutes once this pattern was recognised, instead of the 1.5h time-box).
+   Several of the matching declared sizes (1-3 "insns") also undercount a far larger real hand-asm body that
+   starts a few words after the nominal address; don't try to force these into a 1-3 word C target.
+
+1. A `j <addr>` inside a "new" target's own body landing at an address INSIDE THAT SAME FUNCTION (not a `jal`,
+   not an external callee) is gcc's shared-tail codegen for a plain `if (c) x = f(); else x = g();` whose both
+   arms feed the SAME variable: CSE keeps it in one register ($v0) across both paths, so the if-arm compiles as
+   "call f(); jump into the MIDDLE of the else-arm's own continuation" rather than duplicating the tail or using
+   a join label. Three targets this round (and two more from the prior round) showed this; the tell is that the
+   jump's VRAM, translated to ROM, decodes to an ordinary non-16-aligned instruction mid-body of the function
+   containing the jump. Writing the natural if/else (not a hand goto, not a `return second_func();` tail call)
+   reproduces it with zero extra effort; treating it as a real second function and emitting a tail call adds an
+   extra register move + epilogue the ROM never has.
+
+2. REGISTER-LOCALITY RULE for "value read, then an unrelated call, then the value used": if the ROM keeps a
+   global's value in a CALLEE-SAVED register across an intervening `jal` the value doesn't depend on, the C must
+   read it into a named local BEFORE that call (forcing a spill-safe register) -- reading it AFTER the call
+   (logically identical) gives a visibly smaller stack frame (one fewer `sw $sN`) and a run of structural-word
+   mismatches. Match the ROM's prologue size (register-save count) first: if it's bigger than your draft needs,
+   something you assumed doesn't need to survive a call actually does, in the ROM's own statement order.
+
+3. A single selector global used as `array[selector]` can recur as a RELEASE-WIDE edit across functions that
+   share nothing else (a string-length helper, two sprintf-wrapper trampolines, a menu text-buffer picker, and
+   an unrelated particle-spawn call in a different file all used the SAME byte global this round) -- once one
+   instance is identified, grep the rest of the batch's asm for the same global's lui/lbu pair before re-deriving
+   each occurrence from scratch; the 1.1 counterpart's plain `*ptr`/`->field` is simply replaced by
+   `ptr[selector]`/`field_array[selector]`, nothing else about the function changes.
+
+4. TOOLING (cloud sandbox, Python 3.10, no WSL): tools/lu_match.py as copied from a release workspace template
+   can carry a Python-3.12-only syntax bug distinct from the ROOTD/ver_sweep.py issue ROUND 12 already fixed --
+   a NESTED SAME-QUOTE f-STRING (`f"... {os.path.expanduser("~/trw_<ws>")} ..."`), which SyntaxErrors immediately
+   under Python 3.10 on the FIRST chk.py import. Fix: hoist the expanduser() call to a plain variable before the
+   f-string, then copy the patched tools/lu_match.py back to the FUSE-mounted workspace too (chk.py exec()s the
+   file fresh from disk each run). Check for this specific pattern (`grep -n '".*".*"' tools/lu_match.py`) on
+   every freshly-built `~/trw_<ws>` local toolchain copy in this sandbox before the first real chk.py call.

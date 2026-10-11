@@ -31,12 +31,31 @@ def drop_stale_twins():
                 try: os.remove(q)
                 except OSError: pass
 
+def sync_overrides():
+    """port/overrides/<name>.c is compiled from port/nonmatching/<name>__ovr.c (collect_nonmatching.py copies it); an override added or edited later would otherwise
+    never be built, and an old draft of the same function (port/nonmatching/<name>__N.c, no longer superseded once the function is overridden) would be linked instead.
+    Conversely, an override DELETED from port/overrides/ must have its stale port/nonmatching/<name>__ovr.c removed too, or the deleted override keeps getting
+    built from that leftover copy forever (bit us once: a diagnostic-only override was deleted but its __ovr.c sync copy silently kept building)."""
+    import shutil
+    live = set()
+    for f in glob.glob('port/overrides/*.c'):
+        n = os.path.basename(f)[:-2]; dst = f'port/nonmatching/{n}__ovr.c'; live.add(n)
+        if not os.path.exists(dst) or open(dst, 'rb').read() != open(f, 'rb').read():
+            shutil.copy(f, dst); print('  override synced:', n)
+        for d in glob.glob(f'port/nonmatching/{n}__[0-9]*.c') + glob.glob(f'port/nonmatching/{n}__m2c.c'):
+            defs = set(re.findall(r'^[A-Za-z_][^;{}()=]*[ *](\w+)\s*\([^;{}]*\)\s*\{', open(d, errors='replace').read(), re.M))
+            if defs <= {n}: os.remove(d); print('  stale draft removed:', os.path.basename(d))     # a draft that also defines other functions stays
+    for d in glob.glob('port/nonmatching/*__ovr.c'):
+        n = os.path.basename(d)[:-len('__ovr.c')]
+        if n not in live: os.remove(d); print('  orphaned override sync removed:', os.path.basename(d))
+
 def main():
     asm = '--asm' in sys.argv
     env = {} if asm else {'PORT_NO_ASM_REGEN': '1'}
     py = sys.executable
     for f in ('port/c_skip.txt', 'port/recomp_base.txt'):
         if os.path.exists(f): os.remove(f)
+    print('overrides'); sync_overrides()
     print('recomp_select'); run([py, 'port/recomp_select.py'], env)
     print('recomp_prune'); run([py, 'port/recomp_prune.py'])
     print('gen_recomp'); run([py, 'port/gen_recomp.py'], {'PORT_NO_ASM_REGEN': '1'})

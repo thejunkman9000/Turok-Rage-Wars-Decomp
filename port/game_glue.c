@@ -366,6 +366,14 @@ void port_game_init(void) {
     fprintf(stderr, "guest address ranges reserved (attempt %s)\n", getenv("PORT_RETRY") ? getenv("PORT_RETRY") : "0");
     if (!load_rom()) { fprintf(stderr, "no usable ROM image (see the rom: lines above)\n"); return; }
     load_guest_data(1);
+    /* D_801462E8 (aka D_801462C8->unk20, the "Game Speed" options-menu slider set by func_0043E81C) lives in
+       zero-filled BSS (see load_guest_data() above) and is read unconditionally every tick in func_002228E4
+       as a multiplier on every actor's movement-speed scale (f784) once a match has started (D_801462E5 != 0,
+       which func_00220EB0 sets as soon as gameplay begins). Unless the player has opened Options and touched
+       that spinner, this stays 0.0 and silently zeroes all walk/strafe movement for every actor, with turning
+       and everything else working fine. The real options UI clamps it to [0.5, 2.0] and "Normal" speed is 1.0,
+       so seed that default here, the same way osTvType/osMemSize are seeded just below. */
+    *(volatile unsigned *)0x801462E8 = _byteswap_ulong(0x3F800000);            /* D_801462E8 (Game Speed) default = 1.0f */
     *(volatile unsigned *)0x80000300 = _byteswap_ulong(1);                           /* osTvType = NTSC */
     *(volatile unsigned *)0x80000318 = _byteswap_ulong(0x800000);                    /* osMemSize */
     CreateThread(NULL, 4 * 1024 * 1024, game_thread, NULL, 0, NULL);
