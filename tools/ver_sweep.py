@@ -7,7 +7,7 @@ funcs_a.txt whose function was found in the other ROM it writes a chk list (`<sr
 CHK_ROM=<that ROM> and CHK_SYMS=wip/ver/<ver>/syms.ld (the address map as PROVIDE lines for every symbol name of the repository: relocations are verified against
 the other release's addresses) in several WSL processes, and writes wip/ver/<ver>/sweep.txt: `<fn> <verdict> <rom>` with the chk verdict (EXACT = the 1.1 source builds
 the other release's bytes as is).  The summary lists the functions that need version-specific code."""
-import collections, concurrent.futures, os, re, subprocess, sys
+import bisect, collections, concurrent.futures, os, re, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 ROMS = {'us': 'baserom.us.v10.z64', 'eu': 'baserom.eu.z64', 'de': 'baserom.de.z64'}
@@ -52,10 +52,19 @@ def build_syms(ver, amap):
             m = pat.match(l)
             if m: names[m.group(1)] = int(m.group(2), 16)
     lines = []
+    keys = sorted(amap)
     def conv(a):
         # symbol values are the addresses as the sources use them (code in the TLB space 0x002xxxxx, data 0x8xxxxxxx); the map keys are 0x80xxxxxx for code too
         if a in amap: return amap[a]
         if (a | 0x80000000) in amap and a < 0x00800000: return amap[a | 0x80000000] & 0x00FFFFFF
+        # no instruction pair names this address: the layout of a release is the 1.1 layout with piecewise-constant shifts, so an address between two paired addresses of the same delta moves by that delta
+        key = a | 0x80000000 if a < 0x00800000 else a
+        i = bisect.bisect_left(keys, key)
+        if 0 < i < len(keys):
+            lo, hi = keys[i - 1], keys[i]
+            if amap[lo] - lo == amap[hi] - hi:
+                v = key + (amap[lo] - lo)
+                return v & 0x00FFFFFF if a < 0x00800000 else v
         return None
     for n, a in names.items():
         b = conv(a)

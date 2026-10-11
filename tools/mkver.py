@@ -100,8 +100,26 @@ def main():
                     mm = re.fullmatch(r'ro=0x[0-9A-Fa-f]+:(\d+):(\d+)', e)
                     if mm and int(mm.group(1)) == n_ro: real = int(mm.group(2))
                 opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{real}' if real is not None else ''))
-            lines.append(f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts))
+            lo, hi = (lay['OVL_START'], lay['OVL_END']) if ovl else (0x1000, lay['MAIN_CODE_END'])
+            if rom < lo or rom + 4 * int(f[2]) > hi:                    # a clone of the function found in another region of the release (identical small functions repeat)
+                dropped[fn] += 1; continue
+            lines.append((rom, int(f[2]), f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts), int(f[1], 16)))
             kept[fn] += 1
+        # the units keep the 1.1 order in the release: the longest increasing run of the release offsets is the consistent set, the rest are wrong placements (clones); then no overlaps
+        lines.sort(key=lambda e: e[3])                                  # (in the order of the 1.1 ROM: the manifest file is not sorted)
+        tails = []; prev = [None] * len(lines)
+        for i, (r, n, _, _) in enumerate(lines):
+            j = bisect.bisect_left([lines[t][0] for t in tails], r)
+            if j > 0: prev[i] = tails[j - 1]
+            if j == len(tails): tails.append(i)
+            else: tails[j] = i
+        keep = set(); k = tails[-1] if tails else None
+        while k is not None: keep.add(k); k = prev[k]
+        out_lines = []; last_end = 0
+        for i, (r, n, text, _) in enumerate(lines):
+            if i not in keep or r < last_end: dropped[fn] += 1; kept[fn] -= 1; continue
+            out_lines.append(text); last_end = r + 4 * n
+        lines = out_lines
         open(os.path.join(out, fn), 'w', newline='\n').write('\n'.join(lines) + '\n')
     print('manifest units kept', dict(kept), 'dropped (stay asm)', dict(dropped))
     # the Makefile compiles every file under src/: remove the sources of units that are not in this release's manifests (they stay asm: splat covers them)
