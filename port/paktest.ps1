@@ -85,7 +85,10 @@ $tests['create'] = {
     $f = Pak $sd; $i = Info $f
     Ok ($i -match 'game NRWE pub 51' -and $i -match 'RAGE WARS\.A') 'a player note "RAGE WARS.A" (game NRWE, publisher 51) was written'
     Ok ($i -match 'verdict: OK$' -or $i -match 'verdict: OK\r?$' -or (Verdict $f) -eq 0) 'the image validates (ids, index tables, note chain)'
-    Ok ($i -match 'status 02') 'note status 0x02 (set by the game after the first data write)'
+    # this SDK version's osPfsAllocateFile never initialises the status byte of the new entry (stack garbage, the same on hardware: the matched C is the ROM's
+    # code); osPfsReadWriteFile only ORs in DIR_STATUS_OCCUPIED (0x02) when that bit is clear, so only the bit is defined
+    $stHex = if ($i -match 'RAGE WARS\.A' -and $i -match 'status ([0-9A-Fa-f]{2})\s+RAGE WARS\.A') { $Matches[1] } else { '00' }
+    Ok (([Convert]::ToInt32($stHex, 16) -band 2) -ne 0) "note status has DIR_STATUS_OCCUPIED (0x02) set (status $stHex; set by the game after the first data write)"
     Copy-Item $f (Join-Path $sd 'created.mpk')
 }
 $tests['persist'] = {

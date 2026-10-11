@@ -1,3 +1,4 @@
+/* PORT override of src/ovl_a/func_00441384.c: unchanged game logic, the hdr->f14 callback gets the arguments the MIPS code passes through. */
 #include "q04_types.h"
 typedef struct { u8 pad[0xB0]; u32 btn; } Q04Ctl;
 typedef struct { u8 pad[4]; u32 flags; u8 pad8[0x1C - 8]; s32 (*f1C)(void *, void *, void *); } Q04Def2;
@@ -28,7 +29,9 @@ s32 func_00441384(Q04Pan2 *p, void *a1) {
     s32 s4, i, s0, t;
     u32 s3;
     s4 = 0;
-    if (p->hdr->f14 != 0) s4 = p->hdr->f14();
+    /* PORT: the MIPS code calls hdr->f14 with a0/a1 still holding this function's own arguments (port/jalrscan.py: live a0 a1 at the jalr) and the
+     * callbacks use them (func_00443A2C reads a->unk1C): pass them on, else x86 hands the callee a stale stack slot (crash in the pak-screen fuzz run). */
+    if (p->hdr->f14 != 0) s4 = ((s32 (*)(void *, void *))p->hdr->f14)(p, a1);
     i = p->n;
     it = p->items;
     i--;

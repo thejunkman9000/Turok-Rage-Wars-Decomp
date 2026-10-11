@@ -183,7 +183,7 @@ s32 pak_motor_stop(void *pfs) { return motor_cmd(pfs, 0); }
  * Guard: when a later regeneration replaces the recompiled twin by matched C, func_00447BB0 becomes an alias of the C function named osPfsInitPak - which this
  * definition shadows - and the call below would recurse forever.  pak_os_init() detects that (g_initpak_alias) and the pak then reports "no pak" instead; the fix
  * is to delete this function (and port/overrides/osPfsInitPak.c) so that the real one is linked. */
-static int g_initpak_alias, g_corrupted_alias;
+static int g_initpak_alias;
 s32 osPfsInitPak(OSMesgQueue *queue, void *pfs, int channel) { if (g_initpak_alias) return 1; return (s32)func_00447BB0((u32)(size_t)queue, (u32)(size_t)pfs, (u32)channel, 0); }
 
 /* osPfsIsPlug: which ports have a pak (the standard libultra routine; the game does not call it) */
@@ -213,13 +213,11 @@ s32 pak_pfs_isplug(OSMesgQueue *queue, u8 *pattern) {
 }
 
 
-/* osPfsChecker's helper corrupted(pfs, fpage, cache) takes the page link `fpage` (__OSInodeUnit, a 2-byte union) BY VALUE.  The statically recompiled
- * osPfsChecker passes it the way MIPS o32 does (the halfword in the high 16 bits of a register image), the ported-C corrupted() expects the x86 struct
- * image instead and read page 0 / bank 0 for every link, so the checker declared every note of a valid pak "corrupted" and deleted it.  The only caller
- * is the recompiled checker, so the symbol is served by the recompiled twin of the same ROM code (0x448308), which uses the same convention. */
-extern u32 func_00448308(u32 a0, u32 a1, u32 a2, u32 a3);
-/* (same guard as osPfsInitPak: if func_00448308 turns out to be an alias of this very function the checker would recurse; then nothing is "corrupted") */
-u32 corrupted(u32 a0, u32 a1, u32 a2, u32 a3) { if (g_corrupted_alias) return 0; return func_00448308(a0, a1, a2, a3); }
+/* osPfsChecker's helper corrupted(pfs, fpage, cache) takes the page link `fpage` (__OSInodeUnit, a 2-byte union) BY VALUE, so caller and callee must use the
+ * same convention.  Until 2026-10-11 the checker was the recompiled twin (MIPS o32: the halfword in the high 16 bits of a register image) and this file served
+ * `corrupted` from the recompiled twin too.  osPfsChecker is matched C now and the recompiled osPfsInitPak calls it, so the matched C corrupted()
+ * (src/ovl_a/corrupted.c, x86 struct image) is the right partner: a wrapper here made the C checker read page 0 / bank 0 for every link and delete
+ * every note (the player the game had just created, foreign notes).  Do not define corrupted here again. */
 
 s32 osPfsIsPlug(OSMesgQueue *queue, u8 *pattern) { return pak_pfs_isplug(queue, pattern); }
 
@@ -252,7 +250,6 @@ void pak_os_init(void) {
     };
     char e[512]; unsigned i;
     if ((void *)func_00447BB0 == (void *)osPfsInitPak) { g_initpak_alias = 1; fprintf(stderr, "pak: WARNING: func_00447BB0 is an alias of pak_os.c's osPfsInitPak (the recompiled twin is gone): no pak until osPfsInitPak is removed from port/pak_os.c\n"); }
-    if ((void *)func_00448308 == (void *)corrupted) { g_corrupted_alias = 1; fprintf(stderr, "pak: WARNING: func_00448308 is an alias of pak_os.c's corrupted(): remove it from port/pak_os.c (the checker is matched C now)\n"); }
     if (!GetEnvironmentVariableA("TUROK_PAKTWIN", e, sizeof e)) return;
     for (i = 0; i < sizeof t / sizeof t[0]; i++) {
         char key[80]; _snprintf(key, sizeof key, ",%s,", t[i].name);
