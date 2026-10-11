@@ -51,7 +51,15 @@ for fn in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.
         for l in open(fn, errors='replace'):
             m = re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', l)
             if m: SY.setdefault(m.group(1), int(m.group(2), 16))
+CS = {}                                    # our own linker symbols (c_syms.ld / their_alias.ld): in a release workspace they hold the release addresses of the identity names
+for fn in ('c_syms.ld', 'their_alias.ld'):
+    try:
+        for l in open(fn, errors='replace'):
+            mm = re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', l)
+            if mm: CS[mm.group(1)] = int(mm.group(2), 16)
+    except OSError: pass
 def addr_of(sym):
+    if sym in CS: return CS[sym]
     m = re.fullmatch(r'(?:D|func|jtbl)_([0-9A-Fa-f]{8})', sym)
     if m: return int(m.group(1), 16)
     return SY.get(sym)

@@ -27,7 +27,7 @@ def mode_flags(mode, sub='game'):
         return ' '.join([FLAGS[base]] + [SNTOK[t] if t in SNTOK else TOKFLAG[t] for t in toks if t in SNTOK or t in TOKFLAG])
     opt = OLDBASE.get(base, OLDBASE['game'])
     if base in ('lu3', 'game') and 'o2' in toks: opt = '-O2'
-    out = [opt] + [TOKFLAG[t] for t in toks if t in TOKFLAG] + (['-DNOFILL'] if 'nf' in toks else [])
+    out = [opt] + [TOKFLAG[t] for t in toks if t in TOKFLAG] + (['-DNOFILL'] if ('nf' in toks or 'luret' in toks) else [])
     seen = []
     for t in ' '.join(out).split():                                  # (lu + nb: the flag is already in the base set)
         if t not in seen: seen.append(t)

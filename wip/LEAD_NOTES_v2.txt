@@ -1,0 +1,17 @@
+
+
+LEAD NOTES (2026-10-11, lessons from integrating the first release rounds - follow them, they decide whether your results can be merged):
+- Names: a `new` function is named func_auto_<release VRAM of its REAL entry> (8 hex digits, upper case).  Main image: VRAM = ROM - 0x1000 + 0x200400.  Overlay A:
+  VRAM = ROM - <release OVL_START> + 0x400000 (US v1.0 0x164000, Europe 0x176000, Germany 0x166000).  If splat's unit starts with stray words before the entry, the stray
+  words are a separate `NEW pad_<ROM %06X> 0x<ROM> <words> <seg>` line and the function line starts at the entry.  Never name a function after a ROM offset.
+- pad names are exactly `pad_%06X` of the ROM offset (6 hex digits).
+- EVERY unit in wip\out\manifest.txt needs its source in wip\out\<name>.c, even when the v1.1 source is unchanged (copy it).  Only EXACT rows go into the manifest.
+- Literal pools: a function with float/double constants, a jump table or string literals has a `ro=0x<release ROM>:<bytes>` piece - also `new` functions (their pool
+  usually lies in the main image's rodata).  Give the exact piece size (the release may have no trailing alignment word where 1.1 had one).
+- Symbols: do NOT edit the workspace's shared symbol files (c_syms.ld / their_syms.ld / their_alias.ld) to get a match.  If the release references another object than the
+  1.1 identity name maps to, use a release-only name D_auto_<VRAM> in your source.  Put every symbol your sources need that is not defined yet into wip\out\syms.ld
+  (`D_auto_800E0D5C = 0x800E0D5C;`, also identity names whose release address you had to correct, with a comment), so the lead can merge it.
+- RELOC-MISMATCH targets: the code is identical and only a relocation differs - first check whether the symbol's release address in the workspace's symbol files is wrong
+  (compare with the address the release ROM encodes: tools\asmfn.py / the splat asm); if it is, report the corrected address in wip\out\syms.ld and mark the unit EXACT
+  with the note `symbol fix only`; if the release really references another object, use a D_auto_ name as above.
+- Verify through the real build path (tools\ccchk.py) before calling anything EXACT; "EXACT-LIKELY by inspection" is not a result.

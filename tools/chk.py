@@ -15,7 +15,7 @@ okf = open('chk_ok.txt', 'w')
 
 import re as _re
 _SYMS = {}
-for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld') + ((os.environ['CHK_SYMS'],) if os.environ.get('CHK_SYMS') else ()):
+for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld', 'c_syms.ld', 'their_alias.ld') + ((os.environ['CHK_SYMS'],) if os.environ.get('CHK_SYMS') else ()):
     try:
         for _l in open(os.path.join(os.path.expanduser('~/trw') if False else '.', _f), encoding='utf-8', errors='replace'):
             _m = _re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
@@ -79,7 +79,10 @@ for line in open(list_file):
     f = line.split()
     path, func, rom_hex = f[0], f[1], int(f[2], 16)
     allmode = func.startswith('@all=')                       # @all=<unit>: the whole .text of the object against the ROM from <rom> on, reported under <unit> (a source that defines several functions under other names: ported upstream files, `func_80XXXXXX_de`)
-    if allmode: func = func[5:]
+    allcount = None
+    if allmode:
+        func = func[5:]
+        if ':' in func: func, allcount = func.split(':', 1); allcount = int(allcount)   # @all=<unit>:<n>: only the first n words (the object's trailing alignment words are linker pad in the ROM)
     extra[:] = f[3:] if len(f) > 3 else ['-O3', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
     full = path if os.path.isabs(path) else f'{ROOTD}/src/libultra/{path}'
     if not os.path.exists(full): full = f'{ROOTD}/{path}'
@@ -94,7 +97,7 @@ for line in open(list_file):
         if res is None:
             fail = f'{func:28s} COMPILE FAIL: {err}'; break
         text, syms, relocs, relnames = res
-        cand = [(func, 0, len(text))] if allmode else [s for s in syms if s[0] == func]
+        cand = [(func, 0, min(len(text), 4 * allcount) if allcount else len(text))] if allmode else [s for s in syms if s[0] == func]
         if not cand:
             fail = f'{func:28s} not found in object (have: {[s[0] for s in syms]})'; break
         name, off, size = cand[0]

@@ -49,3 +49,68 @@ func_auto_00429B00 0x19FB00 10 ovl_a mode=sn
 func_auto_00442EE0 0x1B8EE0 35 ovl_a mode=sn
 func_auto_00443A04 0x1B9A04 26 ovl_a mode=sn
 func_auto_00416060 0x18C060 25 ovl_a mode=sn
+func_002010D8 0x1CD8 128 game mode=sn+sa+r4k+epi
+func_00219A40 0x1A6D8 549 game
+func_0021AF6C 0x1BC04 158 game
+func_0021C440 0x1D100 141 game
+func_00220EB0 0x21B70 1608 game mode=sn ro=0xC367C:108
+func_00228DA0 0x29BE0 125 game
+func_0022BE10 0x2CB18 47 game
+pad_03B0EC 0x3B0EC 1 game
+func_0023A4D0 0x3B0F0 708 game mode=sn ro=0xC4460:36
+func_0023C8C4 0x3D4E4 20 game mode=lu3+luret
+func_0023E8A4 0x3F4C4 8 game mode=lu3+luret
+func_0024E2B4 0x4EED4 14 game ro=0xC4BB0:64
+func_00252450 0x53070 177 game
+pad_065B1C 0x65B1C 1 game
+func_00264F80 0x65B20 148 game mode=sn
+func_002651D0 0x65D70 101 game mode=sn
+pad_065F04 0x65F04 3 game
+func_00269A80 0x6A640 1134 game mode=sn ro=0xC5474:164
+func_0027ED40 0x7F910 1147 game mode=sn ro=0xC5C28:140
+func_00286A78 0x87648 885 game mode=sn
+func_0028E910 0x8F640 103 game ro=0xC6200:4
+func_0028FEEC 0x90C1C 49 game mode=lu3+nb
+func_002911E8 0x91F48 135 game
+func_00292318 0x93048 382 game ro=0xC62F8:36
+func_00292FA4 0x93CD4 37 game
+func_00293518 0x94248 23 game
+func_002A4708 0xA4428 431 game mode=sn
+func_00406178 0x17C1EC 175 ovl_a mode=sn
+func_00441D50 0x1B8AD8 180 ovl_a mode=sn ro=0xEF754:24
+func_004458F4 0x1BC05C 11 ovl_a
+func_auto_00446088 0x1BC088 11 ovl_a
+func_00445920 0x1BC0B4 11 ovl_a
+func_0044594C 0x1BC0E0 11 ovl_a
+func_00445978 0x1BC10C 11 ovl_a
+func_004459A4 0x1BC138 11 ovl_a
+csplayer 0xAF950 1247 libultra mode=lu+inl ro=0xC8B40:224:220
+pad_0B1264 0xB1264 3 libultra
+seqplayer 0xB1270 1708 libultra ro=0xC8C30:152:148 mode=lu+inl
+seq 0xB2D20 369 libultra ro=0xC8CD0:36
+pad_0B32E4 0xB32E4 3 libultra
+pad_0B9C68 0xB9C68 2 libultra
+osCreatePiManager 0xB9C70 94 libultra
+pad_0B9DE8 0xB9DE8 2 libultra
+pad_0BA7E4 0xBA7E4 3 libultra
+piacs 0xBA7F0 58 libultra
+pad_0BA8D8 0xBA8D8 2 libultra
+pad_0BAA54 0xBAA54 3 libultra
+siacs 0xBAA60 58 libultra
+pad_0BAB48 0xBAB48 2 libultra
+string 0xBE240 33 libultra mode=lu2
+pad_0BE2C4 0xBE2C4 3 libultra
+xlitob 0xBEC80 182 libultra
+pad_0BEF58 0xBEF58 2 libultra
+func_auto_00293C3C 0x9483C 67 game
+func_auto_00293DF8 0x949F8 65 game
+func_auto_00294738 0x95338 36 game
+func_auto_002947C8 0x953C8 65 game
+func_00406434 0x17C4A8 162 ovl_a
+func_00406F7C 0x17D030 94 ovl_a mode=sn
+func_00408870 0x17EA58 149 ovl_a mode=sn
+func_0040BBC0 0x181F80 27 ovl_a ro=0xEE2E8:24:20
+func_0042E3D0 0x1A4E40 156 ovl_a mode=sn ro=0xEEDC0:20
+func_00432488 0x1A8F58 1083 ovl_a mode=sn ro=0xEF050:152
+func_00440F10 0x1B7C98 195 ovl_a mode=sn
+func_00441764 0x1B84EC 379 ovl_a mode=sn ro=0xEF734:32

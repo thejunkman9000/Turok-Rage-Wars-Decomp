@@ -71,6 +71,8 @@ def read_manifest(fn):
 def main():
     ver = sys.argv[1]; out = opt('--out'); assert out, '--out <workspace>'
     lay = LAYOUT[ver]
+    global ROM11, ROMV
+    ROM11 = open('baserom.us.v11.z64', 'rb').read(); ROMV = open(ROMS[ver], 'rb').read()
     fmap = {}; ent = []
     for l in open(f'wip/funcmap_{ver}.txt'):
         f = l.split(); fmap[f[0]] = (f[3], int(f[4], 16)); ent.append((int(f[1], 16), f[0], int(f[2]), f[3], int(f[4], 16)))
@@ -122,6 +124,17 @@ def main():
                 for e in f[4:]:                                         # the 1.1 entry may say that only `real` bytes of the piece are the object's own data (the rest is a tail the ROM supplies): the same object, the same data
                     mm = re.fullmatch(r'ro=0x[0-9A-Fa-f]+:(\d+):(\d+)', e)
                     if mm and int(mm.group(1)) == n_ro: real = int(mm.group(2))
+                for e in f[4:]:                                         # the 1.1 piece is the object's exact output: trailing zero (padding) bytes there that are NOT zero in the release belong
+                    m11 = re.fullmatch(r'ro=(0x[0-9A-Fa-f]+):(\d+)(?::\d+)?', e)  # to the release's next piece (a string pool of 19 bytes followed directly by other data): only `real` bytes are ours
+                    if not m11: continue
+                    o11 = int(m11.group(1), 16); o_r = int(m.group(1), 16); k = 0
+                    z = 0                                                  # v1.1's trailing zero bytes (padding / NUL) of the piece, at most one word
+                    while z < 4 and z < r_ro and ROM11[o11 + r_ro - 1 - z] == 0: z += 1
+                    if z >= 2:                                             # (a single 0x00 can end a jump-table entry or a float by chance)
+                        for j in range(r_ro - z, r_ro):                    # the first byte the release has non-zero there starts the next piece
+                            if ROMV[o_r + j] != 0:
+                                if real is None or real > j: real = j
+                                break
                 opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{real}' if real is not None else ''))
             lo, hi = (lay['OVL_START'], lay['OVL_END']) if ovl else (0x1000, lay['MAIN_CODE_END'])
             if rom < lo or rom + 4 * int(f[2]) > hi:                    # a clone of the function found in another region of the release (identical small functions repeat)

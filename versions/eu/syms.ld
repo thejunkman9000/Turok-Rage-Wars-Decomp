@@ -22,3 +22,5 @@ func_auto_00294DB0 = 0x00294DB0;   /* real entry of the function splat starts at
 D_00451AF0 = 0x00452194;   /* syms_inferred.ld had these three shifted by one (the units are EXACT with the sweep's syms.ld values) */
 D_004500F4 = 0x00450774;
 D_004503E8 = 0x00450A68;
+D_00451BD4 = 0x00452274;   /* veu2d07: was mapped to D_004503E8's address (shifted pairing in syms_inferred) */
+D_auto_00451B34 = 0x00451B34;

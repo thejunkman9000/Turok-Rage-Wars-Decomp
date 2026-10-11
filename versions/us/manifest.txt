@@ -163,3 +163,8 @@ pad_0C23A8 0xC23A8 2 libultra
 __floatdidf 0xC23B0 34 libultra mode=lu4 ro=0xC8C20:24
 pad_0C2438 0xC2438 2 libultra
 __floatdisf 0xC2440 44 libultra mode=lu4 ro=0xC8C40:24
+func_00252450 0x53040 177 game
+func_00292FA4 0x93AAC 37 game
+func_0024E2B4 0x4EEA4 14 game ro=0xC4830:64
+func_00444260 0x1A8260 61 ovl_a ro=0xDE020:32
+seq 0xB29B0 369 libultra ro=0xC8000:36

@@ -23,3 +23,56 @@ pad_19BB08 0x19BB08 2 ovl_a
 func_auto_00435B10 0x19BB10 9 ovl_a
 func_00421D18 0x187CE8 43 ovl_a ro=0xDE1E0:24
 func_00423370 0x188FC0 27 ovl_a mode=sn
+func_auto_0022A328 0x2AF28 28 game mode=sn
+func_auto_0022A398 0x2AF98 24 game
+func_auto_00295EAC 0x96AAC 26 game
+func_auto_00295F14 0x96B14 25 game
+func_auto_0041CE18 0x182E18 8 ovl_a mode=sn
+func_0028E910 0x8F530 103 game ro=0xC5F50:4
+func_00252450 0x530B0 177 game
+func_00292FA4 0x93BC0 37 game
+func_0023C8C4 0x3D4D4 20 game mode=lu3+luret
+func_0023E8A4 0x3F4B4 8 game mode=lu3+luret
+func_0024E2B4 0x4EEC4 14 game ro=0xC4900:64
+func_00444260 0x1AA0F0 61 ovl_a ro=0xDF370:32
+func_00267EE8 0x68AD8 48 game
+func_00293378 0x93F94 43 game
+func_00293518 0x94134 23 game
+func_00278C80 0x79810 90 game
+func_00204308 0x4F08 54 game ro=0xC266C:4
+func_0023B9A0 0x3C5B0 177 game
+func_0022BE10 0x2CA20 47 game
+func_00219A40 0x1A640 549 game
+func_0021EA30 0x1F654 298 game ro=0xC31C4:56
+func_00292318 0x92F08 382 game ro=0xC6048:36
+func_00281C74 0x828A0 420 game ro=0xC5A4C:8
+func_0027ED40 0x7F96C 1147 game mode=sn ro=0xC5978:140
+func_00286A78 0x876A8 885 game mode=sn
+func_002010D8 0x1CD8 128 game mode=sn+sa+r4k+epi
+func_002651D0 0x65DB0 101 game mode=sn
+func_00264F80 0x65B60 148 game mode=sn
+func_002A4708 0xA4318 431 game mode=sn
+func_0028795C 0x8858C 355 game mode=sn
+func_0023A4D0 0x3B0E0 708 game mode=sn ro=0xC41B0:36
+func_00269A80 0x6A680 1134 game mode=sn ro=0xC51C4:164
+func_00406178 0x16C178 175 ovl_a mode=sn
+func_00406434 0x16C434 162 ovl_a
+func_00406F7C 0x16CF7C 94 ovl_a mode=sn
+func_00407290 0x16D290 186 ovl_a mode=sn
+func_004082FC 0x16E2FC 185 ovl_a
+func_00408870 0x16E870 149 ovl_a mode=sn
+func_00440F10 0x1A6DA0 195 ovl_a mode=sn
+func_00407748 0x16D748 521 ovl_a mode=sn
+piacs 0xBA550 58 libultra
+csplayer 0xAF6B0 1247 libultra mode=lu+inl ro=0xC7F50:224:220
+string 0xBDFA0 33 libultra mode=lu2
+xlitob 0xBE9E0 182 libultra
+siacs 0xBA7C0 58 libultra
+seq 0xB2A80 369 libultra ro=0xC80E0:36
+osCreatePiManager 0xB99D0 94 libultra
+seqplayer 0xB0FD0 1708 libultra mode=lu+inl ro=0xC8040:152:148
+func_auto_00293B28 0x94728 67 game
+func_auto_00293CE4 0x948E4 65 game
+func_auto_00294614 0x95214 36 game
+func_auto_002946A4 0x952A4 65 game
+func_auto_00445E04 0x1ABE04 60 ovl_a mode=sn
