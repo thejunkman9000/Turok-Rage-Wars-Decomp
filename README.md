@@ -30,8 +30,8 @@ byte-identical to the base ROM. Compilers: decompals/old-gcc; libultra is GCC 2.
 Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other code); splat keeps those words in asm and
 `tools/fix_asm.py` turns any padding "branch" that points outside its file into a raw `.word`.
 
-## Status (2026-10-10)
-- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. About 96.8% of all game-code instructions are matched C
+## Status (2026-10-11)
+- **Matching build**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical. About 99.1% of all game-code instructions are matched C (one function, func_00418224, is left)
   (`src/game/` main image, `src/ovl_a/` overlay A; libultra/libaudio in `src/libultra/`, `-O3 -fforce-addr -fno-builtin`); the rest is
   still splat asm, including hand-written exception/cache/TLB/RNC stubs that no C reproduces.
 - **Toolchain** (the big finding): the other public decompilation of this game, [melalawi/ragewars-decomp](https://github.com/melalawi/ragewars-decomp)

@@ -48,6 +48,7 @@ static const char* HLSL = R"(
 cbuffer CB : register(b0) {
     uint4 c0; uint4 a0; uint4 c1; uint4 a1;     // combiner inputs per cycle: (A,B,C,D)
     float4 prim; float4 env; float4 flags;      // flags: x=mode (0 combiner,1 vertex colour,2 copy) y=2-cycle z=alpha test w=texture on
+    float4 fogc; float4 fogp;                   // fogc = fog colour; fogp.x = 1 when the blender's first cycle is (fog colour * factor + colour * (1 - factor)), fogp.y = 1: the factor is the fog colour's alpha instead of the shade alpha
 };
 Texture2D tex : register(t0); Texture2D tex1 : register(t1); SamplerState smp : register(s0);
 struct VI { float4 pos : POSITION; float4 col : COLOR; float2 uv : TEXCOORD; };
@@ -82,6 +83,7 @@ float4 psmain(PI i) : SV_TARGET {
         o = cycle(c0, a0, float4(0,0,0,0), t0, t1, i.col);
         if (flags.y > 0.5) o = cycle(c1, a1, o, t0, t1, i.col);
     }
+    if (fogp.x > 0.5 && flags.x < 1.5) o.rgb = lerp(o.rgb, fogc.rgb, fogp.y > 0.5 ? fogc.a : i.col.a);      // G_RM_FOG_SHADE_A / G_RM_FOG_PRIM_A: the fog factor is the vertex alpha the RSP replaced (G_FOG)
     if (o.a < flags.z) discard;
     return o;
 }
@@ -170,7 +172,13 @@ static struct {
 static std::vector<Vtx> batch;
 static uint32_t curTexSrvKey; static ID3D11ShaderResourceView* curSrv; static ID3D11SamplerState* curSmp;
 static std::map<uint64_t, ID3D11ShaderResourceView*> texCache;
-static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_opsIgnored[256]; static int g_fogBlendDraws; static int g_zmodeDraws[4]; static int g_vtxGeom[4]; static std::map<uint32_t, int> g_omHHist; static int g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws;   // textured draws; of which without texture perspective (omH bit 19), with texture LOD (bit 16), with detail/sharpen (bits 17-18)
+static int g_rects, g_nfpub; static FILE* g_dump; static int g_tris, g_draws, g_texdecodes; static int g_ops[256]; static int g_opsIgnored[256]; static int g_fogBlendDraws; static std::map<uint64_t, int> g_fogHist;
+static int g_fogMul, g_fogOff; static float g_fogCol[4] = { 0, 0, 0, 1 };      // G_MW_FOG (fm, fo) and G_SETFOGCOLOR: the RSP/RDP keep them across frames, so they live outside S (memset every frame)
+static bool fogOn() {      // TUROK_NOFOG=1: fog off; TUROK_FOGAB=1: fog on in even renderer frames, off in odd ones (the same scene twice for A/B comparison)
+    static int nofog = -1, ab = -1; if (nofog < 0) { nofog = getenv("TUROK_NOFOG") ? 1 : 0; ab = getenv("TUROK_FOGAB") ? 1 : 0; }
+    return !nofog && !(ab && (g_nfpub & 1));
+}
+static int g_zmodeDraws[4]; static int g_vtxGeom[4]; static std::map<uint32_t, int> g_omHHist; static int g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws;   // textured draws; of which without texture perspective (omH bit 19), with texture LOD (bit 16), with detail/sharpen (bits 17-18)
 // vertices loaded with texgen (0x40000) / texgen linear (0x80000) / fog (0x10000) / lighting (0x20000) set; draws per RDP z-mode (0 opaque, 1 interpenetrating, 2 translucent, 3 decal)
 
 static void matIdent(float* m) { memset(m, 0, 64); m[0] = m[5] = m[10] = m[15] = 1; }
@@ -261,10 +269,13 @@ static void flush() {
     cb[0] = a0; cb[1] = b0; cb[2] = c0; cb[3] = d0;  cb[4] = Aa0; cb[5] = Ab0; cb[6] = Ac0; cb[7] = Ad0;
     cb[8] = a1; cb[9] = b1; cb[10] = c1; cb[11] = d1; cb[12] = Aa1; cb[13] = Ab1; cb[14] = Ac1; cb[15] = Ad1;
     // the cbuffer layout is uint4 c0, a0, c1, a1, then float4 prim, env, flags
-    uint32_t cbData[28];
+    uint32_t cbData[36];
     memcpy(cbData, cb, 16 * 4);
     float* fl = (float*)(cbData + 16);
-    for (int i = 0; i < 4; i++) { fl[i] = cur.prim[i]; fl[4 + i] = cur.env[i]; }
+    for (int i = 0; i < 4; i++) { fl[i] = cur.prim[i]; fl[4 + i] = cur.env[i]; fl[12 + i] = g_fogCol[i]; }
+    { uint32_t L = cur.omL; int m1a = (L >> 30) & 3, m1b = (L >> 26) & 3, m2a = (L >> 22) & 3, m2b = (L >> 18) & 3;      // blender cycle 1: P = CLR_FOG, A = A_SHADE (2) / A_FOG (1), M = CLR_IN, B = 1-A
+      bool fogMix = ((cur.omH >> 20) & 3) < 2 && m1a == 3 && (m1b == 2 || m1b == 1) && m2a == 0 && m2b == 0 && fogOn();
+      fl[16] = fogMix ? 1.f : 0.f; fl[17] = (m1b == 1) ? 1.f : 0.f; fl[18] = fl[19] = 0.f; }
     int cycle = (cur.omH >> 20) & 3;
     fl[8] = (float)cur.mode; fl[9] = (cycle == 1) ? 1.f : 0.f;
     { static int no2 = -1; if (no2 < 0) no2 = getenv("TUROK_NO2CYC") ? 1 : 0; if (no2) fl[9] = 0.f; }   // TUROK_NO2CYC=1: run 2-cycle combiners as 1-cycle (bisecting shader paths)
@@ -304,7 +315,8 @@ static void flush() {
           const int* d = cur.dbg; bool badU = d[0] == 2 && (u0 < -0.02f || u1 > 1.02f), badV = d[1] == 2 && (v0 < -0.02f || v1 > 1.02f);
           if (badU || badV) { nul++; fprintf(stderr, "UVCLAMP u %.2f..%.2f v %.2f..%.2f tris %d | addr %d/%d tex %dx%d uls %d ult %d lrs %d lrt %d mask %d/%d cm %d/%d fmt %d siz %d line %d tile %d srvkey %llx\n", u0, u1, v0, v1, (int)batch.size() / 3, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], (unsigned long long)srvKey[cur.srv]); } } }
     { static int fl = -1, nfl; if (fl < 0) fl = getenv("TUROK_FOGLOG") ? 1 : 0;      // TUROK_FOGLOG=1: log the render modes of the first draws that have the fog geometry bit set (the renderer has no fog)
-      if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); } }
+      if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); }
+      if (fl && (cur.geom & 0x10000)) g_fogHist[((uint64_t)cur.omL << 32) | (cur.omH & 0x300000) | (cur.texOn ? 1 : 0)] += (int)batch.size() / 3; }
     ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
     { uint32_t L = cur.omL; int c2 = ((cur.omH >> 20) & 3) == 1; bool fogBl = ((L >> 30) & 3) == 3 || ((L >> 22) & 3) == 3 || ((L >> 26) & 3) == 1 || (c2 && (((L >> 28) & 3) == 3 || ((L >> 20) & 3) == 3 || ((L >> 24) & 3) == 1)); if (fogBl) g_fogBlendDraws++; }
     if (cur.texOn) { g_omHHist[cur.omH]++; g_texDraws++; if (!(cur.omH & (1u << 19))) g_noPerspDraws++; if (cur.omH & (1u << 16)) g_lodDraws++; if (cur.omH & (3u << 17)) g_detailDraws++; }
@@ -522,6 +534,10 @@ static void loadVtx(uint32_t w0, uint32_t w1) {
             o.r = r > 1 ? 1 : r; o.g = g > 1 ? 1 : g; o.b = b > 1 ? 1 : b;
         } else { o.r = p[12] / 255.f; o.g = p[13] / 255.f; o.b = p[14] / 255.f; }
         o.a = p[15] / 255.f;
+        if ((S.geom & 0x10000) && fogOn()) {      // G_FOG: the RSP replaces the vertex alpha with the fog factor clamp(z_ndc * fm + fo, 0, 255); behind the camera the factor of the near plane applies
+            float zn = o.cw > 1e-6f ? o.cz / o.cw : -1.f, f = zn * (float)g_fogMul + (float)g_fogOff;
+            o.a = f <= 0.f ? 0.f : f >= 255.f ? 1.f : f / 255.f;
+        }
         if (g_dump) fprintf(g_dump, "      [vtx %d: xyz %d %d %d st %d %d raw %02X %02X %02X %02X -> rgba %.2f %.2f %.2f %.2f w %.1f]\n", v0 + i, (int)x, (int)y, (int)z, (int)o.s, (int)o.t, p[12], p[13], p[14], p[15], o.r, o.g, o.b, o.a, o.cw);
         { static int nl; if (nl < 24 && g_nfpub >= 590 && vtxlog_on()) { nl++; fprintf(stderr, "vtx %d: pos %d %d %d clip %.2f %.2f %.2f %.2f rgba %.2f %.2f %.2f %.2f light=%d lights=%d\n", v0 + i, (int)x, (int)y, (int)z, o.cx, o.cy, o.cz, o.cw, o.r, o.g, o.b, o.a, (S.geom >> 17) & 1, S.numLights); } }
     }
@@ -661,7 +677,9 @@ static void runDL(uint32_t addr, int depth) {
             int idx = (w0 >> 16) & 0xFF, off = w0 & 0xFFFF;
             if (idx == 6) segbase[(off >> 2) & 15] = w1 & 0xFFFFFF;
             else if (idx == 2) S.numLights = (int)(w1 / 24) > 7 ? 7 : (int)(w1 / 24);
+            else if (idx == 8) { g_fogMul = (int16_t)(w1 >> 16); g_fogOff = (int16_t)(w1 & 0xFFFF); { static int nf; if (nf++ < 6 && getenv("TUROK_FOGLOG")) fprintf(stderr, "FOGFACTOR fm %d fo %d\n", g_fogMul, g_fogOff); } }      // G_MW_FOG
             break; }
+        case 0xF8: g_fogCol[0] = (w1 >> 24) / 255.f; g_fogCol[1] = ((w1 >> 16) & 255) / 255.f; g_fogCol[2] = ((w1 >> 8) & 255) / 255.f; g_fogCol[3] = (w1 & 255) / 255.f; { static int nf; if (nf++ < 6 && getenv("TUROK_FOGLOG")) fprintf(stderr, "FOGCOLOR %08X\n", w1); } break;      // G_SETFOGCOLOR
         case 0xDC: {
             int idx = w0 & 0xFF, off = ((w0 >> 8) & 0xFF) * 8;
             const uint8_t* d = res(w1);
@@ -772,6 +790,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         if (nframes == 299 || nframes == 599) { fprintf(stderr, "ops:"); for (int i = 0; i < 256; i++) if (g_ops[i]) fprintf(stderr, " %02X:%d", i, g_ops[i]); fprintf(stderr, "\n"); }
         if (++nframes <= 5 || nframes % 300 == 0) { fprintf(stderr, "renderer: frame %d: %d triangles, %d draws, %d texture decodes (cache %d), zmode draws %d/%d/%d/%d, vertices texgen/linear/fog/light %d/%d/%d/%d, textured draws %d (no perspective %d, lod %d, detail/sharpen %d)\n", nframes, g_tris, g_draws, g_texdecodes, (int)texCache.size(), g_zmodeDraws[0], g_zmodeDraws[1], g_zmodeDraws[2], g_zmodeDraws[3], g_vtxGeom[0], g_vtxGeom[1], g_vtxGeom[2], g_vtxGeom[3], g_texDraws, g_noPerspDraws, g_lodDraws, g_detailDraws); for (auto& kv : g_omHHist) fprintf(stderr, "   textured draws with othermode-high %08X: %d\n", kv.first, kv.second);
             fprintf(stderr, "   draws whose blender uses the fog colour or fog alpha (since start): %d\n", g_fogBlendDraws);
+            for (auto& kv : g_fogHist) fprintf(stderr, "   fog-geometry triangles with omL %08X cycle %d tex %d: %d\n", (unsigned)(kv.first >> 32), (int)((kv.first >> 20) & 3), (int)(kv.first & 1), kv.second);
             { char ib[512]; int ip = 0; for (int o = 0; o < 256 && ip < 480; o++) if (g_opsIgnored[o]) ip += snprintf(ib + ip, sizeof ib - ip, " %02X:%d", o, g_opsIgnored[o]); if (ip) fprintf(stderr, "   display list commands the renderer ignores (op:count since start):%s\n", ib); }
             fflush(stderr); }
     }
