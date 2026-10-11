@@ -41,7 +41,7 @@ SECTIONS
         build/src/game/func_00200568.o(.text);
         build/src/game/func_002005A0.o(.text);
         build/src/game/func_002005DC.o(.text);
-        build/asm/1210.o(.text);
+        build/src/game/func_00200610.o(.text);
         build/src/game/func_00200800.o(.text);
         build/src/game/func_00200840.o(.text);
         build/src/game/func_00200880.o(.text);
@@ -3149,7 +3149,7 @@ SECTIONS
         build/src/game/func_00200568.o(.data);
         build/src/game/func_002005A0.o(.data);
         build/src/game/func_002005DC.o(.data);
-        build/asm/1210.o(.data);
+        build/src/game/func_00200610.o(.data);
         build/src/game/func_00200800.o(.data);
         build/src/game/func_00200840.o(.data);
         build/src/game/func_00200880.o(.data);
@@ -6257,7 +6257,7 @@ SECTIONS
         build/src/game/func_00200568.o(.rodata);
         build/src/game/func_002005A0.o(.rodata);
         build/src/game/func_002005DC.o(.rodata);
-        build/asm/1210.o(.rodata);
+        build/src/game/func_00200610.o(.rodata);
         build/src/game/func_00200800.o(.rodata);
         build/src/game/func_00200840.o(.rodata);
         build/src/game/func_00200880.o(.rodata);
@@ -9687,7 +9687,7 @@ SECTIONS
         build/src/game/func_00200568.o(.bss);
         build/src/game/func_002005A0.o(.bss);
         build/src/game/func_002005DC.o(.bss);
-        build/asm/1210.o(.bss);
+        build/src/game/func_00200610.o(.bss);
         build/src/game/func_00200800.o(.bss);
         build/src/game/func_00200840.o(.bss);
         build/src/game/func_00200880.o(.bss);

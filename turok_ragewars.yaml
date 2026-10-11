@@ -65,7 +65,7 @@ segments:
       - [0x1168, c, game/func_00200568]
       - [0x11A0, c, game/func_002005A0]
       - [0x11DC, c, game/func_002005DC]
-      - [0x1210, asm]
+      - [0x1210, c, game/func_00200610]
       - [0x1400, c, game/func_00200800]
       - [0x1440, c, game/func_00200840]
       - [0x1480, c, game/func_00200880]
