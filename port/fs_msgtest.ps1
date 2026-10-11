@@ -5,6 +5,7 @@
 # The real Ctrl+Enter path (GetKeyState) is covered by  .\port\input_inject.ps1 -Scenario fullscreen  (needs an unlocked desktop).
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $root = (Get-Location).Path
+Add-Type -Namespace W32 -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction SilentlyContinue; [void][W32.Dpi]::SetProcessDPIAware()      # the port is DPI aware: its window rectangles are in physical pixels, so this script must be too
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Namespace W -Name F -MemberDefinition '[StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); [DllImport("user32.dll")] public static extern int GetWindowLongA(IntPtr h, int i); [DllImport("user32.dll")] public static extern bool PostMessageA(IntPtr h, uint m, IntPtr w, IntPtr l);'
 $exe = Join-Path $root (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFileNameWithoutExtension($exe)

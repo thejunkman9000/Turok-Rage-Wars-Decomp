@@ -8,6 +8,7 @@
 #include <wchar.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "user32.lib")
+#pragma comment(lib, "gdi32.lib")
 
 extern "C" void port_early_init(void);
 extern "C" void port_game_init(void);
@@ -97,7 +98,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int show) {
     { HANDLE h = CreateFileA("port_early.txt", GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, 0, nullptr);
       if (h != INVALID_HANDLE_VALUE) { char b[128]; DWORD n; void* hp = malloc(64); int l = wsprintfA(b, "WinMain start base=%p malloc=%p\r\n", GetModuleHandleA(nullptr), hp); WriteFile(h, b, l, &n, nullptr); CloseHandle(h); } }
     port_early_init();                                  // claim the guest address ranges before anything else allocates
-    if (!getenv("TUROK_NODPI")) SetProcessDPIAware();   // physical pixels: a scaled (150 %) desktop would otherwise stretch the window's bitmap, blurry in full screen
+    if (!getenv("TUROK_NODPI")) {                       // physical pixels: a scaled (150 %) desktop would otherwise stretch the window's bitmap, blurry (and rendered below the monitor's resolution in full screen)
+        SetProcessDPIAware();
+        HDC dc = GetDC(nullptr); int dpi = dc ? GetDeviceCaps(dc, LOGPIXELSX) : 96; if (dc) ReleaseDC(nullptr, dc);
+        if (dpi > 96 && dpi < 400) { g_w = g_w * dpi / 96; g_h = g_h * dpi / 96; }       // the default window keeps its apparent size
+    }
     if (!getenv("TUROK_SELFTEST") && !getenv("TUROK_DIFFTEST") && !rom_ensure()) return 0;      // the ROM image: found, or picked by the player in a file dialog (cancel = quit)
     stage("rom ok");
     // full screen at start: -fullscreen / -windowed on the command line, else TUROK_FULLSCREEN=0|1, else what the player left it at (Ctrl+Enter)

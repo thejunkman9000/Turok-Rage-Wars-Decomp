@@ -2,6 +2,7 @@
 #   powershell -File tools\pak_shot.ps1 -ProcName pakw_221500 -Out port\build\x.png      |      -ProcId 1234
 # (port\screenshot.ps1 picks the newest process called turok* - with several agents testing at once that can be somebody else's game.)
 param([string]$ProcName = '', [int]$ProcId = 0, [string]$Out = 'port\build\shot.png')
+Add-Type -Namespace W32 -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction SilentlyContinue; [void][W32.Dpi]::SetProcessDPIAware()      # the port is DPI aware: its window rectangles are in physical pixels, so this script must be too
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System; using System.Runtime.InteropServices;

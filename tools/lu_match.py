@@ -49,6 +49,8 @@ def compile_funcs(src, ro_va=None):
         xf = ' '.join(t for t in extra if (t.startswith('-f') or t.startswith('-m') or t.startswith('-W')) and not t.startswith('-mcpu='))
         cpu = next((t[6:] for t in extra if t.startswith('-mcpu=')), 'VR4300')
         inc = os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))
+        # a source whose first 3 lines mention `their2` was ported from the newer headers of the other decompilation: compile against include/their2 (as tools/cc.sh does)
+        _their = 'their2' if 'their2' in ''.join(open(src, errors='replace').readlines()[:3]) else 'their'
         if ro_va is None:
             asm_tail = (f"{SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
                         f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o &&")
@@ -57,7 +59,7 @@ def compile_funcs(src, ro_va=None):
                         f"bash {ROOT}/tools/as.sh {base}.a.s {base}.o &&")
         cc = (f"{SN}/cc1_272 -quiet -G0 -mips3 -mgp32 -mfp32 -O2 {xf}" if '@SN272' in extra else
               f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu={cpu} -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
-        r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
+        r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/' + _their)} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
                f"{cc} {base}.i -o {base}.s && {'python3 ' + ROOT + '/tools/snfix.py ' + base + '.s ' + ' '.join(t for t in extra if t in ('@L', '@K', '@Z')) + ' && ' if any(t in extra for t in ('@L', '@K', '@Z')) else ''}python3 {ROOT}/tools/sn_expand.py {base}.s && {'python3 ' + ROOT + '/tools/snepi.py ' + base + '.s && ' if '@EPI' in extra else ''}sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {asm_tail} "
                f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
         if r.returncode:

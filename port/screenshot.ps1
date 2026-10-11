@@ -1,5 +1,6 @@
 # Capture the port's window to a PNG.  usage: .\port\screenshot.ps1 -Out shot.png   (the exe must be running)
 param([string]$Out = 'port\build\shot.png')
+Add-Type -Namespace W32 -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction SilentlyContinue; [void][W32.Dpi]::SetProcessDPIAware()      # the port is DPI aware: its window rectangles are in physical pixels, so this script must be too
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System; using System.Runtime.InteropServices;

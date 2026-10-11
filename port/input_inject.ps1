@@ -11,6 +11,7 @@
 # into the game window before injecting mouse input, keeps the bursts short, restores the previous foreground window and the mouse position at the end and kills the
 # game it started (by its unique exe name).  Needs an interactive desktop; a person using the mouse at the same time disturbs the "no mouse motion" checks.
 param([string]$Scenario = 'all', [int]$Speed = 10, [string]$Prefix = 'inj', [switch]$Lib)
+Add-Type -Namespace W32 -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction SilentlyContinue; [void][W32.Dpi]::SetProcessDPIAware()      # the port is DPI aware: its window rectangles are in physical pixels, so this script must be too
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $root = (Get-Location).Path
 Add-Type @"
