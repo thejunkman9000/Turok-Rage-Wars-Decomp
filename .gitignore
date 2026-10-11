@@ -77,3 +77,15 @@ wip/pt_base2.txt
 wip/sn_names.txt
 wip/bisect_run2.out
 wip/dbg_func_*.c
+
+# virtual Controller Pak saves (user data); only saves/README.txt and saves/turok_pak.ini.sample are tracked
+saves/*.mpk
+saves/*.orig
+saves/*.mem
+saves/*.n64
+saves/*/
+# scratch of the version work
+wip/ver/
+wip/funcmap_*.txt
+wip/symmap_*.txt
+wip/lo/
