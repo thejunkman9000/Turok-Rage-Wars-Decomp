@@ -143,6 +143,23 @@ def main():
             ff = text.split(); keptmap.append((ff[0], int(ff[1], 16), ff[3]))
         open(os.path.join(out, fn), 'w', newline='\n').write('\n'.join(lines) + '\n')
     print('manifest units kept', dict(kept), 'dropped (stay asm)', dict(dropped))
+    # ---- version-specific units: versions/<ver>/manifest.txt (release ROM offsets) + versions/<ver>/src (the matched C / hand-written asm / pad units of this release)
+    vman = f'versions/{ver}/manifest.txt'; nver = 0
+    if os.path.exists(vman):
+        vents = {'funcs.txt': [], 'funcs_a.txt': []}
+        for l in open(vman):
+            f = l.split('#')[0].split()
+            if len(f) >= 4: vents['funcs_a.txt' if f[3] == 'ovl_a' else 'funcs.txt'].append(f)
+        for fn, lst in vents.items():
+            p = os.path.join(out, fn)
+            cur = [l.rstrip('\n') for l in open(p) if l.strip()]
+            def span(l): f = l.split(); r = int(f[1], 16); return r, r + 4 * int(f[2])
+            for f in lst:                                       # the release-specific unit replaces whatever the sweep kept in its range (and a unit of the same name)
+                r = int(f[1], 16); e = r + 4 * int(f[2])
+                cur = [l for l in cur if not (span(l)[0] < e and r < span(l)[1]) and l.split()[0] != f[0]]
+                cur.append(' '.join(f)); nver += 1
+            open(p, 'w', newline='\n').write('\n'.join(cur) + '\n')
+        print('version-specific units merged from', vman, ':', nver)
     # the Makefile compiles every file under src/: remove the sources of units that are not in this release's manifests (they stay asm: splat covers them)
     names = set()
     for fn in ('funcs.txt', 'funcs_a.txt'):
@@ -170,19 +187,27 @@ def main():
         shutil.rmtree(os.path.join(out, 'asm', 'nonmatchings', os.path.basename(os.path.dirname(p)), name), ignore_errors=True)
     shutil.copytree('include', os.path.join(out, 'include'), dirs_exist_ok=True)
     print('restored', nrest, 'sources of kept units from the project')
+    vsrc = f'versions/{ver}/src'                                       # the release's own sources win over the project's 1.1 ones
+    nv = 0
+    for root, _, files in os.walk(vsrc):
+        for fl in files:
+            dst = os.path.join(out, 'src', os.path.relpath(os.path.join(root, fl), vsrc))
+            os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(os.path.join(root, fl), dst); nv += 1
+    if nv: print('copied', nv, 'release-specific sources from', vsrc)
     # linker padding: stray words (<= 3) between two consecutive C units are not code: keep them as .word units like the 1.1 pad_XXXX units (splat would disassemble them as instructions)
     rom_bytes = open(ROMS[ver], 'rb').read()
     npad = 0
     for fn, sub in (('funcs.txt', None), ('funcs_a.txt', None)):
-        ents = []
+        ents = []; have_pad = set()
         for l in open(os.path.join(out, fn)):
             f = l.split()
             if len(f) >= 4 and not f[0].startswith('pad_'): ents.append((int(f[1], 16), int(f[2]), f[3], f[0]))
+            elif len(f) >= 4: have_pad.add(int(f[1], 16))               # a pad unit the release's own manifest already has
         ents.sort()
         extra = []
         for (r1, n1, s1, nm1), (r2, n2, s2, nm2) in zip(ents, ents[1:]):
             gap = r2 - (r1 + 4 * n1)
-            if 0 < gap <= 12 and gap % 4 == 0 and s1 == s2:
+            if 0 < gap <= 12 and gap % 4 == 0 and s1 == s2 and (r1 + 4 * n1) not in have_pad:
                 g = r1 + 4 * n1; words = [int.from_bytes(rom_bytes[g + 4 * i:g + 4 * i + 4], 'big') for i in range(gap // 4)]
                 pname = 'pad_%06X' % g
                 d = os.path.join(out, 'src', s1); os.makedirs(d, exist_ok=True)

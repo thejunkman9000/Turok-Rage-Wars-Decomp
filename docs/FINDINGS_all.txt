@@ -4754,3 +4754,78 @@ Everything was verified with chk (pool included) AND through the real build path
 8. TOOLING NOTES: (a) bash tools/w.sh "..." swallows `$var` and (via the Bash tool) a heredoc containing quote characters can truncate; write scripts with the Write tool and call them
    (wip/sh/*.sh).  (b) The agents' scripts in tools/agents have stale workspace names in a few places (end-of-line `ws/s702`, `trw_s1015_s904`); fixed here with sed when copied to tools/.
    (c) tools/vp.py + wip/sh/sb1.py shows the cheapest source-variant loop: one file of (old,new) replacement lists -> ranked aligned structural/operand metric in ~15 s.
+
+=== ROUND 11 FINDINGS (overlay tail, hidden pad code, libaudio, PFS-adjacent, libm/Leo/dbg) (workspace s1014) ===
+FINDINGS s1014 (round 11; Acclaim audio codec adecReadBits .. adecClearStopFlag, ROM 0xC4AA0-0xC5F20, libultra region) - new lessons only
+
+RESULT: all 18 units EXACT (chk plain EXACT incl. relocs and pool; whole-object check with the real build wrapper: .text 5244 bytes identical to the ROM
+except relocations, .rodata 56 bytes IDENTICAL at 0xCDB10, symbol offsets = ROM offsets).  Deliverable = ONE source file wip/out/adec.c (every
+wip/out/<fn>.c is a byte-identical copy so that tools/apply_results.py treats the 18 results as one multi-function object).  Types: include/adec_types.h
+(already in the main tree, unchanged).  Most of the code came from the earlier worker g4 (D:\Projects\ws\g4\wip\out\adec.c: 16 of 18 EXACT in the lu mode,
+adecReadBits 27 words and adecDecodeFrame 6 words off); this round finished the two partials, re-verified everything with the pool-checking chk and found
+out how the lu mode relates to the real toolchain.
+
+0. THE 18 STAND-INS ARE ONE OBJECT.  No padding between the functions (every function starts where the previous one ends: 0xC4AA0 117, 0xC4C74 257, ...), the
+   literal pool is one contiguous 56 byte piece ro=0xCDB10:56 shared by mdctInitTwiddles (4.0 1.0 pi/1024 pi/256), mdctFftInit (2pi), adecDequantize (2^-15),
+   adecImdctFrame (23170.475 0.5 32767 -32768, its inlined copies of adecRoundClampS16 share the entries) and the standalone adecRoundClampS16 (0.5 32767 0.5
+   -32768).  Compiled one function per file the pool is wrong; the whole file must be one TU, functions emitted in ROM order.  The ROM span is 1312 words,
+   the object is 1311 (the last word, 0xC5F1C, is a linker pad word: chk counts adecClearStopFlag as 4 insns, the stand-in has 5).
+   mdctPackSpectrum, 2x mdctTwiddleMul, mdctFftCtx and 2x adecRoundClampS16 are INLINED into adecImdctFrame (-finline-functions) and also exist standalone
+   behind it (they are defined before adecImdctFrame in the source; gcc 2.8 emits in the order of first declaration, hence the prototype block in ROM order).
+
+1. lu MODE == @SN + `-fforce-addr -finline-functions -fno-builtin` (= -O3 -fforce-addr -fno-builtin; gcc 2.8.1's -O3 is -O2 + -finline-functions).  The same
+   adec.c gives byte-identical results with tools/cc.sh lu and with the @SN pipeline (cc1_281 + asn64) when those three flags are added; plain @SN (-O2)
+   fails for adecReadBits (-fforce-addr: global addresses live in registers: `lui/addiu` + `0(reg)` accesses), adecHuffDecode, adecDecodeFrame and
+   adecImdctFrame (-finline-functions: without it 116 words differ and the pool shrinks to 44 bytes); -fno-builtin is only needed by mdctInitTwiddles (3 words: sinf/cosf are builtins).
+   Cross-check over 128 existing default-lu libultra units of src/libultra (tools: wip/l_lu_plain.txt vs wip/l_lu_sn.txt): every unit that compiles in the
+   sn pipeline is EXACT in BOTH modes (119 of 124; the 5 others contain INCLUDE_ASM and do not assemble in the sn path).  So the old lu emulation (decompals
+   gcc + gas_compat) and the real toolchain agree for this whole region once the real toolchain gets -O3-equivalent flags; the libultra libraries (and
+   Acclaim's audio codec built with the same makefile flags) were compiled with -O3 -fforce-addr.  For a switch of the libultra region to mode=sn tools/cc.sh
+   only needs two more xflags tokens: wip/out/cc_sn_tokens.patch adds `+fa` (-fforce-addr) and `+ifn` (-finline-functions; `+inl` is taken by the li.s
+   inline-literal switch of the lu path); tested: `tools/cc.sh sn+fa+ifn+nb adec.c` gives the identical object (5244 bytes .text, 56 bytes .rodata).
+   (tools/cc_o3.sh = cc.sh whose sn branch always adds the three flags; tools/cc_tok.sh = cc.sh with the patch applied; tools/objcheck.py takes CC_SH=<script>.)
+   The evidence (lists and chk results of the 128 units) is in wip/out/lu_vs_sn/.
+   The sn-only source shapes of the other decompilation (func_802BF514_de / func_802BFE3C_de / func_802C016C_de: pool constants as locals step/offset/scale,
+   `ends/steps/gain` locals in the dequantiser, separate c/s temporaries in the FFT-init loop, base/counter/slots locals in adecNextFrame) make 14 of the 18
+   functions EXACT under plain @SN (-O2) as well (wip/hard/adec_plain_sn.c); the other four need the -O3 flags above.
+
+2. adecDecodeFrame: ONE function-level result variable for both `adecHuffDecode(...) != 16` / `!= 256` compares (`s32 rv; rv = adecHuffDecode(..); if (rv != 16)`)
+   instead of `(s16)adecHuffDecode(..) != 16`.  ROM: `sll v0,v0,16 ; sra v1,v0,16 ; li v0,16 ; bne v1,v0`, ours (casts, or one variable per site): `sra v0,v0,16 ;
+   li v1,16`.  Mechanism (local-alloc.c combine_regs): the sra result is normally tied to the dying sll temp (same quantity, v0); if the sra result is a
+   pseudo that is referenced in more than one basic block (a user variable assigned at two call sites, although dead at every block boundary) it is a
+   global pseudo, cannot be tied, local-alloc gives the constant v0 and global-alloc then has to take v1 for the compare operand.  General rule: when the ROM
+   shows the sign-extended call result in a register OTHER than the one of its dying shift temp, the source reuses one variable at several sites.
+
+3. adecReadBits: the last 12 operand diffs were global-alloc priority / canonical operand order, solved with source-invisible levers:
+   a) `D_80151090 += 0;` right after `D_80151090 = *(st->rd++);` (found by the decomp-permuter; `|= 0`, `&= 0xFFFF`, `= (u16)D_80151090` and the self assignment
+      work as well - any extra read/write of the word that survives until register allocation).  It adds one surviving loop reference (weight 2) to the pseudo that
+      holds &D_80151090 (nothing is emitted: cse/reload_cse delete the redundant load/store): priority = floor_log2(refs)*refs/live_length, 9 refs/len 168 = 1607 ->
+      11 refs/len 170 = 1941, which beats the pseudo holding &D_800D9380[nbits] (7 refs, len 76 = 1842), so the two loop-invariant pointers get t3/t4 in the ROM
+      order instead of t4/t3 (before: mask pointer 1867 > word pointer 1607).
+      tools/rbtab.py <dump dir of tools/dump.sh> prints refs/len/priority/allocation order of exactly these pseudos; tools/rbv.sh <file.c> does dump+table.
+      Diagnosis recipe for a pure t3<->t4 swap of two hoisted invariants: compute the two priorities from the dump (REG_LIVE_LENGTH is a partial count, it
+      is NOT the span of the live range: uses at the start of a branch give long lengths, late uses short ones), then add/remove one loop reference of the
+      one that must win/lose.  `do { } while (0)` wrappers (weight +1 per reference inside) and statement permutations (all 149 dependency-respecting orders of
+      the branch-1 statements were tried) did not flip it.
+   b) `curWord = D_80151090;` read into a temporary BEFORE the table load (`maskLeft = D_800D9380[D_800D94E8]`) gives the ROM's load order (word first, then
+      mask); `dst[i] = (D_80151090 & D_800D9380[...]) << extra` directly gives another sched1 order (11 structural diffs).
+   c) `s32 shift = 16 - extra;` as a separate variable moved the `subu` ahead of the table address computation (12 -> 12 but structural 2 -> 0) while the
+      allocation was still wrong; once a) and d) are in place it is NOT needed any more (nor is the `u16 x` temporary of the else arm): the final source has
+      neither.  Lesson: after a structural fix, re-test every earlier temporary (all of them can become redundant: tools/vp.py with one removal per variant).
+   d) the operand ORDER of `and` (`and v1,v1,v0` shifted-first in the ROM, ours mask-first) comes from expand_binop: with `u16 x = (a >> n) & mask[..]` gcc narrows
+      the AND to HImode (subregs) and puts the load result first; an `int` temporary (`int fldA = (D_80151090 >> (16 - extra)) & mask; dst[i] |= fldA;` and the same with a
+      second temporary fldB in the other branch, NOT one shared temporary: that costs 5 structural diffs) keeps the AND in SImode and gives the ROM operand order.
+   e) the store to D_80151090 in the first block must keep the 3-insn form `lui v0,hi ; addiu v0,v0,lo ; sh v1,0(v0)` of the ROM: with -fforce-addr combine folds a
+      lone symbol store into `lui at ; sh lo(at)` unless the access is volatile (`*(volatile u16 *)&D_80151090 = *(st->rd++);`; verified on a toy function: only
+      volatile keeps the address register).  Only that one store is volatile (g4's discovery); making the global volatile everywhere is much worse.
+
+4. adecHuffDecode: the codebook pointer needs its extra copy (`cb = ...; cbSave = cb; while (i < cbSave->count)`); without the copy 5 structural + 5 operand diffs.
+   Reformatting g4's permuter-style layout (braces, new_var) is free.
+
+5. TOOLING.  The g4 source and a pool-checking chk make a shared-pool multi-function object easy to verify: tools/objcheck.py <mode> <wip file> <text rom> <ninsns>
+   <ro rom> <ro bytes> compiles with the real tools/cc.sh (temporarily appends a rodata_map line), compares .text modulo relocations and the whole .rodata with
+   the ROM and prints the symbol offsets (they must equal ROM offsets - chk looks functions up by name and would not notice an emission-order change).
+   tools/vp.py (replacement-list variants ranked by the aligned metric of tools/vb.py) found every source-shape fix above within seconds; only ONE permuter hit
+   (`+= 0`) was needed, and only after the structure was already identical (structural 0): start the permuter from the aligned-diff-zero base (score 80 -> 30 in a
+   minute) rather than from the old base (385 -> 305 in 15 minutes).  WSL traps seen again: `pkill -f pattern` kills the very bash -c that carries the pattern in
+   its command line (use the `[p]attern` trick, tools/pkill1014.sh); a loop `for x in ...; do ...$x...` inside `tools/w.sh "..."` loses `$x` (use a script file).

@@ -120,24 +120,6 @@ osAiGetStatus  0xBCF90  5  libultra
 sqrtf 0xBCF80 4 libultra
 sprintf  0xC3010  32  libultra
 pad_0C3DB8 0xC3DB8 2 libultra
-adecReadBits 0xC4AA0 117 libultra
-adecHuffDecode 0xC4C74 257 libultra
-adecDecodeFrame 0xC5078 99 libultra
-mdctInitTwiddles 0xC5204 90 libultra
-mdctFftInit 0xC536C 98 libultra
-adecDequantize 0xC54F4 73 libultra
-mdctFft 0xC5618 97 libultra
-adecImdctFrame 0xC579C 228 libultra
-adecDecodeFrameOk 0xC5B2C 11 libultra
-mdctBuildBitrevTable 0xC5B58 50 libultra
-mdctPackSpectrum 0xC5C20 24 libultra
-mdctTwiddleMul 0xC5C80 31 libultra
-mdctFftCtx 0xC5CFC 14 libultra
-adecRoundClampS16 0xC5D34 27 libultra
-adecStreamOpen 0xC5DA0 47 libultra
-adecNextFrame 0xC5E5C 40 libultra
-adecGetStopFlag 0xC5EFC 4 libultra
-adecClearStopFlag 0xC5F0C 5 libultra
 __divdi3 0xC5F20 379 libultra ro=0xCDB50:256 mode=lu4
 pad_0C650C 0xC650C 1 libultra
 __moddi3 0xC6510 350 libultra ro=0xCDC50:256 mode=lu4
@@ -3217,3 +3199,5 @@ pad_0C2B0C 0xC2B0C 1 libultra
 _Ldtob 0xC3DB0 2 libultra
 dbgLinkSendByte 0xAF1AC 162 libultra mode=lu3
 dbgHostFread 0xB0E6C 215 libultra mode=sn
+adecReadBits 0xC4AA0 1311 libultra ro=0xCDB10:56
+pad_0C5F1C 0xC5F1C 1 libultra
