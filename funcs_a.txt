@@ -1229,3 +1229,7 @@ func_0040E154 0x17C154 362 ovl_a mode=sn ro=0xE1CD0:16
 func_004058B0 0x1738B0 254 ovl_a mode=sn
 func_00407748 0x175748 521 ovl_a mode=sn
 func_00414D4C 0x182D4C 980 ovl_a mode=sn ro=0xE1E28:356
+func_0040293C 0x17093C 153 ovl_a mode=sn ro=0xE1850:4
+func_00402BA0 0x170BA0 261 ovl_a mode=sn ro=0xE1854:76
+func_00441384 0x1AF384 248 ovl_a mode=sn ro=0xE30D4:16
+func_00441764 0x1AF764 379 ovl_a mode=sn ro=0xE30E4:32

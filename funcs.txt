@@ -3103,3 +3103,21 @@ func_0029AE80 0x9BA80 297 game mode=sn+nb ro=0xCB420:36
 func_0029864C 0x9924C 250 game mode=sn+nb ro=0xCB370:64
 func_0028795C 0x8855C 355 game mode=sn
 func_0028994C 0x8A54C 579 game mode=sn ro=0xCAF30:68
+func_00215868 0x16468 202 game mode=sn+nb ro=0xC7E70:24
+func_0021CF04 0x1DB04 312 game mode=sn ro=0xC8078:28
+func_0023D370 0x3DF70 456 game mode=sn ro=0xC9324:92
+func_002518DC 0x524DC 396 game mode=sn
+func_0025E5D0 0x5F1D0 283 game mode=sn ro=0xC9D30:84
+func_0026195C 0x6255C 343 game mode=sn ro=0xC9EAC:52
+func_002742B4 0x74EB4 53 game mode=sn ro=0xCA620:4
+func_002743F0 0x74FF0 75 game mode=sn ro=0xCA624:12
+func_00276D20 0x77920 286 game mode=sn ro=0xCA780:32
+func_0027DD1C 0x7E91C 655 game mode=sn ro=0xCA978:136
+func_00282A18 0x83618 146 game mode=sn
+func_002849C4 0x855C4 76 game mode=sn+nb
+func_002856B0 0x862B0 116 game mode=sn+nb ro=0xCABB0:12
+func_002A8DD4 0xA99D4 274 game mode=sn
+func_002A98E0 0xAA4E0 398 game mode=sn+nb ro=0xCBD48:396
+func_002AB19C 0xABD9C 329 game mode=sn+nb ro=0xCBF50:48
+func_002ABED4 0xACAD4 115 game mode=sn ro=0xCBFBC:20
+func_0023CAFC 0x3D6FC 21 game mode=sn

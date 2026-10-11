@@ -24,4 +24,4 @@ print('blocked (EXACT delivered, integration failed): %d functions, %d insns' % 
 print('  ' + ' '.join('%s:%d' % (n, remd[n]) for n in blocked))
 print('open (not matched yet): %d functions, %d insns' % (len(rest), sum(remd[n] for n in rest)))
 print('  ' + ' '.join('%s:%d' % (n, remd[n]) for n in rest))
-open('wip/blocked_exact.txt', 'w').write('\n'.join(blocked) + '\n')
+open('wip/blocked_exact.txt', 'w', newline=chr(10)).write('\n'.join(blocked) + '\n')

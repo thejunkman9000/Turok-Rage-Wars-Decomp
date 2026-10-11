@@ -3165,3 +3165,26 @@ OTHER LESSONS
    `u8 two = 1; s32 i = 9; u8 *p = ...;` + a pointer-walking for loop (loop invariants earlier in the stream than A).  They compensated for the pinned load; with `const` the
    plain source matches.  Lesson: if a pool symbol is read in the function, test `const` BEFORE trying volatile/pins; and when the rigid ROM order looks "volatile", remember
    that sched2 itself makes $v0-chain stores rigid and dumps free stores into gaps.
+
+=== ROUND 9 FINDINGS: RODATA (lead, 2026-10-10) ===
+Why 23 "EXACT" results (about 7000 insns) could not be integrated, and how they were fixed.  chk compared CODE only; a pool slot is just an offset in an instruction word, so
+float/double VALUES, pool ORDER, the alignment pad before a double and extra out-of-line copies were never verified.  Tools: tools/chk.py (now also checks the pool), tools/rodoc.py
+(rodata doctor: whole-piece diff against the ROM, --place slides the pool over the ROM), tools/rdprep.py / rdone.py / rdall.py / rdintegrate.py (repair loop over wip/rd/).
+1. chk now prints `CODE-EXACT, POOL-ORDER(slot bases ...)` (the ROM code reads its pool entries at distances that differ from ours) or `CODE-EXACT, POOL-VALUE(+off ours X rom Y)`.  Neither is
+   EXACT.  ro=0xROM:size printed by chk is the pool piece (start = first slot the ROM code reads, size = our pool incl. alignment pads).
+2. A double is 8-aligned in memory.  The ORIGINAL rodata of a translation unit started 8-aligned, so the pad before a `.double` depends on the ABSOLUTE address of the piece, not on its
+   offset inside our one-function object.  tools/sn_abs.py now computes every `.align` pad for the piece address (ro_va); chk retries with each base the references suggest (pool at 4
+   mod 8 -> the pad moves).  Fixed that way: func_00402BA0 (ro 0xE1854:76), func_0026195C, func_0023D370, func_00441764 (0xE30E4:32), func_002ABED4.
+3. An unreferenced pool word in front of the first referenced one (func_002ABED4: a dead 1.0 at 0xCBFB8) is NOT part of the piece; the piece starts at the first slot the ROM reads
+   (0xCBFBC); the word stays in the ROM data blob.
+4. Helpers defined in the file for inlining must be `static inline` (plain `inline` emits an extra out-of-line function AND its constants into the object: the real build sees a bigger
+   object / extra pool words).  Found in func_00215868, 002518DC, 00282A18, 002849C4, 002856B0, 002A8DD4, 002AB19C (5 helpers).  Check with `python3 tools/rodoc.py` (prints the function list).
+5. Constants the original keeps in the function's own pool must be LITERALS: workers had written `extern f32 D_800C9B88` for pool floats (0.5, 2.3748726e-06f, 0.021052632f ...).  The
+   code then still matches but the object pool lacks the entry (func_00276D20: dbl, FLT, pad, dbl; func_0027DD1C: 0.021052632f first).  Use the ROM bytes to find the value:
+   tools/rodoc.py prints the float of every differing word.
+6. Wrong literal values hidden behind identical code: func_0021CF04 (0.75 vs 0.5, last two uses), func_002743F0 (0.00017453294f is 2 ulps from 0.0001745329f), func_002A98E0 (the SWITCH
+   case ORDER decides the jump table AND the pool order: cases 0,1,3,4/5,2/6,default).  The jump table of a switch is rodata too: the order of the case bodies in the source matters.
+7. Pools of several functions that the ROM keeps contiguous but the compiler gets from one TU may contain foreign data (func_0043C4F4 span: 0xB0 bytes of resident strings between the
+   first function's jump table and the second one's).  Split the span at such gaps: object 1 = func_0043C500 (ro 0xE2C80:132), object 2 = func_0043C730..0043D4E0 (903 insns, ro 0xE2DB8:348).
+8. Upstream (melalawi) does not derive rodata from code at all: constants and strings are separate C data objects (rw_constants_*, rw_pool_*, ragewars_resident_strings_*) placed at
+   fixed ROM addresses, with packed structs.  That avoids every layout problem above but needs one data file per piece; we keep compiler-generated pools where they reproduce.

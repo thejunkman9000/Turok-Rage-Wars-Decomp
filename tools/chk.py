@@ -61,47 +61,73 @@ for line in open(list_file):
     extra[:] = f[3:] if len(f) > 3 else ['-O3', '-fforce-addr', '-fno-builtin', '-mcpu=r4300']
     full = path if os.path.isabs(path) else f'{ROOTD}/src/libultra/{path}'
     if not os.path.exists(full): full = f'{ROOTD}/{path}'
-    key = (full, tuple(extra))
-    if key not in CACHE:
-        CACHE[key] = (compile_funcs(full), dict(LAST))
-    (res, err), last = CACHE[key]
-    LAST.clear(); LAST.update(last)
-    if res is None:
-        print(f'{func:28s} COMPILE FAIL: {err}'); continue
-    text, syms, relocs, relnames = res
-    cand = [s for s in syms if s[0] == func]
-    if not cand:
-        print(f'{func:28s} not found in object (have: {[s[0] for s in syms]})'); continue
-    name, off, size = cand[0]
-    n = size // 4
-    fw = words(text[off:off + size]); rw = words(rom[rom_hex:rom_hex + size])
-    bad = []
-    for i, (a, b) in enumerate(zip(fw, rw)):
-        m = 0xFFFFFFFF ^ relocs.get(off + 4 * i, 0)
-        if (a & m) != (b & m): bad.append(i)
-    rbad = reloc_check(off, n, fw, rw, relnames) if not bad else []
-    # literal pool location from HI16/LO16 relocs against .rodata
-    ro = LAST.get('ro', b'')
-    if os.environ.get('CHKDBG'): print('DBG ro', len(ro), sorted(set(v[1] for v in relnames.values()))[:6], [k for k in LAST])
-    pool = ''
-    if ro:
-        addrs = []
-        pend = {}; pfw = {}
-        for i in range(n):
-            o = off + 4 * i
-            if o in relnames and relnames[o][1] in ('.rodata', '.rdata'):
-                t = relnames[o][0]
-                if t == 'R_MIPS_HI16': pend[i] = rw[i] & 0xFFFF; pfw[i] = fw[i] & 0xFFFF
-                elif t == 'R_MIPS_LO16' and pend:
-                    hi = pend[max(pend)]; lo = rw[i] & 0xFFFF; lo = lo - 0x10000 if lo & 0x8000 else lo
-                    # addend (offset of the entry inside the pool) is in our own object's immediate (asn64: also in the lui's)
-                    own = fw[i] & 0xFFFF; own = own - 0x10000 if own & 0x8000 else own
-                    own += pfw[max(pend)] << 16
-                    addrs.append(((hi << 16) + lo) - own)
-        if addrs:
-            base = min(addrs)
-            pool = f'  ro=0x{(base & 0x1FFFFFFF) + 0xC00:X}:{len(ro)}'
+    ro_try = None          # None: the pool is assumed to start on an 8 byte boundary; else the absolute address the pool is assumed to start at (alignment pads, see tools/sn_abs.py)
+    first_pool = None; fail = None; cands = []
+    while True:
+        key = (full, tuple(extra), ro_try)
+        if key not in CACHE:
+            CACHE[key] = (compile_funcs(full, ro_try), dict(LAST))
+        (res, err), last = CACHE[key]
+        LAST.clear(); LAST.update(last)
+        if res is None:
+            fail = f'{func:28s} COMPILE FAIL: {err}'; break
+        text, syms, relocs, relnames = res
+        cand = [s for s in syms if s[0] == func]
+        if not cand:
+            fail = f'{func:28s} not found in object (have: {[s[0] for s in syms]})'; break
+        name, off, size = cand[0]
+        n = size // 4
+        fw = words(text[off:off + size]); rw = words(rom[rom_hex:rom_hex + size])
+        bad = []
+        for i, (a, b) in enumerate(zip(fw, rw)):
+            m = 0xFFFFFFFF ^ relocs.get(off + 4 * i, 0)
+            if (a & m) != (b & m): bad.append(i)
+        rbad = reloc_check(off, n, fw, rw, relnames) if not bad else []
+        # literal pool location from HI16/LO16 relocs against .rodata
+        ro = LAST.get('ro', b'')
+        if os.environ.get('CHKDBG'): print('DBG ro', len(ro), sorted(set(v[1] for v in relnames.values()))[:6], [k for k in LAST])
+        pool = ''; pool_err = ''; addrs = []
+        if ro:
+            refs = []      # refs: (offset inside our pool, access width or 0, ROM address the original code uses)
+            pend = {}; pfw = {}
+            for i in range(n):
+                o = off + 4 * i
+                if o in relnames and relnames[o][1] in ('.rodata', '.rdata'):
+                    t = relnames[o][0]
+                    if t == 'R_MIPS_HI16': pend[i] = rw[i] & 0xFFFF; pfw[i] = fw[i] & 0xFFFF
+                    elif t == 'R_MIPS_LO16' and pend:
+                        hi = pend[max(pend)]; lo = rw[i] & 0xFFFF; lo = lo - 0x10000 if lo & 0x8000 else lo
+                        # addend (offset of the entry inside the pool) is in our own object's immediate (asn64: also in the lui's)
+                        own = fw[i] & 0xFFFF; own = own - 0x10000 if own & 0x8000 else own
+                        own += pfw[max(pend)] << 16
+                        addrs.append(((hi << 16) + lo) - own)
+                        refs.append((own, {0x31: 4, 0x23: 4, 0x35: 8}.get(rw[i] >> 26, 0), (hi << 16) + lo))
+            if addrs:
+                base = min(addrs)
+                pool = f'  ro=0x{(base & 0x1FFFFFFF) + 0xC00:X}:{len(ro)}'
+                # the pool must be the original's: every slot the ROM code reads sits at the same offset and holds the same bytes (the code compare cannot see this:
+                # a pool entry is only an offset in the instruction word).  A mismatch here is a real build difference (the ro= piece would not reproduce).
+                if not bad and not rbad:
+                    if len(set(addrs)) > 1:
+                        pool_err = 'POOL-ORDER(slot bases ' + ','.join('0x%X' % ((a & 0x1FFFFFFF) + 0xC00) for a in sorted(set(addrs))[:4]) + ')'
+                    else:
+                        for own, w, ra in refs:
+                            if not w or own in LAST.get('ro_rel', ()): continue      # relocated words (jump tables) are filled in by the linker
+                            ro_off = (ra & 0x1FFFFFFF) + 0xC00
+                            if ro[own:own + w] != rom[ro_off:ro_off + w]:
+                                pool_err = 'POOL-VALUE(+0x%X ours %s rom %s)' % (own, ro[own:own + w].hex().upper(), rom[ro_off:ro_off + w].hex().upper()); break
+        # A pool whose entries sit at inconsistent distances from the ROM's may only be misaligned: a double needs an 8 byte aligned address, and the original pool lay inside a translation unit
+        # whose rodata started 8-aligned, so a pool starting at 4 mod 8 has its pad elsewhere.  Re-assemble with the pool placed at each base the references suggest.
+        if pool_err.startswith('POOL-ORDER'):
+            if ro_try is None:
+                first_pool = (pool_err, pool); cands = sorted(set(addrs))
+            if cands:
+                ro_try = cands.pop(0); continue
+            pool_err, pool = first_pool            # no placement makes the references consistent
+        break
+    if fail: print(fail); continue
     status = ('EXACT' if not rbad else f'RELOC-MISMATCH(words {rbad[:4]})') if not bad else f'{len(bad)} words differ'
+    if pool_err: status = 'CODE-EXACT, ' + pool_err      # not EXACT: the literal pool differs from the ROM
     if bad:
         import difflib
         def mn(w):
@@ -130,7 +156,7 @@ for line in open(list_file):
                 score += max(i2 - i1, j2 - j1) + 2
         status += f'  score={score}'
     print(f'{func:28s} {n:4d} insns  {status}{pool}')
-    if not bad:
+    if not bad and not pool_err:
         sub = os.path.dirname(path) or 'libultra'
         ro_opt = pool.strip() if pool else ''
         okf.write(f'{func} 0x{rom_hex:X} {n} {sub} {ro_opt}'.rstrip() + '\n')

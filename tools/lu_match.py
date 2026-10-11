@@ -38,7 +38,7 @@ def fix_asm(s):
 MASK = {4: 0x03FFFFFF, 5: 0xFFFF, 6: 0xFFFF}   # R_MIPS_26, HI16, LO16
 LAST = {}   # side results of the last compile_funcs call (rodata bytes)
 
-def compile_funcs(src):
+def compile_funcs(src, ro_va=None):
     tmp = tempfile.mkdtemp()
     base = os.path.basename(src)[:-2]
     cp = f'{tmp}/{base}.c'; open(cp, 'w').write(open(src).read())
@@ -49,11 +49,16 @@ def compile_funcs(src):
         xf = ' '.join(t for t in extra if (t.startswith('-f') or t.startswith('-m') or t.startswith('-W')) and not t.startswith('-mcpu='))
         cpu = next((t[6:] for t in extra if t.startswith('-mcpu=')), 'VR4300')
         inc = os.environ.get('LU_INC', os.path.expanduser('~/trw/include'))
+        if ro_va is None:
+            asm_tail = (f"{SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
+                        f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o &&")
+        else:      # alignment pads for a pool that starts at the absolute address ro_va (what the real build does, tools/sn_abs.py)
+            asm_tail = (f"{SN}/n64link asn64 {base}.s > {base}.n.s && python3 {ROOT}/tools/sn_abs.py --pads-only {base}.n.s {ro_va:#x} > {base}.a.s && "
+                        f"bash {ROOT}/tools/as.sh {base}.a.s {base}.o &&")
         cc = (f"{SN}/cc1_272 -quiet -G0 -mips3 -mgp32 -mfp32 -O2 {xf}" if '@SN272' in extra else
               f"{SN}/cc1_281 -quiet -G0 -mips3 -O2 -mgas -meb -mcpu={cpu} -mhard-float -mgp32 -mfp64 -mno-fix4300 {xf}")
         r = sh(f"cd {tmp} && cpp -P -undef -nostdinc -D_LANGUAGE_C -DF3DEX_GBI_2 -D__GNUC__=2 -D__UNBAKE_STDARG_GCC -DVERSION_US_REV1 -I{inc} -I{os.environ.get('SN_INC', inc + '/their')} -I{os.environ.get('SN_INC2', inc)} {base}.c > {base}.i && "
-               f"{cc} {base}.i -o {base}.s && {'python3 ' + ROOT + '/tools/snfix.py ' + base + '.s ' + ' '.join(t for t in extra if t in ('@L', '@K', '@Z')) + ' && ' if any(t in extra for t in ('@L', '@K', '@Z')) else ''}python3 {ROOT}/tools/sn_expand.py {base}.s && {'python3 ' + ROOT + '/tools/snepi.py ' + base + '.s && ' if '@EPI' in extra else ''}sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {SN}/n64link asn64 --as {P}-as -I{os.path.expanduser('~/trw')} -march=vr4300 -mabi=32 -EB --no-pad-sections -mips3 {base}.s -o {base}.o && "
-               f"{P}-objcopy --rename-section .rdata=.rodata,alloc,load,readonly,data,contents {base}.o && "
+               f"{cc} {base}.i -o {base}.s && {'python3 ' + ROOT + '/tools/snfix.py ' + base + '.s ' + ' '.join(t for t in extra if t in ('@L', '@K', '@Z')) + ' && ' if any(t in extra for t in ('@L', '@K', '@Z')) else ''}python3 {ROOT}/tools/sn_expand.py {base}.s && {'python3 ' + ROOT + '/tools/snepi.py ' + base + '.s && ' if '@EPI' in extra else ''}sed -i '/\.include .include\/\(labels\|macro\)\.inc/d' {base}.s && {asm_tail} "
                f"{P}-objcopy -O binary -j .text {base}.o {base}.bin")
         if r.returncode:
             return None, (r.stderr.strip().splitlines() or ['sn pipeline failed'])[:3]
@@ -74,6 +79,13 @@ def compile_funcs(src):
     text = open(f'{tmp}/{base}.bin', 'rb').read()
     sh(f"cd {tmp} && {P}-objcopy -O binary -j .rodata {base}.o {base}.ro")
     LAST['ro'] = open(f'{tmp}/{base}.ro', 'rb').read() if os.path.exists(f'{tmp}/{base}.ro') else b''
+    LAST['ro_rel'] = set()             # offsets of the relocated words (jump-table entries, address constants) inside the rodata
+    _cur = False
+    for l in sh(f"{P}-readelf -rW {tmp}/{base}.o").stdout.splitlines():
+        if l.startswith('Relocation section'): _cur = ".rel.rodata'" in l or ".rela.rodata'" in l or ".rel.rdata'" in l or ".rela.rdata'" in l; continue
+        if _cur and l.strip() and l.split()[0][0] in '0123456789abcdefABCDEF':
+            try: LAST['ro_rel'].add(int(l.split()[0], 16))
+            except ValueError: pass
     # gcc 2.7.2 emits no .type/.size: take global symbols defined in .text, size = distance to next one
     starts = []
     for l in sh(f"{P}-readelf -sW {tmp}/{base}.o").stdout.splitlines():

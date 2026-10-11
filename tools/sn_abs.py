@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""usage: sn_abs.py <normalised.s> [ro_va [ro_size]]   (stdout = assembly ready for tools/as.sh)
+"""usage: sn_abs.py [--pads-only] <normalised.s> [ro_va [ro_size]]   (stdout = assembly ready for tools/as.sh)
 
 Takes the n64link-normalised SN64 assembly of a ported function and
   1. turns every `.align N` inside an `.rdata` block into an explicit `.space` (gas raises the section alignment and then rounds the
@@ -9,9 +9,11 @@ Takes the n64link-normalised SN64 assembly of a ported function and
 import sys, os, re
 sys.path.insert(0, os.path.dirname(__file__))
 import gas_compat
-text = re.sub(r'\.section\s+\.rdata', '.section .rodata', open(sys.argv[1]).read())
-ro_va = int(sys.argv[2], 0) if len(sys.argv) > 2 and sys.argv[2] else None
-ro_size = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else None
+args = [a for a in sys.argv[1:] if a != '--pads-only']
+pads_only = '--pads-only' in sys.argv      # only the `.align` -> `.space` step (tools/chk.py: it needs the relocations against .rodata, which step 2 removes)
+text = re.sub(r'\.section\s+\.rdata', '.section .rodata', open(args[0]).read())
+ro_va = int(args[1], 0) if len(args) > 1 and args[1] else None
+ro_size = int(args[2]) if len(args) > 2 and args[2] else None
 lines = text.split('\n')
 sec = '.text'; marks = []
 for i, l in enumerate(lines):
@@ -32,7 +34,8 @@ if marks:
             elif j in marks and j > i: probe.append('')
             else: probe.append(l)
         offs = gas_compat.rodata_labels('\n'.join(probe))
-        pads[i] = (-offs['__B_']) % unit
+        pads[i] = (-(offs['__B_'] + (ro_va or 0))) % unit      # alignment is of the ABSOLUTE address: the original rodata of a translation unit started 8-aligned, so a double
+                                                                # inside a piece that starts at 4 mod 8 gets its pad where the ROM has it
     for i in marks:
         lines[i] = f'\t.space\t{pads[i]}' if pads[i] > 0 else ''
         # a label written right before the `.align` belongs AFTER the padding (the SN assembler aligns the block, then defines the label)
@@ -42,7 +45,7 @@ if marks:
             j -= 1
         if moved: lines[i] = lines[i] + '\n' + '\n'.join(reversed(moved))
 text = '\n'.join(lines)
-if ro_va is None:
+if ro_va is None or pads_only:
     sys.stdout.write(text)
 else:
     sys.stdout.write(gas_compat.finalize_rodata(text.split('\n'), gas_compat.Pool(), ro_va, ro_size))

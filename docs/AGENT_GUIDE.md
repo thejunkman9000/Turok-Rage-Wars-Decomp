@@ -44,9 +44,13 @@ libaudio/libultra sources (what these functions are) are the best template: you 
 - Hardware/globals: `extern` them with the exact names used in the asm (`D_8014D3E8`, `alGlobalsp`, ...), type = access width.
 
 ## Multi-function objects / rodata
-The original objects are not visible. If two of your functions' `ro=` ranges overlap (or `ro=` start addresses are not 8-aligned
-relative to each other), they come from ONE object: put them in a single .c file in ROM order and verify each with its own chk line
-(same path, different function/rom).  Report this.
+The original objects are not visible, and the literal pool is part of the match: the real ROM build puts every object's `.rodata` at the `ro=` piece you report, so the pool must equal the ROM
+bytes there (values, order, alignment pads, jump tables).  `chk` verifies it: it prints plain `EXACT` only when the code matches AND every pool slot the ROM code reads sits at the same offset and
+holds the same bytes (`CODE-EXACT, POOL-ORDER(...)` / `CODE-EXACT, POOL-VALUE(...)` mean not done).  Rules: define only the target function(s) in the file (helpers for inlining are
+`static inline`, a plain `inline` helper is emitted as an extra out-of-line function); keep float/double constants the original has in the function's own pool as literals (not `extern f32 D_...`);
+the order of `case` bodies decides jump-table and pool order; the alignment pad before a double depends on the absolute address of the piece (chk finds it).  If two of your functions' `ro=`
+ranges overlap, or their `ro=` starts are not 8-aligned relative to each other, they may come from ONE object: put them in a single .c file in ROM order and verify each with its own chk line
+(same path, different function/rom).  Report this.  `python3 tools/rodoc.py <src.c> sn <ro offset hex> <size>` diffs the whole pool and lists the functions the object defines.
 
 ## Deliverable
 For each function that is EXACT: the final C at `wip/out/<fn>.c` (self-contained: includes + prototypes; it must compile as is

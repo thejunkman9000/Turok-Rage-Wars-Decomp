@@ -54,6 +54,7 @@ if [ "$mode" = sn ] || [ "$mode" = sn272 ]; then
   sbase=$(basename "$in" .c); sro_va=""; sro_size=""
   if [ -f rodata_map.txt ]; then
     soff=$(awk -v n="$sbase" '$1==n {print $2}' rodata_map.txt); sro_size=$(awk -v n="$sbase" '$1==n {print $3}' rodata_map.txt)
+    [ -z "$soff" ] && soff=${CC_RO_OFF:-}; [ -z "$sro_size" ] && sro_size=${CC_RO_SIZE:-}      # CC_RO_OFF/CC_RO_SIZE: piece of a function that is not in the manifest yet (tools/rodoc.py)
     if [ -n "$soff" ]; then
       if [ $(( soff )) -ge $(( 0x16E000 )) ]; then sro_va=$(printf '0x%X' $(( 0x400000 + soff - 0x16E000 ))); else sro_va=$(printf '0x%X' $(( 0x80000000 + soff - 0xC00 ))); fi
     fi
