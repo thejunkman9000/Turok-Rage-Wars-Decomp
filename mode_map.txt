@@ -330,6 +330,10 @@ func_00213AAC sn
 func_00210C14 sn
 func_00208EB0 sn+nb
 func_002095F8 sn+nb
+func_002A4DC4 sn
+func_002A4708 sn
+func_002A2270 sn
+func_0029AE80 sn+nb
 func_004002D8 lu3+nb
 func_0040067C sn
 func_004009F4 sn
