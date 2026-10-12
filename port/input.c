@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 #include <intrin.h>
 #include "input_core.h"
 #include "input_dev.h"
@@ -237,8 +238,10 @@ int input_port_connected(int i) {
     return r;
 }
 
-typedef struct NativeIn { int active; float fwd, strafe, yaw, pitch; } NativeIn;
+typedef struct NativeIn { int active; float fwd, strafe, yaw, pitch; int wheel; float wx, wy; unsigned lastb; } NativeIn;   /* wheel: the weapon wheel is open (A held), wx/wy the mouse cursor on it */
+#define WHEEL_RADIUS 120.0f      /* mouse counts from the centre of the weapon wheel to full stick deflection */
 static NativeIn g_nat[MAX_PLAYERS];
+void input_note_buttons(int port, unsigned b) { if (port >= 0 && port < MAX_PLAYERS) g_nat[port].lastb = b; }      /* os_shim.c: the buttons the game got last (devices + scripted input) */
 
 void input_poll_begin(void) {
     int p, k, i;
@@ -288,6 +291,7 @@ float input_native_get(int port, int what) {        /* 0 walk (-1..1), 1 strafe 
         case 1: v = n->strafe; break;
         case 2: v = n->yaw; n->yaw = 0; break;
         case 3: v = n->pitch; n->pitch = 0; break;
+        case 4: v = (float)n->wheel; break;
     }
     LeaveCriticalSection(&g_cs);
     return v;
@@ -312,6 +316,15 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         if (mt_n > 0) { mt_n--; in.mouse_dx += (float)mt_dx; in.mouse_dy += (float)mt_dy; in.mouse_valid = 1; }
     }
     native = g_cfg.native_controls && g_ctx == 1 && (g_cfg.player[i].use_keyboard || g_mouse_player == i);
+    g_nat[i].wheel = native && (g_nat[i].lastb & N64_BTN_A);                                /* A held = the weapon wheel is open: the mouse picks a weapon instead of turning the view */
+    if (!g_nat[i].wheel) g_nat[i].wx = g_nat[i].wy = 0;
+    if (native && in.mouse_valid && g_nat[i].wheel) {                                       /* weapon wheel: the mouse moves a cursor (kept on the rim once it reaches it); it becomes the stick below */
+        const PlayerCfg *pc = &g_cfg.player[i]; float r;
+        g_nat[i].wx += (float)in.mouse_dx * pc->mouse_sens_x; g_nat[i].wy -= (float)in.mouse_dy * pc->mouse_sens_y * (pc->mouse_invert_y ? -1.0f : 1.0f);
+        r = sqrtf(g_nat[i].wx * g_nat[i].wx + g_nat[i].wy * g_nat[i].wy);
+        if (r > WHEEL_RADIUS) { g_nat[i].wx *= WHEEL_RADIUS / r; g_nat[i].wy *= WHEEL_RADIUS / r; }
+        in.mouse_dx = in.mouse_dy = 0;
+    }
     if (native && in.mouse_valid) {                                                         /* native mouse look: the motion goes straight to the view (port/overrides/func_002231B0.c), not through the stick */
         const PlayerCfg *pc = &g_cfg.player[i];
         g_nat[i].yaw += (float)in.mouse_dx * pc->mouse_sens_x * MOUSE_DEG_PER_COUNT;
@@ -335,6 +348,9 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         g_nat[i].fwd = (float)(((cb & N64_BTN_CUP) ? 1 : 0) - ((cb & N64_BTN_CDOWN) ? 1 : 0));
         g_nat[i].strafe = (float)(((cb & N64_BTN_CRIGHT) ? 1 : 0) - ((cb & N64_BTN_CLEFT) ? 1 : 0));
         out.buttons &= (unsigned short)~(N64_BTN_CUP | N64_BTN_CDOWN | N64_BTN_CLEFT | N64_BTN_CRIGHT);
+        if (g_nat[i].wheel && (g_nat[i].wx != 0 || g_nat[i].wy != 0)) {                   /* the wheel cursor is the stick while the wheel is open */
+            out.x = (int)(g_nat[i].wx * 80.0f / WHEEL_RADIUS); out.y = (int)(g_nat[i].wy * 80.0f / WHEEL_RADIUS);
+        }
     } else { g_nat[i].fwd = g_nat[i].strafe = 0; g_nat[i].yaw = g_nat[i].pitch = 0; }
     LeaveCriticalSection(&g_cs);
     *b |= out.buttons; *x += out.x; *y += out.y;

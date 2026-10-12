@@ -141,6 +141,7 @@ a port holds one accessory, as on the console; vibration needs an XInput pad).  
 - **The mouse turns too slowly / feels laggy, or W A S D do nothing**: make sure `native_controls` is not switched off in `controls.ini`;
   `mouse_sens_x` / `mouse_sens_y` set the speed (1.0 = 0.05 degrees per mouse count), `mouse_invert_y = on` flips up / down.
   The game's own turn / look speed sliders (OPTIONS) scale the mouse as well: centre = 1x, full = 8x, empty = 1/8x (multiplied with the values above).
+  Weapon wheel: hold the weapon button (A: E / middle mouse in `kbm_fps`) and move the mouse towards a weapon, release to take it; the view stays still meanwhile.
 - The full technical notes (renderer, audio, recompiler, input, pak emulation) are in `docs/PORT_STATUS.md`.
 
 ## Workflow

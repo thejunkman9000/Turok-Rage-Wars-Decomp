@@ -476,8 +476,9 @@ void osContGetReadData(OSContPad *pad) {
         if (!pad_connected(i)) continue;
         if (i == 0) { b |= autob; y += autoy; }                       /* TUROK_AUTOPRESS */
         file_pad(i, &b, &x, &y);
-        if (!(b | (unsigned)x | (unsigned)y)) input_poll_port(i, &b, &x, &y);      /* real devices only while no scripted input is active on this port */
+        { extern int port_scripted(void); if (!(b | (unsigned)x | (unsigned)y) || port_scripted()) input_poll_port(i, &b, &x, &y); }      /* real devices only while no scripted input is active on this port (test runs: both, so scripted buttons can be combined with scripted mouse motion) */
         if (x > 80) x = 80; if (x < -80) x = -80; if (y > 80) y = 80; if (y < -80) y = -80;
+        { extern void input_note_buttons(int, unsigned); input_note_buttons(i, b); }
         { static unsigned lastb[4] = { 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu }; static int nl[4]; if (b != lastb[i] && nl[i]++ < 120) { fprintf(stderr, "pad%d: buttons %04X (was %04X)\n", i + 1, b, lastb[i] == 0xFFFFFFFFu ? 0 : lastb[i]); fflush(stderr); } lastb[i] = b; }
         ST16(pad[i].button, b); pad[i].stick_x = (s8)x; pad[i].stick_y = (s8)y;
     }

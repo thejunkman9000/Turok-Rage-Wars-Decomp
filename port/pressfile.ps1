@@ -63,6 +63,7 @@ foreach ($step in $Seq) {
         }
         if (-not $hits) { "until: '$pat' not seen within $lim s (skip $skip, log now " + @(Get-Content port/build/run.log -ErrorAction SilentlyContinue).Count + " lines, matches anywhere " + @(Select-String -Path port/build/run.log -SimpleMatch $pat -ErrorAction SilentlyContinue).Count + ')' }
     }
+    elseif ($p[0] -eq 'mousebg') { Set-Content -Path 'port_mouse.txt' -Value ('{0} {1} {2}' -f [int]$p[1], [int]$p[2], [int]$p[3]) -Encoding ascii }   # mousebg:dx:dy:polls = the same without waiting (combine with a following button hold, e.g. the weapon wheel)
     elseif ($p[0] -eq 'mouse') { Set-Content -Path 'port_mouse.txt' -Value ('{0} {1} {2}' -f [int]$p[1], [int]$p[2], [int]$p[3]) -Encoding ascii; WaitFrames ([int]$p[3] / 60.0 + 0.1) }   # mouse:dx:dy:polls = scripted mouse motion (counts per pad poll, port 1)
     elseif ($p[0] -eq 'stick') { Hold 'port_input.txt' 0 ([int]$p[1]) ([int]$p[2]) ([double]$p[3]) }
     elseif ($p[0] -eq 'mix') { Hold 'port_input.txt' $btn[$p[1]] ([int]$p[2]) ([int]$p[3]) ([double]$p[4]) }                      # mix:<button>:x:y:sec = a button held together with a stick position

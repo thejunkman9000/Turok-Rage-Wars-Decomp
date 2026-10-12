@@ -281,6 +281,9 @@ void func_002631D0(R05PadOut *s, R05PadOwn *ow)
         s->f4 = v;
       }
       s->f18 = s->f4;
+      if (input_native_get(port, 4) != 0.0f) {          /* weapon wheel open: the (mouse) stick picks a weapon and must not turn the view */
+        s->f0 = 0.0f; s->f14 = 0.0f;
+      }
       v = input_native_get(port, 0);
       if (v != 0.0f) s->f20 = v;
       v = input_native_get(port, 1);
