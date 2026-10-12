@@ -455,6 +455,11 @@ static void port_x87_check(void) {
 
 void port_log_state(void *gp, int st, void *fn) {
     port_x87_check();
+    {   /* game-thread stall report: the game logic did not run for > 50 ms (the window keeps presenting the last frame, the mouse motion of the gap lands in one frame) */
+        static LARGE_INTEGER f, last; static int nst; LARGE_INTEGER now; QueryPerformanceCounter(&now); if (!f.QuadPart) QueryPerformanceFrequency(&f);
+        if (last.QuadPart) { double ms = (now.QuadPart - last.QuadPart) * 1000.0 / f.QuadPart; if (ms > 50.0 && st == 13 && nst < 100) { nst++; fprintf(stderr, "game stall: %.0f ms between game frames (state %d, frame %ld)\n", ms, st, (long)g_frames); dump_trace(60); fflush(stderr); } }
+        last = now;
+    }
     static int n, last = -1;
     InterlockedIncrement(&g_game_ticks);
     if (st != last || (++n % 300) == 0) { fprintf(stderr, "game state: g=%p st=%d fn_rva=%X\n", gp, st, (unsigned)((size_t)fn - (size_t)GetModuleHandleA(NULL))); fflush(stderr); }

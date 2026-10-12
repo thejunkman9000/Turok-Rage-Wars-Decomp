@@ -365,3 +365,10 @@ The game polled and wrote its test command / status files in every session: `por
 (150 ms) at frames 150 and 600 and a 60-frame display-list dump (36 MB) from renderer frame 300 on.  All of it now runs only with `TUROK_SCRIPT=1`,
 which every test script sets on its `Start-Process` line (`TUROK_DLFRAME=n` for the dump).  The main loop logs `hitch: frame N took X ms (game / render /
 present)` to port_log.txt for any frame over 25 ms (first 200), so a stutter on a player's machine can be read from the log.
+
+## Mouse turning snapped / jumped now and then (2026-10-12)
+In some player states the game does not run its view update (func_002231B0) for a few hundred ms; the native mouse look kept adding the motion
+of those polls and handed it over in one frame (a steady 0.44 deg/frame turn showed one 7.9 deg frame).  A real stick deflection is simply not
+applied during such frames, so the mouse look now takes the motion of at most the last 4 controller polls (port/input.c, input_native_get);
+older motion is dropped.  Measured: max 1.76 deg/frame for the same input.  Test runs ignore the real mouse (only `mouse` / `mousebg` motion), and
+the game thread reports `game stall: N ms between game frames` during gameplay when its frame loop stops for > 50 ms.

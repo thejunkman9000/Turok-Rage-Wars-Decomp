@@ -70,6 +70,9 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
     if (!((p->unk11B4 == 0) && (!(p->f11D8 > 0.0f)))) {     /* PORT: dead / cut-scene: the next life starts with a level view */
         s32 sl = port_human_slot(p->ctl);
         if (sl >= -1) s_pitch[sl + 1] = 0.0f;
+        { static int lg = -1; extern char *getenv(const char *); extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned);
+          if (lg < 0) lg = getenv("TUROK_LOOKLOG") != 0;
+          if (lg && sl >= -1 && input_native_active(sl)) fprintf(__acrt_iob_func(2), "LOOKSKIP 11B4=%d 11D8=%g\n", (int)p->unk11B4, (double)p->f11D8); }
     }
     if ((p->unk11B4 == 0) && (!(p->f11D8 > 0.0f))) {
         om = p->f7EC * 0.99f;

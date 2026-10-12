@@ -238,7 +238,7 @@ int input_port_connected(int i) {
     return r;
 }
 
-typedef struct NativeIn { int active; float fwd, strafe, yaw, pitch; int wheel; float wx, wy; unsigned lastb; } NativeIn;   /* wheel: the weapon wheel is open (A held), wx/wy the mouse cursor on it */
+typedef struct NativeIn { int active; float fwd, strafe, yaw, pitch; int wheel; float wx, wy; unsigned lastb; float ry[4], rp[4]; int rk, pend; } NativeIn;   /* ry/rp: the mouse motion of the last 4 polls, pend: polls since the view took it */   /* wheel: the weapon wheel is open (A held), wx/wy the mouse cursor on it */
 #define WHEEL_RADIUS 120.0f      /* mouse counts from the centre of the weapon wheel to full stick deflection */
 static NativeIn g_nat[MAX_PLAYERS];
 void input_note_buttons(int port, unsigned b) { if (port >= 0 && port < MAX_PLAYERS) g_nat[port].lastb = b; }      /* os_shim.c: the buttons the game got last (devices + scripted input) */
@@ -289,8 +289,15 @@ float input_native_get(int port, int what) {        /* 0 walk (-1..1), 1 strafe 
     if (n->active) switch (what) {
         case 0: v = n->fwd; break;
         case 1: v = n->strafe; break;
-        case 2: v = n->yaw; n->yaw = 0; break;
-        case 3: v = n->pitch; n->pitch = 0; break;
+        case 2: case 3: {
+            /* the view takes the motion of at most the last 4 polls: while the game does not run its view update (some player states skip it for
+               a few hundred ms) the motion is dropped, as a real stick deflection would be, instead of landing in one frame as a sudden jump */
+            int k, m = n->pend < 4 ? n->pend : 4; float sy = 0, sp = 0;
+            for (k = 0; k < m; k++) { sy += n->ry[(n->rk - 1 - k) & 3]; sp += n->rp[(n->rk - 1 - k) & 3]; }
+            if (n->pend > 4) { n->yaw = sy; n->pitch = sp; n->pend = 4; }
+            if (what == 2) { v = n->yaw; n->yaw = 0; } else { v = n->pitch; n->pitch = 0; }
+            if (n->yaw == 0 && n->pitch == 0) n->pend = 0;
+            break; }
         case 4: v = (float)n->wheel; break;
     }
     LeaveCriticalSection(&g_cs);
@@ -309,6 +316,7 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         in.mouse_valid = (inpdev_get_mouse_mode() == 2) && (g_ctx != 0 || !g_cfg.mouse_menu_guard);
     }
     for (k = 0; k < g_nassign[i]; k++) { const PadState *ps = &g_padst[g_assign[i][k]]; if (ps->connected) in.pad[in.npad++] = ps; }
+    { extern int port_scripted(void); if (port_scripted()) in.mouse_dx = in.mouse_dy = 0; }   /* test runs: only scripted mouse motion (the real mouse over a test window is noise) */
     if (i == 0) {                                                                          /* scripted mouse motion (pressfile mouse:dx:dy:polls): port_mouse.txt = "dx dy polls" */
         static int mt_n, mt_dx, mt_dy; static unsigned mt_poll;
         extern int port_scripted(void);
@@ -327,8 +335,9 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
     }
     if (native && in.mouse_valid) {                                                         /* native mouse look: the motion goes straight to the view (port/overrides/func_002231B0.c), not through the stick */
         const PlayerCfg *pc = &g_cfg.player[i];
-        g_nat[i].yaw += (float)in.mouse_dx * pc->mouse_sens_x * MOUSE_DEG_PER_COUNT;
-        g_nat[i].pitch += (float)in.mouse_dy * pc->mouse_sens_y * MOUSE_DEG_PER_COUNT * (pc->mouse_invert_y ? -1.0f : 1.0f);
+        { float dyw = (float)in.mouse_dx * pc->mouse_sens_x * MOUSE_DEG_PER_COUNT, dpt = (float)in.mouse_dy * pc->mouse_sens_y * MOUSE_DEG_PER_COUNT * (pc->mouse_invert_y ? -1.0f : 1.0f);
+          g_nat[i].yaw += dyw; g_nat[i].pitch += dpt;
+          g_nat[i].ry[g_nat[i].rk & 3] = dyw; g_nat[i].rp[g_nat[i].rk & 3] = dpt; g_nat[i].rk++; g_nat[i].pend++; }
         if (g_nat[i].yaw > 90.0f) g_nat[i].yaw = 90.0f; else if (g_nat[i].yaw < -90.0f) g_nat[i].yaw = -90.0f;           /* not taken (player dead, cut-scene): drop the excess */
         if (g_nat[i].pitch > 90.0f) g_nat[i].pitch = 90.0f; else if (g_nat[i].pitch < -90.0f) g_nat[i].pitch = -90.0f;
         in.mouse_dx = in.mouse_dy = 0;                                                      /* buttons and wheel still go through the bindings */
@@ -351,7 +360,7 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         if (g_nat[i].wheel && (g_nat[i].wx != 0 || g_nat[i].wy != 0)) {                   /* the wheel cursor is the stick while the wheel is open */
             out.x = (int)(g_nat[i].wx * 80.0f / WHEEL_RADIUS); out.y = (int)(g_nat[i].wy * 80.0f / WHEEL_RADIUS);
         }
-    } else { g_nat[i].fwd = g_nat[i].strafe = 0; g_nat[i].yaw = g_nat[i].pitch = 0; }
+    } else { g_nat[i].fwd = g_nat[i].strafe = 0; g_nat[i].yaw = g_nat[i].pitch = 0; g_nat[i].pend = 0; }
     LeaveCriticalSection(&g_cs);
     *b |= out.buttons; *x += out.x; *y += out.y;
     if (g_inputlog < 0) { char e[8]; g_inputlog = GetEnvironmentVariableA("TUROK_INPUTLOG", e, sizeof e) ? 1 : 0; }
