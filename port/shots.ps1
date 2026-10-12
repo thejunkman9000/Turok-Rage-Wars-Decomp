@@ -5,7 +5,7 @@ $exe = (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFil
 foreach ($k in $EnvOn) { Set-Item -Path "Env:$k" -Value '1' }
 $env:TUROK_LOG = (Join-Path (Get-Location) 'port\build\run.log')
 Get-ChildItem port\build -Filter "$Prefix`_*.png" | Remove-Item -ErrorAction SilentlyContinue
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $n = 0; $next = $From
 while (((Get-Date) - $t0).TotalSeconds -lt $To) {
     Start-Sleep -Milliseconds 300

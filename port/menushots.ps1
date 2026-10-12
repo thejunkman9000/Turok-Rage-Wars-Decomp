@@ -6,7 +6,7 @@ function Tap($vk, $ms = 220) { [W.KK]::keybd_event($vk, 0, 0, [UIntPtr]::Zero); 
 $map = @{ 'Enter' = 0x0D; 'C' = 0x43; 'X' = 0x58; 'Z' = 0x5A; 'Up' = 0x26; 'Down' = 0x28; 'Left' = 0x25; 'Right' = 0x27 }
 $exe = (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFileNameWithoutExtension($exe)
 $env:TUROK_SKIPMENU = '1'; $env:TUROK_TREE = '1'; $env:TUROK_E154 = '1'; if ($env:MM_FTRACE) { $env:TUROK_FTRACE = $env:MM_FTRACE }; $env:TUROK_LOG = (Join-Path (Get-Location) 'port\build\run.log')
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $n = 0
 while (((Get-Date) - $t0).TotalSeconds -lt 120) {
     Start-Sleep -Milliseconds 1200

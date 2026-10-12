@@ -6,7 +6,7 @@ $exe = (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFil
 $env:TUROK_SKIPMENU = '1'; $env:TUROK_LOG = (Join-Path (Get-Location) 'port\build\run.log')
 if ($Env) { foreach ($kv in $Env.Split(',')) { $p = $kv.Split('='); Set-Item -Path ("Env:" + $p[0]) -Value $p[1] } }
 Remove-Item port_input.txt -ErrorAction SilentlyContinue
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $n = 0; $hit = $false
 while (((Get-Date) - $t0).TotalSeconds -lt $Max) { Start-Sleep -Milliseconds 700; if (Select-String -Path port\build\run.log -Pattern $Pattern -ErrorAction SilentlyContinue) { $hit = $true; break } }
 function Hold($b, $x, $y, $sec) { Set-Content -Path port_input.txt -Value ('{0:X} {1} {2}' -f $b, $x, $y) -Encoding ascii; Start-Sleep -Milliseconds ([int]($sec * 1000)); Remove-Item port_input.txt -ErrorAction SilentlyContinue }

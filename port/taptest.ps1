@@ -2,7 +2,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 Add-Type -Namespace W -Name KT -MemberDefinition '[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte sc, uint fl, UIntPtr ex);' -ErrorAction SilentlyContinue
 $exe = (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFileNameWithoutExtension($exe)
 $env:TUROK_SKIPMENU = '1'; $env:TUROK_LOG = (Join-Path (Get-Location) 'port\build\run.log')
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $menu = $false; $k = 0; $sent = 0
 while (((Get-Date) - $t0).TotalSeconds -lt 100) {
     Start-Sleep -Milliseconds 1000

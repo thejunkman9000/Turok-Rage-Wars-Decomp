@@ -403,7 +403,7 @@ void port_game_init(void) {
 }
 void port_game_frame(void) {
     InterlockedIncrement(&g_frames); port_vi_tick();
-    if ((g_frames % 6) == 0) {   /* publish the frame counter (port_frame.txt, atomically replaced) so pressfile.ps1 can wait in game frames instead of wall time (a loaded host runs below n x 60 fps) */
+    if ((g_frames % 6) == 0 && port_scripted()) {   /* publish the frame counter (port_frame.txt, atomically replaced) so pressfile.ps1 can wait in game frames instead of wall time (a loaded host runs below n x 60 fps) */
         FILE *pf = fopen("port_frame.tmp", "w"); if (pf) { fprintf(pf, "%ld\n", (long)g_frames); fclose(pf); MoveFileExA("port_frame.tmp", "port_frame.txt", MOVEFILE_REPLACE_EXISTING); }
     }
     { static int ct = -1; if (ct < 0) ct = getenv("TUROK_CRASHTEST") ? 1 : 0; if (ct && g_frames == 300) *(volatile int *)16 = 1; }   /* TUROK_CRASHTEST=1: fault on purpose to check the crash log */
@@ -415,7 +415,7 @@ void port_present_hook(struct ID3D11DeviceContext *ctx) {
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "gamestate D_80146878=%d D_800D2984=%d D_80146D68=%d D_8014ADA0=%d\n", (int)be32((void *)0x80146878), (int)be32((void *)0x800D2984), (int)be32((void *)0x80146D68), (int)be32((void *)0x8014ADA0));
     if (frames == 3 || frames == 100 || frames == 600) fprintf(stderr, "frame %d: D_800D2958=%08X D_800D295C=%08X\n", frames + 1, be32((void *)0x800D2958), be32((void *)0x800D295C));
     if (frames == 3 || frames == 100) fprintf(stderr, "startgo=%d pops=%d\n", g_dbg_startgo, g_dbg_pop);
-    if (++frames == 150 || frames == 600) { port_dump_threads(); dump_trace(8000); }
+    ++frames;                                        /* (thread / trace dumps at frames 150 and 600 removed: a 150 ms stall each; TUROK_DUMPTICK or port_dumpnow.txt) */
 }
 
 /* Custom entry point: install a crash logger before the C runtime starts (crashes during start-up are otherwise silent). */
@@ -514,6 +514,7 @@ void port_dump_trace_pub(int n) { dump_trace(n); }
 
 int port_arena_type(void) { char e[32], *t; if (!GetEnvironmentVariableA("TUROK_ARENA", e, sizeof e)) return -1; t = strchr(e, 0x74); return t ? atoi(t + 1) : -1; }   /* TUROK_ARENA=n[tT][@k]: also pin the type T (3 = boss trials) */
 int port_arena_from(void) { char e[32], *at; if (!GetEnvironmentVariableA("TUROK_ARENA", e, sizeof e)) return 1; at = strchr(e, 0x40); return at ? atoi(at + 1) : 1; }   /* TUROK_ARENA=n@k: pin from the k-th arena choice (port/overrides/func_0042EB80.c) */
+int port_scripted(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SCRIPT", e, sizeof e) ? 1 : 0; } return v; }   /* the test scripts (pressfile.ps1 & co) set TUROK_SCRIPT=1: only then the game polls / writes its command and status files (port_frame.txt, port_input.txt, port_pick.txt ...): constant small file I/O in normal play can stall it */
 int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SKIPMENU", e, sizeof e) ? 1 : 0; } return v; }
 
 void port_bt(void) { unsigned *sp = (unsigned *)&sp; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); unsigned *top = (unsigned *)((NT_TIB *)NtCurrentTeb())->StackBase; fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 14 && sp + i < top; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }

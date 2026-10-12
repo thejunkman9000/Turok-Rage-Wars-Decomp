@@ -5,7 +5,7 @@ $exe = (Get-Content port\build\latest_exe.txt).Trim()
 foreach ($k in $Env.Keys) { Set-Item -Path "Env:$k" -Value $Env[$k] }
 $env:TUROK_LOG = (Join-Path (Get-Location) $Log)
 Remove-Item $env:TUROK_LOG -ErrorAction SilentlyContinue
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru; $name = [IO.Path]::GetFileNameWithoutExtension($exe)   # the exe may relaunch itself (new ASLR layout): track the process by name
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru; $name = [IO.Path]::GetFileNameWithoutExtension($exe)   # the exe may relaunch itself (new ASLR layout): track the process by name
 $t0 = Get-Date; $n = 0; $gone = 0
 while (((Get-Date) - $t0).TotalSeconds -lt $Seconds) {
     Start-Sleep -Milliseconds 500

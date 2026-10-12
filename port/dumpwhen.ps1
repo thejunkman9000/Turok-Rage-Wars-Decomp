@@ -4,7 +4,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 $exe = (Get-Content port\build\latest_exe.txt).Trim(); $name = [IO.Path]::GetFileNameWithoutExtension($exe)
 foreach ($k in $EnvOn) { Set-Item -Path "Env:$k" -Value '1' }
 $env:TUROK_LOG = (Join-Path (Get-Location) 'port\build\run.log')
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $done = $false
 while (((Get-Date) - $t0).TotalSeconds -lt $Max) {
     Start-Sleep -Milliseconds 1000

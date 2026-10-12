@@ -53,7 +53,7 @@ function ReadIni() { if (Test-Path $ini) { try { $fs = [IO.File]::Open($ini, 'Op
 function WaitFor([scriptblock]$cond, $sec = 3) { $t1 = Get-Date; while (((Get-Date) - $t1).TotalSeconds -lt $sec) { if (& $cond) { return $true }; Start-Sleep -Milliseconds 80 }; return [bool](& $cond) }
 function CtlText($id) { $h = [EW2]::FindById($script:hwnd, $id); if ($h -eq [IntPtr]::Zero) { return $null }; return [EW2]::TextOf($h) }
 function Launch-Tool($toolArgs) {
-    $script:toolProc = Start-Process $tool -ArgumentList $toolArgs -PassThru
+    $env:TUROK_SCRIPT = '1'; $script:toolProc = Start-Process $tool -ArgumentList $toolArgs -PassThru
     $t1 = Get-Date; $script:hwnd = [IntPtr]::Zero; while (((Get-Date) - $t1).TotalSeconds -lt 30) { $script:hwnd = [EW2]::FindMain([uint32]$script:toolProc.Id); if ($script:hwnd -ne [IntPtr]::Zero) { break }; Start-Sleep -Milliseconds 100 }
     $general = ($toolArgs -contains 'general')
     [void](WaitFor { $c = CtlText $ID_CAPTION; ($c -ne $null) -and ($general -or $c -ne '') } 15)         # the window is built and filled (slow when the machine is busy)
@@ -117,7 +117,7 @@ function Run-Section($name, [scriptblock]$body, $attempts = 3) {
         if ($a -lt $attempts) { "   (failures in this section: trying it once more)"; $script:pass = $p0; $script:fail = $f0 }
     }
 }
-function Reset-Ini() { Remove-Item $ini -ErrorAction SilentlyContinue; $null = Start-Process $tool -ArgumentList '--write-default', $ini -Wait }
+function Reset-Ini() { Remove-Item $ini -ErrorAction SilentlyContinue; $env:TUROK_SCRIPT = '1'; $null = Start-Process $tool -ArgumentList '--write-default', $ini -Wait }
 try {
     Reset-Ini
     Check (Test-Path $ini) '--write-default writes a controls file'

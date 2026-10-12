@@ -765,6 +765,7 @@ static void run_command(char *line) {
 }
 static void poll_control_file(void) {
     static DWORD first_seen; HANDLE h; DWORD n, got = 0; char buf[1024], *p, *e;
+    { extern int port_scripted(void); if (!port_scripted()) return; }        /* port_pak.txt: test scripts only */
     h = CreateFileA("port_pak.txt", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
     if (h == INVALID_HANDLE_VALUE) { first_seen = 0; return; }
     n = GetFileSize(h, NULL);

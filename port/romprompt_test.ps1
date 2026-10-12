@@ -54,7 +54,7 @@ function Pick-File($dlg, $path) {                     # types the path into the 
 function Start-Port($cwd) {
     $env:TUROK_DATADIR = $data; $env:TUROK_PAK = '0'
     Remove-Item Env:\TUROK_ROM -ErrorAction SilentlyContinue
-    $script:proc = Start-Process -FilePath $Exe -WorkingDirectory $cwd -PassThru
+    $script:proc = $env:TUROK_SCRIPT = '1'; Start-Process -FilePath $Exe -WorkingDirectory $cwd -PassThru
 }
 function Stop-Port { Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($script:Exe)) -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Kill(); $_.WaitForExit(3000) | Out-Null } catch {} } }
 

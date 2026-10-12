@@ -148,6 +148,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int show) {
             POINT pt; RECT cr;
             if (GetCursorPos(&pt) && GetClientRect(hwnd, &cr)) { ScreenToClient(hwnd, &pt); if (PtInRect(&cr, pt)) SetCursor(nullptr); }
         }
+        static LARGE_INTEGER hq, h0, h1, h2; if (!hq.QuadPart) QueryPerformanceFrequency(&hq);      // hitch report: a loop that took > 25 ms, by phase
+        QueryPerformanceCounter(&h0);
         int ff = port_ff_active(); int nfr = ff ? 10 : port_speed();
         if (nfr > 1) { for (int k = 0; k < nfr; k++) { port_game_frame(); port_wait_idle(); } }   // TUROK_SPEED=n: n frames per presented frame (paced); fast-forward: 10, unpaced   // fast-forward: 10 frames per presented frame, each run to completion before the next VI (posting faster than the game drains its queues hangs it)
         else port_game_frame();                                   // run one game frame (fills the display list)
@@ -158,9 +160,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int show) {
         }
         oracle_frame_end();                                  // TUROK_ORACLE & co: trace / frame limit (see port/oracle.c)
         if (oracle_headless()) continue;
+        QueryPerformanceCounter(&h1);
         port_present_hook(g_ctx);
         renderer_frame(g_rtv, g_w, g_h);                     // draws the captured display list, blits it letterboxed
+        QueryPerformanceCounter(&h2);
         g_sc->Present(0, DXGI_PRESENT_DO_NOT_WAIT);                  // no vsync wait: a locked/occluded display must not stall the game
+        if (!ff) {
+            LARGE_INTEGER h3; QueryPerformanceCounter(&h3); static int nh;
+            double tg = (h1.QuadPart - h0.QuadPart) * 1000.0 / hq.QuadPart, tr = (h2.QuadPart - h1.QuadPart) * 1000.0 / hq.QuadPart, tp = (h3.QuadPart - h2.QuadPart) * 1000.0 / hq.QuadPart;
+            if (tg + tr + tp > 25.0 && nh < 200) { nh++; fprintf(stderr, "hitch: frame %ld took %.1f ms (game %.1f, render %.1f, present %.1f) at %.1f s\n", (long)g_frames, tg + tr + tp, tg, tr, tp, (double)h3.QuadPart / hq.QuadPart); }
+        }
         if (!ff) {   // 60 Hz pacing of our own
             static LARGE_INTEGER freq, next; LARGE_INTEGER now; QueryPerformanceCounter(&now);
             if (!freq.QuadPart) { QueryPerformanceFrequency(&freq); next = now; }

@@ -358,3 +358,10 @@ respawn reloaded warp 0 = map 0 (Proving Grounds) and kept the current bots - in
   (writes guest bytes every tick, like a GameShark 80 code; e.g. infinite health `80692B86:64`).  The level-select byte of the Project64 cheat file,
   0x8014BD9F, is a US v1.0 address (`D_8015402C`, the trial index, is 0x8015402F's word in v1.1).
 - Verified: in trial 0 the key is 0xBC2 as in Project64, a death respawns on the map (no level reload request); menu, health, demo motion, paktest.
+
+## Stutter: test-only file I/O in normal play (2026-10-12)
+The game polled and wrote its test command / status files in every session: `port_frame.txt` rewritten and renamed every 6 frames, `port_input*.txt` /
+`port_mouse.txt` opened on pad polls, `port_pick.txt` / `port_dumpnow.txt` checked every frame, `port_pak.txt` every 40 ms; plus a thread / trace dump
+(150 ms) at frames 150 and 600 and a 60-frame display-list dump (36 MB) from renderer frame 300 on.  All of it now runs only with `TUROK_SCRIPT=1`,
+which every test script sets on its `Start-Process` line (`TUROK_DLFRAME=n` for the dump).  The main loop logs `hitch: frame N took X ms (game / render /
+present)` to port_log.txt for any frame over 25 ms (first 200), so a stutter on a player's machine can be read from the log.

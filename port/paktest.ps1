@@ -496,7 +496,7 @@ $tests['crash-flush'] = {
         $lg = Join-Path $W "crash_$mode.log"; Remove-Item $lg -ErrorAction SilentlyContinue; Remove-Item port_pak.txt, port_frame.txt -ErrorAction SilentlyContinue
         $set = @{ TUROK_LOG = $lg; TUROK_SAVEDIR = $sd; TUROK_PAK_DELAY = '60000'; TUROK_PAKSYNC = '1'; TUROK_STRICT = '1' }; if ($mode -eq 'crash') { $set['TUROK_CRASHTEST'] = '1' }
         foreach ($k in $set.Keys) { Set-Item -Path ("Env:" + $k) -Value $set[$k] }
-        $p = Start-Process $exe -WorkingDirectory $root -PassThru
+        $env:TUROK_SCRIPT = '1'; $p = Start-Process $exe -WorkingDirectory $root -PassThru
         foreach ($k in $set.Keys) { Remove-Item ("Env:" + $k) -ErrorAction SilentlyContinue }
         $p = Follow-Port $p $exe
         $t0 = Get-Date

@@ -18,7 +18,7 @@ while ($true) {
     Write-Host "$(Get-Date -Format HH:mm:ss)  running $name" -ForegroundColor Yellow
     Get-Content $script | Where-Object { $_ -match '^#' } | Select-Object -First 3 | ForEach-Object { Write-Host "    $_" }
     Set-Content "$d\$name.running" (Get-Date -Format o)
-    $p = Start-Process powershell -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script -RedirectStandardOutput "$d\$name.log" -RedirectStandardError "$d\$name.err" -PassThru -NoNewWindow -WorkingDirectory (Get-Location).Path
+    $env:TUROK_SCRIPT = '1'; $p = Start-Process powershell -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script -RedirectStandardOutput "$d\$name.log" -RedirectStandardError "$d\$name.err" -PassThru -NoNewWindow -WorkingDirectory (Get-Location).Path
     if (-not $p.WaitForExit($TimeoutMin * 60000)) { try { $p.Kill() } catch {}; Add-Content "$d\$name.log" 'RUNNER: timeout, job killed' }
     $p.WaitForExit()
     $rc = $p.ExitCode

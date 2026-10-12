@@ -2,7 +2,7 @@
 param([int]$Seconds = 8, [int]$Tail = 30)
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $exe = (Get-Content port\build\latest_exe.txt).Trim()
-$p = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru
+$env:TUROK_SCRIPT = '1'; $p = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru
 Start-Sleep $Seconds
 "alive: $(-not $p.HasExited)"
 if (-not $p.HasExited) { try { $p.Kill() } catch { 'could not kill (' + $_.Exception.Message + ')' } }

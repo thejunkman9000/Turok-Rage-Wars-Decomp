@@ -10,7 +10,7 @@ if ($Pages) { $env:TUROK_TRACE_PAGES = '1' }
 $good = @()
 for ($i = 1; $i -le $Runs; $i++) {
     $env:TUROK_TRACE = "$out\trace$i.txt"; Remove-Item $env:TUROK_TRACE -ErrorAction SilentlyContinue
-    $p = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru
+    $env:TUROK_SCRIPT = '1'; $p = Start-Process $exe -WorkingDirectory (Get-Location).Path -PassThru
     if (-not $p.WaitForExit(180000)) { $p.Kill(); "run ${i}: timed out"; continue }
     if ($p.ExitCode -ne 0) { "run ${i}: exit code $($p.ExitCode)"; continue }
     $good += "$out\trace$i.txt"

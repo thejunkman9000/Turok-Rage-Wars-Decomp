@@ -114,7 +114,7 @@ function Start-Game($extraEnv = @{}) {
     $env:TUROK_LOG = $script:log; $env:TUROK_SKIPMENU = '1'; $env:TUROK_INPUTLOG = '1'; if ($Speed -gt 1) { $env:TUROK_SPEED = [string]$Speed }
     foreach ($k in $extraEnv.Keys) { Set-Item -Path "env:$k" -Value $extraEnv[$k] }
     $script:exeName = [IO.Path]::GetFileNameWithoutExtension($exe)
-    $null = Start-Process (Join-Path $root $exe) -WorkingDirectory $root -PassThru
+    $env:TUROK_SCRIPT = '1'; $null = Start-Process (Join-Path $root $exe) -WorkingDirectory $root -PassThru
     $env:TUROK_LOG = $null; $env:TUROK_SKIPMENU = $null; $env:TUROK_INPUTLOG = $null; $env:TUROK_SPEED = $null; foreach ($k in $extraEnv.Keys) { Set-Item -Path "env:$k" -Value $null }
     $t1 = Get-Date; $script:proc = $null
     while (((Get-Date) - $t1).TotalSeconds -lt 30) {      # the exe may relaunch itself (new ASLR layout when a guest address range is taken): look for the window by process name

@@ -6,7 +6,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 Add-Type -AssemblyName System.Drawing
 $bmp = [IO.Path]::ChangeExtension((Join-Path (Get-Location) $Out), '.bmp')
 Remove-Item $bmp -ErrorAction SilentlyContinue
-$p = Start-Process (Join-Path (Get-Location) $Exe) -ArgumentList ($ToolArgs + @('--shot', $bmp, '--shot-delay', [string]$DelayMs)) -PassThru
+$env:TUROK_SCRIPT = '1'; $p = Start-Process (Join-Path (Get-Location) $Exe) -ArgumentList ($ToolArgs + @('--shot', $bmp, '--shot-delay', [string]$DelayMs)) -PassThru
 if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; 'the tool did not finish'; exit 1 }
 if (-not (Test-Path $bmp)) { 'no picture written'; exit 1 }
 $img = [System.Drawing.Image]::FromFile($bmp); $png = Join-Path (Get-Location) $Out; $img.Save($png, [System.Drawing.Imaging.ImageFormat]::Png); $w = $img.Width; $h = $img.Height; $img.Dispose(); Remove-Item $bmp

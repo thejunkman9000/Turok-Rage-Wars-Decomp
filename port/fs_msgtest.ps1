@@ -14,7 +14,7 @@ function Check($ok, $what) { if ($ok) { "  ok   $what" } else { "  FAIL $what"; 
 function Start-Port($env_, $args_ = '') {
     $env:TUROK_DATADIR = $data; $env:TUROK_PAK = '0'; Remove-Item Env:\TUROK_FULLSCREEN -ErrorAction SilentlyContinue
     foreach ($k in $env_.Keys) { Set-Item "env:$k" $env_[$k] }
-    if ($args_) { $null = Start-Process $exe -WorkingDirectory $root -ArgumentList $args_ } else { $null = Start-Process $exe -WorkingDirectory $root }
+    if ($args_) { $env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory $root -ArgumentList $args_ } else { $null = Start-Process $exe -WorkingDirectory $root }
     foreach ($k in $env_.Keys) { Remove-Item "env:$k" -ErrorAction SilentlyContinue }
     $t = Get-Date; $script:p = $null
     while (((Get-Date) - $t).TotalSeconds -lt 30 -and -not $script:p) { Start-Sleep -Milliseconds 200; $script:p = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1 }

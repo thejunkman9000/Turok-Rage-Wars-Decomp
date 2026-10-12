@@ -32,7 +32,7 @@ function WaitFrames($sec) {
 $inputs = @('port_input.txt', 'port_input2.txt', 'port_input3.txt', 'port_input4.txt', 'port_frame.txt', 'port_frame.tmp', 'port_pak.txt')
 Remove-Item $inputs -ErrorAction SilentlyContinue
 Remove-Item $logFull -ErrorAction SilentlyContinue
-$null = Start-Process $exe -WorkingDirectory (Get-Location).Path
+$env:TUROK_SCRIPT = '1'; $null = Start-Process $exe -WorkingDirectory (Get-Location).Path
 $t0 = Get-Date; $n = 0; $mark = 0
 function Remove-Input($f) { for ($r = 0; $r -lt 40; $r++) { Remove-Item $f -ErrorAction SilentlyContinue; if (-not (Test-Path $f)) { return }; Start-Sleep -Milliseconds 5 } }
 function Hold($f, $b, $x, $y, $sec) { $v = ('{0:X} {1} {2} {3}' -f $b, $x, $y, [Math]::Max(1, [int]($sec * 60))); for ($r = 0; $r -lt 40; $r++) { try { Set-Content -Path $f -Value $v -Encoding ascii -ErrorAction Stop; break } catch { Start-Sleep -Milliseconds 5 } }; WaitFrames $sec; Remove-Input $f }
