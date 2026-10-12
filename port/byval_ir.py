@@ -102,6 +102,8 @@ KEEP_INDIRECT_SIZE = 40
 def _skip(name):
     """PORT_BYVAL_SKIP=re1,re2,...: also leave matching definitions / direct calls (INDIRECT = calls through pointers) alone (bisecting aid)"""
     if name in KEEP: return True
+    if re.match(r'func_(004|804)[0-9A-Fa-f]{5}(_de)?$', name): return True     # overlay A (the menus): the recompiled twins that call it pass the
+                                                                                # struct words in the old convention; converting it lost the main-menu text
     pats = os.environ.get('PORT_BYVAL_SKIP')
     return bool(pats) and any(re.match(p_, name) for p_ in pats.split(','))
 

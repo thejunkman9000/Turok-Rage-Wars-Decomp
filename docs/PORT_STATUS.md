@@ -337,7 +337,10 @@ Traced with `TUROK_HWWATCH=<addr>` (x86 debug-register write watchpoint in game_
   addresses 0x00257DF4 / 0x00267324 while firing) shows the real game's ids 0x654 / 0x655 / 0x656; the port now starts them.
   Exception: the 11 functions in port/recomp_structargs.txt (40-byte UI context by value) and calls through pointers carrying a 40-byte
   struct keep the old big-endian image, because the recompiler byte-swaps those words for them (mips2c STRUCTARGS); converting them broke
-  the Controller Pak hot-swap screen.  Bisecting aids: `PORT_NO_BYVAL=1`, `PORT_BYVAL_SKIP=<regex,...|INDIRECT>`, `PORT_BYVAL_LOG=<file>`
+  the Controller Pak hot-swap screen.  All of overlay A (func_004xxxxx / func_804xxxxx_de, the menus) is exempt as well: converting it
+  emptied the main menu (no text), which the pak tests do not look at - check a main-menu screenshot after touching byval_ir.py.  Bisecting aids: `PORT_NO_BYVAL=1`, `PORT_BYVAL_SKIP=<regex,...|INDIRECT>`, `PORT_BYVAL_LOG=<file>`
   (each needs `build_clang.py --all`).
+- Test trap: `pressfile.ps1` copies `PF_ENV` into the calling PowerShell's environment, so debug switches (TUROK_HWWATCH ...) set for one
+  run leak into later commands of the same shell call (a paktest fuzz "crash" was the watchpoint handler).  One run per shell call, or clear them.
 - Verified: health counts down 100 -> 86 -> ... -> 0 and respawns at 100 against the bot (TUROK_HWWATCH_ALL on 0x80692B84), no NaN events, no x87 reports,
   attract-demo motion test 6 of 8 distinct positions.
