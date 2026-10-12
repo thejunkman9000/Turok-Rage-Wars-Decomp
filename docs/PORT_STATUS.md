@@ -293,3 +293,20 @@ auto-centring would pull it back each frame); a pad stick still tilts in style 0
   `port/overrides/func_00441384.c` passes `(p, a1)`.
 - **Note status.**  This SDK's osPfsAllocateFile never initialises the new entry's status byte (stack garbage on hardware too; the C matches the ROM), so only the
   OCCUPIED bit 0x02 is defined; the test checks that bit.  Result: 173 passed, 0 failed.
+
+## Gameplay: no items / AI frozen / instant death in the first map (2026-10-12)
+Ground truth from the real game: Project64 (private copy, JS API) driven through the SAME input sequence as the port test (`events.onpifread` writes controller 1's
+word into PIF RAM and reports no controller pak), screen ids read from RAM (`0x8014D098`, else the screen stack at `0x8014D080`), window captured with
+`PrintWindow` (never the screen), whole-RAM dumps with `mem.getblock` at the same script step.  Three separate causes:
+- **Settings never initialised.**  The ROM entry point (hand-written func_00200400) runs func_002A81B0, which on a cold boot sets `D_8014D330 = 1`; func_002911E8 then
+  calls func_00444030, the initialiser of the whole settings block 0x801462C8..0x8014684C (Game Speed, match / bot / item options ...).  The port starts at the boot
+  thread, so the flag stayed 0 and every setting stayed zero (the Game Speed seed of f7b5f3d covered one field of it).  game_glue.c now sets the cold-boot flag; the block
+  equals the real game's at level start (write watchpoint: func_00444030 called from func_002911E8 2.6 s after power-on).
+- **Stale overrides** (removed in b604175): four bring-up drafts in port/overrides replaced matched C (heap / resource allocators, item-effect spawner, an overlay
+  function); the player died at the start of the 1-player trial.
+- **AI frozen: a missing return.**  func_0020BC50 (path-node selection) is declared s32 but had no `return`; the MIPS code returns `obj->result` in $v0 and its
+  caller func_0020ED50 stores it (`obj->unkC = ...`), so on x86 the AI's path edge got garbage and every bot stood still.  `return obj->selected;` compiles to the same
+  MIPS code (chk EXACT, ROM byte-identical).  Found by twinning the AI code range (bots move) and an automatic minimisation (wip/bisect_ai.py, port/demomove.ps1 =
+  attract-demo camera samples).  Worth a project-wide scan: other non-void functions without a return statement whose callers use the result.
+- Test note: the pak delete dialog ignores a 0.1 s stick tap now that the settings are initialised; paktest's YES press holds 0.4 s (173 passed, 0 failed).
+- Open: in the trial the health display can jump to 265 just before a death (real game: 100 -> 41 -> 6); not investigated yet.

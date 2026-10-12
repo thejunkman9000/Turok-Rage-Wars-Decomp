@@ -114,7 +114,7 @@ $tests['delete'] = {
     Copy-Item $f (Join-Path $sd 'mixed_before.mpk')
     Ok ((Verdict $f) -eq 0 -and ((Info $f) -match 'notes in use 4 of 16')) 'fixture: a pak with the game note and 3 synthetic notes of other games'
     # CONTROLLER PAK (menu: 2 down) -> DELETE PLAYERS (3 down) -> A (pad 1) -> list: A -> DELETE A? YES
-    $seq = @('wait:2') + $dn + $dn + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:2') + $dn + $dn + $dn + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:3', 'C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:4', 'C:0.3', 'wait:4', 'waitlog:pak: idle:30', 'wait:3') + $lf + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:4', 'sleep:1200')
+    $seq = @('wait:2') + $dn + $dn + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:2') + $dn + $dn + $dn + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:3', 'C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:4', 'C:0.3', 'wait:4', 'waitlog:pak: idle:30', 'wait:3') + @('stick:-80:0:0.4', 'wait:0.8') + @('C:0.3', 'wait:5', 'waitlog:pak: idle:30', 'wait:4', 'sleep:1200')     # YES: the dialog ignores a 0.1 s stick tap since the settings block is initialised (cold-boot flag)
     Press $seq @{ TUROK_SAVEDIR = $sd } 'ptd'; Kill-Mine
     $i = Info $f
     Ok ((Verdict $f) -eq 0) 'image valid after deleting the player'

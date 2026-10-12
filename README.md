@@ -173,7 +173,7 @@ Notes: libultra objects are padded to 16 bytes with *garbage* (copies of other c
 - **US v1.1 (reference)**: `powershell tools/cycle.ps1` rebuilds the ROM byte-identical.  All game code (main image `src/game/` and overlay A `src/ovl_a/`)
   is matched C, apart from the original's own hand-written assembly (boot code, exception handler, TLB / cache / status-register routines, kept as readable `.s`
   sources listed in `docs/hand_asm.txt`) and stray linker-padding words between objects (`pad_*.s` units).  libultra / libaudio (`src/libultra/`) is matched
-  except three functions that still build from asm (`__osContRamRead`, `__osDevMgrMain`, `sinf`; ~470 instructions).
+  completely (the last three, `__osContRamRead`, `__osDevMgrMain` and `sinf`, were matched on 2026-10-12).
   `tools/progress_chart.py` draws the numbers.
 - **US v1.0, Europe, Germany**: each builds byte-identical from the unchanged v1.1 C (about 3,400-3,600 shared units) plus splat asm for the code that
   differs; that release-specific code (200 functions for US v1.0, ~290 each for Europe and Germany) is being matched now (`docs/VERSIONS.md`).

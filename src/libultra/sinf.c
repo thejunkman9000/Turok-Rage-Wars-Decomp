@@ -1,6 +1,5 @@
 #include "common.h"
 
-#ifdef NON_MATCHING
 typedef union {
     struct {
 #ifdef TARGET_PC
@@ -37,8 +36,9 @@ static const du pihi = DU(0x400921FB, 0x50000000);
 static const du pilo = DU(0x3E6110B4, 0x611A6263);
 static const fu zero = { 0x00000000 };
 
-/* Near match: all code is identical except that the final `cvt.s.d` of the second polynomial lands in $f1
-   (the ROM keeps the double in $f0) instead of in-place in $f0. */
+/* EXACT: mode lu (default: gcc 2.8.1 -O3 -fforce-addr -fno-builtin -mcpu=r4300), ro=0xCD720:80 (rodata_map: `sinf 0xCD720 80`).
+   Key: the f32 polynomial temp `fpoly` is ONE user variable shared by both polynomial paths; that union of
+   live ranges puts it in $f1 in the reduced-argument path (cvt.s.d $f1,$f0) like the ROM. */
 f32 sinf(f32 x) {
     f32 dx;
     f32 dn;
@@ -58,8 +58,8 @@ f32 sinf(f32 x) {
     if (xpt < 0xFF) {
         if (xpt >= 0xE6) {
             xsq = dx * dx;
-            poly = (((P[4].d * xsq + P[3].d) * xsq + P[2].d) * xsq + P[1].d);
-            return dx + dx * xsq * (f32)poly;
+            fpoly = (((P[4].d * xsq + P[3].d) * xsq + P[2].d) * xsq + P[1].d);
+            return dx + dx * xsq * fpoly;
         }
         return dx;
     }
@@ -87,6 +87,3 @@ f32 sinf(f32 x) {
 
     return zero.f;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/libultra/sinf", sinf);
-#endif

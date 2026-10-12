@@ -112,4 +112,5 @@ not_found:
 search_done:
     func_8020C5A0_de(obj, node);
     obj->selected = obj->result;
+    return obj->selected;               /* the ROM returns it ($v0 = obj->result): func_0020ED50 stores the result */
 }

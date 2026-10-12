@@ -114,7 +114,6 @@ osYieldThread  0xC1910  18  libultra
 cosf  0xBC230  65  libultra ro=0xCD660:96
 guLookAt  0xBC340  322  libultra ro=0xCD6C0:16
 guPerspective  0xBCAC0  206  libultra ro=0xCD6F0:48
-sinf  0xBCE00  95  libultra
 osAiGetStatus  0xBCF90  5  libultra
 sqrtf 0xBCF80 4 libultra
 sprintf  0xC3010  32  libultra
@@ -3199,3 +3198,4 @@ alEnvmixerPull 0xBA400 756 libultra mode=sn ro=0xCD450:272
 alAuxBusPull 0xBB0D0 80 libultra mode=sn
 __osDevMgrMain 0xBED00 230 libultra ro=0xCD780:32
 pad_0BF098 0xBF098 2 libultra
+sinf 0xBCE00 95 libultra ro=0xCD720:80
