@@ -48,6 +48,31 @@ def peephole(c, known):
     used |= {n for n in re.findall(r'\(u32\)([A-Za-z_]\w*);', c) if n in kn}      # any other known function name (proutSprintf, ...)
     return c, used
 
+_INS = re.compile(r'\s*/\* [0-9A-F]+ ([0-9A-F]{8}) [0-9A-F]{8} \*/\s*(.*)$')
+def _ends(text):
+    """the code ends in a return or jump (among the last two instructions: a jump and its delay slot)"""
+    ins = [m.group(2).strip() for m in map(_INS.match, text.split('\n')) if m]
+    return not ins or any(re.match(r'(jr|j|b|eret)\b', t) or re.match(r'beq\s+\$zero,\s*\$zero', t) for t in ins[-2:])
+
+def with_fallthrough(name, text, idx):
+    """splat sometimes cuts a function in the middle: its code runs on into the next symbol (func_00449E38 continues into func_0044A100 after
+    its last jal; that tail stores the player's respawn key, and the twin that returned early made every trial respawn reload map 0).  The
+    following symbols' code is appended as labels of this function until it ends in a return / jump (wip/scan_fallthrough.py lists the cases)."""
+    if not re.match(r'func_[0-9A-F]{8}$', name): return text
+    addrs = sorted((int(n[5:], 16), n) for n, p in idx.items() if re.match(r'func_[0-9A-F]{8}$', n) and p.startswith('port'))
+    last = text; prev = name
+    for _ in range(6):
+        if _ends(last): break
+        cur = max([int(m.group(1), 16) for m in map(_INS.match, text.split('\n')) if m] or [int(name[5:], 16)])
+        nxt = next((n for a, n in addrs if a > cur), None)      # the first symbol after the code already present (some files already hold the following code)
+        if not nxt: break
+        t = open(idx[nxt], encoding='utf-8').read()
+        t = re.sub(r'^(\s*)glabel\s+' + nxt + r'\b', r'\1alabel ' + nxt, t, flags=re.M)
+        t = re.sub(r'^\s*endlabel\b.*$', '', t, flags=re.M)
+        text = re.sub(r'^\s*endlabel\s+' + prev + r'\b.*$', '', text, flags=re.M) + '\n' + t
+        last = t; prev = nxt
+    return text
+
 def gen(names):
     os.makedirs(os.environ.get('RECOMP_OUT') or 'port/native/recomp', exist_ok=True)
     idx = m2c_fallback.asm_index()
@@ -62,7 +87,11 @@ def gen(names):
         if not src:
             print('no asm for', name); continue
         try:
-            c = mips2c.recompile_function(open(src, encoding='utf-8').read(), name, known)
+            raw = open(src, encoding='utf-8').read(); ft = with_fallthrough(name, raw, idx)
+            try: c = mips2c.recompile_function(ft, name, known)
+            except Exception:
+                if ft == raw: raise
+                c = mips2c.recompile_function(raw, name, known)          # the appended code cannot be translated (hand-written libultra assembly ...): as before
         except Exception as e:
             print('FAILED', name, e); continue
         c, used = peephole(c, known)

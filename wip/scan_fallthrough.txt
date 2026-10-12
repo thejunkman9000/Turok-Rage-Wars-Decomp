@@ -1,0 +1,223 @@
+func_00202C98    TWIN               last: sw $s2,24($sp) | move $s2,$a2
+func_00204808          C            last: addiu $sp,$sp,24 | nop
+func_00207FE4          C            last: sw $v0,256($a0) | nop
+func_00207FFC                       last: bc1f func_00208030
+func_002106DC    TWIN               last: sll $v0,$s0,0x2
+func_00212664                       last: lw $v0,800($s1) | bgez $v0, func_002126B8
+func_0021333C    TWIN               last: sdc1 $f22,272($sp)
+func_002138E8                       last: move $a0,$s3 | beqz $v0, func_00213964
+func_0021762C    TWIN               last: lwc1 $f1,8($s4)
+func_002192B4    TWIN               last: lw $s3,36($sp) | lw $s2,32($sp)
+func_002337B8    TWIN               last: mtc1 $v0,$f1 | cvt.d.w $f1,$f1
+func_0023A4CC    TWIN               last: sw $t2,24($v0)
+func_0023B994                       last: lh $v1,0($a0) | beq $v1, $s2, func_0023B9E4
+func_0023CFC8    TWIN               last: sw $zero,48($sp) | sw $zero,52($sp)
+func_0023EDE8    TWIN               last: li $a1,5 | move $s7,$v0
+func_0023EE50          C            last: nop | nop
+func_0023F734                       last: beqz $v0, func_0023F8A0 | move $s2,$v1
+func_0024064C    TWIN               last: move $v0,$zero
+func_002406BC    TWIN               last: lwc1 $f2,0($a2)
+func_0024193C    TWIN               last: mtc1 $zero,$f20
+func_00243A78    TWIN               last: sw $zero,28($s0) | lw $v0,540($sp)
+func_00244D54                       last: move $s3,$a3 | lw $v1,56($s0)
+func_00245D18    TWIN               last: sw $zero,16($sp) | sw $zero,20($sp)
+func_0024E974    TWIN               last: sb $zero,0($s1) | lhu $v1,8($s2)
+func_0024F934    TWIN               last: move $v0,$s0 | lw $ra,24($sp)
+func_00255220          C            last: li $a1,24 | jal func_00255C40
+func_002555C8    TWIN               last: jal osWritebackDCache | nop
+func_00255C3C    TWIN               last: li $a2,10240
+func_00256214    TWIN               last: addiu $sp,$sp,-56 | sw $s1,36($sp)
+func_002567E8    TWIN               last: li $a1,1 | jal func_0028FD94
+func_00259278    TWIN               last: swc1 $f0,132($s0) | lhu $a0,2($s2)
+func_00259B2C    TWIN               last: sub.s $f0,$f1,$f0
+func_0025CCA4    TWIN               last: addiu $sp,$sp,-32 | sw $s0,16($sp)
+func_0025D468    TWIN               last: lui $a0,0x8011 | addiu $a0,$a0,-16256
+func_0025DE4C    TWIN               last: cvt.s.w $f2,$f2
+func_0025E51C    TWIN               last: c.le.s $f1,$f0
+func_0025E5C8                       last: beqz $v0, func_0025ED64 | move $a1,$zero
+func_00261688    TWIN               last: mtc1 $v0,$f0 | cvt.s.w $f0,$f0
+func_002627B4    TWIN               last: nop | lui $a0,0x8011
+func_00262EA8          C            last: addiu $sp,$sp,32 | sw $v0,40($a0)
+func_00263174          C            last: nop | move $a0,$s0
+func_002636D0          C            last: beqz $v0, func_00263768 | addiu $v1,$v1,1
+func_00264F7C    TWIN               last: sw $t1,60($sp)
+func_00265364                       last: bne $v1, $v0, func_00265428 | li $v0,1
+func_00265E28    TWIN               last: sw $v1,1508($s2) | move $v0,$v1
+func_00268CD4    TWIN               last: lw $a1,44($sp) | div $zero,$s0,$v0
+func_0026E5DC    TWIN               last: swc1 $f0,20($s0)
+func_00276D14                       last: move $s4,$s0 | li $a1,5384
+func_00278C7C                       last: bc1f func_00278CA4
+func_00279514    TWIN               last: lw $s4,232($sp) | lw $s3,228($sp)
+func_00279A64    TWIN               last: addiu $a1,$s2,372 | lwc1 $f1,28($s2)
+func_00285288                       last: lw $s3,3664($a0) | blez $s3, func_00285310
+func_0028553C    TWIN               last: mul.s $f21,$f0,$f20
+func_002856AC    TWIN               last: addiu $s1,$s1,8
+func_00285D7C    TWIN               last: move $a0,$s3
+func_0028E83C          C            last: addiu $sp,$sp,40 | nop
+func_0028FD68    TWIN               last: lui $v0,0x30 | sw $s4,8($t0)
+func_002909C4    TWIN               last: sw $v0,32($a2) | lui $v0,0x800e
+func_002909D8    TWIN               last: lui $v0,0x8014 | addiu $v0,$v0,27008
+func_00294C98    TWIN               last: lw $v0,8($t3) | srl $s0,$v0,0x1e
+func_00297018    TWIN               last: lw $a0,60($s0) | jal func_00299368
+func_00297CC8    TWIN               last: addu $at,$at,$v0 | lw $v0,-22600($at)
+func_0029AE74    TWIN               last: lwc1 $f2,0($sp) | cvt.d.w $f2,$f2
+func_0029BB98    TWIN               last: neg.s $f0,$f0 | lw $ra,20($sp)
+func_002A0468                       last: beq $v0, $a2, func_002A047C | move $v0,$a0
+func_002A2264    TWIN               last: addiu $a0,$a0,-20688 | jal func_0040FC14
+func_002A286C    TWIN               last: mul.s $f0,$f20,$f0
+func_002A308C    TWIN               last: lw $a2,64($s0)
+func_002A35BC    TWIN               last: sw $t2,8($v0)
+func_002A864C    TWIN               last: sw $t2,4($a2)
+func_002AC3EC    TWIN               last: addu $v0,$v0,$v1
+func_002B2378    TWIN               last: lui $at,0x800d | ldc1 $f0,-15040($at)
+func_002B24C0                       last: li $v0,4 | beq $v1, $v0, func_002B25A4
+func_002B2870                       last: nop | move $t1,$a0
+func_002B2A10    TWIN               last: jal alEvtqPostEvent | sh $v0,16($sp)
+func_002B2ABC    TWIN               last: jal alEvtqPostEvent | sh $v0,16($sp)
+func_002B3B70    TWIN               last: nop | andi $v0,$s6,0xff
+func_002B4ECC    TWIN               last: sw $v0,36($a0) | sb $zero,53($s1)
+func_002B4F50    TWIN               last: addiu $sp,$sp,40 | sll $v0,$s5,0x4
+func_002B4FB0    TWIN               last: sb $v0,55($s1) | lwc1 $f0,60($sp)
+func_002B5060                       last: addiu $sp,$sp,40 | beqz $a2, func_002B50C0
+func_002B53E0    TWIN               last: nop | li $s6,2
+func_002B5410    TWIN               last: move $a0,$s2 | lw $v0,32($s1)
+func_002B74C4    TWIN               last: lw $v0,8($a0) | jalr $v0
+func_002B75A0    TWIN               last: addiu $sp,$sp,24 | lw $v0,8($a0)
+func_002B76A0    TWIN               last: move $s7,$a2 | sw $ra,48($sp)
+func_002B76F0                       last: bltzl $v0, alSndpNew | negu $s3,$s1
+func_002B7DC0    TWIN               last: nop | sw $a0,0($s2)
+func_002B7EB0    TWIN               last: addiu $sp,$sp,40 | ori $a1,$a1,0x800
+func_002B7F00    TWIN               last: addiu $sp,$sp,40 | lw $v0,0($s0)
+func_002B7F50    TWIN               last: addiu $sp,$sp,40 | lw $s0,24($sp)
+func_002B7FA0    TWIN               last: addu $v0,$v0,$a3 | sw $a2,0($v0)
+func_002B7FE0    TWIN               last: addiu $sp,$sp,40 | lui $v0,0x2c
+func_002B8030    TWIN               last: li $s1,2 | lui $s2,0x800e
+func_002B8078    TWIN               last: li $s1,2 | lui $s2,0x800e
+func_002B8200    TWIN               last: lwc1 $f0,-14300($at) | li $v0,52
+func_002B82C0    TWIN               last: swc1 $f1,28($s0) | jal alHeapDBAlloc
+func_002B82D0    TWIN               last: addiu $sp,$sp,32 | li $a1,7
+func_002B84B0    TWIN               last: addiu $sp,$sp,40 | move $s1,$a2
+func_002B8540    TWIN               last: lui $a2,0x2c | addiu $a2,$a2,-23024
+func_002B8550    TWIN               last: li $a3,1 | move $a0,$zero
+func_002B8608    TWIN               last: li $a3,1 | move $a0,$zero
+func_002B8610    TWIN               last: addiu $sp,$sp,24 | addiu $sp,$sp,-40
+func_002B86B0    TWIN               last: ldc1 $f3,-14272($at) | addiu $v1,$a0,18
+func_002B87C0    TWIN               last: addiu $sp,$sp,32 | lw $v0,60($s0)
+func_002B8FAC    TWIN               last: move $v0,$zero | lui $v0,0x308
+func_002BA358    TWIN               last: move $a1,$s3 | move $a2,$s2
+func_002BA484    TWIN               last: move $a1,$s3 | move $a2,$s2
+func_002BB550    TWIN               last: move $s0,$a0 | sw $ra,24($sp)
+func_002BB590    TWIN               last: move $a0,$s4 | lui $at,0x8015
+func_002BB624    TWIN               last: move $a0,$s4 | lui $at,0x8015
+func_002BB9D0    TWIN               last: bnez $v0, .L002BBBDC | addiu $t0,$t0,4
+func_002BC200                       last: nop | lw $t2,8($a1)
+func_002BC380    TWIN               last: nop | sw $t2,8($a2)
+func_002BC3A0    TWIN               last: addiu $s4,$s4,-10528 | sll $v1,$s5,0x6
+func_002BC3B0                       last: cvt.s.d $f0,$f1 | lui $at,0x800d
+func_002BC3D0    TWIN               last: cvt.s.d $f0,$f1 | lui $at,0x800d
+func_002BC3E0                       last: swr $t1,7($a0) | swl $t2,8($a0)
+func_002BC4D0    TWIN               last: addiu $sp,$sp,32 | move $v0,$zero
+func_002BC608                       last: li $a2,1 | beqz $s4, func_002BC64C
+func_002BC75C    TWIN               last: li $v0,0xffff | lui $a2,0x8015
+func_002BC810                       last: li $a0,1 | lui $s0,0x8015
+func_002BCBA8                       last: addiu $sp,$sp,8 | swl $a3,0($a0)
+func_002BCC60    TWIN               last: addiu $sp,$sp,32 | lw $s0,56($sp)
+func_002BCD00                       last: andi $v0,$a1,0x10 | beqz $v0, func_002BCD28
+func_002BD0A8                       last: beq $v1, $v0, func_002BD598 | lui $v1,0xa460
+func_002BD7C0                       last: lui $v1,0xa000 | or $v0,$v0,$a1
+func_002BDB70                       last: lui $v1,0x800e | addiu $v1,$v1,-31792
+func_002BDD58                       last: beqz $v0, func_002BDDD8 | sw $ra,24($sp)
+func_002BDDC0    TWIN               last: addiu $sp,$sp,24 | andi $v0,$v0,0x3
+func_002BDE70    TWIN               last: li $a2,64 | sw $ra,24($sp)
+func_002BDEA0    TWIN               last: move $a1,$s1 | lui $a2,0x8015
+func_002BE4A0                       last: nop | jal __osViGetCurrentContext
+func_002BE680    TWIN               last: lw $v1,-31676($v1) | lw $v0,12($v1)
+func_002BE820    TWIN               last: sw $s0,48($sp) | lw $v0,0($v0)
+func_002BEA40    TWIN               last: addu $v0,$v0,$s7 | sll $v0,$v0,0x2
+func_002BEB30    TWIN               last: lui $s2,0xa440 | ori $s2,$s2,0x24
+func_002BEC10    TWIN               last: lw $t9,16($sp) | ori $t5,$t5,0x34
+func_002BED70    TWIN               last: addiu $a0,$a0,6236 | move $v1,$a0
+func_002BEDA0                       last: sd $s0,152($k0) | sd $s1,160($k0)
+func_002BEE60    TWIN               last: lui $a0,0x800e | lw $a0,-28000($a0)
+func_002BF06C    TWIN               last: sw $v0,-624($at) | lui $at,0x8015
+func_002BF0A0    TWIN               last: srl $a3,$a1,0x1f | or $v0,$v0,$a3
+func_002BF0C0    TWIN               last: addiu $sp,$sp,40 | or $v0,$s0,$v0
+func_002BF1C0    TWIN               last: li $v0,-1 | sw $s1,20($sp)
+func_002BF1F0    TWIN               last: lui $a1,0x800d | addiu $a1,$a1,-13228
+func_002BF210    TWIN               last: addiu $sp,$sp,24 | or $v0,$s0,$v0
+func_002BF230          C            last: addiu $sp,$sp,24 | sw $s1,20($sp)
+func_002BF280                       last: li $s2,8 | beq $s4, $s3, func_002BF2B4
+func_002BF2A0                       last: addiu $sp,$sp,24 | bne $v1, $at, func_002BF310
+func_002BF300    TWIN               last: addiu $sp,$sp,24 | nop
+func_002BF400    TWIN               last: break 0x7 | li $at,-1
+func_002BF7A0    TWIN               last: addiu $sp,$sp,24 | sw $v0,16($s0)
+func_002BF7F0    TWIN               last: lui $v1,0xa460 | ori $v1,$v1,0x10
+func_002BF960                       last: addiu $sp,$sp,-40 | sw $ra,32($sp)
+func_002BF9B0    TWIN               last: jal osGetCount | nop
+func_002BFA00    TWIN               last: addiu $sp,$sp,88 | sh $a1,16($v1)
+func_002BFD40    TWIN               last: lw $ra,20($sp) | lw $s0,16($sp)
+func_002BFD50                       last: sd $at,32($k0) | mfc0 $k1,$12
+func_002BFD80                       last: andi $t1,$k1,0xff00 | beqz $t1, osGetTime
+func_002BFE70    TWIN               last: nop | and $t3,$k1,$at
+func_002BFE90    TWIN               last: nop | or $k1,$k1,$t1
+func_002BFEB0    TWIN               last: addiu $sp,$sp,40 | sdc1 $f10,344($k0)
+func_002C01E0    TWIN               last: addiu $sp,$sp,32 | lui $t2,0x800e
+func_002C0250                       last: beqz $at, func_002C041C | nop
+func_002C0390                       last: cfc1 $k1,c1_fcsr | nop
+func_002C04C0    TWIN               last: lui $at,0x400 | and $k1,$k1,$at
+func_002C0640    TWIN               last: addiu $sp,$sp,32 | andi $t1,$k1,0xff00
+func_002C06E0    TWIN               last: ldc1 $f26,408($k0) | ldc1 $f28,416($k0)
+func_002C07B0    TWIN               last: addiu $sp,$sp,24 | lui $k0,0xa430
+func_002C0840                       last: lui $v1,0xa460 | ori $v1,$v1,0x10
+func_002C0960    TWIN               last: move $v0,$zero | lw $v1,0($s1)
+func_002C0B9C          C            last: bne $v0, $v1, func_002C0CF4 | nop
+func_002C1E54    TWIN               last: addiu $sp,$sp,24 | sw $s0,56($sp)
+func_002C1F10                       last: blezl $s4, func_002C2080 | addiu $a1,$sp,16
+func_002C1FF0                       last: nop | lw $s3,4($s5)
+func_002C2000                       last: nop | jal __divdi3
+func_002C2010                       last: nop | move $a2,$s0
+func_002C2040                       last: nop | sb $v1,16($v0)
+func_002C2060                       last: lw $s7,84($sp) | lw $s6,80($sp)
+func_002C2100    TWIN               last: move $a1,$s1 | move $a2,$s2
+func_002C2170                       last: addiu $a0,$a0,8 | move $a0,$zero
+func_002C2240                       last: nop | addu $v0,$s5,$a1
+func_002C2260                       last: srl $v1,$v1,0x4 | sw $v0,60($s0)
+func_002C2320                       last: beq $v1, $v0, func_002C237C | subu $s5,$s5,$s1
+func_002C2370    TWIN               last: ori $v0,$v0,0x2 | jal _decodeChunk
+func_002C23E0    TWIN               last: lui $v1,0xa00 | sw $a0,4($a1)
+func_002C2ED0    TWIN               last: move $a3,$zero | sw $t0,32($sp)
+func_002C3D24                       last: addiu $sp,$sp,56 | bc1f func_002C3EC0
+func_002C530C    TWIN               last: nop | sll $v1,$v1,0x10
+func_002C5910    TWIN               last: cache 0x0,0($gp) | cache 0x0,0($gp)
+func_002C5E90                       last: cfc0 $zero,$0 | .word 0x41B80000
+func_002C6420                       last: .word 0x3F800000 | c0 0x960000
+func_002C6920    TWIN               last: .word 0x41F00000 | .word 0x3F7D70A4
+func_002C6970    TWIN               last: .word 0x41800000 | .word 0x3C8EFA36
+func_002C6A00                       last: .word 0x5F4C4546 | bnel $v0, $ra, func_00318D34
+func_00405DB4    TWIN               last: move $a0,$s1 | move $a1,$s0
+func_0040BC2C    TWIN               last: move $s1,$v1
+func_0040CB24    TWIN               last: li $a2,24 | lui $v0,0x8015
+func_00414430          C            last: addiu $sp,$sp,32 | addiu $v0,$v0,4
+func_00415D04    TWIN               last: lui $a1,0x4 | lui $a0,0x8011
+func_0041B63C          C            last: addiu $sp,$sp,24 | nop
+func_0041F118          C            last: addiu $sp,$sp,32 | nop
+func_0041F1AC                       last: bnel $v0, $s0, func_0041F1D8
+func_0042204C    TWIN               last: lw $a0,56($v0)
+func_004245B8                       last: bltz $a0, func_00424844 | move $v1,$zero
+func_004399C8    TWIN               last: sw $v1,4952($v0) | li $v1,4
+func_0043F284    TWIN               last: move $a0,$v1 | lbu $v0,22($s1)
+func_00444F0C    TWIN  C-skipped    last: addiu $sp,$sp,32 | nop
+func_00444F9C    TWIN               last: move $a0,$s0
+func_00446B7C                       last: move $s3,$a2 | sw $ra,104($sp)
+func_0044759C    TWIN               last: addiu $sp,$sp,72 | slt $v0,$a2,$v0
+func_00447670                       last: addiu $sp,$sp,344 | bnez $v0, func_004478BC
+func_004478B0                       last: beq $v1, $v0, func_004479F0 | addiu $s0,$sp,314
+func_0044873C    TWIN               last: addiu $s0,$s0,1
+func_00448740                       last: bnez $v0, func_00448BA8 | sw $s0,1504($s1)
+func_00448D30    TWIN               last: lui $at,0x800c | lwc1 $f0,29688($at)
+func_00449914    TWIN               last: sw $zero,4804($s0) | sw $zero,4808($s0)
+func_00449E38          C            last: move $a0,$s1 | jal func_00245774
+func_0044BAB4    TWIN               last: sb $v0,3820($at) | lui $at,0x2
+func_0044BD28                       last: move $a1,$s0 | bnez $a1, .L0044BD1C
+func_0044C244    TWIN               last: addu $at,$t0,$at | lw $s0,-19444($at)
+func_0044EBA4    TWIN               last: sll $zero,$zero,0x2 | .word 0x00000001

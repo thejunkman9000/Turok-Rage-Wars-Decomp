@@ -344,3 +344,17 @@ Traced with `TUROK_HWWATCH=<addr>` (x86 debug-register write watchpoint in game_
   run leak into later commands of the same shell call (a paktest fuzz "crash" was the watchpoint handler).  One run per shell call, or clear them.
 - Verified: health counts down 100 -> 86 -> ... -> 0 and respawns at 100 against the bot (TUROK_HWWATCH_ALL on 0x80692B84), no NaN events, no x87 reports,
   attract-demo motion test 6 of 8 distinct positions.
+
+## Trials: dying on map 2/3 respawned you on map 1 with the later map's bots (2026-10-12)
+In a trial the respawn (`func_0044A4C0` -> `func_0021B1E4`) looks up the spawn points of the player's spawn key `p+0x5EC` (the level's warp id, e.g.
+`0xBC2` for Proving Grounds); when none match it loads the level of that key instead (`func_0044E178`).  The real game (Project64 write watch) stores
+the key at player start, in code at `0x0044A100..` that splat cut off `func_00449E38` as a separate symbol: the last instruction of `func_00449E38` is a
+`jal func_00245774` whose return lands in that tail.  The recompiled twin of `func_00449E38` returned after the call, so the key stayed 0, every trial
+respawn reloaded warp 0 = map 0 (Proving Grounds) and kept the current bots - invisible in trial 0, which is map 0.
+- `port/gen_recomp.py` now follows such fall-throughs: when a function's code does not end in a return / jump, the following symbols' code is appended
+  as labels of the same function (until it does, at most 6 files; if the extended code cannot be translated - hand-written libultra assembly - the
+  function is generated as before).  117 twins changed; `python wip/scan_fallthrough.py` lists every function that runs on into the next symbol.
+- Test aids: `TUROK_ARENA=n@k` (trial / arena index n from the k-th choice on: play trial 0, fail, CONTINUE into trial n), `TUROK_POKE8=addr:val;addr:val`
+  (writes guest bytes every tick, like a GameShark 80 code; e.g. infinite health `80692B86:64`).  The level-select byte of the Project64 cheat file,
+  0x8014BD9F, is a US v1.0 address (`D_8015402C`, the trial index, is 0x8015402F's word in v1.1).
+- Verified: in trial 0 the key is 0xBC2 as in Project64, a death respawns on the map (no level reload request); menu, health, demo motion, paktest.

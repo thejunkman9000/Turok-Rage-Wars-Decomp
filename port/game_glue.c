@@ -512,6 +512,7 @@ unsigned port_unresolve(unsigned host) {
 
 void port_dump_trace_pub(int n) { dump_trace(n); }
 
+int port_arena_from(void) { char e[32], *at; if (!GetEnvironmentVariableA("TUROK_ARENA", e, sizeof e)) return 1; at = strchr(e, 0x40); return at ? atoi(at + 1) : 1; }   /* TUROK_ARENA=n@k: pin from the k-th arena choice (port/overrides/func_0042EB80.c) */
 int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SKIPMENU", e, sizeof e) ? 1 : 0; } return v; }
 
 void port_bt(void) { unsigned *sp = (unsigned *)&sp; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); unsigned *top = (unsigned *)((NT_TIB *)NtCurrentTeb())->StackBase; fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 14 && sp + i < top; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
@@ -556,6 +557,11 @@ static void hw_watch_arm(void) {
 
 /* TUROK_WATCH=80153C18: log changes of a guest word (polled every tick) with the recent call trace */
 void port_watch_tick(void) {
+    {   /* TUROK_POKE8=addr:val[,addr:val...] (; also separates, for PF_ENV): write guest bytes every tick, like a GameShark 80 code (tests: level select 8014BD9F) */
+        static int init; static unsigned pa[8], pv[8]; static int pn;
+        if (!init) { char e[160]; init = 1; if (GetEnvironmentVariableA("TUROK_POKE8", e, sizeof e)) { char *q = e; while (pn < 8 && *q) { pa[pn] = (unsigned)strtoul(q, &q, 16); if (*q == 0x3A) q++; pv[pn++] = (unsigned)strtoul(q, &q, 16); if (*q == 0x2C || *q == 0x3B) q++; } } }
+        { int k; for (k = 0; k < pn; k++) *(volatile unsigned char *)(size_t)pa[k] = (unsigned char)pv[k]; }
+    }
     static unsigned addr, last; static int init;
     { static int hinit, n; if (!hinit) { char e[16]; hinit = 1; if (GetEnvironmentVariableA("TUROK_HWWATCH", e, sizeof e)) { g_hw_addr = (unsigned)strtoul(e, NULL, 16); AddVectoredExceptionHandler(1, hw_watch_handler); } }
       if (g_hw_addr && (n++ % 120) == 0) hw_watch_arm(); }   /* re-arm now and then: threads created later get the watchpoint too */
