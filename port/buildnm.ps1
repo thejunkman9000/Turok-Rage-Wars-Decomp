@@ -3,8 +3,7 @@
 # the worker workspaces' include dirs are tried in turn (their struct layouts are the same, only names/fields differ).
 $ErrorActionPreference = 'Continue'
 Set-Location (Split-Path $PSScriptRoot -Parent)
-cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars32.bat" >nul 2>&1 && set' |
-  ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($Matches[1])" -Value $Matches[2] } }
+. "$PSScriptRoot\vcvars.ps1"      # MSVC 32-bit environment (any VS 2022 / 2026 with the C++ tools; TUROK_VCVARS overrides)
 $obj = 'port\build\obj_nm'; Remove-Item -Recurse -Force $obj -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force $obj | Out-Null
 $wsInc = @(Get-ChildItem D:\Projects\ws\*\include -Directory -ErrorAction SilentlyContinue | Sort-Object { $_.Parent.LastWriteTime } -Descending | ForEach-Object { $_.FullName })
 $fi = "/FI$((Get-Location).Path)\port\compat.h"

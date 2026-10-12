@@ -1,8 +1,7 @@
 # Compile every matched game/overlay C file for the 32-bit port into port\build\obj  (parallel).  usage: .\port\buildgame.ps1
 $ErrorActionPreference = 'Continue'
 Set-Location (Split-Path $PSScriptRoot -Parent)
-cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars32.bat" >nul 2>&1 && set' |
-  ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($Matches[1])" -Value $Matches[2] } }
+. "$PSScriptRoot\vcvars.ps1"      # MSVC 32-bit environment (any VS 2022 / 2026 with the C++ tools; TUROK_VCVARS overrides)
 $obj = 'port\build\obj'; New-Item -ItemType Directory -Force $obj | Out-Null
 $files = @(Get-ChildItem src\game\*.c) + @(Get-ChildItem src\ovl_a\*.c) | Where-Object { -not (Test-Path (Join-Path 'port\overrides' ($_.BaseName + '.c'))) } | Where-Object {
     $o = Join-Path $obj ($_.BaseName + '.obj'); -not (Test-Path $o) -or (Get-Item $o).LastWriteTime -lt $_.LastWriteTime }

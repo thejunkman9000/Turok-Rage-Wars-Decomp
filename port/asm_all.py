@@ -2,7 +2,7 @@
 """Exact per-function MIPS assembly for every game function, straight from the ROM.
 Function boundaries come from docs/game_funcs.txt / funcs_a.txt (the project's authoritative list: name, ROM address, instruction
 count); the name encodes the virtual address.  Code that lies beyond those lists (the end of overlay A) uses port/asm_tail's
-detection.  Disassembly: mips-linux-gnu-objdump in WSL.  Output: port/build/asm_func/<name>.s in splat style (glabel + `.L` labels)
+detection.  Disassembly: rabbitizer in objdump's text style (port/rab_dis.py), or mips-linux-gnu-objdump in WSL with PORT_ASM_OBJDUMP=1.  Output: port/build/asm_func/<name>.s in splat style (glabel + `.L` labels)
 plus port/build/asm_func/index.txt (name vaddr ninsns)."""
 import os, re, struct, subprocess, sys
 
@@ -38,7 +38,15 @@ def disassemble():
     """{vaddr: (word, text)} for the code regions"""
     ins = {}
     r = rom()
-    for lo, hi, vbase in REGIONS:
+    if not os.environ.get('PORT_ASM_OBJDUMP'):              # rabbitizer (pip), objdump's text style (port/rab_dis.py; checked identical for all function code)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import rab_dis
+        for lo, hi, vbase in REGIONS: ins.update(rab_dis.disassemble(r[lo:hi], vbase))
+        for lo, hi, vbase in REGIONS:                          # (runs of zero words are left out, as objdump's '...': they are nops)
+            for a in range(vbase, vbase + (hi - lo), 4):
+                if a not in ins: ins[a] = (0, 'nop')
+        return ins
+    for lo, hi, vbase in REGIONS:                           # PORT_ASM_OBJDUMP=1: mips-linux-gnu-objdump in WSL (the original tool)
         path = 'port/build/asm_region_%X.bin' % lo
         open(path, 'wb').write(r[lo:hi])
         p = subprocess.run(['wsl', 'mips-linux-gnu-objdump', '-D', '-b', 'binary', '-mmips:4300', '-EB', '--adjust-vma=0x%X' % vbase, path], capture_output=True, text=True)

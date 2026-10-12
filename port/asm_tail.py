@@ -7,13 +7,18 @@ ROM_LO, ROM_HI, VBASE = 0x1B8100, 0x1BCDA0, 0x44A100
 rom = open('baserom.us.v11.z64', 'rb').read()
 os.makedirs('port/build/asm_extra', exist_ok=True)
 open('port/build/ovl_tail.bin', 'wb').write(rom[ROM_LO:ROM_HI])
-r = subprocess.run(['wsl', 'mips-linux-gnu-objdump', '-D', '-b', 'binary', '-mmips:4300', '-EB', '--adjust-vma=0x%X' % VBASE, 'port/build/ovl_tail.bin'],
-                   capture_output=True, text=True)
-ins = {}
-for l in r.stdout.split('\n'):
-    m = re.match(r'\s*([0-9a-f]+):\s+([0-9a-f]{8})\s+(\S.*)$', l)
-    if m:
-        a = int(m.group(1), 16); ins[a] = (int(m.group(2), 16), m.group(3).strip())
+if os.environ.get('PORT_ASM_OBJDUMP'):                      # the original tool: mips-linux-gnu-objdump in WSL
+    r = subprocess.run(['wsl', 'mips-linux-gnu-objdump', '-D', '-b', 'binary', '-mmips:4300', '-EB', '--adjust-vma=0x%X' % VBASE, 'port/build/ovl_tail.bin'],
+                       capture_output=True, text=True)
+    ins = {}
+    for l in r.stdout.split('\n'):
+        m = re.match(r'\s*([0-9a-f]+):\s+([0-9a-f]{8})\s+(\S.*)$', l)
+        if m:
+            a = int(m.group(1), 16); ins[a] = (int(m.group(2), 16), m.group(3).strip())
+else:                                                       # rabbitizer in objdump's text style (port/rab_dis.py), no WSL needed
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import rab_dis
+    ins = rab_dis.disassemble(rom[ROM_LO:ROM_HI], VBASE)
 words = {a: v[0] for a, v in ins.items()}
 explicit = set(int(x, 16) for x in sys.argv[1:])
 starts = set(explicit)

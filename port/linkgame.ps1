@@ -4,8 +4,7 @@ param([switch]$Fresh)
 $ErrorActionPreference = 'Continue'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $exe = 'port\build\turok_' + (Get-Date -Format 'HHmmss') + '.exe'   # a crashed old instance can keep turok.exe locked
-cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars32.bat" >nul 2>&1 && set' |
-  ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($Matches[1])" -Value $Matches[2] } }
+. "$PSScriptRoot\vcvars.ps1"      # MSVC 32-bit environment (any VS 2022 / 2026 with the C++ tools; TUROK_VCVARS overrides)
 cl /nologo /EHsc /O2 /w /c /Foport\build\win32_main.obj port\win32_main.cpp | Where-Object { $_ -match 'error' }
 cl /nologo /EHsc /O2 /w /c /Foport\build\renderer.obj port\renderer.cpp | Where-Object { $_ -match 'error' }
 $portobjs = @('port\build\renderer.obj')
