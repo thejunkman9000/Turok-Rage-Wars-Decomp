@@ -2,7 +2,8 @@
 # Checks / installs the tools (asks first), prepares Python, asks for your ROM, then builds the game and the controls program.
 # Re-running it is safe: finished steps are skipped and only what changed is rebuilt.
 # Options: -Rebuild (rebuild everything from scratch)  -Yes (answer every question with yes)  -Rom <file> (use this ROM, no dialog)
-param([switch]$Rebuild, [switch]$Yes, [string]$Rom)
+#          -NoInstall (never install anything: stop with a message when a tool is missing)
+param([switch]$Rebuild, [switch]$Yes, [string]$Rom, [switch]$NoInstall)
 $ErrorActionPreference = 'Continue'      # native tools report through exit codes (checked below)
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $root = (Get-Location).Path
@@ -42,13 +43,13 @@ Step 1 'Python 3'
 $pyExe = $null; $pyArgs = @()
 function Try-Py($exe, $pre) {
     if (-not (Have $exe)) { return $false }
-    $v = & $exe @pre -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>$null
-    return ($LASTEXITCODE -eq 0 -and $v -and [version]"$v" -ge [version]'3.9')
+    $v = & $exe @pre -c 'import sys;print(sys.version_info[0]*100+sys.version_info[1])' 2>$null      # (no quotes inside: PowerShell 5.1 strips them)
+    return ($LASTEXITCODE -eq 0 -and $v -and [int]"$v".Trim() -ge 309)
 }
 if (Try-Py 'py' @('-3')) { $pyExe = 'py'; $pyArgs = @('-3') } elseif (Try-Py 'python' @()) { $pyExe = 'python'; $pyArgs = @() }
 if (-not $pyExe) {
     Say 'Python 3.9 or newer was not found.' 'Yellow'
-    if ((Have 'winget') -and (Ask 'Install Python 3.12 now with winget?')) {
+    if (-not $NoInstall -and (Have 'winget') -and (Ask 'Install Python 3.12 now with winget?')) {
         Run 'winget' @('install', '-e', '--id', 'Python.Python.3.12', '--accept-package-agreements', '--accept-source-agreements') 'Installing Python'
         Say 'Python is installed.  Close this window and double-click build.cmd again (Windows needs a new window to find it).' 'Green'
         if (-not $Yes) { Read-Host 'Press Enter to close' | Out-Null }
@@ -72,7 +73,7 @@ function Find-VC {
 $vc = Find-VC
 if (-not $vc) {
     Say 'The Visual Studio C++ build tools were not found.' 'Yellow'
-    if ((Have 'winget') -and (Ask 'Install "Build Tools for Visual Studio 2022" (C++ workload, about 6 GB) now with winget?')) {
+    if (-not $NoInstall -and (Have 'winget') -and (Ask 'Install "Build Tools for Visual Studio 2022" (C++ workload, about 6 GB) now with winget?')) {
         Run 'winget' @('install', '-e', '--id', 'Microsoft.VisualStudio.2022.BuildTools', '--accept-package-agreements', '--accept-source-agreements',
                        '--override', '--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended') 'Installing the build tools'
         $vc = Find-VC
