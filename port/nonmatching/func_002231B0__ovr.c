@@ -53,6 +53,7 @@ void func_002748E0(void *, f32, f32);
 int input_native_active(int port);          /* port/input.c (native host code) */
 int port_human_slot(const void *ctl);       /* port/input.c: the port of a real controller slot, -2 for an AI controller */
 float input_native_get(int port, int what);
+float powf(float, float);
 
 static f32 s_pitch[5];                      /* PORT: mouse-look pitch (degrees, + = up) per controller slot -1..3 */
 
@@ -109,8 +110,10 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
                (invisible bots, NaN animation-event positions -> INT_MIN damage, the "health 265 then dead" bug) */
             s32 port = port_human_slot(p->ctl);
             if (port >= -1 && input_native_active(port)) {
-                f32 dyaw = input_native_get(port, 2);
-                f32 dtilt = input_native_get(port, 3);
+                /* the game's own speed sliders (options: turn speed b79, look speed b7A, 0..255, centre 128) scale the mouse too:
+                   1/8 x at 0, 1 x at the centre, 8 x at the top (x controls.ini mouse_sens_x / _y) */
+                f32 dyaw = input_native_get(port, 2) * powf(8.0f, ((f32) st->b79 - 128.0f) / 128.0f);
+                f32 dtilt = input_native_get(port, 3) * powf(8.0f, ((f32) st->b7A - 128.0f) / 128.0f);
                 f32 t;
                 if ((h == ((void *) 0)) || ((h->flags & 0x6000) != 0x2000)) {
                     a->ang = a->ang + dyaw * 0.017453294f;
