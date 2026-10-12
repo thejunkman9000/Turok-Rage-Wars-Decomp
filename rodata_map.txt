@@ -333,6 +333,7 @@ guMtxF2L 0xCD6DC 4
 guMtxL2F 0xCD6E0 4
 guPerspective 0xCD6F0 48
 osAiSetFrequency 0xCD770 16
+__osDevMgrMain 0xCD780 32
 osEPiRawReadIo 0xCD7A0 20
 osPiRawReadIo 0xCD7C0 20
 __osSiRawStartDma 0xCD7E0 20

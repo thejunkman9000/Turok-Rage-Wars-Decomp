@@ -63,7 +63,6 @@ osDriveRomInit 0xBF560 53 libultra
 __osContAddressCrc 0xBE910  18  libultra
 __osContDataCrc    0xBE958  24  libultra
 __osContRamRead    0xBE190 140  libultra
-__osDevMgrMain     0xBED00 232  libultra
 __osPackRamReadData 0xBE3C0 98 libultra
 __osPackRamWriteData 0xBE770 102 libultra
 __osSiRawStartDma  0xBF9A0  46  libultra ro=0xCD7E0:20
@@ -3198,3 +3197,5 @@ init_lpfilter 0xBA35C 39 libultra mode=sn ro=0xCD438:16
 pad_0BA3F8 0xBA3F8 2 libultra
 alEnvmixerPull 0xBA400 756 libultra mode=sn ro=0xCD450:272
 alAuxBusPull 0xBB0D0 80 libultra mode=sn
+__osDevMgrMain 0xBED00 230 libultra ro=0xCD780:32
+pad_0BF098 0xBF098 2 libultra

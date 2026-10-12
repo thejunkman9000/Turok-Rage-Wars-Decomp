@@ -1,13 +1,14 @@
 #include "common.h"
-
-#ifdef NON_MATCHING
 s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer) {
     s32 ret;
     int i;
     u8 *ptr;
     __OSContRamReadFormat ramreadformat;
-    int retry = 2;
+    int retry;
 
+    ret = 0;
+    ptr = (u8 *)&__osPfsPifRam;
+    retry = 2;
     __osSiGetAccess();
     __osContLastCmd = 2;
     __osPackRamReadData(channel, address);
@@ -49,6 +50,3 @@ s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer) {
 
     return ret;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/libultra/__osContRamRead", __osContRamRead);
-#endif
