@@ -271,6 +271,14 @@ void input_poll_begin(void) {
  * view by exactly the motion (MOUSE_DEG_PER_COUNT x sensitivity), the C-button inputs (W A S D in kbm_fps, the left stick in the xbox layout) walk and strafe. */
 static int nat_port(int port) { if (port < 0 || port >= MAX_PLAYERS) port = g_mouse_player >= 0 ? g_mouse_player : 0; return port; }    /* port -1 = the game's merged controller */
 int input_native_active(int port) { return g_nat[nat_port(port)].active; }
+/* the game's controller objects are 0x224 bytes each from 0x8010F328 (slot n = port n, slot -1 = the merged controller of a 1-player game).  An actor whose
+   controller pointer is one of them is steered by a person; bots carry an AI controller object elsewhere (0x8010EEB8 ...).  Returns the port, or -2. */
+int port_human_slot(const void *ctl) {
+    unsigned a = (unsigned)(size_t)ctl, base = 0x8010F328u;
+    if (a + 0x224u < base + 0x224u - 0x224u || a + 0x224u >= base + 4 * 0x224u + 0x224u) return -2;
+    if ((a + 0x224u - base) % 0x224u) return -2;
+    return (int)((a + 0x224u - base) / 0x224u) - 1;
+}
 float input_native_get(int port, int what) {        /* 0 walk (-1..1), 1 strafe (-1..1, + = right), 2 yaw degrees since the last call (+ = right), 3 tilt degrees since the last call (+ = down) */
     NativeIn *n = &g_nat[nat_port(port)]; float v = 0;
     if (!g_cs_ready) return 0;

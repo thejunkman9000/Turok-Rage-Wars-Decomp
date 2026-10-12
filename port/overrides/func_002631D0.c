@@ -27,6 +27,7 @@ extern f32 D_800D2988;
 extern R05PadMap D_800D0DB0[];
 f32 func_00274810(f32 a, f32 b, R05PadMap *tab, R05PadCtl *c);
 int input_native_active(int port);          /* port/input.c (native host code) */
+int port_human_slot(const void *ctl);       /* port/input.c: the port of a real controller slot, -2 for an AI controller */
 float input_native_get(int port, int what);
 void func_002631D0(R05PadOut *s, R05PadOwn *ow)
 {
@@ -265,8 +266,8 @@ void func_002631D0(R05PadOut *s, R05PadOwn *ow)
   {   /* PORT: native keyboard / mouse controls (port/input.c, native_controls).  The C-button inputs walk and strafe whatever the control style (they are taken
        * out of the pad data the game sees), and the view tilt belongs to the mouse: the game's look spring (style 0) and C-button tilt / auto-centring (style 1)
        * would pull it back every frame.  The pad stick keeps tilting in style 0. */
-    s32 port = (c != 0) ? (s32)((s8 *)c)[4] : -1;
-    if (input_native_active(port)) {
+    s32 port = port_human_slot(c);                       /* bots' AI controller objects are not controller slots: no native input for them */
+    if (port >= -1 && input_native_active(port)) {
       f32 v;
       if (cfg->mode == 1) {
         s->f4 = keep;

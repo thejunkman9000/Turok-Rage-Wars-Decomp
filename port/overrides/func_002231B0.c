@@ -51,6 +51,7 @@ typedef struct B05Hit10 {
 B05Hit10 *func_0024E7CC(B05A10 *);
 void func_002748E0(void *, f32, f32);
 int input_native_active(int port);          /* port/input.c (native host code) */
+int port_human_slot(const void *ctl);       /* port/input.c: the port of a real controller slot, -2 for an AI controller */
 float input_native_get(int port, int what);
 
 void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
@@ -96,8 +97,11 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
         }
         func_002748E0(&p->f724, x * 0.017453294f, spd);
         {   /* PORT: native mouse look (port/input.c, native_controls): turn by exactly the mouse motion, tilt the view to an exact angle */
-            s32 port = p->ctl != 0 ? p->ctl->port : -1;
-            if (input_native_active(port)) {
+            /* only actors driven by a real controller slot (0x8010F328 + 0x224 * n, n = -1 merged .. 3): bots carry their own AI controller object
+               (e.g. 0x8010EEB8, whose port byte reads 0) and must never get the mouse - they were turned by the player's mouse and ended with NaN angles
+               (invisible bots, NaN animation-event positions -> INT_MIN damage, the "health 265 then dead" bug) */
+            s32 port = port_human_slot(p->ctl);
+            if (port >= -1 && input_native_active(port)) {
                 f32 dyaw = input_native_get(port, 2);
                 f32 dtilt = input_native_get(port, 3);
                 f32 t;

@@ -9,7 +9,9 @@ and the decompiled C reads/writes them through ordinary C pointers and struct fi
 Initialised constant arrays defined in the module are byte-swapped at rewrite time.
 
 usage: python be_ir.py in.ll out.ll"""
-import re, sys, struct
+import re, sys, struct, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import byval_ir
 
 ALIGN1_RAW = False      # native helper modules (RNC decoder ...) compose little-endian words from bytes: unaligned loads stay raw
 INT_BITS = {'i16': 16, 'i32': 32, 'i64': 64}
@@ -212,6 +214,8 @@ def rewrite(text):
     text = re.sub(r'(load|store) atomic volatile', r'\1 volatile', text)
     text = re.sub(r' (?:acquire|release|seq_cst|monotonic|unordered|acq_rel)(?=, align)', '', text)
     text = re.sub(r'(load|store) atomic ', r'\1 ', text)
+    if not os.environ.get('PORT_NO_BYVAL'):     # experiment switch: the old mixed conventions
+        text = byval_ir.rewrite(text)      # struct-by-value arguments as native words whatever the field types (port/byval_ir.py)
     lines = text.split('\n')
     defined = {m.group(1) for m in (DEF_GLOBAL.match(l) for l in lines) if m}
     used = set()

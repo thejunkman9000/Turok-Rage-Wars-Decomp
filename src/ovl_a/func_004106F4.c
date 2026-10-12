@@ -21,7 +21,7 @@ extern s32 func_802A0E8C_de(void *header, void *name);
 extern void func_802A0EB0_de(s32 file);
 extern void func_802A0ED4_de(void *buffer, s32 size, s32 count, s32 file);
 extern void func_802A0F60_de(s32 file, s32 offset, s32 whence);
-extern void func_802A18CC_de();
+extern f64 func_802A18CC_de();
 extern s32 func_802A1934_de(void);
 extern void func_804133E4_de(s32 id);
 extern void func_80413720_de(s32 id, s32 format, s16 width, s16 height, s32 stride, s32 rows, s32 a6, s32 size,

@@ -309,4 +309,35 @@ word into PIF RAM and reports no controller pak), screen ids read from RAM (`0x8
   MIPS code (chk EXACT, ROM byte-identical).  Found by twinning the AI code range (bots move) and an automatic minimisation (wip/bisect_ai.py, port/demomove.ps1 =
   attract-demo camera samples).  Worth a project-wide scan: other non-void functions without a return statement whose callers use the result.
 - Test note: the pak delete dialog ignores a 0.1 s stick tap now that the settings are initialised; paktest's YES press holds 0.4 s (173 passed, 0 failed).
-- Open: in the trial the health display can jump to 265 just before a death (real game: 100 -> 41 -> 6); not investigated yet.
+- Health 265 then dead, and silent weapons: fixed, see the next section.
+
+## Gameplay: health 265 then dead, silent weapons (2026-10-12)
+Both came from float values going NaN; the damage of an area effect is `(s32)(dmg * NaN)` = INT_MIN on x86 (the MIPS conversion would not even run: the
+game never makes these NaNs), so the health went to 0x4CCD... (shown as 265) and the player died; the weapon's fire sounds were placed at a NaN position.
+Traced with `TUROK_HWWATCH=<addr>` (x86 debug-register write watchpoint in game_glue.c, logs every NaN store with its writer and a backtrace;
+`TUROK_HWWATCH_ALL=1` logs every store): area damage <- animation-event position (func_002476B8) <- the player's weapon matrix (func_0022F5D0)
+<- the view camera's quaternion (func_002349B0) <- the camera yaw (func_00220A5C) <- the player's facing angle, written NaN by the native mouse look.
+- **Native controls drove the bots.**  The mouse-look / walk overrides (func_002231B0, func_002631D0) took the port number from the controller object's byte;
+  bots carry their own AI controller (e.g. 0x8010EEB8) whose byte reads 0, so the mouse turned the bots too.  `port_human_slot()` (port/input.c) accepts only the
+  real controller slots 0x8010F328 + 0x224 * n.
+- **x87 stack leaks.**  32-bit x86 returns float / double in st(0).  A call through a prototype that says `void` never pops it; after eight leaks every float
+  result is the indefinite NaN FFC00000 - which then appears anywhere (bot angle, player angle, camera), and moves with unrelated code changes.  The AI path code
+  (func_0021111C / 00211470 / 00211A7C / 00212088) called the float function func_00209308 as void, so the leaks started once the AI ran.  Also fixed:
+  func_00272768 (func_00209948), func_002745D4 (func_00284844), func_002A28CC (f64, overlay A), func_0024D388 (a draft).  Prototype-only changes, ROM still
+  byte-identical.  `python wip/scan_fpret.py` lists every definition / prototype pair whose float-ness differs (the `ar_` twins and `zd_dt_table.c` lines are not
+  calls through the wrong type); game_glue.c checks the FPU tag word on every state-dispatcher call and logs `x87: N register(s) left on the FPU stack` with a trace
+  (then empties it), so a leak through a function pointer shows up at run time; `TUROK_X87ENTRY=1` checks at every function entry (the
+  -finstrument-functions hook) and names the exact call site of the leak.  That found the last one: overlay A's texture loader
+  func_004106F4 called func_002A28CC (f64) under its alias name func_802A18CC_de as void; wip/scan_fpret.py resolves alias names
+  through port/gen/alias.rsp now.
+- **Struct-by-value arguments.**  clang (x86-windows-msvc) passes a struct with only 32-bit fields as separate native scalars and any other struct as a `byval`
+  copy in (big-endian) memory.  The game's sources declare the same 8-byte argument differently on the two sides (`{s32 a, b}` in func_002476B8, `{s16 a, b; s32 c}`
+  in the sound handler func_00267324): the fire event's key 0x00000655 arrived as sound id 0.  port/byval_ir.py (run by be_ir.py) turns every byval struct argument
+  into one native i32 per word at call sites and definitions, so both conventions pass the same words.  The oracle (Project64 `events.onexec` on the TLB-mapped code
+  addresses 0x00257DF4 / 0x00267324 while firing) shows the real game's ids 0x654 / 0x655 / 0x656; the port now starts them.
+  Exception: the 11 functions in port/recomp_structargs.txt (40-byte UI context by value) and calls through pointers carrying a 40-byte
+  struct keep the old big-endian image, because the recompiler byte-swaps those words for them (mips2c STRUCTARGS); converting them broke
+  the Controller Pak hot-swap screen.  Bisecting aids: `PORT_NO_BYVAL=1`, `PORT_BYVAL_SKIP=<regex,...|INDIRECT>`, `PORT_BYVAL_LOG=<file>`
+  (each needs `build_clang.py --all`).
+- Verified: health counts down 100 -> 86 -> ... -> 0 and respawns at 100 against the bot (TUROK_HWWATCH_ALL on 0x80692B84), no NaN events, no x87 reports,
+  attract-demo motion test 6 of 8 distinct positions.

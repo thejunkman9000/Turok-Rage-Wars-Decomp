@@ -15,7 +15,7 @@ extern f32 D_800C709C;
 extern Vec3f D_800CDAF0[];
 extern HitRec *D_80103FCC;
 f32 func_0024E454(void);
-void func_0024D388(ActorB *a);
+f32 func_0024D388(ActorB *a);
 f32 func_0024D274(ActorB *a);
 f32 func_0024E410(ActorB *a);
 s32 func_0024490C(ActorB *a, Vec3f from, Vec3f to, TraceInfo *info, f32 p0, f32 p1, f32 p2, f32 p3);

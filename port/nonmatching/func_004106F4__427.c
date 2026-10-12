@@ -13,7 +13,7 @@ s32 func_002A1E8C(void *obj, char *name);
 void func_002A1EB0(s32 h);
 void func_002A1ED4(void *buf, s32 n, s32 c, s32 h);
 void func_002A1F60(s32 h, s32 off, s32 z);
-void func_002A28CC();
+f64 func_002A28CC();
 s32 func_002A2934();
 void func_00413464(s32 a);
 void func_004137A0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, s32 h, void *i, s32 j, s32 k, void *l, s32 m);

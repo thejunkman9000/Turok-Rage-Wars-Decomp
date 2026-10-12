@@ -49,7 +49,7 @@ extern s32 D_801539B0[];
 extern u8 D_800E10E0[];
 
 s32 func_002A2934(void);
-void func_002A28CC(void);
+f64 func_002A28CC(void);
 void func_00413464(void *p);
 void func_00413484(void *p);
 void func_00419510(void *p);

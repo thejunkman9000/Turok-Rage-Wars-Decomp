@@ -126,7 +126,24 @@ void __cdecl port_trace_enter(unsigned ret) {
     LONG i = InterlockedIncrement(&g_trace_pos) & (TRACE_N - 1);
     g_trace[i][0] = GetCurrentThreadId(); g_trace[i][1] = ret;
 }
-void __cdecl __cyg_profile_func_enter(void *fn, void *site) { port_trace_enter((unsigned)(size_t)fn + 1); (void)site; }
+/* TUROK_X87ENTRY=1: the x87 stack must be empty at every function entry; report the call site that enters a function with values left
+   on it (the caller leaked a float result: a float-returning function called through a non-float prototype or function pointer). */
+static int g_x87entry = -1;
+void __cdecl __cyg_profile_func_enter(void *fn, void *site) {
+    port_trace_enter((unsigned)(size_t)fn + 1);
+    if (g_x87entry) {
+        unsigned short env[14]; static volatile LONG nrep;
+        if (g_x87entry < 0) { char e[4]; g_x87entry = GetEnvironmentVariableA("TUROK_X87ENTRY", e, sizeof e) ? 1 : 0; if (!g_x87entry) return; }
+        __asm { fnstenv env }
+        __asm { fldcw word ptr env }
+        if (env[4] != 0xFFFF) {
+            size_t b = (size_t)GetModuleHandleA(NULL);
+            if (InterlockedIncrement(&nrep) <= 40) { fprintf(stderr, "x87entry: tag %04X entering rva %zX from call site rva %zX\n", env[4], (size_t)fn - b, (size_t)site - b); fflush(stderr); }
+            __asm { fninit }
+            __asm { fldcw word ptr env }
+        }
+    }
+}
 void __cdecl __cyg_profile_func_exit(void *fn, void *site) { (void)fn; (void)site; }
 static void dump_trace(int n) {
     size_t base = (size_t)GetModuleHandleA(NULL);
@@ -420,7 +437,24 @@ static LONG WINAPI early_crash(EXCEPTION_POINTERS *ep) {
 void __cdecl port_entry(void) { AddVectoredExceptionHandler(1, early_crash); WinMainCRTStartup(); }
 
 void port_dump_state_tables(void);
+/* x87 stack check (game thread, once per state-dispatcher call): float / double results come back in st(0) on 32-bit x86, so a call through a
+   prototype that says the callee returns nothing (or an int) leaves the value on the stack.  Eight leaks fill it and from then on every float
+   result is the indefinite NaN FFC00000 (bots and the player ended with NaN angles: health 265 then dead, silent weapons).  Between two
+   dispatcher calls the stack must be empty; a leak is reported (with the trace) and the stack emptied so the game keeps running. */
+static void port_x87_check(void) {
+    unsigned short env[14]; static int x87n;
+    __asm { fnstenv env }                                                 /* MSVC x86 inline assembly (this file is built with cl) */
+    __asm { fldcw word ptr env }                                          /* fnstenv masks every exception: put the control word back */
+    if (env[4] != 0xFFFF) {                                                  /* tag word: 11 = empty, for every register */
+        if (x87n++ < 20) { int k, used = 0; for (k = 0; k < 8; k++) used += ((env[4] >> (2 * k)) & 3) != 3;
+            fprintf(stderr, "x87: %d register(s) left on the FPU stack (tag %04X): a float-returning function was called through a non-float prototype\n", used, env[4]); dump_trace(14); fflush(stderr); }
+        __asm { fninit }                                                   /* empty it, keep the control word (precision, rounding) */
+        __asm { fldcw word ptr env }
+    }
+}
+
 void port_log_state(void *gp, int st, void *fn) {
+    port_x87_check();
     static int n, last = -1;
     InterlockedIncrement(&g_game_ticks);
     if (st != last || (++n % 300) == 0) { fprintf(stderr, "game state: g=%p st=%d fn_rva=%X\n", gp, st, (unsigned)((size_t)fn - (size_t)GetModuleHandleA(NULL))); fflush(stderr); }
@@ -435,7 +469,10 @@ void port_dbg_words(const char *what, void *p, int n, int h) { int i; fprintf(st
 void port_dump_state_tables(void) { int i; unsigned base = (unsigned)(size_t)GetModuleHandleA(NULL); fprintf(stderr, "state tables (init / update):\n");
     for (i = 0; i < 26; i++) { unsigned a = be32((void *)(0x800D29D8 + i * 12)), b = be32((void *)(0x800D29DC + i * 12)); fprintf(stderr, "  st %d: init=%X update=%X\n", i, a ? a - base : 0, b ? b - base : 0); } fflush(stderr); }
 
-void port_rnc_log(const char *what, const void *src, void *dst, int packed, int unpacked, int produced) { static int n; if (n++ < 40 || what[4] != 0x20) { const unsigned char *s = (const unsigned char *)src; fprintf(stderr, "%s: src=%p [%02X %02X %02X %02X %02X %02X] dst=%p packed=%d unpacked=%d produced=%d\n", what, src, s[0], s[1], s[2], s[3], s[4], s[5], dst, packed, unpacked, produced); fflush(stderr); } }
+static unsigned g_hw_addr; static volatile LONG g_hw_logs;
+void port_rnc_log(const char *what, const void *src, void *dst, int packed, int unpacked, int produced) { static int n; unsigned d = (unsigned)(size_t)dst;
+    int hit = g_hw_addr && g_hw_addr - d < (unsigned)unpacked;   /* TUROK_HWWATCH: also every unpack whose output covers the watched word */
+    if (n++ < 40 || what[4] != 0x20 || hit) { const unsigned char *s = (const unsigned char *)src; fprintf(stderr, "%s: src=%p [%02X %02X %02X %02X %02X %02X] dst=%p packed=%d unpacked=%d produced=%d\n", what, src, s[0], s[1], s[2], s[3], s[4], s[5], dst, packed, unpacked, produced); fflush(stderr); } }
 
 /* A code pointer that lands on a bare `jr $ra` (the tail of the previous function, used as a "do nothing, return 0" callback). */
 static unsigned port_ret0(void) { return 0; }
@@ -479,9 +516,49 @@ int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnv
 
 void port_bt(void) { unsigned *sp = (unsigned *)&sp; int i, k = 0; size_t b = (size_t)GetModuleHandleA(NULL); unsigned *top = (unsigned *)((NT_TIB *)NtCurrentTeb())->StackBase; fprintf(stderr, "  bt:"); for (i = 0; i < 400 && k < 14 && sp + i < top; i++) if (sp[i] > b + 0x1000 && sp[i] < b + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - b); k++; } fprintf(stderr, "\n"); }
 
+/* TUROK_HWWATCH=8069C954: x86 hardware write watchpoint (debug register DR0, 4 bytes) on a guest word in every thread of the process; each write
+   that stores a float NaN (big-endian 7F/FF followed by a byte >= 0x80) is logged with the writing instruction's rva and a backtrace
+   (TUROK_HWWATCH_ALL=1: every write, first 200).  Exact writer, unlike TUROK_WATCH which polls once per tick. */
+
+static LONG WINAPI hw_watch_handler(EXCEPTION_POINTERS *ep) {
+    if (ep->ExceptionRecord->ExceptionCode != 0x80000004u || !(ep->ContextRecord->Dr6 & 1)) return EXCEPTION_CONTINUE_SEARCH;
+    {
+        const unsigned char *b = (const unsigned char *)(size_t)g_hw_addr;
+        int nan = (b[0] == 0x7F || b[0] == 0xFF) && b[1] >= 0x80 && (b[1] & 0x7F || b[2] || b[3] || b[1] > 0x80);
+        static int all = -1; if (all < 0) all = getenv("TUROK_HWWATCH_ALL") ? 1 : 0;
+        if ((nan || all) && InterlockedIncrement(&g_hw_logs) <= (all ? 200 : 20)) {
+            size_t base = (size_t)GetModuleHandleA(NULL);
+            fprintf(stderr, "HWWATCH %08X <- %02X %02X %02X %02X%s by rva %zX (thread %lX)\n", g_hw_addr, b[0], b[1], b[2], b[3], nan ? " NaN" : "",
+                    (size_t)ep->ContextRecord->Eip - base, GetCurrentThreadId());
+            { unsigned *sp = (unsigned *)(size_t)ep->ContextRecord->Esp; int i, k = 0; fprintf(stderr, "  bt:"); for (i = 0; i < 600 && k < 14; i++) { __try { if (sp[i] > base + 0x1000 && sp[i] < base + 0x600000 && *(unsigned char *)(size_t)(sp[i] - 5) == 0xE8) { fprintf(stderr, " %zX", sp[i] - base); k++; } } __except (EXCEPTION_EXECUTE_HANDLER) { break; } } fprintf(stderr, "\n"); }
+            fflush(stderr);
+        }
+    }
+    ep->ContextRecord->Dr6 = 0;
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+static void hw_watch_arm(void) {
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0); THREADENTRY32 te; te.dwSize = sizeof te;
+    if (snap == INVALID_HANDLE_VALUE) return;
+    if (Thread32First(snap, &te)) do {
+        if (te.th32OwnerProcessID != GetCurrentProcessId() || te.th32ThreadID == GetCurrentThreadId()) continue;
+        { HANDLE h = OpenThread(THREAD_GET_CONTEXT | THREAD_SET_CONTEXT | THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
+          if (!h) continue;
+          if (SuspendThread(h) != (DWORD)-1) {
+              CONTEXT c; c.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+              if (GetThreadContext(h, &c)) { c.Dr0 = g_hw_addr; c.Dr7 = (c.Dr7 & ~0x000F0003u) | 1u | (1u << 16) | (3u << 18); SetThreadContext(h, &c); }
+              ResumeThread(h);
+          }
+          CloseHandle(h); }
+    } while (Thread32Next(snap, &te));
+    CloseHandle(snap);
+}
+
 /* TUROK_WATCH=80153C18: log changes of a guest word (polled every tick) with the recent call trace */
 void port_watch_tick(void) {
     static unsigned addr, last; static int init;
+    { static int hinit, n; if (!hinit) { char e[16]; hinit = 1; if (GetEnvironmentVariableA("TUROK_HWWATCH", e, sizeof e)) { g_hw_addr = (unsigned)strtoul(e, NULL, 16); AddVectoredExceptionHandler(1, hw_watch_handler); } }
+      if (g_hw_addr && (n++ % 120) == 0) hw_watch_arm(); }   /* re-arm now and then: threads created later get the watchpoint too */
     if (!init) { char e[16]; init = 1; if (GetEnvironmentVariableA("TUROK_WATCH", e, sizeof e)) addr = (unsigned)strtoul(e, NULL, 16); }
     if (!addr) return;
     { unsigned v = *(volatile unsigned *)(size_t)addr; if (v != last) { fprintf(stderr, "WATCH %08X: %08X -> %08X (raw bytes %02X %02X %02X %02X)\n", addr, last, v, ((unsigned char *)(size_t)addr)[0], ((unsigned char *)(size_t)addr)[1], ((unsigned char *)(size_t)addr)[2], ((unsigned char *)(size_t)addr)[3]); last = v; dump_trace(14); fflush(stderr); } }

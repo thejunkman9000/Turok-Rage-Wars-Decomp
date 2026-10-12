@@ -15,7 +15,7 @@ extern s32 D_800E2AC4;
 extern char D_800E10E0[];
 void func_002A1724(void *d, void *s, s32 n);
 void func_0040F75C(void *a, void *b, s32 n);
-void func_002A28CC(void);
+f64 func_002A28CC(void);
 void *func_00252FFC(s32 n);
 s32 func_002A1E8C(void *obj, char *name);
 void func_002A1F60(s32 h, s32 off, s32 z);

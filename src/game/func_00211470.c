@@ -29,7 +29,7 @@ void func_00211020(B2Ctl *ctl);
 s32 func_002099B4(B2Ctl *ctl, B2Actor *t);
 f32 func_00209BE0(B2Ctl *ctl);
 s32 func_00274544();
-void func_00209308(B2Ctl *ctl, Vec3f *p, f32 a, f32 f);
+f32 func_00209308(B2Ctl *ctl, Vec3f *p, f32 a, f32 f);
 f32 func_00209DAC(B2Ctl *ctl);
 f32 func_0027272C(Vec3f *a, Vec3f *b);
 s32 func_00210EFC(f32 a);
