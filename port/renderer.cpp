@@ -561,6 +561,20 @@ static void fillRect(int x0, int y0, int x1, int y1) {      // screen pixels (in
         flush(); g_zclear = 0;
         return;
     }
+    {   // 1-cycle / 2-cycle rectangles go through the colour combiner and the blender on the RDP (only FILL mode writes the fill colour): the
+        // boss shield / health bars are G_FILLRECTs with a PRIM combiner and came out in the (black) fill colour
+        int cycle = (S.omH >> 20) & 3;
+        if (cycle == 0 || cycle == 1) {
+            uint32_t sg = S.geom, sl = S.omL; int st = S.texOn; S.geom &= ~1u; S.omL &= ~0x4000u; S.texOn = 0;
+            setupState(0);
+            S.geom = sg; S.omL = sl; S.texOn = st;
+            float fx0 = x0 / SCREEN_W * 2 - 1, fx1 = (x1 + 1) / SCREEN_W * 2 - 1, fy0 = 1 - y0 / SCREEN_H * 2, fy1 = 1 - (y1 + 1) / SCREEN_H * 2;
+            Vtx q[4]; for (int i = 0; i < 4; i++) { q[i].z = 0; q[i].w = 1; q[i].r = q[i].g = q[i].b = q[i].a = 1; q[i].u = q[i].v = 0; }
+            q[0].x = fx0; q[0].y = fy0; q[1].x = fx1; q[1].y = fy0; q[2].x = fx1; q[2].y = fy1; q[3].x = fx0; q[3].y = fy1;
+            batch.push_back(q[0]); batch.push_back(q[1]); batch.push_back(q[2]); batch.push_back(q[0]); batch.push_back(q[2]); batch.push_back(q[3]);
+            return;
+        }
+    }
     if (x0 <= 0 && y0 <= 0 && x1 >= SCREEN_W - 1 && y1 >= SCREEN_H - 1) { flush(); float c[4] = { r, g, b, 1 }; ctx->ClearRenderTargetView(rtv, c); return; }
     DState save = cur; bool sv = curValid;
     uint32_t sg = S.geom, sl = S.omL; S.geom &= ~1u; S.omL &= ~0x4000u;

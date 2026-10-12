@@ -512,6 +512,7 @@ unsigned port_unresolve(unsigned host) {
 
 void port_dump_trace_pub(int n) { dump_trace(n); }
 
+int port_arena_type(void) { char e[32], *t; if (!GetEnvironmentVariableA("TUROK_ARENA", e, sizeof e)) return -1; t = strchr(e, 0x74); return t ? atoi(t + 1) : -1; }   /* TUROK_ARENA=n[tT][@k]: also pin the type T (3 = boss trials) */
 int port_arena_from(void) { char e[32], *at; if (!GetEnvironmentVariableA("TUROK_ARENA", e, sizeof e)) return 1; at = strchr(e, 0x40); return at ? atoi(at + 1) : 1; }   /* TUROK_ARENA=n@k: pin from the k-th arena choice (port/overrides/func_0042EB80.c) */
 int port_skip_menu(void) { static int v = -1; if (v < 0) { char e[4]; v = GetEnvironmentVariableA("TUROK_SKIPMENU", e, sizeof e) ? 1 : 0; } return v; }
 
