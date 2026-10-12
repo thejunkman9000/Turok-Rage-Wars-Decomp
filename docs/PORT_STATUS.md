@@ -372,3 +372,17 @@ of those polls and handed it over in one frame (a steady 0.44 deg/frame turn sho
 applied during such frames, so the mouse look now takes the motion of at most the last 4 controller polls (port/input.c, input_native_get);
 older motion is dropped.  Measured: max 1.76 deg/frame for the same input.  Test runs ignore the real mouse (only `mouse` / `mousebg` motion), and
 the game thread reports `game stall: N ms between game frames` during gameplay when its frame loop stops for > 50 ms.
+
+## One-step build: build.cmd (2026-10-12)
+`build.cmd` (-> `port/setup_build.ps1`) builds the port from a fresh clone: checks Python 3.9+ and the Visual Studio C++ tools (offers winget installs,
+asks first; `-NoInstall` never installs, `-Yes` answers yes, `-Rom <file>`, `-Rebuild`), makes `.venv` with pinned packages (splat64 0.50.0,
+spimdisasm 1.42.4, rabbitizer 1.16.2, crunch64 0.6.2, PyYAML 6.0.3, ziglang 0.16.0), checks / converts the ROM (.z64/.n64/.v64, SHA-1), runs splat +
+fix_asm, `port/regen.py --asm --all`, `port/build_config.ps1`.  Verified on a fresh clone (game reaches the level).  Changes it needed:
+- No WSL: `port/rab_dis.py` formats rabbitizer's disassembly exactly like `mips-linux-gnu-objdump` (all 454,504 words of the code regions
+  identical, the regenerated port/build/asm_func and asm_extra byte-identical, zero runs of 8+ bytes left out like objdump's '...');
+  asm_all.py / asm_tail.py use it unless `PORT_ASM_OBJDUMP=1`.
+- `port/vcvars.ps1` finds any VS 2022 / 2026 with the C++ tools through vswhere (`TUROK_VCVARS` overrides); the build scripts used a fixed
+  VS 2026 Build Tools path.
+- `port/regen.py` runs `port/gen_fnptrs.py`: port/gen is not in git, and a fresh checkout linked without the guest-address -> host-function
+  table (port_fn_table became a link stub; the exe crashed at start).
+- Python detection: PowerShell 5.1 strips the quotes inside arguments to native programs (`python -c "..."`): the check uses quote-free code.

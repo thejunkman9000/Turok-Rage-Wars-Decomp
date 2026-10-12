@@ -13,25 +13,47 @@ The port (`port/`) runs Turok: Rage Wars natively on Windows: Direct3D 11 render
 input with a mapping program, and virtual Controller Paks (memory cards) for your saves.  It runs all
 the menus through to 1-4 player matches (split screen, bots).
 
+<p align="center"><img src="docs/media/gameplay.gif" alt="PC port gameplay: weapon wheel, a raptor attacks" width="480"></p>
+
+| | |
+|:-:|:-:|
+| <img src="docs/media/menu.png" alt="Main menu" width="380"> | <img src="docs/media/select.png" alt="Character select" width="380"> |
+| Main menu | Character select |
+| <img src="docs/media/shotgun.png" alt="1 Player Trials, firing the shotgun" width="380"> | <img src="docs/media/wheel.png" alt="Weapon wheel, picked with the mouse" width="380"> |
+| 1 Player Trials | Weapon wheel (mouse picks the weapon) |
+| <img src="docs/media/boss.png" alt="Boss fight against Bastille with shield and health bars" width="380"> | <img src="docs/media/briefing.png" alt="Trial briefing" width="380"> |
+| Boss: Bastille | Trial briefing |
+
+*Screenshots and GIF taken from the PC port (rendered at 1920x1440, scaled down).*
+
 **No game data is included.**  You need your own ROM of *Turok: Rage Wars* (USA, version 1.1, 8 MB; `.z64`, `.n64` or `.v64`
 all work).  The port checks the file and refuses other releases or a damaged dump.  The PC port runs USA v1.1 only; the other
 releases are covered by the decompilation, not by the port yet.
 
 ### 1. Build it
 
-You need, once:
-- Windows 10 or 11.
-- **Visual Studio 2026 Build Tools** with the *Desktop development with C++* workload (the scripts look for
-  `C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools`).
-- **Python 3** with `pip install ziglang` (zig's clang compiles the game code), and the project's venv for splat:
-  `python -m venv .venv; .venv\Scripts\pip install splat64[mips]`.
+**The easy way:** double-click **`build.cmd`** in the project folder.  It checks the tools it needs and offers to install
+what is missing (Python 3 and the Visual Studio C++ build tools, through winget; it asks first), sets up its own Python
+environment in `.venv`, asks for your ROM (a file dialog; `.z64`, `.n64` and `.v64` are fine, it is checked and converted),
+and builds the game and the controls program.  The first build takes 20-40 minutes, later ones a few minutes.  Everything
+it does is logged in `build.log`.  Run it again after `git pull` to update; `build.cmd -Rebuild` starts from scratch.
 
-Then, in PowerShell from the project folder:
+What it needs (installed for you if you agree):
+- Windows 10 or 11.
+- **Python 3.9+** (python.org or `winget install Python.Python.3.12`).
+- **Visual Studio 2022 or 2026** (Build Tools or Community) with the *Desktop development with C++* workload.
+- No WSL: the disassembly the port is built from is made with `rabbitizer` (port/rab_dis.py, checked identical to the
+  `mips-linux-gnu-objdump` output it replaced; `PORT_ASM_OBJDUMP=1` still uses objdump in WSL).
+
+By hand (what build.cmd does), in PowerShell from the project folder:
 ```
-.venv\Scripts\python -m splat split turok_ragewars.yaml   # disassembly the port recompiles (only on a fresh checkout)
+python -m venv .venv
+.venv\Scripts\pip install splat64[mips]==0.50.0 spimdisasm==1.42.4 rabbitizer==1.16.2 crunch64==0.6.2 PyYAML==6.0.3 ziglang==0.16.0
+$env:PATH = "$PWD\.venv\Scripts;$env:PATH"                 # the build scripts call "python -m ziglang"
+.venv\Scripts\python -m splat split turok_ragewars.yaml   # needs baserom.us.v11.z64 in the project folder
 .venv\Scripts\python tools\fix_asm.py
-python port\regen.py --asm                                # builds the whole game (the first build takes 20+ minutes; later: python port\regen.py)
-powershell -File port\build_config.ps1                    # builds the controls program turok_controls.exe
+python port\regen.py --asm --all                          # the whole game (later: python port\regen.py)
+powershell -File port\build_config.ps1                    # the controls program turok_controls.exe
 ```
 The game ends up in `port\build\` (the newest exe is named in `port\build\latest_exe.txt`).
 
@@ -133,7 +155,7 @@ a port holds one accessory, as on the console; vibration needs an XInput pad).  
 
 ### Troubleshooting
 
-- **"No build yet"** from play.cmd: run `python port\regen.py` (step 1).
+- **"No build yet"** from play.cmd: run `build.cmd` (step 1).
 - **The ROM is refused**: the message names what the file is; the port needs USA v1.1 (SHA-1 `037fb397...d88a`).
 - **A gamepad does nothing**: start `turok_controls.exe` and look at the General tab's device list, or run
   `turok_controls.exe --devices --out devices.txt`; in the game F3 writes the same report to the log.  Gamepad support was

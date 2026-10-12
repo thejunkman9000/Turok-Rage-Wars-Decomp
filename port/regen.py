@@ -76,6 +76,7 @@ def main():
         drop_stale_twins()
         print('build_clang (twins)'); run([py, 'port/build_clang.py'])
     if '--no-link' in sys.argv: return
+    print('fnptrs'); run([py, 'port/gen_fnptrs.py'])                # port/gen/fnptrs.c (guest code address -> host function); port/gen is not in git, a fresh checkout has none
     print('relink')
     r = subprocess.run(['powershell', '-NoProfile', '-File', 'port\\relink.ps1'], capture_output=True, text=True)
     print('   ' + '\n   '.join((r.stdout + r.stderr).strip().split('\n')[-3:]))
