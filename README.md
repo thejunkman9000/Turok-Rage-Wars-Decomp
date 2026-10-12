@@ -13,7 +13,12 @@ The port (`port/`) runs Turok: Rage Wars natively on Windows: Direct3D 11 render
 input with a mapping program, and virtual Controller Paks (memory cards) for your saves.  It runs all
 the menus through to 1-4 player matches (split screen, bots).
 
-<p align="center"><img src="docs/media/gameplay.gif" alt="PC port gameplay: weapon wheel, a raptor attacks" width="480"></p>
+<p align="center"><img src="docs/media/title.png" alt="Turok: Rage Wars title screen" width="480"></p>
+
+| | |
+|:-:|:-:|
+| <img src="docs/media/attract.gif" alt="Attract demo: 2-player split-screen match" width="400"> | <img src="docs/media/gameplay.gif" alt="1 Player Trials: weapon wheel, a raptor attacks" width="400"> |
+| Attract demo (split screen, bots) | 1 Player Trials |
 
 | | |
 |:-:|:-:|
