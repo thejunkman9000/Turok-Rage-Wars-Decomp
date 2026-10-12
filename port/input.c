@@ -305,6 +305,11 @@ void input_poll_port(int i, unsigned *b, int *x, int *y) {
         in.mouse_valid = (inpdev_get_mouse_mode() == 2) && (g_ctx != 0 || !g_cfg.mouse_menu_guard);
     }
     for (k = 0; k < g_nassign[i]; k++) { const PadState *ps = &g_padst[g_assign[i][k]]; if (ps->connected) in.pad[in.npad++] = ps; }
+    if (i == 0) {                                                                          /* scripted mouse motion (pressfile mouse:dx:dy:polls): port_mouse.txt = "dx dy polls" */
+        static int mt_n, mt_dx, mt_dy; static unsigned mt_poll;
+        if (!mt_n && (++mt_poll % 3) == 1) { FILE *f = fopen("port_mouse.txt", "r"); if (f) { if (fscanf(f, "%d %d %d", &mt_dx, &mt_dy, &mt_n) != 3) mt_n = 0; fclose(f); remove("port_mouse.txt"); } }
+        if (mt_n > 0) { mt_n--; in.mouse_dx += (float)mt_dx; in.mouse_dy += (float)mt_dy; in.mouse_valid = 1; }
+    }
     native = g_cfg.native_controls && g_ctx == 1 && (g_cfg.player[i].use_keyboard || g_mouse_player == i);
     if (native && in.mouse_valid) {                                                         /* native mouse look: the motion goes straight to the view (port/overrides/func_002231B0.c), not through the stick */
         const PlayerCfg *pc = &g_cfg.player[i];

@@ -54,6 +54,8 @@ int input_native_active(int port);          /* port/input.c (native host code) *
 int port_human_slot(const void *ctl);       /* port/input.c: the port of a real controller slot, -2 for an AI controller */
 float input_native_get(int port, int what);
 
+static f32 s_pitch[5];                      /* PORT: mouse-look pitch (degrees, + = up) per controller slot -1..3 */
+
 void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
     f32 om;
     B05Sta10 *st;
@@ -63,6 +65,11 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
     f32 spd;
     f32 w;
     f32 x;
+    f32 e6A0_ = p->f6A0;
+    if (!((p->unk11B4 == 0) && (!(p->f11D8 > 0.0f)))) {     /* PORT: dead / cut-scene: the next life starts with a level view */
+        s32 sl = port_human_slot(p->ctl);
+        if (sl >= -1) s_pitch[sl + 1] = 0.0f;
+    }
     if ((p->unk11B4 == 0) && (!(p->f11D8 > 0.0f))) {
         om = p->f7EC * 0.99f;
         st = p->stats;
@@ -108,19 +115,25 @@ void func_002231B0(B05P10 *p, B05A10 *a, B05In10 *in) {
                 if ((h == ((void *) 0)) || ((h->flags & 0x6000) != 0x2000)) {
                     a->ang = a->ang + dyaw * 0.017453294f;
                 }
-                /* view tilt x (degrees) = -f6A0 * 80 * 0.716 * (f10 when looking one way, f14 the other): move it by dtilt, keep f6A0 in the game's range */
-                t = (p->f6A0 > 0.0f) ? -in->f10 : in->f14;
-                if (t < 0.0f) t = -t;
-                if (t > 0.001f && dtilt != 0.0f) {
-                    t = p->f6A0 - dtilt / (8e+01f * 0.71619713f * t);
-                    if (t > 1.0f) t = 1.0f;
-                    if (t < -1.0f) t = -1.0f;
+                /* view tilt x (degrees, + = up: checked on screen) = -f6A0 * 80 * 0.71619713 * (f14 for x >= 0, f10 below).  The game rebuilds f6A0 /
+                   f68C from the controller every frame (in the default control style they spring back to the centre), so the mouse keeps its own pitch
+                   per player and sets the view to it: an absolute, 1:1 FPS pitch (mouse down = look down) within the game's limits. */
+                {
+                    f32 up = 8e+01f * 0.71619713f * (in->f14 < 0.0f ? -in->f14 : in->f14);
+                    f32 dn = 8e+01f * 0.71619713f * (in->f10 < 0.0f ? -in->f10 : in->f10);
+                    f32 *pp = &s_pitch[port + 1];
+                    *pp -= dtilt;                                        /* dtilt: + = mouse moved down */
+                    if (*pp > up) *pp = up;
+                    if (*pp < -dn) *pp = -dn;
+                    t = (*pp >= 0.0f) ? up : dn;
+                    t = (t > 0.001f) ? -*pp / t : 0.0f;                 /* the matching tilt input, for code that reads it (aiming) */
                     p->f6A0 = t;
                     p->f68C = t;
+                    p->f724 = *pp * 0.017453294f;
                 }
-                w = (-p->f6A0) * 8e+01f;
-                x = (w < 0.0f) ? (w * (-0.71619713f)) * in->f10 : (w * 0.71619713f) * in->f14;
-                p->f724 = x * 0.017453294f;
+                { static int lg = -1; extern char *getenv(const char *); extern int fprintf(void *, const char *, ...); extern void *__acrt_iob_func(unsigned);   /* TUROK_LOOKLOG=1 */
+                  if (lg < 0) lg = getenv("TUROK_LOOKLOG") != 0;
+                  if (lg && (dyaw != 0.0f || dtilt != 0.0f)) fprintf(__acrt_iob_func(2), "LOOK p=%p in=%p entry6A0=%.3f yaw=%.3f tilt_in=%.3f f6A0=%.3f f68C=%.3f f724=%.3f in10=%.3f in14=%.3f mode=%d\n", (void *)p, (void *)in, (double)e6A0_, (double)dyaw, (double)dtilt, (double)p->f6A0, (double)p->f68C, (double)p->f724, (double)in->f10, (double)in->f14, (int)((B05Sta10 *)p->stats)->b7B); }
             }
         }
     }
