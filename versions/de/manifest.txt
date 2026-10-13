@@ -266,3 +266,5 @@ pad_1B3C5C 0x1B3C5C 1 ovl_a
 pad_1B3CB4 0x1B3CB4 3 ovl_a
 pad_1B3F54 0x1B3F54 3 ovl_a
 func_auto_0044DC60 0x1B3C60 21 ovl_a ro=0xC5FB0:12
+func_auto_00202460 0x3060 526 game
+pad_003898 0x3898 2 game

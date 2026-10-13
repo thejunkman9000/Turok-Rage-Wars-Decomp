@@ -329,3 +329,7 @@ pad_1B1E24 0x1B1E24 3 ovl_a
 func_auto_0044DFEC 0x1B1FEC 54 ovl_a mode=sn
 pad_1B20C4 0x1B20C4 3 ovl_a
 func_0020520C 0x5E0C 16 game
+pad_0BDD48 0xBDD48 2 libultra
+func_auto_00202268 0x2E68 30 game
+func_auto_002023DC 0x2FDC 33 game
+func_auto_004460A0 0x1AA0A0 17 ovl_a
