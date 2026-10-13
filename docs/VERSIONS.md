@@ -129,6 +129,15 @@ byte-identical.  Lessons of the integration:
   An old `wip/vtargets_eu.txt` made 11 workers re-verify units that were already integrated.  `wip/mk_hints.py <target> <sibling> <ws...>` adds the matched sibling release
   (sources, manifest, ROM, closest-unit pairs from `tools/ver_pairs.py`) to worker workspaces.
 - `tools/chk.py` resolves symbols like the linker (first hard definition wins, `PROVIDE` soft, `CHK_SYMS` overrides); `func_*` names in a release's syms.ld must be `PROVIDE`.
-- What is left (~1.6-1.9 % per release) is not in the work lists: libultra / libaudio assembly (osMapTLB, sinf, adecReadBits, osDevMgr ... 4 000+ words) and a few game
-  functions the 1.1 tree also keeps as assembly.  They are the same code as v1.1's hand-written `.s` units; reusing those units per release (a `mkhasm`-style adoption by
-  normalised code, one function at a time, because the splat gaps also contain data and linker padding) is the remaining mechanical step.
+- **Coverage is 100 % in all three releases (2026-10-13)**: every code word of the US v1.0, Europe and Germany ROMs belongs to a manifest unit (matched C, hand-written
+  asm, linker pad, or an `hasm_<ROM6>` unit), and each ROM rebuilds byte-identical.  C-matched share by instructions: US v1.0 97.9 %, Europe 98.0 %, Germany 98.0 %
+  (shared with v1.1 + release-specific); the rest is assembly:
+  - hand-written v1.1 `.s` units found again in the release by code content (`tools/mkver.py`: units of 1.1 that no sweep verdict exists for are reused when the funcmap
+    says `same` / `shift`; units the release links in another ORDER are taken back when they overlap nothing, see the "late pass");
+  - `hasm_<ROM6>` units (`wip/adopt_gaps.py <ver> <workspace> --apply`, then `wip/full_adopt.sh`): the ranges nothing else covers, emitted from the release's splat
+    asm one ROM range per asm file (labels kept as `.globl`, branches into undefined `.L` labels as `.word`).  About 4 000 words per release: library code
+    (exception handler, osMapTLB / RNC unpacker, `__osDevMgrMain`, `sinf`, `adecReadBits` 1 311 words ...) and data words in the text range.
+  - **Still to turn into C**: ~2 100 words per release of functions that ARE matched C in v1.1 (`adecReadBits`, `func_00261EB8`, `sinf`, `__osDevMgrMain`,
+    `__osSiRawStartDma`, `__osSiRawReadIo`).  The code is word-identical, but the release's constant pool differs (sinf: the last 16 bytes of the 80-byte pool are `0.0 / 0.5`
+    in the release instead of `0.5f / 0.5` - a literal in the v1.0 source differs although the instructions match; adecReadBits' pool holds a jump table), so the sweep
+    cannot place `ro=`.  `MKVER_POOLSEARCH=1` tries to locate the pool by its first 16 bytes; it is off because it needs per-unit piece sizes.

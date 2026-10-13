@@ -78,6 +78,7 @@ def main():
         f = l.split(); fmap[f[0]] = (f[3], int(f[4], 16)); ent.append((int(f[1], 16), f[0], int(f[2]), f[3], int(f[4], 16)))
     # the function map is by code content: a small function can be 'found' at a wrong place (a clone, or data that looks like code).  Keep only what is consistent: a function of the
     # overlay must land in the release's overlay, one of the main image in its main image, and in 1.1 order the release offsets must increase (the longest increasing run wins).
+    fmap0 = dict(fmap)                                                      # before the order check (the late pass below may take units back)
     bad = 0
     for lo_, hi_, ovl_ in ((0x1000, lay['MAIN_CODE_END'], False), (lay['OVL_START'], lay['OVL_END'], True)):
         reg = [e for e in sorted(ent) if e[3] != 'none' and ((e[0] >= 0x16E000) == ovl_) and lo_ <= e[4] < hi_]
@@ -103,15 +104,35 @@ def main():
     kept = collections.Counter(); dropped = collections.Counter()
     keptmap = []                                                         # (unit, ROM offset, subdir) of the units kept as C
     for fn, ovl in (('funcs.txt', False), ('funcs_a.txt', True)):
-        lines = []
+        lines = []; lates = []
         for f in read_manifest(fn):
             name = f[0]
-            v = sweep.get(name, '')
-            if not v.startswith('EXACT') or name not in fmap or fmap[name][0] == 'none':
+            v = sweep.get(name, ''); synth = False
+            if not v and os.environ.get('MKVER_HASM', '1') == '1' and os.path.exists(f'src/{f[3]}/{name}.s') and fmap.get(name, ('none',))[0] in ('same', 'shift', 'none') and fmap0.get(name, ('none',))[0] in ('same', 'shift'):
+                v = 'EXACT'; synth = True                             # hand-written 1.1 assembly with the same words (funcmap): the unit is reused as it is
+            late = synth or (name in fmap and fmap[name][0] == 'none' and fmap0.get(name, ('none', 0))[0] != 'none')
+            if not v.startswith('EXACT') or name not in fmap or (fmap[name][0] == 'none' and not late):
                 dropped[fn] += 1; continue
-            rom = fmap[name][1]
+            rom = fmap0[name][1] if (late and name in fmap0 and fmap0[name][0] != 'none') else fmap[name][1]
             opts = [e for e in f[4:] if not e.startswith('ro=')]
+            pool_real = None
             m = re.search(r'ro=(0x[0-9A-Fa-f]+):(\d+)', v)
+            if not m and v.startswith('EXACT') and os.environ.get('MKVER_POOLSEARCH') == '1':                          # the sweep did not find the pool (a jump table or a pointer in it differs, so the whole piece is not verbatim in the
+                for e in f[4:]:                                         # release): the pool's first 16 bytes, searched in a window around the expected place, locate it; the build proves it
+                    m11 = re.fullmatch(r'ro=(0x[0-9A-Fa-f]+):(\d+)(?::\d+)?', e)
+                    if not m11: continue
+                    o11 = int(m11.group(1), 16); sz = int(m11.group(2)); pat = ROM11[o11:o11 + min(16, sz)]
+                    hits = []; at = max(0, o11 - 0x9000)
+                    while len(hits) < 3:
+                        at = ROMV.find(pat, at, o11 + 0x2000)
+                        if at < 0: break
+                        hits.append(at); at += 1
+                    if len(hits) == 1:
+                        k = 0
+                        while k < sz and ROMV[hits[0] + k] == ROM11[o11 + k]: k += 1
+                        k = k & ~3 if k < sz else sz                     # a differing tail (a neighbour's data, or a jump table the linker fills) is not ours
+                        if k >= 4: m = re.match(r'ro=(0x[0-9A-Fa-f]+):(\d+)', f'ro=0x{hits[0]:X}:{sz}'); pool_real = k if k < sz else None
+                    break
             if any(e.startswith('ro=') for e in f[4:]) and not m:      # the 1.1 function has a literal pool of its own that the sweep did not find in this ROM: its object's .rodata would land at the wrong address
                 dropped[fn] += 1; continue
             if m:
@@ -135,11 +156,14 @@ def main():
                             if ROMV[o_r + j] != 0:
                                 if real is None or real > j: real = j
                                 break
+                if pool_real is not None: real = pool_real
                 opts.append(f'ro={m.group(1)}:{r_ro}' + (f':{real}' if real is not None else ''))
             lo, hi = (lay['OVL_START'], lay['OVL_END']) if ovl else (0x1000, lay['MAIN_CODE_END'])
             if rom < lo or rom + 4 * int(f[2]) > hi:                    # a clone of the function found in another region of the release (identical small functions repeat)
                 dropped[fn] += 1; continue
-            lines.append((rom, int(f[2]), f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts), int(f[1], 16)))
+            ent_ = (rom, int(f[2]), f'{name} 0x{rom:X} {f[2]} {f[3]}' + ''.join(' ' + o for o in opts), int(f[1], 16))
+            if late: lates.append(ent_); dropped[fn] += 1; continue
+            lines.append(ent_)
             kept[fn] += 1
         # the units keep the 1.1 order in the release: the longest increasing run of the release offsets is the consistent set, the rest are wrong placements (clones); then no overlaps
         lines.sort(key=lambda e: e[3])                                  # (in the order of the 1.1 ROM: the manifest file is not sorted)
@@ -155,6 +179,24 @@ def main():
         for i, (r, n, text, _) in enumerate(lines):
             if i not in keep or r < last_end: dropped[fn] += 1; kept[fn] -= 1; continue
             out_lines.append(text); last_end = r + 4 * n
+        # units the release links in another ORDER than 1.1 (the SDK libraries are laid out differently) fell out of the increasing run, though the sweep found their
+        # words verbatim at that place: take them back when they overlap nothing that is kept (a clone of a small function would overlap or sit in a kept unit)
+        occ = [(int(t.split()[1], 16), int(t.split()[1], 16) + 4 * int(t.split()[2])) for t in out_lines]
+        if os.path.exists(f'versions/{ver}/manifest.txt'):
+            for l_ in open(f'versions/{ver}/manifest.txt'):
+                f_ = l_.split('#')[0].split()
+                if len(f_) >= 4: occ.append((int(f_[1], 16), int(f_[1], 16) + 4 * int(f_[2])))
+        occ.sort()
+        starts = [a for a, b in occ]
+        def free(r, n):
+            j = bisect.bisect_right(starts, r)
+            if j > 0 and occ[j - 1][1] > r: return False
+            return not (j < len(occ) and occ[j][0] < r + 4 * n)
+        for r, n, text, _ in sorted(lates) + [lines[i] for i in range(len(lines)) if i not in keep]:
+            if n < 4 or not free(r, n): continue
+            bisect.insort(occ, (r, r + 4 * n)); starts = [a for a, b in occ]
+            out_lines.append(text); dropped[fn] -= 1; kept[fn] += 1
+        out_lines.sort(key=lambda t: int(t.split()[1], 16))
         lines = out_lines
         for text in out_lines:
             ff = text.split(); keptmap.append((ff[0], int(ff[1], 16), ff[3]))

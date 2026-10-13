@@ -198,3 +198,4 @@ D_800E1664_eu = 0x800E1664;   /* veu3n03 (D_auto_800E1664 is aliased elsewhere b
 D_800E34C4 = 0x800E34C4;   /* veu3n02: Europe address of the identity name used by func_auto_0028A638 */
 func_44ECB0 = 0x0044F330;   /* veu3n03: 1.1 short name of the callee; Europe = func_auto_0044F330 */
 D_auto_00202460 = 0x00202460;
+PROVIDE(func_00202268 = 0x00202268);
