@@ -122,3 +122,201 @@ func_auto_0041F55C 0x19555C 36 ovl_a
 func_auto_0043DAE8 0x1B3AE8 2 ovl_a
 func_auto_0044EE40 0x1C4E40 59 ovl_a mode=sn ro=0xC6240:4
 func_auto_0044F14C 0x1C514C 54 ovl_a mode=sn
+func_0020520C 0x5E2C 16 game
+pad_1A05D4 0x1A05D4 3 ovl_a
+func_00444030 0x1BB074 117 ovl_a mode=sn
+func_auto_00204030 0x4C30 188 game mode=sn+nb ro=0xC28F0:28
+func_auto_00204320 0x4F20 57 game ro=0xC290C:4
+func_auto_00218BA4 0x197A4 209 game
+func_auto_002196D8 0x1A2D8 256 game
+func_auto_0021B500 0x1C100 732 game mode=sn ro=0xC31E8:32
+func_auto_0021C070 0x1CC70 292 game mode=sn
+func_auto_0022B8C0 0x2C4C0 70 game
+func_auto_0022FEAC 0x30AAC 85 game
+func_auto_0023019C 0x30D9C 111 game ro=0xC3D90:8
+func_auto_00230358 0x30F58 171 game
+func_auto_00230604 0x31204 119 game
+func_auto_002307E0 0x313E0 201 game
+func_auto_00230DA4 0x319A4 146 game ro=0xC3DD8:40
+func_auto_00230FEC 0x31BEC 198 game
+func_auto_002316A0 0x322A0 201 game ro=0xC3E48:24
+func_auto_002319C4 0x325C4 152 game
+func_auto_00231C24 0x32824 106 game ro=0xC3E68:4
+func_auto_00231DCC 0x329CC 144 game
+func_auto_0023200C 0x32C0C 158 game
+func_auto_00232284 0x32E84 123 game
+func_auto_00232470 0x33070 147 game
+func_auto_00232788 0x33388 60 game
+func_auto_00232878 0x33478 16 game
+func_auto_00232B44 0x33744 12 game
+func_auto_00267E88 0x68A88 54 game
+pad_07983C 0x7983C 1 game
+func_auto_00278C40 0x79840 95 game
+func_auto_0028A638 0x8B238 175 game
+func_auto_00290B98 0x91798 107 game mode=sn ro=0xC6270:16
+func_auto_00290F8C 0x91B8C 134 game ro=0xC6284:28
+func_auto_002911A4 0x91DA4 105 game ro=0xC62A0:16
+func_auto_00291564 0x92164 237 game mode=sn
+func_auto_002ABA8C 0xAC68C 156 game
+func_auto_0028A8F4 0x8B4F4 513 game mode=sn+nb
+func_auto_002951D4 0x95DD4 881 game mode=sn ro=0xC6398:24
+func_auto_002ABCFC 0xAC8FC 739 game mode=sn ro=0xC7100:84
+func_auto_002AC888 0xAD488 180 game
+func_auto_002ACB58 0xAD758 98 game ro=0xC7158:32
+func_auto_002ACEDC 0xADADC 63 game
+func_auto_002ACFD8 0xADBD8 77 game
+func_auto_002AD10C 0xADD0C 72 game
+func_auto_002AD22C 0xADE2C 68 game
+func_auto_002AD370 0xADF70 55 game
+pad_0AE104 0xAE104 3 game
+pad_0AE208 0xAE208 2 libultra
+pad_0AE354 0xAE354 3 libultra
+pad_0AEEC8 0xAEEC8 2 libultra
+pad_0B7FC8 0xB7FC8 2 libultra
+pad_0B814C 0xB814C 1 libultra
+pad_0B815C 0xB815C 1 libultra
+pad_0BAC08 0xBAC08 2 libultra
+pad_0BAF9C 0xBAF9C 1 libultra
+pad_0BAFB4 0xBAFB4 3 libultra
+pad_0BAFDC 0xBAFDC 1 libultra
+pad_0BB02C 0xBB02C 1 game
+pad_0BBAEC 0xBBAEC 1 libultra
+pad_0BBAF8 0xBBAF8 2 libultra
+pad_0BCA54 0xBCA54 3 game
+pad_0BCB08 0xBCB08 2 libultra
+pad_0BDD98 0xBDD98 2 libultra
+pad_0BDDAC 0xBDDAC 1 libultra
+pad_0BDDBC 0xBDDBC 1 libultra
+pad_0BDDCC 0xBDDCC 1 libultra
+pad_0BDE0C 0xBDE0C 1 libultra
+pad_0BDEA8 0xBDEA8 2 libultra
+func_auto_00404958 0x17A958 168 ovl_a mode=lu3+nb
+func_auto_004068CC 0x17C8CC 111 ovl_a
+func_auto_00406A88 0x17CA88 362 ovl_a
+func_auto_00407344 0x17D344 194 ovl_a mode=sn
+func_auto_0040764C 0x17D64C 124 ovl_a mode=sn
+func_auto_0040783C 0x17D83C 554 ovl_a mode=sn
+func_auto_004080E4 0x17E0E4 123 ovl_a
+func_auto_004082D0 0x17E2D0 129 ovl_a
+func_auto_004084D4 0x17E4D4 189 ovl_a
+func_auto_00408CAC 0x17ECAC 161 ovl_a
+pad_0BDF18 0xBDF18 2 libultra
+pad_0BDFE8 0xBDFE8 2 libultra
+pad_0BDFFC 0xBDFFC 1 libultra
+pad_0BE0B8 0xBE0B8 2 libultra
+pad_0BE114 0xBE114 3 libultra
+pad_0BE188 0xBE188 2 libultra
+pad_0BE1B8 0xBE1B8 2 libultra
+pad_0BFC4C 0xBFC4C 1 libultra
+pad_0C10CC 0xC10CC 1 libultra
+func_auto_00409ADC 0x17FADC 45 ovl_a
+func_auto_0040A61C 0x18061C 35 ovl_a
+func_auto_0040A550 0x180550 51 ovl_a
+func_auto_0040A960 0x180960 41 ovl_a
+func_auto_0040AB6C 0x180B6C 63 ovl_a
+func_auto_0040AC68 0x180C68 86 ovl_a ro=0xEE058:64
+func_auto_0040B874 0x181874 43 ovl_a
+func_auto_0041D1F0 0x1931F0 11 ovl_a mode=sn
+func_auto_0041D21C 0x19321C 11 ovl_a mode=sn
+func_auto_0041D248 0x193248 2 ovl_a mode=sn
+func_auto_0041D250 0x193250 2 ovl_a mode=sn
+func_auto_0041C268 0x192268 26 ovl_a mode=sn
+func_auto_0041C2D0 0x1922D0 185 ovl_a mode=sn
+func_auto_0041C5B4 0x1925B4 14 ovl_a mode=sn
+func_auto_0041DDA0 0x193DA0 67 ovl_a
+func_auto_0041E550 0x194550 100 ovl_a
+func_auto_0041E6E0 0x1946E0 102 ovl_a
+func_auto_0041E878 0x194878 134 ovl_a
+func_auto_0041ECB4 0x194CB4 156 ovl_a
+func_auto_004212D0 0x1972D0 208 ovl_a
+func_auto_00421A90 0x197A90 141 ovl_a ro=0xEE838:40
+func_auto_00422C58 0x198C58 119 ovl_a
+pad_1989DC 0x1989DC 1 ovl_a
+func_auto_00422E34 0x198E34 336 ovl_a mode=sn
+func_auto_0040A8C8 0x1808C8 27 ovl_a
+func_auto_004229E0 0x1989E0 158 ovl_a
+func_auto_00425588 0x19B588 224 ovl_a ro=0xEE918:200
+func_auto_00425CBC 0x19BCBC 319 ovl_a ro=0xEEAC8:232
+func_auto_00428648 0x19E648 164 ovl_a
+pad_19FD2C 0x19FD2C 1 ovl_a
+func_auto_00429D30 0x19FD30 212 ovl_a
+func_auto_0042A5E0 0x1A05E0 368 ovl_a mode=sn
+func_auto_0042B540 0x1A1540 84 ovl_a
+func_auto_0042BBA0 0x1A1BA0 44 ovl_a
+func_auto_0042C730 0x1A2730 326 ovl_a
+func_auto_0042CC48 0x1A2C48 433 ovl_a
+func_auto_0042DAB4 0x1A3AB4 83 ovl_a
+func_auto_0042F0B0 0x1A50B0 111 ovl_a
+func_auto_0042F26C 0x1A526C 239 ovl_a mode=sn
+func_auto_00431378 0x1A7378 1699 ovl_a mode=sn ro=0xEEF10:312
+func_auto_004342BC 0x1AA2BC 197 ovl_a ro=0xEF0F8:56
+func_auto_004345D0 0x1AA5D0 178 ovl_a mode=sn
+func_auto_00434B6C 0x1AAB6C 246 ovl_a mode=sn
+func_auto_0043511C 0x1AB11C 146 ovl_a
+pad_1AD214 0x1AD214 3 ovl_a
+func_auto_00437220 0x1AD220 139 ovl_a
+func_auto_0043768C 0x1AD68C 123 ovl_a
+func_auto_00437C14 0x1ADC14 50 ovl_a
+func_auto_00437CDC 0x1ADCDC 50 ovl_a
+func_auto_00437F2C 0x1ADF2C 48 ovl_a
+func_auto_00437FEC 0x1ADFEC 48 ovl_a
+pad_1AE878 0x1AE878 2 ovl_a
+func_auto_00438880 0x1AE880 572 ovl_a mode=sn ro=0xEF190:4
+func_auto_0043C36C 0x1B236C 151 ovl_a mode=sn ro=0xEF278:24
+pad_1B31F4 0x1B31F4 3 ovl_a
+func_auto_0043D200 0x1B3200 139 ovl_a mode=sn ro=0xEF2D0:132
+func_auto_0043D568 0x1B3568 196 ovl_a mode=sn ro=0xEF438:140
+func_auto_0043D878 0x1B3878 5 ovl_a mode=sn
+func_auto_0043D88C 0x1B388C 97 ovl_a mode=sn ro=0xEF4C4:16
+func_auto_0043DA10 0x1B3A10 54 ovl_a ro=0xEF4D4:4
+func_auto_0043DAF0 0x1B3AF0 52 ovl_a
+func_auto_0043DBC0 0x1B3BC0 37 ovl_a
+func_auto_0043DC54 0x1B3C54 37 ovl_a
+func_auto_0043DCE8 0x1B3CE8 83 ovl_a
+func_auto_0043DE34 0x1B3E34 16 ovl_a
+func_auto_0043DE74 0x1B3E74 63 ovl_a ro=0xEF4D8:48
+func_auto_0043DF70 0x1B3F70 21 ovl_a
+func_auto_0043DFC4 0x1B3FC4 7 ovl_a
+func_auto_0043DFE0 0x1B3FE0 59 ovl_a ro=0xEF508:48
+func_auto_0043E0CC 0x1B40CC 32 ovl_a ro=0xEF538:48
+func_auto_0043E14C 0x1B414C 7 ovl_a
+func_auto_0043E168 0x1B4168 27 ovl_a
+func_auto_0043E1D4 0x1B41D4 7 ovl_a
+func_auto_0043E1F0 0x1B41F0 27 ovl_a
+pad_1B4A3C 0x1B4A3C 1 ovl_a
+func_auto_0043EA40 0x1B4A40 107 ovl_a ro=0xEF580:32
+func_auto_0043F074 0x1B5074 65 ovl_a ro=0xEF570:8:5
+func_auto_0043F644 0x1B5644 38 ovl_a ro=0xEF5B8:4
+func_auto_0043FAEC 0x1B5AEC 11 ovl_a
+func_auto_0043FB18 0x1B5B18 11 ovl_a
+func_auto_0043FB44 0x1B5B44 11 ovl_a
+func_auto_004449DC 0x1BA9DC 38 ovl_a
+func_auto_00444A74 0x1BAA74 38 ovl_a
+func_auto_00444B0C 0x1BAB0C 38 ovl_a
+func_auto_00444BA4 0x1BABA4 39 ovl_a
+func_auto_00444F30 0x1BAF30 81 ovl_a ro=0xEF9E8:32
+pad_1BAF28 0x1BAF28 2 ovl_a
+pad_1BBFC8 0x1BBFC8 2 ovl_a
+func_auto_00445FB4 0x1BBFB4 5 ovl_a
+func_auto_0044594C 0x1BB94C 41 ovl_a
+func_auto_00445EBC 0x1BBEBC 41 ovl_a
+func_auto_004466CC 0x1BC6CC 32 ovl_a
+func_auto_00443D14 0x1B9D14 62 ovl_a
+func_auto_00445ABC 0x1BBABC 61 ovl_a
+func_auto_00445C14 0x1BBC14 61 ovl_a
+func_auto_0044624C 0x1BC24C 65 ovl_a
+func_auto_004463C0 0x1BC3C0 65 ovl_a
+func_auto_00446524 0x1BC524 65 ovl_a
+func_auto_00444430 0x1BA430 170 ovl_a ro=0xEF988:64:60
+func_auto_00441390 0x1B7390 232 ovl_a
+func_auto_00440D10 0x1B6D10 301 ovl_a ro=0xEF6E0:28
+func_auto_004403CC 0x1B63CC 593 ovl_a mode=sn ro=0xEF6A8:56
+pad_1BC91C 0x1BC91C 1 ovl_a
+func_auto_00446920 0x1BC920 165 ovl_a mode=sn
+func_auto_00446D04 0x1BCD04 58 ovl_a mode=sn
+pad_1BD1D4 0x1BD1D4 3 ovl_a
+pad_1BFF78 0x1BFF78 2 ovl_a
+func_auto_00449F80 0x1BFF80 117 ovl_a mode=sn ro=0xC3194:4
+func_auto_0044A154 0x1C0154 215 ovl_a mode=sn
+pad_1C5224 0x1C5224 3 ovl_a
+func_auto_00447190 0x1BD190 17 ovl_a

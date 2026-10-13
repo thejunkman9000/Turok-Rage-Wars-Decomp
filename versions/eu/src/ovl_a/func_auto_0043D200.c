@@ -1,0 +1,72 @@
+#include "common.h"
+typedef s32 (*Q4Fn)();
+extern s32 func_auto_00436AC0();
+extern s32 func_auto_00436E5C();
+extern s32 func_auto_00437184();
+extern s32 func_auto_00421240();
+extern s32 func_auto_0043CED0();
+extern s32 func_auto_004299E0();
+extern s32 func_auto_00429A70();
+extern s32 func_auto_00424AE8();
+extern s32 func_auto_00423CF0();
+extern s32 func_auto_0043A080();
+extern s32 func_auto_00437DA4();
+extern s32 func_auto_00423EF0();
+extern s32 func_auto_004380AC();
+extern s32 func_auto_0043A31C();
+extern s32 func_auto_0041E304();
+extern s32 func_auto_0042E5A8();
+extern s32 func_auto_00439D50();
+extern s32 func_auto_004384B8();
+extern s32 func_auto_004387E8();
+extern s32 func_auto_0042C6A0();
+extern s32 func_auto_0042A550();
+extern s32 func_auto_0041F55C();
+extern s32 func_auto_00429C9C();
+extern s32 func_auto_004367A4();
+extern s32 func_auto_00424148();
+extern s32 func_auto_0043A628();
+extern s32 func_auto_0042294C();
+extern s32 func_auto_004222D0();
+extern s32 func_auto_0042EA60();
+extern s32 func_auto_0041C9BC();
+extern s32 func_auto_00421F60();
+extern s32 func_auto_0043AD04();
+
+Q4Fn func_auto_0043D200(s32 id) {
+    switch (id) {
+    case 1: return func_auto_00436AC0;
+    case 31: return func_auto_00436E5C;
+    case 32: return func_auto_00437184;
+    case 7: return func_auto_00421240;
+    case 8: return func_auto_0043CED0;
+    case 10: return func_auto_004299E0;
+    case 15: return func_auto_00429A70;
+    case 3: return func_auto_00424AE8;
+    case 4: return func_auto_00423CF0;
+    case 6: return func_auto_0043A080;
+    case 5: return func_auto_00437DA4;
+    case 11: return func_auto_00423EF0;
+    case 12: return func_auto_004380AC;
+    case 13: return func_auto_0043A31C;
+    case 16: return func_auto_0041E304;
+    case 17: return func_auto_0042E5A8;
+    case 18: return func_auto_00439D50;
+    case 9: return func_auto_004384B8;
+    case 30: return func_auto_004387E8;
+    case 20: return func_auto_0042C6A0;
+    case 21: return func_auto_0042A550;
+    case 23: return func_auto_0041F55C;
+    case 14: return func_auto_00429C9C;
+    case 19: return func_auto_004367A4;
+    case 22: return func_auto_00424148;
+    case 24: return func_auto_0043A628;
+    case 25: return func_auto_0042294C;
+    case 27: return func_auto_004222D0;
+    case 26: return func_auto_0042EA60;
+    case 29: return func_auto_0041C9BC;
+    case 28: return func_auto_00421F60;
+    case 33: return func_auto_0043AD04;
+    }
+    return 0;
+}
