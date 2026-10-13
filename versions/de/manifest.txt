@@ -76,3 +76,11 @@ func_auto_00293CE4 0x948E4 65 game
 func_auto_00294614 0x95214 36 game
 func_auto_002946A4 0x952A4 65 game
 func_auto_00445E04 0x1ABE04 60 ovl_a mode=sn
+func_auto_0023EE60 0x3FA60 39 game
+func_auto_0025657C 0x5717C 40 game
+func_auto_00289084 0x89C84 460 game
+func_auto_0028E860 0x8F460 52 game ro=0xC5F40:4
+func_auto_0041F0A8 0x1850A8 36 ovl_a
+func_auto_00444D9C 0x1AAD9C 35 ovl_a
+func_auto_0044DB70 0x1B3B70 59 ovl_a mode=sn ro=0xC5F90:4
+func_auto_0044DE7C 0x1B3E7C 54 ovl_a mode=sn

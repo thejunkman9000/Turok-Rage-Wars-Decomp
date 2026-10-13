@@ -1,0 +1,223 @@
+func_0020520C 0x5E2C 16 diff diff_sw/sb_opcode_differs_(release_store
+func_00429C10 0x1A05E0 368 diff RELOC-MISMATCH(words
+func_0043DD2C 0x1B4A40 107 diff RELOC-MISMATCH(words
+func_0043EDB8 0x1B5AEC 11 diff RELOC-MISMATCH(words
+func_0043EDE4 0x1B5B18 11 diff RELOC-MISMATCH(words
+func_0043EE10 0x1B5B44 11 diff RELOC-MISMATCH(words
+func_00444030 0x1BB074 117 diff RELOC-MISMATCH(words
+func_0043C500 0x1B3200 139 diff RELOC-MISMATCH(words
+func_00449970 0x1BFF80 117 diff RELOC-MISMATCH(words
+func_auto_00202268 0x2E68 30 new unit=func_00202268
+func_auto_002023DC 0x2FDC 33 new unit=func_002023DC
+func_auto_00204030 0x4C30 188 new unit=func_0020402C
+func_auto_00204320 0x4F20 57 new unit=func_00204308
+func_auto_00218BA4 0x197A4 209 new unit=func_00218B84
+func_auto_002196D8 0x1A2D8 256 new unit=func_00219688
+func_auto_0021B500 0x1C100 732 new unit=func_0021B468
+func_auto_0021C070 0x1CC70 292 new unit=func_0021BFBC
+func_auto_00228E60 0x29A60 96 new
+func_auto_0022B8C0 0x2C4C0 70 new unit=func_0022B7E8
+func_auto_0022FEAC 0x30AAC 85 new unit=func_0022FEF4
+func_auto_0023019C 0x30D9C 111 new unit=func_002301E4
+func_auto_00230358 0x30F58 171 new unit=func_00230390
+func_auto_00230604 0x31204 119 new unit=func_00230620
+func_auto_002307E0 0x313E0 201 new unit=func_002307EC
+func_auto_00230DA4 0x319A4 146 new unit=func_00230D94
+func_auto_00230FEC 0x31BEC 198 new unit=func_00230FCC
+func_auto_002316A0 0x322A0 201 new unit=func_00231654
+func_auto_002319C4 0x325C4 152 new unit=func_0023195C
+func_auto_00231C24 0x32824 106 new unit=func_00231BA0
+func_auto_00231DCC 0x329CC 144 new unit=func_00231D38
+func_auto_0023200C 0x32C0C 158 new unit=func_00231F5C
+func_auto_00232284 0x32E84 123 new unit=func_002321B8
+func_auto_00232470 0x33070 147 new unit=func_00232394
+func_auto_00232788 0x33388 60 new unit=func_002327E4
+func_auto_00232878 0x33478 16 new
+func_auto_00232B44 0x33744 12 new
+func_auto_0023EE70 0x3FA70 39 new unit=func_0023EE50
+func_auto_0025653C 0x5713C 40 new unit=func_0025651C
+func_auto_00267E88 0x68A88 54 new unit=func_00267EE8
+func_auto_00278C3C 0x7983C 96 new unit=func_00278C80
+func_auto_00289024 0x89C24 460 new unit=func_00289054
+func_auto_0028A638 0x8B238 175 new unit=func_0028A674
+func_auto_0028A8F4 0x8B4F4 513 new unit=func_0028A924
+func_auto_0028E96C 0x8F56C 52 new unit=func_0028E83C
+func_auto_00290B98 0x91798 107 new unit=func_00290A68
+func_auto_00290F8C 0x91B8C 134 new unit=func_00290E4C
+func_auto_002911A4 0x91DA4 105 new unit=func_00291054
+func_auto_00291564 0x92164 237 new unit=func_00291404
+func_auto_002951D4 0x95DD4 881 new unit=func_00295FB4
+func_auto_002ABA8C 0xAC68C 156 new unit=func_002AC96C
+func_auto_002ABCFC 0xAC8FC 739 new unit=func_002ACBCC
+func_auto_002AC888 0xAD488 180 new unit=func_002AD65C
+func_auto_002ACB58 0xAD758 98 new
+func_auto_002ACEDC 0xADADC 63 new unit=func_002ADB08
+func_auto_002ACFD8 0xADBD8 77 new unit=func_002ADBF4
+func_auto_002AD10C 0xADD0C 72 new unit=func_002ADD18
+func_auto_002AD22C 0xADE2C 68 new unit=func_002ADFA0
+func_auto_002AD370 0xADF70 55 new unit=func_002AE0D4
+func_auto_002AD504 0xAE104 3 new unit=dbgLinkSetCallHook
+func_auto_002AD608 0xAE208 2 new
+func_auto_002AD754 0xAE354 3 new unit=osReadAllTLBEntries
+func_auto_002AE2C8 0xAEEC8 2 new unit=rncUnpackMethod2Body
+func_auto_002B754C 0xB814C 1 new unit=sqrtf
+func_auto_002B755C 0xB815C 1 new
+func_auto_002BA008 0xBAC08 2 new
+func_auto_002BA39C 0xBAF9C 1 new
+func_auto_002BA3B4 0xBAFB4 3 new
+func_auto_002BA3DC 0xBAFDC 1 new
+func_auto_002BA42C 0xBB02C 1 new
+func_auto_002BAEEC 0xBBAEC 1 new
+func_auto_002BAEF8 0xBBAF8 2 new
+func_auto_002BBE54 0xBCA54 3 new
+func_auto_002BBF08 0xBCB08 2 new unit=exceptasm
+func_auto_002BD198 0xBDD98 2 new unit=osGetCount
+func_auto_002BD1AC 0xBDDAC 1 new unit=__osGetFpcCsr
+func_auto_002BD1BC 0xBDDBC 1 new unit=__osGetSR
+func_auto_002BD1CC 0xBDDCC 1 new
+func_auto_002BD20C 0xBDE0C 1 new unit=__osRestoreInt
+func_auto_002BD2A8 0xBDEA8 2 new unit=osInvalDCache
+func_auto_002BD318 0xBDF18 2 new unit=osInvalICache
+func_auto_002BD3E8 0xBDFE8 2 new unit=__osProbeTLB
+func_auto_002BD3FC 0xBDFFC 1 new unit=__osSetCompare
+func_auto_002BD4B8 0xBE0B8 2 new unit=osSetIntMask
+func_auto_002BD514 0xBE114 3 new unit=osUnmapTLBAll
+func_auto_002BD588 0xBE188 2 new unit=osWritebackDCache
+func_auto_002BD5B8 0xBE1B8 2 new unit=osWritebackDCacheAll
+func_auto_002BF04C 0xBFC4C 1 new
+func_auto_002C04CC 0xC10CC 1 new
+func_auto_00404958 0x17A958 168 new unit=func_00404958
+func_auto_00405F58 0x17BF58 165 new unit=func_00405F48
+func_auto_004068CC 0x17C8CC 111 new unit=func_00406858
+func_auto_00406A88 0x17CA88 362 new unit=func_004069F4
+func_auto_00407344 0x17D344 194 new unit=func_00407290
+func_auto_0040764C 0x17D64C 124 new unit=func_00407578
+func_auto_0040783C 0x17D83C 554 new unit=func_00407748
+func_auto_004080E4 0x17E0E4 123 new unit=func_00407F6C
+func_auto_004082D0 0x17E2D0 129 new unit=func_00408118
+func_auto_004084D4 0x17E4D4 189 new unit=func_004082FC
+func_auto_00408CAC 0x17ECAC 161 new unit=func_00408AC4
+func_auto_00409ADC 0x17FADC 45 new unit=func_00409824
+func_auto_0040A550 0x180550 51 new unit=func_0040A270
+func_auto_0040A61C 0x18061C 35 new unit=func_0040A32C
+func_auto_0040A8C8 0x1808C8 27 new unit=func_0040A55C
+func_auto_0040A960 0x180960 41 new unit=func_0040A640
+func_auto_0040AB6C 0x180B6C 63 new unit=func_0040A83C
+func_auto_0040AC68 0x180C68 86 new unit=func_0040A928
+func_auto_0040B874 0x181874 43 new unit=func_0040B4C4
+func_auto_0041C268 0x192268 26 new
+func_auto_0041C2D0 0x1922D0 185 new unit=func_0041BF10
+func_auto_0041C5B4 0x1925B4 14 new
+func_auto_0041D1F0 0x1931F0 11 new
+func_auto_0041D21C 0x19321C 11 new
+func_auto_0041D248 0x193248 2 new
+func_auto_0041D250 0x193250 2 new
+func_auto_0041DDA0 0x193DA0 67 new unit=func_0041D9D0
+func_auto_0041E550 0x194550 100 new unit=func_0041E170
+func_auto_0041E6E0 0x1946E0 102 new unit=func_0041E2F0
+func_auto_0041E878 0x194878 134 new unit=func_0041E478
+func_auto_0041ECB4 0x194CB4 156 new unit=func_0041E88C
+func_auto_0041F55C 0x19555C 36 new unit=func_0041F118
+func_auto_0041F5EC 0x1955EC 1 new
+func_auto_004212D0 0x1972D0 208 new unit=func_00420E90
+func_auto_00421A90 0x197A90 141 new unit=func_004215D8
+func_auto_004229DC 0x1989DC 159 new
+func_auto_00422C58 0x198C58 119 new unit=func_0042250C
+func_auto_00422E34 0x198E34 336 new unit=func_00422728
+func_auto_00425588 0x19B588 224 new unit=func_00424FC8
+func_auto_00425CBC 0x19BCBC 319 new unit=func_004255A8
+func_auto_00428648 0x19E648 164 new unit=func_00427CE8
+func_auto_00429D2C 0x19FD2C 213 new unit=func_004293AC
+func_auto_0042A5E0 0x1A05E0 368 new
+func_auto_0042B540 0x1A1540 84 new unit=func_0042AB70
+func_auto_0042BBA0 0x1A1BA0 44 new unit=func_0042B1C0
+func_auto_0042C730 0x1A2730 326 new unit=func_0042BD40
+func_auto_0042CC48 0x1A2C48 433 new unit=func_0042C1F8
+func_auto_0042DAB4 0x1A3AB4 83 new unit=func_0042D054
+func_auto_0042F0B0 0x1A50B0 111 new unit=func_0042E640
+func_auto_0042F26C 0x1A526C 239 new unit=func_0042E7CC
+func_auto_00431378 0x1A7378 1699 new unit=func_004308B8
+func_auto_004342BC 0x1AA2BC 197 new unit=func_004337EC
+func_auto_004345D0 0x1AA5D0 178 new unit=func_00433AF0
+func_auto_00434B6C 0x1AAB6C 246 new unit=func_0043407C
+func_auto_0043511C 0x1AB11C 146 new unit=func_00434604
+func_auto_00437214 0x1AD214 142 new unit=func_004366C4
+func_auto_0043768C 0x1AD68C 123 new
+func_auto_00437C14 0x1ADC14 50 new unit=func_00436E74
+func_auto_00437CDC 0x1ADCDC 50 new unit=func_00436F2C
+func_auto_00437F2C 0x1ADF2C 48 new unit=func_004372F4
+func_auto_00437FEC 0x1ADFEC 48 new unit=func_004373A4
+func_auto_00438878 0x1AE878 574 new unit=func_00437C28
+func_auto_0043C36C 0x1B236C 151 new unit=func_0043B67C
+func_auto_0043D1F4 0x1B31F4 142 new unit=func_0043C4F4
+func_auto_0043D42C 0x1B342C 79 new
+func_auto_0043D568 0x1B3568 196 new unit=func_0043C730
+func_auto_0043D878 0x1B3878 5 new
+func_auto_0043D88C 0x1B388C 97 new
+func_auto_0043DA10 0x1B3A10 54 new
+func_auto_0043DAE8 0x1B3AE8 2 new
+func_auto_0043DAF0 0x1B3AF0 52 new
+func_auto_0043DBC0 0x1B3BC0 37 new
+func_auto_0043DC54 0x1B3C54 37 new
+func_auto_0043DCE8 0x1B3CE8 83 new
+func_auto_0043DE34 0x1B3E34 16 new
+func_auto_0043DE74 0x1B3E74 63 new
+func_auto_0043DF70 0x1B3F70 21 new
+func_auto_0043DFC4 0x1B3FC4 7 new
+func_auto_0043DFE0 0x1B3FE0 59 new
+func_auto_0043E0CC 0x1B40CC 12 new
+func_auto_0043E0FC 0x1B40FC 2 new
+func_auto_0043E104 0x1B4104 2 new
+func_auto_0043E10C 0x1B410C 2 new
+func_auto_0043E114 0x1B4114 2 new
+func_auto_0043E11C 0x1B411C 2 new
+func_auto_0043E124 0x1B4124 2 new
+func_auto_0043E12C 0x1B412C 2 new
+func_auto_0043E134 0x1B4134 2 new
+func_auto_0043E13C 0x1B413C 2 new
+func_auto_0043E144 0x1B4144 2 new
+func_auto_0043E14C 0x1B414C 7 new
+func_auto_0043E168 0x1B4168 27 new
+func_auto_0043E1D4 0x1B41D4 7 new
+func_auto_0043E1F0 0x1B41F0 27 new
+func_auto_0043EA3C 0x1B4A3C 1 new
+func_auto_0043EA40 0x1B4A40 107 new
+func_auto_0043F074 0x1B5074 65 new unit=func_0043E364
+func_auto_0043F644 0x1B5644 38 new unit=func_0043E924
+func_auto_0043FAEC 0x1B5AEC 11 new
+func_auto_0043FB18 0x1B5B18 11 new
+func_auto_0043FB44 0x1B5B44 11 new
+func_auto_004403CC 0x1B63CC 593 new unit=func_0043F69C
+func_auto_00440D10 0x1B6D10 301 new unit=func_0043FFAC
+func_auto_00441390 0x1B7390 232 new unit=func_00440618
+func_auto_00443D14 0x1B9D14 62 new unit=func_00442F4C
+func_auto_00444430 0x1BA430 170 new unit=func_00443650
+func_auto_004449DC 0x1BA9DC 38 new unit=func_00443B08
+func_auto_00444A74 0x1BAA74 38 new unit=func_00443B94
+func_auto_00444B0C 0x1BAB0C 38 new unit=func_00443C20
+func_auto_00444BA4 0x1BABA4 39 new unit=func_00443CAC
+func_auto_00444F28 0x1BAF28 2 new
+func_auto_00444F30 0x1BAF30 27 new unit=func_00444024
+func_auto_00444F9C 0x1BAF9C 18 new
+func_auto_00444FE4 0x1BAFE4 18 new
+func_auto_0044502C 0x1BB02C 18 new
+func_auto_00445074 0x1BB074 117 new
+func_auto_0044594C 0x1BB94C 41 new unit=func_004449FC
+func_auto_00445ABC 0x1BBABC 61 new unit=func_00444B5C
+func_auto_00445C14 0x1BBC14 61 new unit=func_00444C8C
+func_auto_00445EBC 0x1BBEBC 41 new unit=func_00444F0C
+func_auto_00445FB4 0x1BBFB4 5 new unit=func_00444FA0
+func_auto_00445FC8 0x1BBFC8 2 new
+func_auto_0044624C 0x1BC24C 65 new unit=func_00445AB8
+func_auto_004463C0 0x1BC3C0 65 new unit=func_00445C08
+func_auto_00446524 0x1BC524 65 new unit=func_00445D48
+func_auto_004466CC 0x1BC6CC 32 new unit=func_00445ECC
+func_auto_0044691C 0x1BC91C 166 new unit=func_0044632C
+func_auto_00446D04 0x1BCD04 58 new unit=func_00446704
+func_auto_00447190 0x1BD190 17 new
+func_auto_004471D4 0x1BD1D4 3 new
+func_auto_00449F78 0x1BFF78 119 new
+func_auto_0044A154 0x1C0154 215 new unit=func_00449B44
+func_auto_0044EE40 0x1C4E40 59 new unit=func_0044E7C0
+func_auto_0044F14C 0x1C514C 54 new unit=func_0044EACC
+func_auto_0044F224 0x1C5224 3 new unit=func_0044ED24

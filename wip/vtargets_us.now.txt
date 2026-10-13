@@ -1,0 +1,5 @@
+func_0020520C 0x5E0C 16 diff diff_sw/sb_opcode_differs_(release_store
+func_auto_00202268 0x2E68 30 new unit=func_00202268
+func_auto_002023DC 0x2FDC 33 new unit=func_002023DC
+func_auto_002BD148 0xBDD48 2 new unit=osSetIntMask
+func_auto_004460A0 0x1AA0A0 17 new
