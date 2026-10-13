@@ -6,7 +6,7 @@ SURF, INK, INK2, GRID = '#fcfcfb', '#0b0b0b', '#52514e', '#e4e3de'
 cats = [('shared', 'Matched C shared with US v1.1', '#2a78d6'),
         ('spec', 'Release-specific matched C', '#eb6834'),
         ('hand', 'Hand-written asm + linker padding', '#1baf7a'),
-        ('asm', 'Library asm kept as is (not rebuilt from C)', '#e0b13a'),
+        ('asm', 'Hand-written / library asm, as in v1.1 (not C)', '#e0b13a'),
         ('rest', 'Still assembly (to match)', '#d9d8d2')]
 plt.rcParams.update({'font.family': 'Segoe UI', 'font.size': 11})
 fig, ax = plt.subplots(figsize=(11, 4.6), dpi=150)

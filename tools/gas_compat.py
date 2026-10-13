@@ -165,6 +165,9 @@ def rodata_size(text):
     return 0
 
 
+_RO_REAL = None
+
+
 def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
     """Resolve rodata label references to absolute addresses and re-emit the pool with explicit padding."""
     pass1 = '\n'.join(base_lines + (pool.emit_aligned() if pool.items else []))
@@ -200,7 +203,7 @@ def finalize_rodata(base_lines, pool, ro_va, ro_size=None):
         out += pool.emit_explicit(offsets['.LFLS'], [offsets[f'.LFL{i}'] for i in range(len(pool.items))])
         # the object's rodata piece may be longer than its data (4-byte pad before the next object's double)
         end = offsets[f'.LFL{len(pool.items) - 1}'] + pool.items[-1][0]
-        if ro_size and ro_size > end:
+        if ro_size and ro_size > end and not (_RO_REAL and end >= _RO_REAL):   # ro=off:size:real: the tail up to size comes from the ROM (see __main__), not zeros
             out += ['\t.section\t.rodata', f'\t.space\t{ro_size - end}', '\t.text']
     return '\n'.join(out)
 
@@ -355,6 +358,7 @@ if __name__ == '__main__':
     ro_va = int(sys.argv[3], 0) if len(sys.argv) > 3 else None
     ro_size = int(sys.argv[4], 0) if len(sys.argv) > 4 else None
     ro_real = int(sys.argv[5], 0) if len(sys.argv) > 5 else None
+    _RO_REAL = ro_real
     s = open(path).read()
     out = fix(s, mode, ro_va, ro_size)
     if os.environ.get('GAS_RO4') == '1' and ro_va is not None and ro_size and out.count('.align\t3') == 1 and not re.search(r'\.(double|dword|quad)', out):

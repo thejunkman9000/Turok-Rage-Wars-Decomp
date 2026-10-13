@@ -326,19 +326,20 @@ pad_1B342C 0x1B342C 1 ovl_a
 func_auto_0043D430 0x1B3430 78 ovl_a mode=sn ro=0xEF408:44
 func_auto_00202268 0x2E68 30 game
 func_auto_002023DC 0x2FDC 33 game
+func_00261EB8 0x62A58 378 game mode=sn ro=0xC50A8:96
+sinf 0xB7FD0 95 libultra ro=0xC90C0:80:76
+__osSiRawStartDma 0xBAB50 46 libultra ro=0xC9180:20
+__osSiRawReadIo 0xBBF00 36 libultra ro=0xC91D0:20
+adecReadBits 0xBFC50 1311 libultra ro=0xC94B0:56
 hasm_002FC4 0x2FC4 6 game
 hasm_003060 0x3060 284 game
-hasm_062A58 0x62A58 378 game
 hasm_0AE138 0xAE138 4 game
 hasm_0AE2CC 0xAE2CC 34 game
 hasm_0AE794 0xAE794 18 game
 hasm_0AE88C 0xAE88C 399 game
-hasm_0B7FD0 0xB7FD0 95 libultra
 hasm_0B8150 0xB8150 3 libultra
 hasm_0B9EB0 0xB9EB0 232 libultra
-hasm_0BAB50 0xBAB50 46 libultra
 hasm_0BBAF0 0xBBAF0 2 libultra
-hasm_0BBF00 0xBBF00 36 libultra
 hasm_0BCB10 0xBCB10 447 libultra
 hasm_0BD60C 0xBD60C 5 libultra
 hasm_0BDDA0 0xBDDA0 3 libultra
@@ -353,6 +354,5 @@ hasm_0BE010 0xBE010 42 libultra
 hasm_0BE0D0 0xBE0D0 17 libultra
 hasm_0BE120 0xBE120 26 libultra
 hasm_0BE190 0xBE190 10 libultra
-hasm_0BFC50 0xBFC50 1311 libultra
 hasm_1C1B18 0x1C1B18 362 ovl_a
 hasm_1C2448 0x1C2448 130 ovl_a

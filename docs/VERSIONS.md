@@ -137,7 +137,8 @@ byte-identical.  Lessons of the integration:
   - `hasm_<ROM6>` units (`wip/adopt_gaps.py <ver> <workspace> --apply`, then `wip/full_adopt.sh`): the ranges nothing else covers, emitted from the release's splat
     asm one ROM range per asm file (labels kept as `.globl`, branches into undefined `.L` labels as `.word`).  About 4 000 words per release: library code
     (exception handler, osMapTLB / RNC unpacker, `__osDevMgrMain`, `sinf`, `adecReadBits` 1 311 words ...) and data words in the text range.
-  - **Still to turn into C**: ~2 100 words per release of functions that ARE matched C in v1.1 (`adecReadBits`, `func_00261EB8`, `sinf`, `__osDevMgrMain`,
-    `__osSiRawStartDma`, `__osSiRawReadIo`).  The code is word-identical, but the release's constant pool differs (sinf: the last 16 bytes of the 80-byte pool are `0.0 / 0.5`
-    in the release instead of `0.5f / 0.5` - a literal in the v1.0 source differs although the instructions match; adecReadBits' pool holds a jump table), so the sweep
-    cannot place `ro=`.  `MKVER_POOLSEARCH=1` tries to locate the pool by its first 16 bytes; it is off because it needs per-unit piece sizes.
+  - The functions that are matched C in v1.1 but sat in `hasm_` units because the release's constant pool differs (`adecReadBits`, `func_00261EB8`, `sinf`, `__osDevMgrMain`,
+    `__osSiRawStartDma`, `__osSiRawReadIo`) are C now in all three releases (wave 7): the v1.1 source reproduces the code unchanged; the pools only moved and carry a few junk
+    bytes (`ro=off:size:real` pieces, SiRaw file-name arrays with explicit tail bytes; `tools/gas_compat.py` no longer double counts a `:real` tail on a unit with a literal pool).
+  - What stays assembly (~1 900-2 150 words per release) is the same code v1.1 keeps as hand-written `.s` or unmatched assembly (exception handler, osMapTLB, RNC
+    unpacker, `__osException*`, libaudio asm ...), so the C-matched share of the releases (98.6-98.7 %) equals v1.1's (98.7 %).
