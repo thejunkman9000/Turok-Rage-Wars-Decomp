@@ -115,3 +115,20 @@ byte-identical.  Lessons of the integration:
 - mkver literal pieces: a piece never exceeds the 1.1 manifest's size, overlaps of <= 8 bytes with the next piece are trimmed, and where 1.1 has >= 2 trailing zero
   bytes the first byte the release has non-zero there starts the next piece (`:size:real`).  `seq` is a plain 36-byte piece in every release (`:40:38` grew the image).
 - State after wave 1: US v1.0 3,844 C units (157 release-only functions left), Europe 3,760, Germany 3,775; all three byte-identical.
+
+## Release matching, waves 3-6 (2026-10-12 / 13)
+- **State: all four ROMs rebuild byte-identical; matched / explained code per ROM (by instructions): US v1.0 98.1 %, Europe 98.2 %, Germany 98.4 %** (v1.1: 99.8 %).
+  `wip/rom_progress.py` + `wip/rom_progress_chart.py` draw it from the release workspaces.
+- Wave 3 (Europe, 13 workers, ~190 units) and wave 4 (Germany, 11 workers) were almost entirely the unchanged 1.1 / Europe C with shifted widget and string ids and
+  per-language string tables.  The PAL releases differ from v1.1 mostly in localisation, not in code shape.
+- **Stray linker-pad words** in front of or behind functions are NOT `+0x1000` copies in the PAL releases: they are `pad_<ROM hex>` units, and a target's real entry is often the
+  16-aligned address after them (the splat name is then wrong: `func_auto_00437304` = `pad_19D304` + `func_auto_00437310`).  Check the 16-alignment first.
+- Hand-written blobs (exception vector stubs at 0x2E68, TLB dump 0x2FDC, exception handler 0x3060, watchpoint setter) are `.s` units in every release; they reference
+  `D_auto_00202460`, which needs `D_auto_00202460 = 0x00202460;` in the release's syms.ld.
+- **Work lists go stale**: `tools/mkvtargets.py <ver> <workspace>` reads the release workspace's asm/, so re-run it after every integration (and after `mkver` + `cycle`).
+  An old `wip/vtargets_eu.txt` made 11 workers re-verify units that were already integrated.  `wip/mk_hints.py <target> <sibling> <ws...>` adds the matched sibling release
+  (sources, manifest, ROM, closest-unit pairs from `tools/ver_pairs.py`) to worker workspaces.
+- `tools/chk.py` resolves symbols like the linker (first hard definition wins, `PROVIDE` soft, `CHK_SYMS` overrides); `func_*` names in a release's syms.ld must be `PROVIDE`.
+- What is left (~1.6-1.9 % per release) is not in the work lists: libultra / libaudio assembly (osMapTLB, sinf, adecReadBits, osDevMgr ... 4 000+ words) and a few game
+  functions the 1.1 tree also keeps as assembly.  They are the same code as v1.1's hand-written `.s` units; reusing those units per release (a `mkhasm`-style adoption by
+  normalised code, one function at a time, because the splat gaps also contain data and linker padding) is the remaining mechanical step.

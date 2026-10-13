@@ -123,7 +123,6 @@ func_auto_0043DAE8 0x1B3AE8 2 ovl_a
 func_auto_0044EE40 0x1C4E40 59 ovl_a mode=sn ro=0xC6240:4
 func_auto_0044F14C 0x1C514C 54 ovl_a mode=sn
 func_0020520C 0x5E2C 16 game
-pad_1A05D4 0x1A05D4 3 ovl_a
 func_00444030 0x1BB074 117 ovl_a mode=sn
 func_auto_00204030 0x4C30 188 game mode=sn+nb ro=0xC28F0:28
 func_auto_00204320 0x4F20 57 game ro=0xC290C:4
@@ -320,3 +319,10 @@ func_auto_00449F80 0x1BFF80 117 ovl_a mode=sn ro=0xC3194:4
 func_auto_0044A154 0x1C0154 215 ovl_a mode=sn
 pad_1C5224 0x1C5224 3 ovl_a
 func_auto_00447190 0x1BD190 17 ovl_a
+func_auto_00228E60 0x29A60 96 game
+func_auto_00405F58 0x17BF58 165 ovl_a mode=sn
+func_auto_0042A550 0x1A0550 36 ovl_a
+pad_1B342C 0x1B342C 1 ovl_a
+func_auto_0043D430 0x1B3430 78 ovl_a mode=sn ro=0xEF408:44
+func_auto_00202268 0x2E68 30 game
+func_auto_002023DC 0x2FDC 33 game
