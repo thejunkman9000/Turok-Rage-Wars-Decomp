@@ -14,12 +14,16 @@ ROOTD = os.path.expanduser('~/trw')
 okf = open('chk_ok.txt', 'w')
 
 import re as _re
-_SYMS = {}
+_SYMS = {}; _HARD = set()
 for _f in ('symbol_addrs.txt', 'undefined_syms_auto.txt', 'undefined_funcs_auto.txt', 'hardware_regs.ld', 'extra_syms.ld', 'their_syms.ld', 'c_syms.ld', 'their_alias.ld') + ((os.environ['CHK_SYMS'],) if os.environ.get('CHK_SYMS') else ()):
     try:
         for _l in open(os.path.join(os.path.expanduser('~/trw') if False else '.', _f), encoding='utf-8', errors='replace'):
-            _m = _re.match(r'\s*(?:PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
-            if _m: _SYMS[_m.group(1)] = int(_m.group(2), 16)
+            _m = _re.match(r'\s*(PROVIDE\()?(\w+)\s*=\s*(0x[0-9A-Fa-f]+)', _l)
+            if _m:       # as the linker does: a hard definition beats PROVIDE (their_alias.ld carries wrong PROVIDE lines for release-only names); the first hard definition wins; CHK_SYMS overrides
+                _hard = not _m.group(1)
+                if _f == os.environ.get('CHK_SYMS') or (_hard and _m.group(2) not in _HARD) or (not _hard and _m.group(2) not in _SYMS):
+                    _SYMS[_m.group(2)] = int(_m.group(3), 16)
+                    if _hard: _HARD.add(_m.group(2))
     except OSError:
         pass
 def _symaddr(n):

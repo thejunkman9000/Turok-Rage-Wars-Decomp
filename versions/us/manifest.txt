@@ -328,3 +328,4 @@ func_auto_0044DDD0 0x1B1DD0 21 ovl_a mode=sn ro=0xC5EE0:12
 pad_1B1E24 0x1B1E24 3 ovl_a
 func_auto_0044DFEC 0x1B1FEC 54 ovl_a mode=sn
 pad_1B20C4 0x1B20C4 3 ovl_a
+func_0020520C 0x5E0C 16 game
