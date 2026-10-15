@@ -566,9 +566,9 @@ static void fillRect(int x0, int y0, int x1, int y1) {      // screen pixels (in
         // boss shield / health bars are G_FILLRECTs with a PRIM combiner and came out in the (black) fill colour
         int cycle = (S.omH >> 20) & 3;
         if (cycle == 0 || cycle == 1) {
-            uint32_t sg = S.geom, sl = S.omL; int st = S.texOn; S.geom &= ~1u; S.omL &= ~0x4000u; S.texOn = 0;
+            uint32_t sg = S.geom; int st = S.texOn; S.geom &= ~1u; S.texOn = 0;   /* FORCE_BL stays: the underwater tint is a full-screen PRIM rectangle at alpha 0.5 (opaque it hid the level) */
             setupState(0);
-            S.geom = sg; S.omL = sl; S.texOn = st;
+            S.geom = sg; S.texOn = st;
             float fx0 = x0 / SCREEN_W * 2 - 1, fx1 = (x1 + 1) / SCREEN_W * 2 - 1, fy0 = 1 - y0 / SCREEN_H * 2, fy1 = 1 - (y1 + 1) / SCREEN_H * 2;
             Vtx q[4]; for (int i = 0; i < 4; i++) { q[i].z = 0; q[i].w = 1; q[i].r = q[i].g = q[i].b = q[i].a = 1; q[i].u = q[i].v = 0; }
             q[0].x = fx0; q[0].y = fy0; q[1].x = fx1; q[1].y = fy0; q[2].x = fx1; q[2].y = fy1; q[3].x = fx0; q[3].y = fy1;
