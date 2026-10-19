@@ -37,6 +37,7 @@ static ID3D11DepthStencilState* dss[4];     // [test][write]
 static ID3D11DepthStencilState* dssClear;   // always pass, write depth: a far-plane quad clears part of the z-buffer
 static int g_zclear;                        // flush() is drawing such a quad
 static ID3D11RasterizerState* rs;
+static ID3D11RasterizerState* rsXlu;      // translucent z mode: the RDP passes those only strictly in front; a small slope-scaled offset (Tempered's lava layer)
 static ID3D11SamplerState* samplers[2][3][3];
 static ID3D11ShaderResourceView* whiteSrv;
 static bool ready = false;
@@ -133,7 +134,7 @@ extern "C" void renderer_init(ID3D11Device* d, ID3D11DeviceContext* c) {
         dev->CreateDepthStencilState(&dd, &dss[t * 2 + w]);
     }
     { D3D11_DEPTH_STENCIL_DESC dd = {}; dd.DepthEnable = TRUE; dd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL; dd.DepthFunc = D3D11_COMPARISON_ALWAYS; dev->CreateDepthStencilState(&dd, &dssClear); }
-    D3D11_RASTERIZER_DESC rd = {}; rd.FillMode = D3D11_FILL_SOLID; rd.CullMode = D3D11_CULL_NONE; rd.DepthClipEnable = TRUE; rd.ScissorEnable = TRUE; dev->CreateRasterizerState(&rd, &rs);
+    D3D11_RASTERIZER_DESC rd = {}; rd.FillMode = D3D11_FILL_SOLID; rd.CullMode = D3D11_CULL_NONE; rd.DepthClipEnable = TRUE; rd.ScissorEnable = TRUE; dev->CreateRasterizerState(&rd, &rs); { D3D11_RASTERIZER_DESC rx = rd; rx.DepthBias = 67; rx.SlopeScaledDepthBias = 1.0f; dev->CreateRasterizerState(&rx, &rsXlu); }
     static const D3D11_TEXTURE_ADDRESS_MODE am[3] = { D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_MIRROR, D3D11_TEXTURE_ADDRESS_CLAMP };
     for (int f = 0; f < 2; f++) for (int u = 0; u < 3; u++) for (int v = 0; v < 3; v++) {
         D3D11_SAMPLER_DESC sd = {}; sd.Filter = f ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT; sd.AddressU = am[u]; sd.AddressV = am[v]; sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -318,6 +319,7 @@ static void flush() {
     { static int fl = -1, nfl; if (fl < 0) fl = getenv("TUROK_FOGLOG") ? 1 : 0;      // TUROK_FOGLOG=1: log the render modes of the first draws that have the fog geometry bit set (the renderer has no fog)
       if (fl && (cur.geom & 0x10000) && nfl < 40) { nfl++; fprintf(stderr, "FOGDRAW omL %08X omH %08X cw %08X %08X tris %d tex %d geom %06X\n", cur.omL, cur.omH, cw0, cw1, (int)batch.size() / 3, cur.texOn ? 1 : 0, cur.geom); }
       if (fl && (cur.geom & 0x10000)) g_fogHist[((uint64_t)cur.omL << 32) | (cur.omH & 0x300000) | (cur.texOn ? 1 : 0)] += (int)batch.size() / 3; }
+    ctx->RSSetState(((cur.omL >> 10) & 3) == 2 && rsXlu ? rsXlu : rs);
     ctx->Draw((UINT)batch.size(), 0); g_draws++; g_zmodeDraws[(cur.omL >> 10) & 3]++;
     { uint32_t L = cur.omL; int c2 = ((cur.omH >> 20) & 3) == 1; bool fogBl = ((L >> 30) & 3) == 3 || ((L >> 22) & 3) == 3 || ((L >> 26) & 3) == 1 || (c2 && (((L >> 28) & 3) == 3 || ((L >> 20) & 3) == 3 || ((L >> 24) & 3) == 1)); if (fogBl) g_fogBlendDraws++; }
     if (cur.texOn) { g_omHHist[cur.omH]++; g_texDraws++; if (!(cur.omH & (1u << 19))) g_noPerspDraws++; if (cur.omH & (1u << 16)) g_lodDraws++; if (cur.omH & (3u << 17)) g_detailDraws++; }
@@ -435,13 +437,34 @@ static void capVisAll(int nframes) {
     if (where) memset(where, 1, pat.size());
 }
 
+static bool g_eyeDepth;      // per display list: a level on screen without a menu (game state 8 / 13, UI screen -1 or 2)
+static unsigned rd32(unsigned a) { return _byteswap_ulong(*(const unsigned long*)(size_t)a); }
+static bool levelOnScreen() {      // same test as the C# port (OsDevices.TrackScreen / Widescreen.InLevel)
+    unsigned st = rd32(0x80146878);      // D_80146878 = the game state
+    if (st != 8 && st != 13) return false;
+    int scr = (int)rd32(0x8014D098);     // forced screen id, else the id of the menu stack's top entry
+    if (scr < 0) {
+        unsigned mgr = rd32(0x8014D080); int top;
+        scr = (mgr < 0x80000000u || mgr >= 0x80800000u || (top = (int)rd32(mgr + 4)) < 0) ? -1 : (int)rd32(rd32(mgr + 0xC) + (unsigned)top * 0x1C + 4);
+    }
+    return scr == -1 || scr == 2;
+}
 static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool noPersp = false) {
     float invw = 1.f / v.cw;
     float nx = v.cx * invw, ny = v.cy * invw, nz = v.cz * invw;
     float px = (nx * S.vsc[0] + S.vtr[0]) * 0.25f, py = (-ny * S.vsc[1] * -1.f + S.vtr[1]) * 0.25f;     // 10.2 fixed point viewport
     py = (-ny * S.vsc[1] + S.vtr[1]) * 0.25f;                                                    // clip y is up, screen y is down
-    float zs = S.vsc[2] != 0 ? (nz * S.vsc[2] + S.vtr[2]) / 1023.f : (nz * 0.5f + 0.5f);
-    if (zs < 0) zs = 0; if (zs > 1) zs = 1;
+    float zs;
+    if (g_eyeDepth && S.proj[11] != 0) {
+        // NoN: vertices nearer than the near plane have a z in front of it; clamping each to 0 and interpolating made such triangles read farther than
+        // they are (the floor under the camera lost to the lava layer). In levels depth comes from the eye distance, 1 - 2n/w (n = 2) through the
+        // viewport z range: exact per pixel (z = zs * w is affine in w), like Project64. Menus keep the game's z (they layer perspective UI by it).
+        float zn = 1.f - 4.f * invw;
+        zs = S.vsc[2] != 0 ? (zn * S.vsc[2] + S.vtr[2]) / 1023.f : (zn * 0.5f + 0.5f);
+    } else {
+        zs = S.vsc[2] != 0 ? (nz * S.vsc[2] + S.vtr[2]) / 1023.f : (nz * 0.5f + 0.5f);
+        if (zs < 0) zs = 0; if (zs > 1) zs = 1;
+    }
     Vtx o; o.x = (px / SCREEN_W * 2.f - 1.f) * v.cw; o.y = (1.f - py / SCREEN_H * 2.f) * v.cw; o.z = zs * v.cw; o.w = v.cw;
     o.r = v.r; o.g = v.g; o.b = v.b; o.a = v.a;
     o.u = (v.s / 32.f * g_uvFs - uls / 4.f) / tw; o.v = (v.t / 32.f * g_uvFt - ult / 4.f) / th;      // v.s / v.t are final S10.5: scaled by G_TEXTURE when the vertex was loaded (the RSP does it at load time), or written as final values by G_MODIFYVTX
@@ -451,15 +474,17 @@ static void pushVtx(const V& v, float tw, float th, float uls, float ult, bool n
 static void emitTri(int i0, int i1, int i2) {
     { static int skip = getenv("TUROK_NOTRI") ? 1 : 0; if (skip) return; }
     V* v[3] = { &S.vtx[i0], &S.vtx[i1], &S.vtx[i2] };
-    // near-plane clip (z >= -w, w > 0)
+    // the game runs F3DEX.NoN (no near clipping): only what lies behind the eye is cut (w > 0.01), geometry nearer than the near plane stays
+    // (C# port c2ecc43: the floor under the camera on Tempered was cut away / lost to the lava layer). TUROK_NEAR_CLIP=1: the old near-plane clip.
+    static int nearClip = -1; if (nearClip < 0) nearClip = getenv("TUROK_NEAR_CLIP") ? 1 : 0;
     V poly[6]; int n = 0;
-    auto inside = [](const V& a) { return a.cw > 1e-5f && a.cz >= -a.cw; };
+    auto inside = [](const V& a) { return nearClip ? (a.cw > 1e-5f && a.cz >= -a.cw) : a.cw > 0.01f; };
     for (int i = 0; i < 3; i++) {
         const V& a = *v[i]; const V& b = *v[(i + 1) % 3];
         bool ia = inside(a), ib = inside(b);
         if (ia) poly[n++] = a;
         if (ia != ib) {
-            float da = a.cz + a.cw, db = b.cz + b.cw, t = da / (da - db); V r;
+            float da = nearClip ? a.cz + a.cw : a.cw - 0.01f, db = nearClip ? b.cz + b.cw : b.cw - 0.01f, t = da / (da - db); V r;
             r.cx = a.cx + (b.cx - a.cx) * t; r.cy = a.cy + (b.cy - a.cy) * t; r.cz = a.cz + (b.cz - a.cz) * t; r.cw = a.cw + (b.cw - a.cw) * t;
             r.r = a.r + (b.r - a.r) * t; r.g = a.g + (b.g - a.g) * t; r.b = a.b + (b.b - a.b) * t; r.a = a.a + (b.a - a.a) * t;
             r.s = a.s + (b.s - a.s) * t; r.t = a.t + (b.t - a.t) * t; poly[n++] = r;
@@ -780,7 +805,7 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
         g_snapNow = g_gfx_snap_valid ? g_gfx_snap : nullptr;
         uint32_t dl = rd32(g_gfx_task + 0x30);
         memset(&S, 0, sizeof(S)); S.sc[2] = (int)(SCREEN_W * 4); S.sc[3] = (int)(SCREEN_H * 4); for (int i = 0; i < 4; i++) S.vsc[i] = (i == 0 ? 640.f : i == 1 ? 480.f : i == 2 ? 511.f : 0.f); S.vtr[0] = 640.f; S.vtr[1] = 480.f; S.vtr[2] = 511.f;
-        g_frameCamSet = false; matIdent(S.proj); matIdent(S.camInv); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
+        { bool ed = levelOnScreen(); if (ed != g_eyeDepth) fprintf(stderr, "renderer: eye-distance depth %s\n", ed ? "on (level)" : "off (menus)"); g_eyeDepth = ed; } g_frameCamSet = false; matIdent(S.proj); matIdent(S.camInv); for (int i = 0; i < 10; i++) matIdent(S.mv[i]); S.mvpDirty = true;
         memset(g_ops, 0, sizeof g_ops); curValid = false; batch.clear(); g_tris = g_draws = g_texdecodes = 0; memset(g_zmodeDraws, 0, sizeof g_zmodeDraws); memset(g_vtxGeom, 0, sizeof g_vtxGeom); g_texDraws = g_noPerspDraws = g_lodDraws = g_detailDraws = 0; g_omHHist.clear();
         ctx->OMSetRenderTargets(1, &rtv, dsv);
         D3D11_VIEWPORT vp = { 0, 0, (float)INTERNAL_W, (float)INTERNAL_H, 0, 1 }; ctx->RSSetViewports(1, &vp);

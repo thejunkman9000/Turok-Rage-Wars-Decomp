@@ -398,6 +398,11 @@ void port_game_init(void) {
     *(volatile unsigned *)0x8014D330 = _byteswap_ulong(1);                           /* D_8014D330: cold boot (func_002A81B0's flag) */
     *(volatile unsigned *)0x80000300 = _byteswap_ulong(1);                           /* osTvType = NTSC */
     *(volatile unsigned *)0x80000318 = _byteswap_ulong(0x800000);                    /* osMemSize */
+    /* osClockRate (s64, BSS 0x8014FD90): osInitialize sets it to 62.5 MHz * 3/4 (the count rate of osGetCount); the boot thread we start at never
+       runs it.  func_00414430 divides osGetTime by it for seconds: left 0 the menu frame time was always 0 and the trial map's selected node never
+       pulsed (C# port 8d73bf7). */
+    *(volatile unsigned *)0x8014FD90 = 0;
+    *(volatile unsigned *)0x8014FD94 = _byteswap_ulong(46875000);
     CreateThread(NULL, 4 * 1024 * 1024, game_thread, NULL, 0, NULL);
     { char e[8]; if (GetEnvironmentVariableA("TUROK_SAMPLE", e, sizeof e)) CreateThread(NULL, 0, sampler_thread, NULL, 0, NULL); }
 }
