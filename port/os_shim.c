@@ -123,8 +123,14 @@ static void wake_one(OSMesgQueue *mq, int kind) {          /* wake the highest-p
 }
 
 /* ---- message queues ---- */
+/* the controller read in flight (osContStartReadData / osContStartQuery post their completion at once, the game fetches it later): the pad
+ * session reset re-creates the SI queue (capacity 1); if that happens between the post and the fetch, the completion is lost and the next
+ * osRecvMesg on it blocks for ever (the menu freeze). The re-created queue gets the completion again. */
+static OSMesgQueue *si_inflight_mq;
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count) {
+    OSMesgQueue *guest = mq;
     os_init(); mq = (OSMesgQueue *)XL(mq); STP(mq->mtqueue, 0); STP(mq->fullqueue, 0); ST32(mq->validCount, 0); ST32(mq->first, 0); ST32(mq->msgCount, count); STP(mq->msg, msg);
+    if (guest && guest == si_inflight_mq) { fprintf(stderr, "[si] queue re-created with a read in flight: completion re-posted\n"); post_from_host(guest, (OSMesg)0); }
 }
 
 static int send_common(OSMesgQueue *mq, OSMesg m, s32 flags, int jam) {
@@ -436,7 +442,7 @@ s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *status) {
     *bitpattern = bp;
     return 0;
 }
-s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartReadData\n"); } post_from_host(mq, (OSMesg)0); return 0; }
+s32 osContStartReadData(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartReadData\n"); } si_inflight_mq = mq; post_from_host(mq, (OSMesg)0); return 0; }
 static int autox_file;
 /* scripted input: port_input.txt (pad 1), port_input2.txt .. port_input4.txt: "hexbuttons stickx sticky" */
 static void file_pad(int i, unsigned *b, int *x, int *y) {
@@ -467,6 +473,7 @@ void osContGetReadData(OSContPad *pad) {
     int i; unsigned autob = 0; int autoy = 0;
     { static int c; if (c++ < 3) fprintf(stderr, "osContGetReadData\n"); }
     { static int pc; if (++pc % 600 == 0) { fprintf(stderr, "pad polls: %d\n", pc); fflush(stderr); } }
+    si_inflight_mq = 0;
     pad = (OSContPad *)XL(pad);
     memset(pad, 0, 4 * sizeof *pad);
     { static int n, ap = -1; if (ap < 0) { char e[4]; ap = GetEnvironmentVariableA("TUROK_AUTOPRESS", e, sizeof e) ? 1 : 0; } if (ap) { int ph = (++n / 6) % 12; if (ph == 0 || ph == 4 || ph == 8) autob |= 0x8000; if (ph == 2) autoy = -80; if (ph == 6) autob |= 0x1000; if (ph == 10) autob |= 0x0400; } }   /* TUROK_AUTOPRESS=1: walk menus unattended (A, down, A, Start, A, d-pad down) */
@@ -484,9 +491,10 @@ void osContGetReadData(OSContPad *pad) {
     }
     oracle_filter_pad((unsigned char *)pad);
 }
-s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } post_from_host(mq, (OSMesg)0); return 0; }
+s32 osContStartQuery(OSMesgQueue *mq) { { static int c; if (c++ < 3) fprintf(stderr, "osContStartQuery\n"); } si_inflight_mq = mq; post_from_host(mq, (OSMesg)0); return 0; }
 void osContGetQuery(OSContStatus *status) {
     int i; { static int c; if (c++ < 3) fprintf(stderr, "osContGetQuery\n"); }
+    si_inflight_mq = 0;
     status = (OSContStatus *)XL(status);      /* (the previous version wrote through the untranslated pointer) */
     memset(status, 0, 4 * sizeof *status);
     for (i = 0; i < 4; i++) { int c = pad_connected(i); ST16(status[i].type, c ? 0x0500 : 0); status[i].status = pak_cont_status(i, c); status[i].errno_ = c ? 0 : 0x08; }
