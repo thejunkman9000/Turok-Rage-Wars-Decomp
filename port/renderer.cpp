@@ -258,9 +258,20 @@ static ID3D11ShaderResourceView* getTexture(const Tile& t, int w, int h) {
 struct DState { uint32_t geom, omL, omH, cw0, cw1; float prim[4], env[4]; int mode; ID3D11ShaderResourceView* srv; ID3D11ShaderResourceView* srv1; ID3D11SamplerState* smp; bool texOn; int dbg[16]; };      // dbg: tile parameters for TUROK_UVLOG (addrU addrV w h uls ult lrs lrt maskS maskT cmS cmT fmt siz line texTile)
 static DState cur; static bool curValid; static int curTexW = 1, curTexH = 1;
 
+// draws ahead of a list's first SETCIMG go to the colour image the RDP still has from the previous list: the frame on screen (double buffering),
+// so they show over the picture until the swap while this list renders the next frame. The match intro's goal text ("acquire 9 frags / with 7
+// lives", Flyby_DrawText from the flyby camera update) is drawn that way; drawn in list order here, the list's own clear erased it. Such batches
+// are kept (with the state they were drawn with) and drawn last, over the new frame. (The C# port does the same in DisplayListInterpreter.Run.)
+struct EarlyDraw { DState st; std::vector<Vtx> verts; int sc[4]; float fog[4]; float sw, sh; };
+static std::vector<EarlyDraw> g_early; static bool g_preCimg;
+
 static void flush() {
     { static int once; if (!once++) { fprintf(stderr, "debug switches: notri=%d norect=%d\n", getenv("TUROK_NOTRI") != nullptr, getenv("TUROK_NORECT") != nullptr); fflush(stderr); } }
     if (batch.empty() || !ready) { batch.clear(); return; }
+    if (g_preCimg) {
+        EarlyDraw e; e.st = cur; e.verts = batch; memcpy(e.sc, S.sc, sizeof e.sc); memcpy(e.fog, g_fogCol, sizeof e.fog); e.sw = SCREEN_W; e.sh = SCREEN_H;
+        g_early.push_back(std::move(e)); batch.clear(); return;
+    }
     { static int drawmax = -2; if (drawmax == -2) { const char* e = getenv("TUROK_DRAWMAX"); drawmax = e ? atoi(e) : -1; } if (drawmax >= 0 && g_draws >= drawmax) { batch.clear(); return; } }   // TUROK_DRAWMAX=n: only the first n draw calls of each frame (bisecting what blackens a screen)
     uint32_t cw0 = cur.cw0, cw1 = cur.cw1;
     uint32_t cb[16]; float cf[16];
@@ -743,7 +754,7 @@ static void runDL(uint32_t addr, int depth) {
         case 0xFA: S.prim[0] = (w1 >> 24) / 255.f; S.prim[1] = ((w1 >> 16) & 255) / 255.f; S.prim[2] = ((w1 >> 8) & 255) / 255.f; S.prim[3] = (w1 & 255) / 255.f; break;
         case 0xFB: S.env[0] = (w1 >> 24) / 255.f; S.env[1] = ((w1 >> 16) & 255) / 255.f; S.env[2] = ((w1 >> 8) & 255) / 255.f; S.env[3] = (w1 & 255) / 255.f; break;
         case 0xF7: S.fill = w1; break;
-        case 0xFF: { float nw = (float)((w0 & 0xFFF) + 1); if (nw != SCREEN_W && nw >= 64) { flush(); SCREEN_W = nw; SCREEN_H = floorf(nw * 0.75f + 0.5f); } } S.cimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
+        case 0xFF: { if (g_preCimg) { flush(); g_preCimg = false; } float nw = (float)((w0 & 0xFFF) + 1); if (nw != SCREEN_W && nw >= 64) { flush(); SCREEN_W = nw; SCREEN_H = floorf(nw * 0.75f + 0.5f); } } S.cimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
         case 0xFE: S.zimg = (w1 & 0x80000000u) ? w1 : (0x80000000u | (segbase[(w1 >> 24) & 15] + (w1 & 0xFFFFFF))); break;
         case 0xFD: S.timgFmt = (w0 >> 21) & 7; S.timgSiz = (w0 >> 19) & 3; S.timgW = (w0 & 0xFFF) + 1; S.timg = w1; break;
         case 0xF5: {
@@ -818,7 +829,18 @@ extern "C" void renderer_frame(ID3D11RenderTargetView* bb, int w, int h) {
           if (paf == -2) { paf = -1; const char* e = getenv("TUROK_PICKAT"); int fr = 0, n = 0; if (e && sscanf(e, "%d:%n", &fr, &n) >= 1 && n > 0) { paf = fr; strncpy(pab, e + n, sizeof pab - 1); } }
           if (paf >= 0 && nframes == paf) { g_pickN = 0; const char* e = pab; while (*e && g_pickN < 16) { int a, b2, n = 0; if (sscanf(e, "%d:%d%n", &a, &b2, &n) < 2) break; g_pickX[g_pickN] = a; g_pickY[g_pickN++] = b2; e += n; if (*e == ';') e++; } if (g_pickN) { g_pickLeft = 2; fprintf(stderr, "PICK armed for %d pixels (first %d,%d) at frame %d\n", g_pickN, g_pickX[0], g_pickY[0], nframes); } } }
         { static int trig; if (trig == 0 && port_scripted() && GetFileAttributesA("port_dumpnow.txt") != INVALID_FILE_ATTRIBUTES) { DeleteFileA("port_dumpnow.txt"); trig = 3; port_dump_threads(); port_dump_trace_pub(400); { FILE* mf = fopen("port_mem.bin", "wb"); if (mf) { fwrite((void*)0x80661000u, 1, 0x12000, mf); fclose(mf); } { FILE* m2 = fopen("port_mem2.bin", "wb"); if (m2) { fwrite((void*)0x801D0C00u, 1, 0x3600, m2); fclose(m2); } } } } if (trig > 0 && !g_dump) { char fn[64]; sprintf(fn, "port_dlnow_%d.txt", 3 - trig); g_dump = fopen(fn, "w"); trig--; } }
+        g_preCimg = true; g_early.clear();
         g_dlBudget = 4000000; runDL(dl, 0); flush();
+        g_preCimg = false;
+        if (!g_early.empty()) {      // the draws that went to the frame on screen: over the new frame (see EarlyDraw)
+            DState sCur = cur; int sSc[4]; memcpy(sSc, S.sc, sizeof sSc); float sFog[4]; memcpy(sFog, g_fogCol, sizeof sFog); float sW = SCREEN_W, sH = SCREEN_H;
+            for (EarlyDraw& e : g_early) {
+                cur = e.st; memcpy(S.sc, e.sc, sizeof e.sc); memcpy(g_fogCol, e.fog, sizeof e.fog); SCREEN_W = e.sw; SCREEN_H = e.sh;
+                batch = std::move(e.verts); flush();
+            }
+            cur = sCur; memcpy(S.sc, sSc, sizeof sSc); memcpy(g_fogCol, sFog, sizeof sFog); SCREEN_W = sW; SCREEN_H = sH; curValid = false;
+            g_early.clear();
+        }
         { static int s0 = -2, s1, ss = 1, sd = 4; if (s0 == -2) { s0 = -1; const char* e = getenv("TUROK_SHOTS"); if (e && sscanf(e, "%d-%d:%d:%d", &s0, &s1, &ss, &sd) >= 3) { if (ss < 1) ss = 1; if (sd < 1 || INTERNAL_W % sd) sd = 4; } else s0 = -1; }
           if (s0 >= 0 && nframes >= s0 && nframes <= s1 && (nframes - s0) % ss == 0) shotSave(nframes, sd); }
         if (g_dump) { fclose(g_dump); g_dump = nullptr; }
